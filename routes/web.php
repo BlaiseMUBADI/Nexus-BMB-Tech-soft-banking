@@ -14,4 +14,7 @@ Route::get('/page2', function () {
     return view('page2');
 });
 
+
+use App\Http\Controllers\ClientController;
 Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+Route::resource('clients', ClientController::class);

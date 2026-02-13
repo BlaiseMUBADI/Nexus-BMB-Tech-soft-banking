@@ -1,5 +1,9 @@
 @extends('layouts.app')
 
+@section('page_title', 'Accueil')
+@section('breadcrumb_parent', 'Accueil')
+@section('breadcrumb', 'Bienvenue')
+
 @section('content')
 <section class="content">
     <div class="container-fluid">
