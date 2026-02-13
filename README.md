@@ -57,3 +57,31 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+---
+
+# Fonctionnement des fichiers welcome.blade.php et content.blade.php
+
+## 1. welcome.blade.php
+
+Ce fichier est la vue d’accueil par défaut de Laravel. Il affiche le message de bienvenue et sert de point d’entrée visuel à l’application.
+
+- Il utilise le layout principal `app.blade.php` grâce à la directive `@extends('layouts.app')`.
+- Le contenu spécifique de la page est placé dans la section `@section('content')`, qui sera injectée dans le layout.
+- Ainsi, welcome.blade.php bénéficie automatiquement du design AdminLTE (navbar, sidebar, footer, etc.) sans dupliquer le code.
+
+## 2. content.blade.php
+
+Ce fichier est un composant de layout utilisé dans `app.blade.php`.
+
+- Il contient la structure du contenu principal (section, container, etc.) pour toutes les pages.
+- Il peut être utilisé pour afficher un message d’accueil, un dashboard, ou tout autre contenu central.
+- En séparant le contenu dans ce fichier, on facilite la réutilisation et la personnalisation du design.
+
+## Pourquoi cette organisation ?
+
+- **Modularité** : Chaque partie du design (navbar, sidebar, footer, content) est dans un fichier séparé.
+- **Réutilisation** : Le layout principal inclut tous les composants, chaque vue n’a qu’à fournir son contenu.
+- **Simplicité** : welcome.blade.php ne gère que le contenu, le design global est géré par app.blade.php et les layouts.
+
+> Cette organisation permet de maintenir un code propre, évolutif et facilement personnalisable pour une application bancaire ou tout autre projet Laravel.
