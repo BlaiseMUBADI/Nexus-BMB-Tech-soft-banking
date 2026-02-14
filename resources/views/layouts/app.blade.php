@@ -15,7 +15,7 @@
                     <div class="container-fluid">
                         <div class="row mb-2">
                             <div class="col-sm-6">
-                                <h1 class="m-0">@yield('page_title', 'Dashboard')</h1>
+                                <h1 class="m-0">@yield('page_title', 'Dashboarde')</h1>
                             </div><!-- /.col -->
                             <div class="col-sm-6">
                                 <ol class="breadcrumb float-sm-right">
@@ -63,8 +63,31 @@
         <!-- ChartJS -->
         <script src="{{ asset('plugins/chart.js/Chart.min.js') }}"></script>
 
+
+        <!-- DataTables JS (global) -->
+        <script src="{{ asset('plugins/datatables/jquery.dataTables.min.js') }}"></script>
+        <script src="{{ asset('plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+        <script src="{{ asset('plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
+        <script src="{{ asset('plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
+        <script src="{{ asset('plugins/datatables-buttons/js/dataTables.buttons.min.js') }}"></script>
+        <script src="{{ asset('plugins/datatables-buttons/js/buttons.bootstrap4.min.js') }}"></script>
+        <script src="{{ asset('plugins/jszip/jszip.min.js') }}"></script>
+        <script src="{{ asset('plugins/pdfmake/pdfmake.min.js') }}"></script>
+        <script src="{{ asset('plugins/pdfmake/vfs_fonts.js') }}"></script>
+        <script src="{{ asset('plugins/datatables-buttons/js/buttons.html5.min.js') }}"></script>
+        <script src="{{ asset('plugins/datatables-buttons/js/buttons.print.min.js') }}"></script>
+        <script src="{{ asset('plugins/datatables-buttons/js/buttons.colVis.min.js') }}"></script>
+
+
         <!-- AdminLTE dashboard demo (This is only for demo purposes) -->
         <script src="{{ asset('dist/js/pages/dashboard2.js') }}"></script>
 
-    </body>
-</html>
+        <!-- DataTables global init -->
+        <script>
+            window.DATATABLES_LANG_URL = "{{ asset('plugins/datatables/i18n/fr-FR.json') }}";
+        </script>
+        <script src="{{ asset('dist/js/datatables-init.js') }}"></script>
+
+        </body>
+            @stack('js')
+    </html>

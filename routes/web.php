@@ -18,3 +18,4 @@ Route::get('/page2', function () {
 use App\Http\Controllers\ClientController;
 Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 Route::resource('clients', ClientController::class);
+Route::get('/clients/photo/{filename}', [ClientController::class, 'photo'])->name('clients.photo');

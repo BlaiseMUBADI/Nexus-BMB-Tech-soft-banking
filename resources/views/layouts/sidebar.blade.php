@@ -18,8 +18,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
         <nav class="mt-2">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                 <!-- Ajoutez des icônes aux liens en utilisant la classe .nav-icon avec font-awesome ou toute autre bibliothèque de polices d'icônes -->
-                <li class="nav-item has-treeview">
-                    <a href="#" class="nav-link">
+                <li class="nav-item has-treeview {{ request()->is('clients*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->is('clients*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-users"></i>
                         <p>
                             Clients / Membres
@@ -28,13 +28,13 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="{{ url('/clients') }}" class="nav-link">
+                            <a href="{{ url('/clients') }}" class="nav-link {{ request()->is('clients') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Liste des clients</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('/clients/create') }}" class="nav-link">
+                            <a href="{{ url('/clients/create') }}" class="nav-link {{ request()->is('clients/create') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Ajouter un client</p>
                             </a>
@@ -43,22 +43,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
                 </li>
 
 
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon fas fa-users"></i>
-                        <p>Clients</p>
-                    </a>
-                </li>
-
-
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon fas fa-cogs"></i>
-                        <p>Paramètres</p>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
+                <li class="nav-item has-treeview {{ request()->is('pages/layout*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->is('pages/layout*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-copy"></i>
                         <p>
                             Layout Options
@@ -68,57 +54,58 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="{{ url('pages/layout/top-nav') }}" class="nav-link">
+                            <a href="{{ url('pages/layout/top-nav') }}" class="nav-link {{ request()->is('pages/layout/top-nav') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Top Navigation</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/layout/top-nav-sidebar') }}" class="nav-link">
+                            <a href="{{ url('pages/layout/top-nav-sidebar') }}" class="nav-link {{ request()->is('pages/layout/top-nav-sidebar') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Top Navigation + Sidebar</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/layout/boxed') }}" class="nav-link">
+                            <a href="{{ url('pages/layout/boxed') }}" class="nav-link {{ request()->is('pages/layout/boxed') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Boxed</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/layout/fixed-sidebar') }}" class="nav-link">
+                            <a href="{{ url('pages/layout/fixed-sidebar') }}" class="nav-link {{ request()->is('pages/layout/fixed-sidebar') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Fixed Sidebar</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/layout/fixed-sidebar-custom') }}" class="nav-link">
+                            <a href="{{ url('pages/layout/fixed-sidebar-custom') }}" class="nav-link {{ request()->is('pages/layout/fixed-sidebar-custom') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Fixed Sidebar <small>+ Custom Area</small></p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/layout/fixed-topnav') }}" class="nav-link">
+                            <a href="{{ url('pages/layout/fixed-topnav') }}" class="nav-link {{ request()->is('pages/layout/fixed-topnav') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Fixed Navbar</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/layout/fixed-footer') }}" class="nav-link">
+                            <a href="{{ url('pages/layout/fixed-footer') }}" class="nav-link {{ request()->is('pages/layout/fixed-footer') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Fixed Footer</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/layout/collapsed-sidebar') }}" class="nav-link">
+                            <a href="{{ url('pages/layout/collapsed-sidebar') }}" class="nav-link {{ request()->is('pages/layout/collapsed-sidebar') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Collapsed Sidebar</p>
                             </a>
                         </li>
                     </ul>
                 </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
+
+                <li class="nav-item has-treeview {{ request()->is('pages/charts*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->is('pages/charts*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-chart-pie"></i>
                         <p>
                             Charts
@@ -127,33 +114,34 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="{{ url('pages/charts/chartjs') }}" class="nav-link">
+                            <a href="{{ url('pages/charts/chartjs') }}" class="nav-link {{ request()->is('pages/charts/chartjs') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>ChartJS</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/charts/flot') }}" class="nav-link">
+                            <a href="{{ url('pages/charts/flot') }}" class="nav-link {{ request()->is('pages/charts/flot') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Flot</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/charts/inline') }}" class="nav-link">
+                            <a href="{{ url('pages/charts/inline') }}" class="nav-link {{ request()->is('pages/charts/inline') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Inline</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/charts/uplot') }}" class="nav-link">
+                            <a href="{{ url('pages/charts/uplot') }}" class="nav-link {{ request()->is('pages/charts/uplot') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>uPlot</p>
                             </a>
                         </li>
                     </ul>
                 </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
+
+                <li class="nav-item has-treeview {{ request()->is('pages/UI*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->is('pages/UI*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-tree"></i>
                         <p>
                             UI Elements
@@ -162,57 +150,58 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="{{ url('pages/UI/general') }}" class="nav-link">
+                            <a href="{{ url('pages/UI/general') }}" class="nav-link {{ request()->is('pages/UI/general') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>General</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/UI/icons') }}" class="nav-link">
+                            <a href="{{ url('pages/UI/icons') }}" class="nav-link {{ request()->is('pages/UI/icons') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Icons</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/UI/buttons') }}" class="nav-link">
+                            <a href="{{ url('pages/UI/buttons') }}" class="nav-link {{ request()->is('pages/UI/buttons') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Buttons</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/UI/sliders') }}" class="nav-link">
+                            <a href="{{ url('pages/UI/sliders') }}" class="nav-link {{ request()->is('pages/UI/sliders') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Sliders</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/UI/modals') }}" class="nav-link">
+                            <a href="{{ url('pages/UI/modals') }}" class="nav-link {{ request()->is('pages/UI/modals') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Modals & Alerts</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/UI/navbar') }}" class="nav-link">
+                            <a href="{{ url('pages/UI/navbar') }}" class="nav-link {{ request()->is('pages/UI/navbar') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Navbar & Tabs</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/UI/timeline') }}" class="nav-link">
+                            <a href="{{ url('pages/UI/timeline') }}" class="nav-link {{ request()->is('pages/UI/timeline') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Timeline</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/UI/ribbons') }}" class="nav-link">
+                            <a href="{{ url('pages/UI/ribbons') }}" class="nav-link {{ request()->is('pages/UI/ribbons') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Ribbons</p>
                             </a>
                         </li>
                     </ul>
                 </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
+
+                <li class="nav-item has-treeview {{ request()->is('pages/forms*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->is('pages/forms*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-edit"></i>
                         <p>
                             Forms
@@ -221,31 +210,26 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="{{ url('pages/forms/general') }}" class="nav-link">
+                            <a href="{{ url('pages/forms/general') }}" class="nav-link {{ request()->is('pages/forms/general') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>General Elements</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/forms/advanced') }}" class="nav-link">
+                            <a href="{{ url('pages/forms/advanced') }}" class="nav-link {{ request()->is('pages/forms/advanced') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Advanced Elements</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url('pages/forms/editors') }}" class="nav-link">
+                            <a href="{{ url('pages/forms/editors') }}" class="nav-link {{ request()->is('pages/forms/editors') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Editors</p>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a href="{{ url('pages/forms/validation') }}" class="nav-link">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Validation</p>
-                            </a>
-                        </li>
                     </ul>
                 </li>
+
                 <li class="nav-item">
                     <a href="#" class="nav-link">
                         <i class="nav-icon fas fa-table"></i>

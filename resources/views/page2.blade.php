@@ -1,3 +1,6 @@
+@section('page_title', 'Transactions')
+@section('breadcrumb_parent', 'Accueil')
+@section('breadcrumb', 'Transactions')
 @extends('layouts.app')
 
 @section('content')

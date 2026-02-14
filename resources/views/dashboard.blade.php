@@ -1,7 +1,8 @@
+
 @extends('layouts.app')
 
 @section('page_title', 'Dashboard v2')
-@section('breadcrumb_parent', 'Accueil')
+@section('breadcrumb_parent', 'Accueil2')
 @section('breadcrumb', 'Dashboard v2')
 
 @section('content')

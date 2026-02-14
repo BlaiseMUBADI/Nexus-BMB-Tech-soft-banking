@@ -1,3 +1,6 @@
+@section('page_title', 'Comptes Bancaires')
+@section('breadcrumb_parent', 'Accueil')
+@section('breadcrumb', 'Comptes')
 @extends('layouts.app')
 
 @section('content')
