@@ -4,7 +4,8 @@
 --}}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Baking Eben | @yield('title')</title>
+<title>Coopec EBEN | @yield('title')</title>
+<link rel="icon" type="image/png" href="{{ asset('dist/img/icon_vrailogoeben.png') }}" sizes="38x38">
 
 <!-- Google Font: Source Sans Pro -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">

@@ -1,3 +1,5 @@
+# Ignorer les fichiers clients (photos, etc.)
+images_projet/clients/
 *.log
 .DS_Store
 .env

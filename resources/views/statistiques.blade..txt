@@ -1,0 +1,130 @@
+@extends('layouts.app')
+
+@section('page_title', 'Statistiques des clients')
+@section('breadcrumb_parent', 'Clients / Membres')
+@section('breadcrumb', 'Statistiques')
+
+@section('content')
+<div class="container-fluid">
+    <div class="row">
+        <!-- Total clients -->
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-info">
+                <div class="inner">
+                    <h3>{{ $totalClients }}</h3>
+                    <p>Total clients</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-users"></i>
+                </div>
+            </div>
+        </div>
+        <!-- Nouveaux clients ce mois -->
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-success">
+                <div class="inner">
+                    <h3>{{ $newClientsThisMonth }}</h3>
+                    <p>Nouveaux ce mois</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+            </div>
+        </div>
+        <!-- Moyenne d'âge -->
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-warning">
+                <div class="inner">
+                    <h3>{{ $averageAge }}</h3>
+                    <p>Moyenne d'âge</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-birthday-cake"></i>
+                </div>
+            </div>
+        </div>
+        <!-- Total zones -->
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-danger">
+                <div class="inner">
+                    <h3>{{ $totalZones }}</h3>
+                    <p>Zones couvertes</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">Clients par zone</div>
+                <div class="card-body">
+                    <canvas id="clientsByZoneChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header bg-info text-white">Répartition par sexe</div>
+                <div class="card-body">
+                    <canvas id="clientsBySexChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header bg-secondary text-white">Répartition état civil</div>
+                <div class="card-body">
+                    <canvas id="clientsByEtatCivilChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+@push('js')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Clients par zone
+var ctxZone = document.getElementById('clientsByZoneChart').getContext('2d');
+new Chart(ctxZone, {
+    type: 'bar',
+    data: {
+        labels: {!! json_encode($zones) !!},
+        datasets: [{
+            label: 'Clients',
+            data: {!! json_encode($clientsByZone) !!},
+            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+        }]
+    },
+    options: {responsive: true, plugins: {legend: {display: false}}}
+});
+// Répartition par sexe
+var ctxSex = document.getElementById('clientsBySexChart').getContext('2d');
+new Chart(ctxSex, {
+    type: 'pie',
+    data: {
+        labels: {!! json_encode($sexes) !!},
+        datasets: [{
+            data: {!! json_encode($clientsBySex) !!},
+            backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56']
+        }]
+    },
+    options: {responsive: true}
+});
+// Répartition état civil
+var ctxEtat = document.getElementById('clientsByEtatCivilChart').getContext('2d');
+new Chart(ctxEtat, {
+    type: 'pie',
+    data: {
+        labels: {!! json_encode($etats) !!},
+        datasets: [{
+            data: {!! json_encode($clientsByEtatCivil) !!},
+            backgroundColor: ['#6c757d', '#20c997', '#ffc107', '#dc3545']
+        }]
+    },
+    options: {responsive: true}
+});
+</script>
+@endpush

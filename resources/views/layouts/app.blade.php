@@ -4,8 +4,9 @@
         @include('layouts.head')
     </head>
     <body class="hold-transition dark-mode sidebar-mini layout-fixed layout-navbar-fixed layout-footer-fixed">
-        <div class="wrapper">
-
+       
+     
+    <div class="wrapper">
             @include('layouts.navbar')
             @include('layouts.sidebar')
 
@@ -88,6 +89,6 @@
         </script>
         <script src="{{ asset('dist/js/datatables-init.js') }}"></script>
 
+        @stack('js')
         </body>
-            @stack('js')
     </html>

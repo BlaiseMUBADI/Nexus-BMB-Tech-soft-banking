@@ -353,9 +353,14 @@
                                     name="nombre_annees_experience">
                               </div>
                               <div class="form-group col-md-4">
-                                 <label for="revenu_mensuel">Revenu mensuel (FCFA)</label>
-                                 <input type="number" min="0" step="0.01" class="form-control" id="revenu_mensuel"
-                                    name="revenu_mensuel">
+                                 <label for="revenu_mensuel">Revenu mensuel</label>
+                                 <div class="input-group">
+                                    <input type="number" min="0" step="0.01" class="form-control" id="revenu_mensuel" name="revenu_mensuel">
+                                    <select class="form-select" id="revenu_mensuel_devise" name="revenu_mensuel_devise" style="max-width: 90px;">
+                                       <option value="FC">FC</option>
+                                       <option value="USD">USD</option>
+                                    </select>
+                                 </div>
                               </div>
                               <div class="form-group col-md-4">
                                  <label for="autres_details_activite">Autres détails</label>
