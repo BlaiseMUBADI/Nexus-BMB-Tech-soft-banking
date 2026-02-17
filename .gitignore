@@ -1,5 +1,7 @@
-# Ignorer les fichiers clients (photos, etc.)
-images_projet/clients/
+# Autoriser le suivi des fichiers dans images_projet (clients et agents)
+!images_projet/
+!images_projet/clients/
+!images_projet/agents/
 *.log
 .DS_Store
 .env
