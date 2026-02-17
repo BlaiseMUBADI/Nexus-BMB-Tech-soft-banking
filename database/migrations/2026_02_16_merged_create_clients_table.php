@@ -13,9 +13,12 @@ return new class extends Migration
     {
         Schema::create('clients', function (Blueprint $table) {
             $table->id();
+            $table->string('matricule')->unique()->nullable();
             $table->string('nom');
             $table->string('postnom');
             $table->string('prenom');
+            $table->string('email')->nullable();
+            $table->string('telephone')->nullable();
             $table->enum('sexe', ['M', 'F']);
             $table->date('date_naissance');
             $table->string('lieu_naissance');

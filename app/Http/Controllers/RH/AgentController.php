@@ -1,0 +1,115 @@
+<?php
+
+namespace App\Http\Controllers\RH;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
+use App\Models\Agent;
+
+class AgentController extends Controller
+{
+
+    public function index()
+    {
+        $agents = \App\Models\Agent::orderByDesc('created_at')->get();
+        return view('rh.agents.liste', compact('agents'));
+    }
+
+    public function create()
+    {
+        return view('rh.agents.create');
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'nom' => 'required|string|max:191',
+            'postnom' => 'nullable|string|max:191',
+            'prenom' => 'nullable|string|max:191',
+            'sexe' => 'required|in:M,F',
+            'date_naissance' => 'nullable|date',
+            'telephone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:191',
+            'adresse' => 'nullable|string|max:191',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'date_embauche' => 'nullable|date',
+            'statut' => 'required|in:actif,inactif',
+        ]);
+
+        // Génération du matricule AG-EBENKGA-26-00001
+        $prefixe = 'AG';
+        $codeAgence = 'EBENKGA';
+        $annee = date('y');
+        $count = \App\Models\Agent::whereYear('created_at', date('Y'))->count() + 1;
+        $numSeq = str_pad($count, 5, '0', STR_PAD_LEFT);
+        $matricule = "$prefixe-$codeAgence-$annee-$numSeq";
+        $validated['matricule'] = $matricule;
+
+        if ($request->hasFile('photo')) {
+            $image = $request->file('photo');
+            $imageName = time() . '_' . Str::slug($image->getClientOriginalName());
+            $destinationPath = base_path('images_projet/agents');
+            if (!file_exists($destinationPath)) {
+                mkdir($destinationPath, 0777, true);
+            }
+            $image->move($destinationPath, $imageName);
+            $validated['photo'] = 'agents/' . $imageName;
+        }
+
+        \App\Models\Agent::create($validated);
+        return redirect()->route('agents.create')->with('success', 'Agent ajouté avec succès. Matricule : ' . $matricule);
+    }
+
+    public function show($matricule)
+    {
+        $agent = \App\Models\Agent::where('matricule', $matricule)->firstOrFail();
+        return view('rh.agents.show', compact('agent'));
+    }
+
+    public function edit($matricule)
+    {
+        $agent = \App\Models\Agent::where('matricule', $matricule)->firstOrFail();
+        return view('rh.agents.edit', compact('agent'));
+    }
+
+    public function update(Request $request, $matricule)
+    {
+        $agent = \App\Models\Agent::where('matricule', $matricule)->firstOrFail();
+        $validated = $request->validate([
+            'nom' => 'required|string|max:191',
+            'postnom' => 'nullable|string|max:191',
+            'prenom' => 'nullable|string|max:191',
+            'sexe' => 'required|in:M,F',
+            'date_naissance' => 'nullable|date',
+            'telephone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:191',
+            'adresse' => 'nullable|string|max:191',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'date_embauche' => 'nullable|date',
+            'statut' => 'required|in:actif,inactif',
+        ]);
+
+        if ($request->hasFile('photo')) {
+            $image = $request->file('photo');
+            $imageName = time() . '_' . Str::slug($image->getClientOriginalName());
+            $destinationPath = base_path('images_projet/agents');
+            if (!file_exists($destinationPath)) {
+                mkdir($destinationPath, 0777, true);
+            }
+            $image->move($destinationPath, $imageName);
+            $validated['photo'] = 'agents/' . $imageName;
+        }
+
+        $agent->update($validated);
+        return redirect()->route('agents.edit', $matricule)->with('success', 'Agent modifié avec succès.');
+    }
+
+    public function destroy($matricule)
+    {
+        $agent = \App\Models\Agent::where('matricule', $matricule)->firstOrFail();
+        $agent->delete();
+        return redirect()->route('agents.index')->with('success', 'Agent supprimé avec succès.');
+    }
+}

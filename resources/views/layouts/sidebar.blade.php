@@ -19,7 +19,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 			<ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
 				
 				<!-- Ajoutez des icônes aux liens en utilisant la classe .nav-icon avec font-awesome ou toute autre bibliothèque de polices d'icônes -->
-				<!-- Clients / Membres -->
+
+				<!--Clients / Membres -->
 
 				<li class="nav-item has-treeview {{ request()->is('clients*') ? 'menu-open' : '' }}">
 					<a href="#" class="nav-link {{ request()->is('clients*') ? 'active' : '' }}">
@@ -50,7 +51,95 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						</li>
 					</ul>
 				</li>
-				<!-- Fin Clients / Membres -->				
+				<!-- Fin Clients / Membres -->
+
+				<!-- Ressources Humaines -->
+				<li class="nav-item has-treeview {{ request()->is('rh*') ? 'menu-open' : '' }}">
+					<a href="#" class="nav-link {{ request()->is('rh*') ? 'active' : '' }}">
+						<i class="nav-icon fas fa-briefcase"></i>
+						<p>
+							Ressources Humaines
+							<i class="right fas fa-angle-left"></i>
+						</p>
+					</a>
+					<ul class="nav nav-treeview">
+						<li class="nav-item">
+							<a href="{{ url('/rh/agents') }}" class="nav-link {{ request()->is('rh/agents') ? 'active' : '' }}">
+								<i class="far fa-circle nav-icon"></i>
+								<p>Liste des agents</p>
+							</a>
+						</li>
+						<li class="nav-item">
+							<a href="{{ url('/rh/agents/create') }}" class="nav-link {{ request()->is('rh/agents/create') ? 'active' : '' }}">
+								<i class="far fa-circle nav-icon"></i>
+								<p>Ajouter un agent</p>
+							</a>
+						</li>
+						<li class="nav-item">
+							<a href="{{ url('/rh/affectations') }}" class="nav-link {{ request()->is('rh/affectations') ? 'active' : '' }}">
+								<i class="far fa-circle nav-icon"></i>
+								<p>Affectations</p>
+							</a>
+						</li>
+						<li class="nav-item">
+							<a href="{{ url('/rh/services') }}" class="nav-link {{ request()->is('rh/services') ? 'active' : '' }}">
+								<i class="far fa-circle nav-icon"></i>
+								<p>Services</p>
+							</a>
+						</li>
+						<li class="nav-item">
+							<a href="{{ url('/rh/postes') }}" class="nav-link {{ request()->is('rh/postes') ? 'active' : '' }}">
+								<i class="far fa-circle nav-icon"></i>
+								<p>Postes</p>
+							</a>
+						</li>
+					</ul>
+				</li>
+				<!-- Fin Ressources Humaines -->
+
+				<!-- Administration -->
+				<li class="nav-item has-treeview {{ request()->is('admin*') ? 'menu-open' : '' }}">
+					<a href="#" class="nav-link {{ request()->is('admin*') ? 'active' : '' }}">
+						<i class="nav-icon fas fa-user-shield"></i>
+						<p>
+							Administration
+							<i class="right fas fa-angle-left"></i>
+						</p>
+					</a>
+					<ul class="nav nav-treeview">
+						<li class="nav-item">
+							<a href="{{ url('/admin/users') }}" class="nav-link {{ request()->is('admin/users') ? 'active' : '' }}">
+								<i class="far fa-circle nav-icon"></i>
+								<p>Liste des utilisateurs</p>
+							</a>
+						</li>
+						<li class="nav-item">
+							<a href="{{ url('/admin/users/create') }}" class="nav-link {{ request()->is('admin/users/create') ? 'active' : '' }}">
+								<i class="far fa-circle nav-icon"></i>
+								<p>Ajouter un utilisateur</p>
+							</a>
+						</li>
+						<li class="nav-item">
+							<a href="{{ url('/admin/roles') }}" class="nav-link {{ request()->is('admin/roles') ? 'active' : '' }}">
+								<i class="far fa-circle nav-icon"></i>
+								<p>Rôles & Permissions</p>
+							</a>
+						</li>
+						<li class="nav-item">
+							<a href="{{ url('/admin/logs') }}" class="nav-link {{ request()->is('admin/logs') ? 'active' : '' }}">
+								<i class="far fa-circle nav-icon"></i>
+								<p>Journal d’activité</p>
+							</a>
+						</li>
+						<li class="nav-item">
+							<a href="{{ url('/admin/security') }}" class="nav-link {{ request()->is('admin/security') ? 'active' : '' }}">
+								<i class="far fa-circle nav-icon"></i>
+								<p>Paramètres de sécurité</p>
+							</a>
+						</li>
+					</ul>
+				</li>
+				<!-- Fin Administration -->
 			</ul>
 		</nav>
 		<!-- /.sidebar-menu -->
