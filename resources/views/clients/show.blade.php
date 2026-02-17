@@ -50,6 +50,11 @@
                                 </div>
                             </div>
                             <a href="{{ url('/clients/' . $client->matricule . '/edit') }}" class="btn btn-warning me-2">Modifier</a>
+                            <form action="{{ url('/clients/' . $client->matricule) }}" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce client ?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-danger me-2">Supprimer</button>
+                            </form>
                             <a href="{{ url('/clients') }}" class="btn btn-secondary">Retour à la liste</a>
                         </div>
                     </div>

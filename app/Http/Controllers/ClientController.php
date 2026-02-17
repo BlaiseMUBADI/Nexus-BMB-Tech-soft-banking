@@ -294,7 +294,13 @@ class ClientController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $client = \App\Models\Client::where('matricule', $id)->firstOrFail();
+        // Supprimer la photo si elle existe
+        if ($client->photo && file_exists(base_path('images_projet/' . $client->photo))) {
+            @unlink(base_path('images_projet/' . $client->photo));
+        }
+        $client->delete();
+        return redirect()->route('clients.index')->with('success', 'Client supprimé avec succès.');
     }
 
     /**
@@ -325,15 +331,15 @@ class ClientController extends Controller
 
         // Récupérer le type de fichier (ex: image/jpeg)
         $type = mime_content_type($path);
-        
+
         // On force la réponse avec le bon header
         return response()->file($path, [
             'Content-Type' => $type,
             'Content-Disposition' => 'inline; filename="'.$filename.'"'
         ]);
     }
-    
-    public function photo($filename) 
+
+    public function photo($filename)
     {
         $path = base_path('images_projet/clients/' . $filename);
         dd([
@@ -342,24 +348,24 @@ class ClientController extends Controller
             'Taille_Fichier' => filesize($path) . ' octets'
         ]);
     }*/
-    
-    
+
+
    /* public function photo($filename)
     {
         $path = base_path('images_projet/clients/' . $filename);
-    
+
         if (!file_exists($path)) {
             abort(404);
         }
-    
+
         // --- NETTOYAGE DU FLUX ---
         // Supprime tout espace ou caractère envoyé par erreur avant l'image
         while (ob_get_level()) {
             ob_end_clean();
         }
-    
+
         $type = mime_content_type($path);
-    
+
         return response()->file($path, [
             'Content-Type' => $type,
             'Cache-Control' => 'no-cache, must-revalidate',
@@ -369,23 +375,23 @@ class ClientController extends Controller
     public function photo($filename)
     {
         $path = base_path('images_projet/clients/' . $filename);
-    
+
         if (!file_exists($path)) {
             abort(404);
         }
-    
+
         // On vide les tampons pour éviter tout caractère parasite
         if (ob_get_level()) ob_end_clean();
-    
+
         $type = mime_content_type($path);
-    
+
         return response()->file($path, [
             'Content-Type' => $type,
             'X-Content-Type-Options' => 'nosniff', // Indispensable pour Edge/IE
             'Content-Length' => filesize($path),
         ]);
     }
-    
-    
-    
+
+
+
 }

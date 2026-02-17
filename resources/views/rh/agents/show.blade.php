@@ -13,7 +13,7 @@
                     <div class="row align-items-center">
                         <div class="col-lg-4 col-md-5 text-center mb-3 mb-md-0">
                             @if($agent->photo)
-                                <img src="{{ asset('images_projet/' . $agent->photo) }}" alt="Photo de l'agent" class="img-fluid rounded-circle border border-3 border-success shadow" style="max-width: 320px; max-height: 320px; object-fit: cover; background: #f8f9fa; cursor: pointer;" id="agent-photo" data-toggle="modal" data-target="#photoModal">
+                                <img src="{{ route('agents.photo', basename($agent->photo)) }}" alt="Photo de l'agent" class="img-fluid rounded-circle border border-3 border-success shadow" style="max-width: 320px; max-height: 320px; object-fit: cover; background: #f8f9fa; cursor: pointer;" id="agent-photo" data-toggle="modal" data-target="#photoModal">
                             @else
                                 <span class="text-muted">Aucune photo</span>
                             @endif
@@ -39,6 +39,11 @@
                                 </div>
                             </div>
                             <a href="{{ route('agents.edit', $agent->matricule) }}" class="btn btn-warning me-2">Modifier</a>
+                            <form action="{{ route('agents.destroy', $agent->matricule) }}" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet agent ?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-danger me-2">Supprimer</button>
+                            </form>
                             <a href="{{ route('agents.index') }}" class="btn btn-secondary">Retour à la liste</a>
                         </div>
                     </div>
@@ -58,7 +63,7 @@
                 </div>
                 <div class="modal-body text-center">
                     @if($agent->photo)
-                        <img src="{{ asset('images_projet/' . $agent->photo) }}" alt="Photo de l'agent" class="img-fluid rounded shadow" style="max-width: 100%; max-height: 80vh; background: #222;">
+                        <img src="{{ route('agents.photo', basename($agent->photo)) }}" alt="Photo de l'agent" class="img-fluid rounded shadow" style="max-width: 100%; max-height: 80vh; background: #222;">
                     @endif
                 </div>
             </div>

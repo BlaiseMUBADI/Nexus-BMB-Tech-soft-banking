@@ -4,8 +4,8 @@
         @include('layouts.head')
     </head>
     <body class="hold-transition dark-mode sidebar-mini layout-fixed layout-navbar-fixed layout-footer-fixed">
-       
-     
+
+
     <div class="wrapper">
             @include('layouts.navbar')
             @include('layouts.sidebar')
@@ -31,7 +31,28 @@
 
 
 
-                @yield('content')
+
+                                @yield('content')
+
+                                <!-- Modal de confirmation AJAX -->
+                                <div class="modal fade" id="confirmationModal" tabindex="-1" role="dialog" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered" role="document">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-success text-white">
+                                                <h5 class="modal-title" id="confirmationModalLabel">Succès</h5>
+                                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                    <span aria-hidden="true">&times;</span>
+                                                </button>
+                                            </div>
+                                            <div class="modal-body" id="confirmationModalBody">
+                                                <!-- Message injecté par JS -->
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-primary" data-dismiss="modal">OK</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
 
             </main>

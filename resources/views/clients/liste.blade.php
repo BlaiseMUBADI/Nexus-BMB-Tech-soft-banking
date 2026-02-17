@@ -16,7 +16,7 @@
                 <div id="clients-table-buttons" class="mb-2 mb-md-0 "></div>
                 <div id="clients-table-search" class="datatable-search ms-md-3 "></div>
             </div>
-            
+
             <div class="table-responsive">
                 <table id="clients-table" class="table table-bordered table-striped datatable" data-buttons-container="#clients-table-buttons">
                     <thead>
@@ -52,7 +52,7 @@
                                         <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
                                             <div class="modal-content bg-dark">
                                                 <div class="modal-header border-0">
-                                                    <h5 class="modal-title text-white" id="photoModalLabel-{{ $client->matricule }}">Photo du client <small class="text-info ms-2" id="photo-mode-{{ $client->matricule }}" style="font-size: 0.9em;"></small></h5>
+                                                    <h5 class="modal-title text-white" id="photoModalLabel-{{ $client->matricule }}">Photo du client </h5>
                                                     <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
                                                         <span aria-hidden="true">&times;</span>
                                                     </button>
@@ -70,6 +70,11 @@
                             <td>
                                 <a href="{{ url('/clients/' . $client->matricule) }}" class="btn btn-sm btn-info">Voir</a>
                                 <a href="{{ url('/clients/' . $client->matricule . '/edit') }}" class="btn btn-sm btn-warning">Modifier</a>
+                                <form action="{{ url('/clients/' . $client->matricule) }}" method="POST" class="d-inline delete-client-form" data-client-matricule="{{ $client->matricule }}">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="button" class="btn btn-sm btn-danger btn-delete-client" data-matricule="{{ $client->matricule }}">Supprimer</button>
+                                </form>
                             </td>
                         </tr>
                         @endforeach
@@ -83,22 +88,62 @@
 @endsection
 
 @push('js')
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteClientModal" tabindex="-1" role="dialog" aria-labelledby="deleteClientModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteClientModalLabel">Confirmer la suppression</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-3">
+                    <span class="display-4 text-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </span>
+                </div>
+                <p class="mb-0">Êtes-vous sûr de vouloir supprimer ce client ?<br>
+                    <span class="fw-bold" style="color:#ffc107; font-size:1.1em; text-shadow:0 1px 2px #000;">Cette action est <u>irréversible</u>.</span>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteClientBtn">Supprimer</button>
+            </div>
+        </div>
+    </div>
+</div>
 <script>
 $(function() {
-    // Quand une miniature est cliquée, afficher le mode dans la modale
-    $('.client-photo-thumb').on('click', function() {
-        var matricule = $(this).data('target').replace('#photoModal-', '');
-        var src = $(this).attr('src');
-        var mode = '';
-        if (src) {
-            var ext = src.split('.').pop().toLowerCase();
-            switch(ext) {
-                case 'jpg':
-                case 'jpeg':
-                    mode = 'JPEG';
-                    break;
-                case 'png':
-                    mode = 'PNG';
+        let formToDelete = null;
+        // Gestion du bouton supprimer
+        $('.btn-delete-client').on('click', function(e) {
+                e.preventDefault();
+                formToDelete = $(this).closest('form');
+                $('#deleteClientModal').modal('show');
+        });
+        $('#confirmDeleteClientBtn').on('click', function() {
+                if(formToDelete) {
+                        formToDelete.submit();
+                }
+                $('#deleteClientModal').modal('hide');
+        });
+        // Quand une miniature est cliquée, afficher le mode dans la modale
+        $('.client-photo-thumb').on('click', function() {
+                var matricule = $(this).data('target').replace('#photoModal-', '');
+                var src = $(this).attr('src');
+                var mode = '';
+                if (src) {
+                        var ext = src.split('.').pop().toLowerCase();
+                        switch(ext) {
+                                case 'jpg':
+                                case 'jpeg':
+                                        mode = 'JPEG';
+                                        break;
+                                case 'png':
+                                        mode = 'PNG';
                     break;
                 case 'gif':
                     mode = 'GIF';

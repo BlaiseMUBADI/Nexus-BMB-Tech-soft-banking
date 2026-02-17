@@ -10,6 +10,24 @@ use App\Models\Agent;
 
 class AgentController extends Controller
 {
+    /**
+     * Affiche la photo d'un agent (identique à client).
+     */
+    public function photo($filename)
+    {
+        $path = base_path('images_projet/agents/' . $filename);
+        if (!file_exists($path)) {
+            abort(404);
+        }
+        // On vide les tampons pour éviter tout caractère parasite
+        if (ob_get_level()) ob_end_clean();
+        $type = mime_content_type($path);
+        return response()->file($path, [
+            'Content-Type' => $type,
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Length' => filesize($path),
+        ]);
+    }
 
     public function index()
     {
@@ -109,6 +127,10 @@ class AgentController extends Controller
     public function destroy($matricule)
     {
         $agent = \App\Models\Agent::where('matricule', $matricule)->firstOrFail();
+        // Supprimer la photo si elle existe
+        if ($agent->photo && file_exists(base_path('images_projet/' . $agent->photo))) {
+            @unlink(base_path('images_projet/' . $agent->photo));
+        }
         $agent->delete();
         return redirect()->route('agents.index')->with('success', 'Agent supprimé avec succès.');
     }

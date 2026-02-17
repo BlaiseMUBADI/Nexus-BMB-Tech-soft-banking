@@ -17,7 +17,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 		<!-- Sidebar Menu -->
 		<nav class="mt-2">
 			<ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-				
+
 				<!-- Ajoutez des icônes aux liens en utilisant la classe .nav-icon avec font-awesome ou toute autre bibliothèque de polices d'icônes -->
 
 				<!--Clients / Membres -->
@@ -84,13 +84,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						<li class="nav-item">
 							<a href="{{ url('/rh/services') }}" class="nav-link {{ request()->is('rh/services') ? 'active' : '' }}">
 								<i class="far fa-circle nav-icon"></i>
-								<p>Services</p>
-							</a>
-						</li>
-						<li class="nav-item">
-							<a href="{{ url('/rh/postes') }}" class="nav-link {{ request()->is('rh/postes') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Postes</p>
+								<p>Services/Postes</p>
 							</a>
 						</li>
 					</ul>

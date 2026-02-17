@@ -16,6 +16,12 @@ $(function () {
         $(this).addClass('datatable-hover');
         var $table = $(this);
         var btnContainer = $table.data('buttons-container') || null;
+        // Recherche du conteneur de recherche associé (ex: #agents-table-search)
+        var searchContainer = null;
+        if (btnContainer && typeof btnContainer === 'string') {
+            // Remplace "-buttons" par "-search" pour trouver le conteneur de recherche
+            searchContainer = btnContainer.replace(/-buttons$/, '-search');
+        }
         var dt = $table.DataTable({
             responsive: true,
             lengthChange: false,
@@ -86,9 +92,9 @@ $(function () {
             } else {
                 dt.buttons().container().insertBefore($table);
             }
-            // Déplacer dynamiquement tout le bloc .dataTables_filter dans le conteneur fusionné (préserve le JS natif)
+            // Déplacer dynamiquement le bloc .dataTables_filter dans le conteneur de recherche associé
             var $search = $table.closest('.card-body').find('.dataTables_filter');
-            if ($search.length && $('#clients-table-search').length) {
+            if ($search.length && searchContainer && $(searchContainer).length) {
                 // Modifier uniquement le texte du label sans toucher à l'input
                 var $label = $search.find('label');
                 if ($label.length) {
@@ -97,13 +103,15 @@ $(function () {
                         nodes[0].textContent = 'Recherche : ';
                     }
                 }
-                $('#clients-table-search').empty().append($search);
+                $(searchContainer).empty().append($search);
             }
-            // Sélection visuelle de la ligne au clic sur une cellule
-            $table.find('tbody').on('click', 'td', function() {
-                $table.find('tr').removeClass('datatable-selected-row');
-                $(this).closest('tr').addClass('datatable-selected-row');
-            });
+            // Désactive la sélection automatique si la table a déjà une gestion personnalisée (ex: servicesTable)
+            if (!$table.is('#servicesTable')) {
+                $table.find('tbody').on('click', 'td', function() {
+                    $table.find('tr').removeClass('datatable-selected-row');
+                    $(this).closest('tr').addClass('datatable-selected-row');
+                });
+            }
         }, 100);
     });
 });
