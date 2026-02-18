@@ -1,3 +1,13 @@
+@push('js')
+<script>
+$(function() {
+    // Disparition automatique de l'alerte de succès après 2,5s
+    setTimeout(function() {
+        $('.alert-success').alert('close');
+    }, 2500);
+});
+</script>
+@endpush
 @extends('layouts.app')
 
 @section('page_title', 'Services / Postes')
@@ -5,7 +15,134 @@
 @section('breadcrumb', 'Postes')
 
 @section('content')
-<div class="container-fluid">
+
+
+@push('js')
+<script>
+$(document).ready(function() {
+    // DataTable init (pagination + recherche, sans boutons d'export)
+    $('#servicesTable').DataTable({
+        paging: true,
+            searching: true,
+            info: true,
+            lengthChange: true,
+            lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Tous"]],
+        language: {
+            url: '/plugins/datatables/i18n/fr-FR.json',
+            paginate: {
+                first: "Premier",
+                last: "Dernier",
+                next: "Suivant",
+                previous: "Précédent"
+            },
+            search: "Recherche :",
+                info: "Affichage de _START_ à _END_ sur _TOTAL_ entrées",
+                infoEmpty: "Aucune entrée à afficher",
+                infoFiltered: "(filtré à partir de _MAX_ entrées)",
+                lengthMenu: "Afficher _MENU_ entrées",
+            }
+    });
+
+    // Sélection d'un service
+    $('#servicesTable tbody').on('click', 'tr', function() {
+        var serviceId = $(this).data('service-id');
+        if (!serviceId) return;
+        
+        // Highlight moderne (sans dépendre de table-primary)
+        $('#servicesTable tbody tr').removeClass('datatable-selected-row');
+        $(this).addClass('datatable-selected-row');
+        // Charger les postes via AJAX
+        $.get('/rh/services/' + serviceId + '/postes-ajax', function(data) {
+            $('#postesSection').html(data);
+        });
+    });
+
+    // Soumission AJAX du formulaire d'ajout de poste
+    $(document).on('submit', '.form-ajout-poste', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var serviceId = form.data('service-id');
+        var url = form.attr('action');
+        var formData = form.serialize();
+        $.post(url, formData)
+            .done(function(response) {
+                // Afficher le modal de succès
+                $('#confirmationModalBody').text(response.message);
+                $('#confirmationModal').modal('show');
+                // Recharger la liste des postes
+                $.get('/rh/services/' + serviceId + '/postes-ajax', function(data) {
+                    $('#postesSection').html(data);
+                });
+            })
+            .fail(function(xhr) {
+                let msg = 'Erreur lors de l\'ajout du poste.';
+                if(xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                $('#confirmationModalBody').text(msg);
+                $('#confirmationModal').modal('show');
+            });
+    });
+
+    // Suppression d'un service (avec modal de confirmation universel)
+    $('.btn-delete-service').on('click', function(e) {
+        e.stopPropagation();
+        var id = $(this).data('id');
+        showUniversalConfirm('Voulez-vous vraiment supprimer ce service ?', function() {
+            $.ajax({
+                url: '/rh/services/' + id,
+                type: 'POST',
+                data: {
+                    _method: 'DELETE',
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    showSystemMessage('success', 'Service supprimé avec succès.');
+                    setTimeout(function() {
+                        $('#systemMessageModal').modal('hide');
+                        location.reload();
+                    }, 1200);
+                },
+                error: function(xhr) {
+                    let msg = 'Erreur lors de la suppression du service.';
+                    if(xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                    // Affiche aussi le message technique pour le débogage
+                    let tech = '';
+                    if(xhr.responseText && xhr.responseText.length > 0) {
+                        tech = '<br><small style="color:#aaa;word-break:break-all;">' + xhr.responseText + '</small>';
+                    }
+                    showSystemMessage('error', msg + tech);
+                }
+            });
+        }, 'Confirmation de suppression');
+    });
+    // Soumission AJAX du formulaire d'ajout de service
+    $('#formAjoutService').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var url = form.attr('action');
+        var formData = form.serialize();
+        $.post(url, formData)
+            .done(function(response) {
+                // Message stylé avec icône
+                $('#confirmationModalBody').html('<span class="text-success"><i class="fas fa-check-circle fa-2x mr-2"></i>Service ajouté avec succès.</span>');
+                $('#confirmationModal').modal('show');
+                // Recharger la page automatiquement après 1,5s sans attendre le clic sur OK
+                setTimeout(function() {
+                    $('#confirmationModal').modal('hide');
+                    location.reload();
+                }, 1500);
+            })
+            .fail(function(xhr) {
+                let msg = 'Erreur lors de l\'ajout du service.';
+                if(xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                $('#confirmationModalBody').html('<span class="text-danger"><i class="fas fa-times-circle fa-2x mr-2"></i>' + msg + '</span>');
+                $('#confirmationModal').modal('show');
+            });
+    });
+});
+</script>
+@endpush
+
+
     <div class="row">
         <div class="col-md-6">
             <div class="card">
@@ -13,7 +150,14 @@
                     <h5>Services</h5>
                 </div>
                 <div class="card-body">
-                    {{-- Message de succès supprimé, affiché uniquement via modal --}}
+                    @if(session('success'))
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Fermer">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                    @endif
                     <div class="table-responsive" style="max-height: 350px; min-height: 200px; overflow-y: auto;">
                         <table id="servicesTable" class="table table-bordered table-striped mb-0">
                             <thead>
@@ -74,116 +218,25 @@
 </div>
 @endsection
 
-@push('js')
-<script>
-$(document).ready(function() {
-    // DataTable init (pagination + recherche, sans boutons d'export)
-    $('#servicesTable').DataTable({
-        paging: true,
-        searching: true,
-        info: true,
-        lengthChange: false,
-        language: {
-            url: '/plugins/datatables/i18n/fr-FR.json',
-            paginate: {
-                first: "Premier",
-                last: "Dernier",
-                next: "Suivant",
-                previous: "Précédent"
-            },
-            search: "Recherche :",
-        }
-    });
-
-    // Sélection d'un service
-    $('#servicesTable tbody').on('click', 'tr', function() {
-        var serviceId = $(this).data('service-id');
-        if (!serviceId) return;
-        // Highlight (synchronise avec DataTables)
-        $('#servicesTable tbody tr').removeClass('table-primary datatable-selected-row');
-        $(this).addClass('table-primary datatable-selected-row');
-        // Charger les postes via AJAX
-        $.get('/rh/services/' + serviceId + '/postes-ajax', function(data) {
-            $('#postesSection').html(data);
-        });
-    });
-
-    // Soumission AJAX du formulaire d'ajout de poste
-    $(document).on('submit', '.form-ajout-poste', function(e) {
-        e.preventDefault();
-        var form = $(this);
-        var serviceId = form.data('service-id');
-        var url = form.attr('action');
-        var formData = form.serialize();
-        $.post(url, formData)
-            .done(function(response) {
-                // Afficher le modal de succès
-                $('#confirmationModalBody').text(response.message);
-                $('#confirmationModal').modal('show');
-                // Recharger la liste des postes
-                $.get('/rh/services/' + serviceId + '/postes-ajax', function(data) {
-                    $('#postesSection').html(data);
-                });
-            })
-            .fail(function(xhr) {
-                let msg = 'Erreur lors de l\'ajout du poste.';
-                if(xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                $('#confirmationModalBody').text(msg);
-                $('#confirmationModal').modal('show');
-            });
-    });
-
-    // Suppression d'un service (à compléter côté backend)
-    $('.btn-delete-service').on('click', function(e) {
-        e.stopPropagation();
-        var id = $(this).data('id');
-        if(confirm('Supprimer ce service ?')) {
-            // À compléter : AJAX ou formulaire
-        }
-    });
-    // Soumission AJAX du formulaire d'ajout de service
-    $('#formAjoutService').on('submit', function(e) {
-        e.preventDefault();
-        var form = $(this);
-        var url = form.attr('action');
-        var formData = form.serialize();
-        $.post(url, formData)
-            .done(function(response) {
-                // Message stylé avec icône
-                $('#confirmationModalBody').html('<span class="text-success"><i class="fas fa-check-circle fa-2x mr-2"></i>Service ajouté avec succès.</span>');
-                $('#confirmationModal').modal('show');
-                // Recharger la liste des services (refresh AJAX ou reload page)
-                // Ici, reload simple pour garder la sélection DataTable
-                // Attendre que l'utilisateur clique sur OK pour recharger
-                $('#confirmationModal').off('hidden.bs.modal').on('hidden.bs.modal', function() {
-                    location.reload();
-                });
-            })
-            .fail(function(xhr) {
-                let msg = 'Erreur lors de l\'ajout du service.';
-                if(xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                $('#confirmationModalBody').html('<span class="text-danger"><i class="fas fa-times-circle fa-2x mr-2"></i>' + msg + '</span>');
-                $('#confirmationModal').modal('show');
-            });
-    });
-});
-</script>
 
 @section('css')
 <style>
-/* Couleur moderne pour la sélection (harmonisée avec clients) */
-#servicesTable tbody tr.table-primary,
+/* Couleurs modernes pour la sélection et le survol */
 #servicesTable tbody tr.datatable-selected-row {
-    background: linear-gradient(90deg, #6366f1 0%, #60a5fa 100%) !important;
+    background: linear-gradient(90deg, #6366f1 0%, #a21caf 100%) !important;
     color: #fff !important;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.12);
     transition: background 0.3s, color 0.3s;
 }
-/* Couleur fluide pour le survol */
-#servicesTable tbody tr:not(.table-primary):hover {
+#servicesTable tbody tr:hover:not(.datatable-selected-row) {
     background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%) !important;
     color: #fff !important;
     cursor: pointer;
+    box-shadow: 0 1px 4px rgba(59,130,246,0.10);
     transition: background 0.3s, color 0.3s;
 }
 </style>
 @endsection
+
+
+

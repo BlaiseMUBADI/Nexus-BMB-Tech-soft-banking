@@ -1,11 +1,11 @@
-        // Style pour surligner la ligne au survol
-        var style3 = document.createElement('style');
-        style3.innerHTML = '.datatable-hover tbody tr:hover:not(.datatable-selected-row) { background: #42a5f5 !important; color: #fff !important; cursor: pointer; box-shadow: 0 1px 4px rgba(66,165,245,0.10); }';
-        document.head.appendChild(style3);
-    // Style pour aligner le label et l'input sur la même ligne
-    var style2 = document.createElement('style');
-    style2.innerHTML = '.dataTables_filter label { display: flex; align-items: center; gap: 6px; margin-bottom: 0; } .dataTables_filter input { display: inline-block; width: 180px; margin-bottom: 0; vertical-align: middle; }';
-    document.head.appendChild(style2);
+// Style pour surligner la ligne au survol
+var style3 = document.createElement('style');
+style3.innerHTML = '.datatable-hover tbody tr:hover:not(.datatable-selected-row) { background: #42a5f5 !important; color: #fff !important; cursor: pointer; box-shadow: 0 1px 4px rgba(66,165,245,0.10); }';
+document.head.appendChild(style3);
+// Style pour aligner le label et l'input sur la même ligne
+var style2 = document.createElement('style');
+style2.innerHTML = '.dataTables_filter label { display: flex; align-items: center; gap: 6px; margin-bottom: 0; } .dataTables_filter input { display: inline-block; width: 180px; margin-bottom: 0; vertical-align: middle; }';
+document.head.appendChild(style2);
 $(function () {
     // Style pour la ligne sélectionnée
     var style = document.createElement('style');
@@ -85,7 +85,7 @@ $(function () {
             dom: 'Bfrtip' // Pour que la barre de recherche soit générée
         });
         // Placer les boutons et la barre de recherche dans le même bloc stylé
-        setTimeout(function() {
+        setTimeout(function () {
             if (btnContainer) {
                 dt.buttons().container().appendTo(btnContainer);
                 $(btnContainer).show();
@@ -107,7 +107,7 @@ $(function () {
             }
             // Désactive la sélection automatique si la table a déjà une gestion personnalisée (ex: servicesTable)
             if (!$table.is('#servicesTable')) {
-                $table.find('tbody').on('click', 'td', function() {
+                $table.find('tbody').on('click', 'td', function () {
                     $table.find('tr').removeClass('datatable-selected-row');
                     $(this).closest('tr').addClass('datatable-selected-row');
                 });
