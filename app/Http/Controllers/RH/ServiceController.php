@@ -9,6 +9,15 @@ use App\Models\Service;
 
 class ServiceController extends Controller
 {
+    /**
+     * Retourne la liste des postes d'un service (AJAX)
+     */
+    public function postesAjax($id)
+    {
+        $service = \App\Models\Service::findOrFail($id);
+        $postes = $service->postes;
+        return view('rh.services.postes_table', compact('postes', 'service'));
+    }
     public function store(Request $request)
     {
         $validated = $request->validate([

@@ -46,14 +46,27 @@ $(document).ready(function() {
     // Sélection d'un service
     $('#servicesTable tbody').on('click', 'tr', function() {
         var serviceId = $(this).data('service-id');
-        if (!serviceId) return;
-        
+        console.log('[DEBUG] Ligne cliquée, data-service-id =', serviceId);
+        if (!serviceId) {
+            console.warn('[DEBUG] Aucun serviceId trouvé, on quitte la fonction.');
+            return;
+        }
         // Highlight moderne (sans dépendre de table-primary)
         $('#servicesTable tbody tr').removeClass('datatable-selected-row');
         $(this).addClass('datatable-selected-row');
+        // Récupérer le nom du service (2e colonne)
+        var nomService = $(this).find('td:nth-child(2)').text();
+        console.log('[DEBUG] Nom du service sélectionné =', nomService);
         // Charger les postes via AJAX
-        $.get('/rh/services/' + serviceId + '/postes-ajax', function(data) {
+        var urlAjax = '/rh/services/' + serviceId + '/postes-ajax';
+        console.log('[DEBUG] Appel AJAX vers', urlAjax);
+        $.get(urlAjax, function(data) {
+            console.log('[DEBUG] Réponse AJAX reçue');
             $('#postesSection').html(data);
+            // Mettre à jour dynamiquement le titre
+            $('#postesTitre').text('Postes pour ' + nomService);
+        }).fail(function(jqXHR, textStatus, errorThrown) {
+            console.error('[DEBUG] Erreur AJAX:', textStatus, errorThrown);
         });
     });
 
@@ -72,6 +85,11 @@ $(document).ready(function() {
                 // Recharger la liste des postes
                 $.get('/rh/services/' + serviceId + '/postes-ajax', function(data) {
                     $('#postesSection').html(data);
+                    // Mettre à jour dynamiquement le titre depuis la ligne sélectionnée du tableau
+                    var nomService = $('#servicesTable tbody tr.datatable-selected-row td:nth-child(2)').text();
+                    if(nomService) {
+                        $('#postesTitre').text('Postes pour ' + nomService);
+                    }
                 });
             })
             .fail(function(xhr) {
@@ -205,7 +223,7 @@ $(document).ready(function() {
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header pb-0">
-                    <h5>Postes</h5>
+                    <h5 id="postesTitre">Postes</h5>
                 </div>
                 <div class="card-body">
                     <div id="postesSection">

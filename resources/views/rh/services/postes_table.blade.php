@@ -1,6 +1,3 @@
-
-<h6 class="mb-3 font-weight-bold">Postes pour <span class="text-primary">{{ $service->nom }}</span></h6>
-
 @if(count($postes) > 0)
 <div class="table-responsive" style="max-height: 300px; min-height: 120px; overflow-y: auto;">
     <table class="table table-bordered table-striped mb-0">

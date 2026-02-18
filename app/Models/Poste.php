@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Poste extends Model
 {
+    protected $table = 'tb_postes';
     use HasFactory;
 
     protected $fillable = [
