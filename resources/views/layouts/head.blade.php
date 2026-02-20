@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Coopec EBEN | @yield('title')</title>
 <link rel="icon" type="image/png" href="{{ asset('dist/img/icon_vrailogoeben.png') }}" sizes="38x38">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 
 <!-- Google Font: Source Sans Pro -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">

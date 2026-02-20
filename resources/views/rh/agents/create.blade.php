@@ -27,7 +27,7 @@
         <div class="col-md-10">
             <div class="card card-primary">
                 <div class="card-header">
-                    <h3 class="card-title">Ajouter un agent</h3>
+                    <h3 class="card-title"><i class="fas fa-user-plus mr-2"></i>Ajouter un agent</h3>
                 </div>
                 <form method="POST" action="{{ route('agents.store') }}" enctype="multipart/form-data">
                     @csrf
@@ -105,7 +105,9 @@
                         </div>
                     </div>
                     <div class="card-footer text-right">
-                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save mr-1"></i> Enregistrer
+                        </button>
                     </div>
                 </form>
             </div>

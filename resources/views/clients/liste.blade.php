@@ -8,7 +8,9 @@
 <div class="container-fluid">
     <div class="card">
         <div class="card-header">
-            <a href="{{ url('/clients/create') }}" class="btn btn-primary float-right">Ajouter un client</a>
+            <a href="{{ url('/clients/create') }}" class="btn btn-primary float-right">
+                <i class="fas fa-user-plus mr-1"></i> Ajouter un client
+            </a>
         </div>
         <div class="card-body">
             <!-- Conteneur fusionné pour boutons et recherche DataTables -->
@@ -68,12 +70,18 @@
                                 @endif
                             </td>
                             <td>
-                                <a href="{{ url('/clients/' . $client->matricule) }}" class="btn btn-sm btn-info">Voir</a>
-                                <a href="{{ url('/clients/' . $client->matricule . '/edit') }}" class="btn btn-sm btn-warning">Modifier</a>
+                                <a href="{{ url('/clients/' . $client->matricule) }}" class="btn btn-sm btn-info" title="Voir">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url('/clients/' . $client->matricule . '/edit') }}" class="btn btn-sm btn-warning" title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </a>
                                 <form action="{{ url('/clients/' . $client->matricule) }}" method="POST" class="d-inline delete-client-form" data-client-matricule="{{ $client->matricule }}">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="button" class="btn btn-sm btn-danger btn-delete-client" data-matricule="{{ $client->matricule }}">Supprimer</button>
+                                    <button type="button" class="btn btn-sm btn-danger btn-delete-client" data-matricule="{{ $client->matricule }}" title="Supprimer">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
                                 </form>
                             </td>
                         </tr>

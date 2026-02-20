@@ -6,9 +6,20 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Poste;
 use App\Models\Service;
+use Illuminate\Support\Facades\Log;
 
 class PosteController extends Controller
 {
+    // AJAX: supprime un poste et retourne JSON
+    public function ajaxDestroy($service_id, $poste_id)
+    {
+        $poste = Poste::where('service_id', $service_id)->findOrFail($poste_id);
+        $poste->delete();
+        return response()->json([
+            'success' => true,
+            'message' => 'Poste supprimé avec succès.'
+        ]);
+    }
     public function index($service_id)
     {
         $service = Service::findOrFail($service_id);
@@ -31,22 +42,31 @@ class PosteController extends Controller
     // AJAX: retourne la vue partielle des postes pour un service
     public function ajaxListe($service_id)
     {
+        Log::info('[DEBUG] Entrée ajaxListe', ['service_id' => $service_id]);
         $service = Service::findOrFail($service_id);
+        Log::info('[DEBUG] Service trouvé', ['service' => $service]);
         $postes = Poste::where('service_id', $service_id)->get();
+        Log::info('[DEBUG] Postes récupérés', ['count' => $postes->count()]);
         // On réutilise la même vue partielle
-        return view('rh.postes.liste', compact('service', 'postes'))->render();
+        $view = view('rh.postes.liste', compact('service', 'postes'))->render();
+        Log::info('[DEBUG] Vue partielle générée');
+        return $view;
     }
 
     // AJAX: ajoute un poste et retourne JSON
     public function ajaxStore(Request $request, $service_id)
     {
+        Log::info('[DEBUG] Entrée ajaxStore', ['service_id' => $service_id, 'input' => $request->all()]);
         $service = Service::findOrFail($service_id);
+        Log::info('[DEBUG] Service trouvé', ['service' => $service]);
         $validated = $request->validate([
             'nom' => 'required|string|max:191',
             'description' => 'nullable|string',
         ]);
+        Log::info('[DEBUG] Données validées', ['validated' => $validated]);
         $validated['service_id'] = $service_id;
         $poste = Poste::create($validated);
+        Log::info('[DEBUG] Poste créé', ['poste' => $poste]);
         return response()->json([
             'success' => true,
             'message' => 'Poste ajouté avec succès.',
