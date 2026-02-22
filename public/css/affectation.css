@@ -1,0 +1,21 @@
+/* affectation.css : Styles spécifiques pour la page affectation */
+
+.service-group-row td {
+    background: #6d78ed !important;
+    color: #fff !important;
+    font-weight: bold;
+    border: none !important;
+}
+.app-table tbody tr.datatable-selected-row {
+    background: linear-gradient(90deg, #6366f1 0%, #a21caf 100%) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
+    transition: background 0.3s, color 0.3s;
+}
+.app-table tbody tr:hover:not(.datatable-selected-row) {
+    background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%) !important;
+    color: #fff !important;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(59, 130, 246, 0.10);
+    transition: background 0.3s, color 0.3s;
+}

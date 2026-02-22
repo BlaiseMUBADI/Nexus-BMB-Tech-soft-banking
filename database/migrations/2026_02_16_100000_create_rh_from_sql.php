@@ -8,22 +8,31 @@ return new class extends Migration
 {
     public function up(): void
     {
+
         Schema::create('tb_services', function (Blueprint $table) {
+            $table->engine = 'InnoDB';
             $table->id();
             $table->string('nom');
             $table->text('description')->nullable();
             $table->timestamps();
         });
+
 
         Schema::create('tb_postes', function (Blueprint $table) {
+            $table->engine = 'InnoDB';
             $table->id();
-            $table->foreignId('service_id')->constrained('tb_services');
+            $table->foreignId('service_id')
+                ->constrained('tb_services')
+                ->onDelete('restrict')
+                ->onUpdate('cascade');
             $table->string('nom');
             $table->text('description')->nullable();
             $table->timestamps();
         });
 
+
         Schema::create('tb_agents', function (Blueprint $table) {
+            $table->engine = 'InnoDB';
             $table->string('matricule', 50)->primary();
             $table->string('nom');
             $table->string('postnom')->nullable();
@@ -39,11 +48,20 @@ return new class extends Migration
             $table->timestamps();
         });
 
+
         Schema::create('tb_affectations', function (Blueprint $table) {
+            $table->engine = 'InnoDB';
             $table->id();
             $table->string('agent_matricule', 50);
-            $table->foreign('agent_matricule')->references('matricule')->on('tb_agents');
-            $table->foreignId('poste_id')->constrained('tb_postes');
+            $table->foreign('agent_matricule')
+                ->references('matricule')
+                ->on('tb_agents')
+                ->onDelete('restrict')
+                ->onUpdate('cascade');
+            $table->foreignId('poste_id')
+                ->constrained('tb_postes')
+                ->onDelete('restrict')
+                ->onUpdate('cascade');
             $table->date('date_debut');
             $table->date('date_fin')->nullable();
             $table->timestamps();

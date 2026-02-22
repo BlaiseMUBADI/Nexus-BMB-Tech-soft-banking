@@ -5,7 +5,7 @@
 @section('breadcrumb', 'Ajouter un client')
 
 @section('content')
-   <div class="container-fluid">
+   <div class="container-fluid ">
 
       @if(session('success'))
          <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">

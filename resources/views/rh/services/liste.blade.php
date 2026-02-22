@@ -112,14 +112,10 @@
                     var id = $(this).data('id');
                     showUniversalConfirm('Voulez-vous vraiment supprimer ce service ?', function () {
                         $.ajax({
-                            url: '/rh/services/' + id,
-                            type: 'POST',
-                            data: {
-                                _method: 'DELETE',
-                                _token: $('meta[name="csrf-token"]').attr('content')
-                            },
+                            url: baseUrl + '/rh/services-ajax/' + id,
+                            type: 'DELETE',
                             success: function (response) {
-                                showSystemMessage('success', 'Service supprimé avec succès.');
+                                showSystemMessage('success', response.message);
                                 setTimeout(function () {
                                     $('#systemMessageModal').modal('hide');
                                     location.reload();

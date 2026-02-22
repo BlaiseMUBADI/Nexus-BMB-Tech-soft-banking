@@ -102,13 +102,13 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</a>
 					<ul class="nav nav-treeview">
 						<li class="nav-item">
-							<a href="{{ url('/admin/users') }}" class="nav-link {{ request()->is('admin/users') ? 'active' : '' }}">
+							<a href="{{ url('/administration/utilisateurs') }}" class="nav-link {{ request()->is('administration/utilisateurs') ? 'active' : '' }}">
 								<i class="far fa-circle nav-icon"></i>
 								<p>Liste des utilisateurs</p>
 							</a>
 						</li>
 						<li class="nav-item">
-							<a href="{{ url('/admin/users/create') }}" class="nav-link {{ request()->is('admin/users/create') ? 'active' : '' }}">
+							<a href="{{ url('/administration/utilisateurs/nouveau') }}" class="nav-link {{ request()->is('administration/utilisateurs/create') ? 'active' : '' }}">
 								<i class="far fa-circle nav-icon"></i>
 								<p>Ajouter un utilisateur</p>
 							</a>

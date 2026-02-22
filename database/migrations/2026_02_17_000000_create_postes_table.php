@@ -8,9 +8,13 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::create('postes', function (Blueprint $table) {
+        Schema::create('tb_postes', function (Blueprint $table) {
+            $table->engine = 'InnoDB';
             $table->id();
-            $table->foreignId('service_id')->constrained('services')->onDelete('cascade');
+            $table->foreignId('service_id')
+                ->constrained('tb_services')
+                ->onDelete('restrict')
+                ->onUpdate('cascade');
             $table->string('nom');
             $table->text('description')->nullable();
             $table->timestamps();
@@ -19,6 +23,6 @@ return new class extends Migration
 
     public function down()
     {
-        Schema::dropIfExists('postes');
+        Schema::dropIfExists('tb_postes');
     }
 };

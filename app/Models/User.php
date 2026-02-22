@@ -21,7 +21,14 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'etat',
+        'agent_matricule',
     ];
+    // Relation avec l'agent
+    public function agent()
+    {
+        return $this->belongsTo(Agent::class, 'agent_matricule', 'matricule');
+    }
 
     /**
      * The attributes that should be hidden for serialization.

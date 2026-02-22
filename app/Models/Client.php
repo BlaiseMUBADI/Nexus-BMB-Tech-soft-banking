@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Client extends Model
 {
+    protected $table = 'tb_clients';
     protected $primaryKey = 'matricule';
     public $incrementing = false;
     protected $keyType = 'string';

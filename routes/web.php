@@ -1,27 +1,14 @@
-<?php
 
+<?php
+use App\Http\Controllers\RH\AffectationController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\RH\AgentController;
 use App\Http\Controllers\ClientController;
+// Administration user management routes
+require_once __DIR__.'/administration.php';
+// Ressources Humaines routes
+require_once __DIR__.'/rh.php';
 
-
-// Ressources Humaines - Agents
-Route::resource('rh/agents', AgentController::class);
-// Ressources Services RH
-Route::resource('rh/services', App\Http\Controllers\RH\ServiceController::class);
-
-// Postes dépendant d'un service
-Route::get('rh/services/{service}/postes', [App\Http\Controllers\RH\PosteController::class, 'index'])->name('postes.index');
-Route::post('rh/services/{service}/postes', [App\Http\Controllers\RH\PosteController::class, 'store'])->name('postes.store');
-// AJAX: supprimer un poste (JSON)
-Route::delete('rh/services/{service}/postes-ajax/{poste}', [App\Http\Controllers\RH\PosteController::class, 'ajaxDestroy'])->name('postes.ajaxDestroy');
-
-// AJAX: afficher les postes d'un service (HTML partiel)
-Route::get('rh/services/{service}/postes-ajax', [App\Http\Controllers\RH\PosteController::class, 'ajaxListe'])->name('postes.ajaxListe');
-// AJAX: ajouter un poste (JSON)
-Route::post('rh/services/{service}/postes-ajax', [App\Http\Controllers\RH\PosteController::class, 'ajaxStore'])->name('postes.ajaxStore');
-
-//AbcdeFgHiJ
 
 
 // Ressources Cleints

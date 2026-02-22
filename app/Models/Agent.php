@@ -25,4 +25,10 @@ class Agent extends Model
         'date_embauche',
         'statut',
     ];
+
+    // Relation vers le poste de l'agent
+    public function poste()
+    {
+        return $this->belongsTo(Poste::class, 'poste_id');
+    }
 }
