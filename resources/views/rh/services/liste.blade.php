@@ -21,9 +21,6 @@
 @section('breadcrumb', 'Postes')
 
 @section('content')
-
-
-<<<<<<< HEAD
     @push('js')
         <script>
             $(document).ready(function () {
@@ -54,81 +51,6 @@
                             }
                         });
                     }, 'Confirmation de suppression');
-=======
-@push('js')
-<script>
-$(document).ready(function() {
-    // DataTable init (pagination + recherche, sans boutons d'export)
-    $('#servicesTable').DataTable({
-        paging: true,
-            searching: true,
-            info: true,
-            lengthChange: true,
-            lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Tous"]],
-        language: {
-            url: '/plugins/datatables/i18n/fr-FR.json',
-            paginate: {
-                first: "Premier",
-                last: "Dernier",
-                next: "Suivant",
-                previous: "Précédent"
-            },
-            search: "Recherche :",
-                info: "Affichage de _START_ à _END_ sur _TOTAL_ entrées",
-                infoEmpty: "Aucune entrée à afficher",
-                infoFiltered: "(filtré à partir de _MAX_ entrées)",
-                lengthMenu: "Afficher _MENU_ entrées",
-            }
-    });
-
-    // Sélection d'un service
-    $('#servicesTable tbody').on('click', 'tr', function() {
-        var serviceId = $(this).data('service-id');
-        console.log('[DEBUG] Ligne cliquée, data-service-id =', serviceId);
-        if (!serviceId) {
-            console.warn('[DEBUG] Aucun serviceId trouvé, on quitte la fonction.');
-            return;
-        }
-        // Highlight moderne (sans dépendre de table-primary)
-        $('#servicesTable tbody tr').removeClass('datatable-selected-row');
-        $(this).addClass('datatable-selected-row');
-        // Récupérer le nom du service (2e colonne)
-        var nomService = $(this).find('td:nth-child(2)').text();
-        console.log('[DEBUG] Nom du service sélectionné =', nomService);
-        // Charger les postes via AJAX
-        var urlAjax = '/rh/services/' + serviceId + '/postes-ajax';
-        console.log('[DEBUG] Appel AJAX vers', urlAjax);
-        $.get(urlAjax, function(data) {
-            console.log('[DEBUG] Réponse AJAX reçue');
-            $('#postesSection').html(data);
-            // Mettre à jour dynamiquement le titre
-            $('#postesTitre').text('Postes pour ' + nomService);
-        }).fail(function(jqXHR, textStatus, errorThrown) {
-            console.error('[DEBUG] Erreur AJAX:', textStatus, errorThrown);
-        });
-    });
-
-    // Soumission AJAX du formulaire d'ajout de poste
-    $(document).on('submit', '.form-ajout-poste', function(e) {
-        e.preventDefault();
-        var form = $(this);
-        var serviceId = form.data('service-id');
-        var url = form.attr('action');
-        var formData = form.serialize();
-        $.post(url, formData)
-            .done(function(response) {
-                // Afficher le modal de succès
-                $('#confirmationModalBody').text(response.message);
-                $('#confirmationModal').modal('show');
-                // Recharger la liste des postes
-                $.get('/rh/services/' + serviceId + '/postes-ajax', function(data) {
-                    $('#postesSection').html(data);
-                    // Mettre à jour dynamiquement le titre depuis la ligne sélectionnée du tableau
-                    var nomService = $('#servicesTable tbody tr.datatable-selected-row td:nth-child(2)').text();
-                    if(nomService) {
-                        $('#postesTitre').text('Postes pour ' + nomService);
-                    }
->>>>>>> b5584ae2ee773478b4afc47877f6e2200fd29a75
                 });
                 // DataTable init (pagination + recherche, sans boutons d'export)
                 $('#servicesTable').DataTable({
