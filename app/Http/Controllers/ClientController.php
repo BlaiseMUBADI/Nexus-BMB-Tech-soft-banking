@@ -144,19 +144,10 @@ class ClientController extends Controller
                 return back()->withErrors(['photo' => 'Erreur lors de l’upload de la photoâÂ¯: ' . $e->getMessage()])->withInput();
             }
         }
-    // Génération du matricule client
-    // Préfixe : CL, code agence : EBENKGA, année sur 2 chiffres, numéro séquentiel sur 5 chiffres
-    $prefixe = 'CL';
-    $codeAgence = 'EBENKGA';
-    $annee = date('y');
-    // Compter le nombre de clients créés cette année (pour le séquentiel)
-    $count = \App\Models\Client::whereYear('created_at', date('Y'))->count() + 1;
-    $numSeq = str_pad($count, 5, '0', STR_PAD_LEFT);
-    $matricule = "$prefixe-$codeAgence-$annee-$numSeq";
-    $validated['matricule'] = $matricule;
 
-    \App\Models\Client::create($validated);
-    return redirect()->route('clients.create')->with('success', 'Client ajouté avec succès. Matricule : ' . $matricule);
+
+    $client = \App\Models\Client::create($validated);
+    return redirect()->route('clients.create')->with('success', 'Client ajouté avec succès. Matricule : ' . $client->matricule);
     }
 
     /**

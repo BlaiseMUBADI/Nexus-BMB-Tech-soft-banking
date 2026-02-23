@@ -14,6 +14,7 @@
     });
 
 </script>
+@endpush
 @extends('layouts.app')
 
 @section('page_title', 'Gestion des rôles et permissions')
@@ -32,6 +33,14 @@
                     <li class="nav-item">
                         <a class="nav-link" id="permissions-tab" data-toggle="tab" href="#permissions" role="tab"
                             aria-controls="permissions" aria-selected="false">Permissions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="attribution-tab" data-toggle="tab" href="#attribution" role="tab"
+                            aria-controls="attribution" aria-selected="false">Attribution</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="user-roles-tab" data-toggle="tab" href="#user-roles" role="tab"
+                            aria-controls="user-roles" aria-selected="false">Users / Roles</a>
                     </li>
                 </ul>
             </div>
@@ -156,6 +165,61 @@
 
 
 
+
+                    <div class="tab-pane fade" id="attribution" role="tabpanel" aria-labelledby="attribution-tab">
+                        <h4>Attribution des permissions à un rôle</h4>
+                        <form id="attachPermissionsForm">
+                            <div class="form-group">
+                                <label for="selectRole">Choisir un rôle :</label>
+                                <select id="selectRole" name="role_code" class="form-control select2" style="width: 100%;" required>
+                                    <option value="">-- Sélectionner un rôle --</option>
+                                    @foreach($roles as $role)
+                                        <option value="{{ $role->code }}">[{{ $role->code }}] {{ $role->nom }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div id="permissionsListContainer" class="card card-primary card-outline shadow-sm p-3 mb-2 bg-white rounded permissions-card">
+                                <div class="permissions-title mb-2">Permissions disponibles :</div>
+                                <div class="mb-3">
+                                    <label style="font-weight:600; color:#e02424; cursor:pointer;">
+                                        <input type="checkbox" id="disableAllPermissions" style="margin-right:0.5em; accent-color:#e02424;"> Désactiver tout
+                                    </label>
+                                </div>
+                                <div class="permissions-list">
+                                    @php if (!isset($rolePermissions)) $rolePermissions = collect(); @endphp
+                                    @foreach($permissions as $permission)
+                                        <label class="permission-item">
+                                            <input type="checkbox" class="permission-checkbox perm-checkbox" data-perm-code="{{ $permission->code }}" @if($rolePermissions->contains($permission->code)) checked @endif>
+                                            {{ $permission->nom }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade" id="user-roles" role="tabpanel" aria-labelledby="user-roles-tab">
+                        <h4>Attribution des rôles à un utilisateur</h4>
+                        <form id="attachRolesToUserForm">
+                            <div class="form-group">
+                                <label for="selectUser">Choisir un utilisateur :</label>
+                                <select id="selectUser" name="user_id" class="form-control select2" style="width: 100%;" required>
+                                    <option value="">-- Sélectionner un utilisateur --</option>
+                                    @foreach($users as $user)
+                                        <option value="{{ $user->id }}">
+                                            [{{ $user->agent ? $user->agent->matricule : 'N/A' }}] 
+                                            {{ $user->agent ? ($user->agent->nom . ' ' . $user->agent->postnom . ' ' . $user->agent->prenom) : '(Agent inconnu)'}}
+                                            | Login: {{ $user->name }}
+                                            | {{ $user->email }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div id="rolesListContainer" class="card card-primary card-outline shadow-sm p-3 mb-2 bg-white rounded">
+                                <!-- La liste des rôles à cocher sera chargée ici en AJAX -->
+                            </div>
+                        </form>
+                    </div>
 
                 </div>
             </div>
@@ -299,6 +363,44 @@
             });
 
 
+            // Attribution des permissions à un rôle (onglet Attribution)
+            $('#selectRole').on('change', function () {
+                var roleCode = $(this).val();
+                if (!roleCode) {
+                    $('#permissionsListContainer').html('');
+                    return;
+                }
+                $.get(baseUrl + '/administration/role-permissions/' + roleCode, function (html) {
+                    $('#permissionsListContainer').html(html);
+                });
+            });
+
+            // Délégation d'événement pour les cases à cocher (car contenu AJAX)
+            $('#permissionsListContainer').on('change', '.perm-checkbox', function () {
+                var roleCode = $('#selectRole').val();
+                var permCode = $(this).data('perm-code');
+                var checked = $(this).is(':checked');
+                var url = checked ? baseUrl + '/administration/role-permissions/attach' : baseUrl + '/administration/role-permissions/detach';
+                $.post(url, {
+                    role_code: roleCode,
+                    permission_code: permCode,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                })
+                .done(function () {
+                    showAppModal('success', checked ? 'Permission attachée.' : 'Permission détachée.');
+                })
+                .fail(function () {
+                    showAppModal('error', 'Erreur lors de la mise à jour.');
+                });
+            });
+
+
+            // Désactiver tout : coche/décoche toutes les permissions
+            $(document).on('change', '#disableAllPermissions', function() {
+                var checked = $(this).is(':checked');
+                $('.perm-checkbox').prop('checked', !checked).trigger('change');
+            });
+
         });
 
         // Fonction utilitaire pour recharger le tableau des rôles et réinitialiser DataTable
@@ -360,5 +462,82 @@
                 });
             });
         }
+
+        
+    // Initialisation Select2 sur le select des rôles (avec recherche code/nom)
+    $(document).ready(function() {
+        // Select2 pour le select des rôles
+        $('#selectRole').select2({
+            theme: 'bootstrap4',
+            placeholder: 'Rechercher un rôle par code ou nom',
+            allowClear: true,
+            width: 'resolve',
+            language: {
+                noResults: function() { return "Aucun résultat trouvé"; }
+            },
+            matcher: function(params, data) {
+                if ($.trim(params.term) === '') return data;
+                if (typeof data.text === 'undefined') return null;
+                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+                    return data;
+                }
+                return null;
+            }
+        });
+
+        // Select2 pour le select des utilisateurs (identique à rôles)
+        $('#selectUser').select2({
+            theme: 'bootstrap4',
+            placeholder: 'Rechercher un utilisateur par nom, email ou ID',
+            allowClear: true,
+            width: 'resolve',
+            language: {
+                noResults: function() { return "Aucun résultat trouvé"; }
+            },
+            matcher: function(params, data) {
+                if ($.trim(params.term) === '') return data;
+                if (typeof data.text === 'undefined') return null;
+                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+                    return data;
+                }
+                return null;
+            }
+        });
+
+        // Chargement dynamique des rôles/permissions de l'utilisateur sélectionné
+        $('#selectUser').on('change', function() {
+            var userId = $(this).val();
+            if (!userId) {
+                $('#rolesListContainer').html('<div class="alert alert-info">Aucun utilisateur sélectionné.</div>');
+                return;
+            }
+            $.get(baseUrl + '/administration/user-roles-permissions/' + userId, function(html) {
+                $('#rolesListContainer').html(html);
+            });
+        });
+    });
+
+     // Attribution/suppression de rôles à l'utilisateur (onglet Users / Roles)
+        $('#rolesListContainer').on('change', '.user-role-checkbox', function() {
+            var userId = $('#selectUser').val();
+            var roleCode = $(this).data('role-code');
+            var checked = $(this).is(':checked');
+            var url = checked ? baseUrl + '/administration/user-roles/attach' : baseUrl + '/administration/user-roles/detach';
+            $.post(url, {
+                user_id: userId,
+                role_code: roleCode,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            })
+            .done(function () {
+                showAppModal('success', checked ? 'Rôle attribué.' : 'Rôle retiré.');
+                // Recharge la liste pour mettre à jour les permissions héritées
+                $.get(baseUrl + '/administration/user-roles-permissions/' + userId, function(html) {
+                    $('#rolesListContainer').html(html);
+                });
+            })
+            .fail(function () {
+                showAppModal('error', 'Erreur lors de la mise à jour.');
+            });
+        });
     </script>
 @endpush

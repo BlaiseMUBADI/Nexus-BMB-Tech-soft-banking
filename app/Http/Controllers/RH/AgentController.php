@@ -56,14 +56,8 @@ class AgentController extends Controller
             'statut' => 'required|in:actif,inactif',
         ]);
 
-        // Génération du matricule AG-EBENKGA-26-00001
-        $prefixe = 'AG';
-        $codeAgence = 'EBENKGA';
-        $annee = date('y');
-        $count = \App\Models\Agent::whereYear('created_at', date('Y'))->count() + 1;
-        $numSeq = str_pad($count, 5, '0', STR_PAD_LEFT);
-        $matricule = "$prefixe-$codeAgence-$annee-$numSeq";
-        $validated['matricule'] = $matricule;
+
+        // Ne pas fournir de matricule, il sera généré automatiquement par le modèle Agent
 
         if ($request->hasFile('photo')) {
             $image = $request->file('photo');
@@ -76,8 +70,8 @@ class AgentController extends Controller
             $validated['photo'] = 'agents/' . $imageName;
         }
 
-        \App\Models\Agent::create($validated);
-        return redirect()->route('agents.create')->with('success', 'Agent ajouté avec succès. Matricule : ' . $matricule);
+        $agent = \App\Models\Agent::create($validated);
+        return redirect()->route('agents.create')->with('success', 'Agent ajouté avec succès. Matricule : ' . $agent->matricule);
     }
 
     public function show($matricule)

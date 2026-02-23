@@ -31,15 +31,19 @@ class Agent extends Model
         parent::boot();
         static::creating(function ($agent) {
             if (!$agent->matricule) {
-                $codes = self::pluck('matricule')->map(function ($c) {
-                    return (int)preg_replace('/[^0-9]/', '', $c);
-                })->filter()->sort()->values();
+                $annee = date('y');
+                $prefix = 'AG-EBENKGA-' . $annee . '-';
+                $codes = self::where('matricule', 'like', $prefix.'%')
+                    ->pluck('matricule')
+                    ->map(function($c) use ($prefix) {
+                        return (int)preg_replace('/[^0-9]/', '', str_replace($prefix, '', $c));
+                    })->filter()->sort()->values();
                 $next = 1;
                 foreach ($codes as $num) {
                     if ($num != $next) break;
                     $next++;
                 }
-                $agent->matricule = 'EBEN-AG' . $next;
+                $agent->matricule = $prefix . str_pad($next, 5, '0', STR_PAD_LEFT);
             }
         });
     }

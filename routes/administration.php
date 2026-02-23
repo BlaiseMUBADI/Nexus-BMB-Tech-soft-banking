@@ -3,6 +3,11 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Administration\UtilisateurController;
 
 Route::prefix('administration')->group(function () {
+        // AJAX : attacher/détacher un rôle à un utilisateur
+        Route::post('/user-roles/attach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'attachUserRole']);
+        Route::post('/user-roles/detach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'detachUserRole']);
+    // AJAX : liste des rôles et permissions d'un utilisateur
+    Route::get('/user-roles-permissions/{user_id}', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'userRolesPermissionsList']);
 
     //Route::get('/permissions-table', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'permissionsTable'])->name('administration.permissions.table');
 
@@ -27,4 +32,10 @@ Route::prefix('administration')->group(function () {
     Route::delete('/utilisateurs/{id}', [UtilisateurController::class, 'destroy'])->name('administration.utilisateurs.destroy');
     // Modification utilisateur
     Route::put('/utilisateurs/{id}', [UtilisateurController::class, 'update'])->name('administration.utilisateurs.update');
+
+    // AJAX : liste des permissions d'un rôle (avec cochage)
+    Route::get('/role-permissions/{role_code}', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'rolePermissionsList']);
+    // AJAX : attacher/détacher une permission à un rôle
+    Route::post('/role-permissions/attach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'attachPermission']);
+    Route::post('/role-permissions/detach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'detachPermission']);
 });
