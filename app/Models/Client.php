@@ -30,7 +30,6 @@ class Client extends Model
         'date_delivrance_piece',
         'numero_piece_identite',
         'photo',
-        // Partie 6 : Activité économique
         'secteur_activite',
         'type_activite',
         'nom_entreprise',
@@ -39,6 +38,27 @@ class Client extends Model
         'statut_entreprise',
         'nombre_annees_experience',
         'revenu_mensuel',
+        'revenu_mensuel_devise',
         'autres_details_activite',
+        'created_at',
+        'updated_at',
     ];
+
+    public static function boot()
+    {
+        parent::boot();
+        static::creating(function ($client) {
+            if (!$client->matricule) {
+                $codes = self::pluck('matricule')->map(function($c) {
+                    return (int)preg_replace('/[^0-9]/', '', $c);
+                })->filter()->sort()->values();
+                $next = 1;
+                foreach ($codes as $num) {
+                    if ($num != $next) break;
+                    $next++;
+                }
+                $client->matricule = 'EBEN-CL' . $next;
+            }
+        });
+    }
 }

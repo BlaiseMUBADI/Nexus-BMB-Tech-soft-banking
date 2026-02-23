@@ -6,105 +6,107 @@
 @section('breadcrumb', 'Ajouter un utilisateur')
 
 @section('content')
-<div class="row">
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-header pb-0">
-                <h5>Agents</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive" style="max-height: 350px; min-height: 200px; overflow-y: auto;">
-                    <table id="agentsTable" class="table table-bordered table-striped mb-0 agents-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Nom</th>
-                                <th>Service / Poste</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($agents as $agent)
-                                @php
-                                    $affectation = \App\Models\Affectation::with(['poste.service'])
-                                        ->where('agent_matricule', $agent->matricule)
-                                        ->orderByDesc('date_debut')
-                                        ->first();
-                                @endphp
-                                <tr data-agent-matricule="{{ $agent->matricule }}" @if(isset($selectedAgent) && $selectedAgent->matricule == $agent->matricule) class="datatable-selected-row" @endif>
-                                    <td>{{ $loop->iteration }}</td>
-                                    <td>{{ $agent->nom }} {{ $agent->postnom }} {{ $agent->prenom }}</td>
-                                    <td>
-                                        @if($affectation && $affectation->poste && $affectation->poste->service)
-                                            <span class="badge badge-info">{{ $affectation->poste->service->nom }} / {{ $affectation->poste->nom }}</span>
-                                        @elseif($affectation && $affectation->poste)
-                                            <span class="badge badge-info">- / {{ $affectation->poste->nom }}</span>
-                                        @else
-                                            <span class="text-muted">Aucune affectation</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <h5>Agents</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive" style="max-height: 350px; min-height: 200px; overflow-y: auto;">
+                        <table id="agentsTable" class="table table-bordered table-striped mb-0 agents-table">
+                            <thead>
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted">Aucun agent enregistré.</td>
+                                    <th>#</th>
+                                    <th>Nom</th>
+                                    <th>Service / Poste</th>
                                 </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @forelse($agents as $agent)
+                                    @php
+                                        $affectation = \App\Models\Affectation::with(['poste.service'])
+                                            ->where('agent_matricule', $agent->matricule)
+                                            ->orderByDesc('date_debut')
+                                            ->first();
+                                    @endphp
+                                    <tr data-agent-matricule="{{ $agent->matricule }}" @if(isset($selectedAgent) && $selectedAgent->matricule == $agent->matricule) class="datatable-selected-row" @endif>
+                                        <td>{{ $loop->iteration }}</td>
+                                        <td>{{ $agent->nom }} {{ $agent->postnom }} {{ $agent->prenom }}</td>
+                                        <td>
+                                            @if($affectation && $affectation->poste && $affectation->poste->service)
+                                                <span class="badge badge-info">{{ $affectation->poste->service->nom }} / {{ $affectation->poste->nom }}</span>
+                                            @elseif($affectation && $affectation->poste)
+                                                <span class="badge badge-info">- / {{ $affectation->poste->nom }}</span>
+                                            @else
+                                                <span class="text-muted">Aucune affectation</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">Aucun agent enregistré.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-header pb-0">
-                <h5>Créer un compte utilisateur</h5>
-            </div>
-            <div class="card-body">
-                <div id="agentFormContainer">
-                    <form id="userCreateForm" method="POST" action="{{ route('administration.utilisateurs.store') }}" style="display:none">
-                        @csrf
-                        <input type="hidden" name="agent_matricule" id="agentMatricule">
-                        <div class="form-group">
-                            <label for="login">Login</label>
-                            <input type="text" class="form-control" id="login" name="login" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="email">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="password">Mot de passe</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                            <small id="passwordHelp" class="form-text" style="display:block;"></small>
-                        </div>
-                        <div class="form-group">
-                            <label for="password_confirmation">Confirmer le mot de passe</label>
-                            <input type="password" class="form-control" id="password_confirmation" name="password_confirmation" required>
-                            <small id="passwordConfirmHelp" class="form-text" style="display:block;"></small>
-                        </div>
-                        <div class="form-group">
-                            <label for="etat">État</label>
-                            <select class="form-control" id="etat" name="etat" required>
-                                <option value="actif">Actif</option>
-                                <option value="inactif">Inactif</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-success"><i class="fas fa-save mr-1"></i> Enregistrer</button>
-                    </form>
-                    <div id="agentSelectAlert" class="alert alert-info">Sélectionnez un agent à gauche pour créer un compte utilisateur.</div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <h5>Créer un compte utilisateur</h5>
+                </div>
+                <div class="card-body">
+                    <div id="agentFormContainer">
+                        <form id="userCreateForm" method="POST" action="{{ route('administration.utilisateurs.store') }}" style="display:none">
+                            @csrf
+                            <input type="hidden" name="agent_matricule" id="agentMatricule">
+                            <div class="form-group">
+                                <label for="login">Login</label>
+                                <input type="text" class="form-control" id="login" name="login" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="password">Mot de passe</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                                <small id="passwordHelp" class="form-text" style="display:block;"></small>
+                            </div>
+                            <div class="form-group">
+                                <label for="password_confirmation">Confirmer le mot de passe</label>
+                                <input type="password" class="form-control" id="password_confirmation" name="password_confirmation" required>
+                                <small id="passwordConfirmHelp" class="form-text" style="display:block;"></small>
+                            </div>
+                            <div class="form-group">
+                                <label for="etat">État</label>
+                                <select class="form-control" id="etat" name="etat" required>
+                                    <option value="actif">Actif</option>
+                                    <option value="inactif">Inactif</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-success"><i class="fas fa-save mr-1"></i> Enregistrer</button>
+                        </form>
+                        <div id="agentSelectAlert" class="alert alert-info">Sélectionnez un agent à gauche pour créer un compte utilisateur.</div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-6" id="userAccountsCol" style="display:none;">
-        <div class="card">
-            <div class="card-header pb-0 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Comptes utilisateurs</h5>
-                <button class="btn btn-sm btn-primary" id="refreshUsersTable"><i class="fas fa-sync-alt"></i> Actualiser</button>
+        <div class="col-md-6" id="userAccountsCol" style="display:none;">
+            <div class="card">
+                <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Comptes utilisateurs</h5>
+                    <button class="btn btn-sm btn-primary" id="refreshUsersTable"><i class="fas fa-sync-alt"></i> Actualiser</button>
+                </div>
+                
+                @include('administration.utilisateurs.tableau_compte')
+                
             </div>
-            
-            @include('administration.utilisateurs.tableau_compte')
-            
         </div>
     </div>
 </div>

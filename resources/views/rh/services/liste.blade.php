@@ -21,7 +21,111 @@
 @section('breadcrumb', 'Postes')
 
 @section('content')
-    @push('js')
+    <div class="container-fluid ">
+        <div class="row  ">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header pb-0">
+                        <h5>Services</h5>
+                    </div>
+                    <div class="card-body">
+                        @if(session('success'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
+                                <button type="button" class="close" data-dismiss="alert" aria-label="Fermer">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                        @endif
+                        <div class="table-responsive" style="max-height: 350px; min-height: 200px; overflow-y: auto;">
+                            <table id="servicesTable" class="table table-bordered table-striped mb-0">
+                                <thead>
+                                    
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Nom du service</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($services as $service)
+                                        <tr data-service-id="{{ $service->id }}">
+                                            <td>{{ $loop->iteration }}</td>
+                                            <td>{{ $service->nom }}</td>
+                                            <td>{{ $service->description }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-danger btn-delete-service"
+                                                    data-id="{{ $service->id }}">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">Aucun service enregistré.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                        <hr>
+                        <form id="formAjoutService" method="POST" action="{{ route('services.store') }}">
+                            @csrf
+                            <div class="form-group">
+                                <label for="serviceName">Nom du service</label>
+                                <input type="text" name="nom" class="form-control" id="serviceName"
+                                    placeholder="Entrer le nom du service" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="serviceDesc">Description</label>
+                                <textarea name="description" class="form-control" id="serviceDesc" rows="3"
+                                    placeholder="Entrer la description"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary"><i
+                                    class="fas fa-plus-circle mr-1"></i>Ajouter</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header pb-0">
+                        <h5 id="postesCardTitle">Postes</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="postesSection">
+                            <p class="text-muted">Sélectionnez un service à gauche pour afficher ses postes.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection
+
+
+@section('css')
+    <style>
+        /* Couleurs modernes pour la sélection et le survol */
+        #servicesTable tbody tr.datatable-selected-row {
+            background: linear-gradient(90deg, #6366f1 0%, #a21caf 100%) !important;
+            color: #fff !important;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        #servicesTable tbody tr:hover:not(.datatable-selected-row) {
+            background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%) !important;
+            color: #fff !important;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(59, 130, 246, 0.10);
+            transition: background 0.3s, color 0.3s;
+        }
+    </style>
+@endsection
+
+@push('js')
         <script>
             $(document).ready(function () {
                 // Détecte le chemin de base Laravel (pour sous-dossier, sans /public)
@@ -176,110 +280,3 @@
             });
         </script>
     @endpush
-
-
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header pb-0">
-                    <h5>Services</h5>
-                </div>
-                <div class="card-body">
-                    @if(session('success'))
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
-                            <button type="button" class="close" data-dismiss="alert" aria-label="Fermer">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
-                    @endif
-                    <div class="table-responsive" style="max-height: 350px; min-height: 200px; overflow-y: auto;">
-                        <table id="servicesTable" class="table table-bordered table-striped mb-0">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Nom du service</th>
-                                    <th>Description</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($services as $service)
-                                    <tr data-service-id="{{ $service->id }}">
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $service->nom }}</td>
-                                        <td>{{ $service->description }}</td>
-                                        <td>
-                                            <button class="btn btn-sm btn-danger btn-delete-service"
-                                                data-id="{{ $service->id }}">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="4" class="text-center text-muted">Aucun service enregistré.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                    <hr>
-                    <form id="formAjoutService" method="POST" action="{{ route('services.store') }}">
-                        @csrf
-                        <div class="form-group">
-                            <label for="serviceName">Nom du service</label>
-                            <input type="text" name="nom" class="form-control" id="serviceName"
-                                placeholder="Entrer le nom du service" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="serviceDesc">Description</label>
-                            <textarea name="description" class="form-control" id="serviceDesc" rows="3"
-                                placeholder="Entrer la description"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary"><i
-                                class="fas fa-plus-circle mr-1"></i>Ajouter</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header pb-0">
-<<<<<<< HEAD
-                    <h5 id="postesCardTitle">Postes</h5>
-=======
-                    <h5 id="postesTitre">Postes</h5>
->>>>>>> b5584ae2ee773478b4afc47877f6e2200fd29a75
-                </div>
-                <div class="card-body">
-                    <div id="postesSection">
-                        <p class="text-muted">Sélectionnez un service à gauche pour afficher ses postes.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    </div>
-@endsection
-
-
-@section('css')
-    <style>
-        /* Couleurs modernes pour la sélection et le survol */
-        #servicesTable tbody tr.datatable-selected-row {
-            background: linear-gradient(90deg, #6366f1 0%, #a21caf 100%) !important;
-            color: #fff !important;
-            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
-            transition: background 0.3s, color 0.3s;
-        }
-
-        #servicesTable tbody tr:hover:not(.datatable-selected-row) {
-            background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%) !important;
-            color: #fff !important;
-            cursor: pointer;
-            box-shadow: 0 1px 4px rgba(59, 130, 246, 0.10);
-            transition: background 0.3s, color 0.3s;
-        }
-    </style>
-@endsection

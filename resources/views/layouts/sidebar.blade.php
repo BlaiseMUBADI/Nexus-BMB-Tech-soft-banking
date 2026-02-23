@@ -114,9 +114,9 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							</a>
 						</li>
 						<li class="nav-item">
-							<a href="{{ url('/admin/roles') }}" class="nav-link {{ request()->is('admin/roles') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Rôles & Permissions</p>
+							<a href="{{ route('administration.roles_permissions') }}" class="nav-link {{ request()->is('administration/roles-permissions') ? 'active' : '' }}">
+								<i class="nav-icon fas fa-user-shield"></i>
+								<p>Roles & Permissions</p>
 							</a>
 						</li>
 						<li class="nav-item">

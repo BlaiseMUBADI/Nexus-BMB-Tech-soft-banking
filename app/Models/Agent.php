@@ -26,6 +26,24 @@ class Agent extends Model
         'statut',
     ];
 
+    public static function boot()
+    {
+        parent::boot();
+        static::creating(function ($agent) {
+            if (!$agent->matricule) {
+                $codes = self::pluck('matricule')->map(function ($c) {
+                    return (int)preg_replace('/[^0-9]/', '', $c);
+                })->filter()->sort()->values();
+                $next = 1;
+                foreach ($codes as $num) {
+                    if ($num != $next) break;
+                    $next++;
+                }
+                $agent->matricule = 'EBEN-AG' . $next;
+            }
+        });
+    }
+
     // Relation vers le poste de l'agent
     public function poste()
     {

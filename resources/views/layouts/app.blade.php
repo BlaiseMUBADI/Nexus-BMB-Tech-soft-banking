@@ -185,6 +185,8 @@
             body.html(icon + '<span>' + message + '</span>');
             $('#systemMessageModal').modal('show');
         }
+        // Alias pour compatibilité : showAppModal = showSystemMessage
+        window.showAppModal = showSystemMessage;
 
         /**
          * Affiche un modal de confirmation universel
