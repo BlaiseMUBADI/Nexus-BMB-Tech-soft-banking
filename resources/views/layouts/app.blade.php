@@ -6,8 +6,6 @@
 </head>
 
 <body class="hold-transition dark-mode sidebar-mini layout-fixed layout-navbar-fixed layout-footer-fixed">
-
-
     <div class="wrapper">
         @include('layouts.navbar')
         @include('layouts.sidebar')
@@ -31,11 +29,7 @@
             </div>
             <!-- /.content-header -->
 
-
-
-
             @yield('content')
-
 
             <!-- Modal système universel (succès, erreur, alerte, info) -->
             <div class="modal fade" id="systemMessageModal" tabindex="-1" role="dialog"
@@ -89,9 +83,7 @@
                 </div>
             </div>
 
-
         </main>
-
 
         <!-- Control Sidebar -->
         <aside class="control-sidebar control-sidebar-dark">
@@ -120,7 +112,6 @@
     <!-- ChartJS -->
     <script src="{{ asset('plugins/chart.js/Chart.min.js') }}"></script>
 
-
     <!-- DataTables JS (global) -->
     <script src="{{ asset('plugins/datatables/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
@@ -134,7 +125,6 @@
     <script src="{{ asset('plugins/datatables-buttons/js/buttons.html5.min.js') }}"></script>
     <script src="{{ asset('plugins/datatables-buttons/js/buttons.print.min.js') }}"></script>
     <script src="{{ asset('plugins/datatables-buttons/js/buttons.colVis.min.js') }}"></script>
-
 
     <!-- AdminLTE dashboard demo (This is only for demo purposes) -->
     <script src="{{ asset('dist/js/pages/dashboard2.js') }}"></script>
@@ -151,7 +141,28 @@
     <!-- Select2 JS -->
     <script src="{{ asset('plugins/select2/js/select2.full.min.js') }}"></script>
 
+    <!-- Formulaire logout caché pour POST -->
+    <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+        @csrf
+    </form>
+
     <script>
+        /*
+        * Gestion de l'inactivité : déconnexion après 2 minutes d'inactivité (POST)
+        */
+        let inactivityTimeout;
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimeout);
+            inactivityTimeout = setTimeout(function() {
+                document.getElementById('logout-form').submit();
+            }, 1 * 60 * 1000); // 1 minute
+        }
+        window.onload = resetInactivityTimer;
+        document.onmousemove = resetInactivityTimer;
+        document.onkeypress = resetInactivityTimer;
+        document.onclick = resetInactivityTimer;
+        document.onscroll = resetInactivityTimer;
+
         /**
          * Affiche un message système global (succès, erreur, alerte, info)
          * @param {string} type - success | error | warning | info

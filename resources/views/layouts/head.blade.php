@@ -4,7 +4,7 @@
 --}}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Coopec EBEN | @yield('title')</title>
+<title>{{ config('app.name', 'NBTB') }}@hasSection('title') | @yield('title')@endif</title>
 <link rel="icon" type="image/png" href="{{ asset('dist/img/icon_vrailogoeben.png') }}" sizes="38x38">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 

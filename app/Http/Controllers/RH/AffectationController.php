@@ -27,7 +27,9 @@ class AffectationController extends Controller
             'poste_id' => 'required|exists:tb_postes,id',
             'date_debut' => 'required|date',
         ]);
-        Affectation::create($request->only('agent_matricule', 'poste_id', 'date_debut', 'date_fin'));
+        $data = $request->only('agent_matricule', 'poste_id', 'date_debut', 'date_fin');
+        $data['Etat'] = 'Actif';
+        Affectation::create($data);
         return redirect()->route('affectations.index')->with('success', 'Affectation enregistrée !');
     }
 }

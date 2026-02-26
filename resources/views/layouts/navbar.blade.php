@@ -141,17 +141,33 @@
         <!-- User Dropdown -->
         <li class="nav-item dropdown">
             <a class="nav-link" data-toggle="dropdown" href="#" aria-expanded="false">
-                <img src="{{ asset('dist/img/user2-160x160.jpg') }}" alt="User Image" class="img-size-32 img-circle mr-2" style="height:32px;width:32px;object-fit:cover;">
-                <span class="d-none d-md-inline">Alexander Pierce</span>
+                @if(Auth::check() && Auth::user()->agent && Auth::user()->agent->photo)
+                    <img src="{{ route('agents.photo', basename(Auth::user()->agent->photo)) }}?v={{ time() }}"
+                         alt="Photo de profil"
+                         class="img-size-32 img-circle mr-2"
+                         style="height:32px;width:32px;object-fit:cover;">
+                @else
+                    <img src="{{ asset('dist/img/user2-160x160.jpg') }}" alt="User Image" class="img-size-32 img-circle mr-2" style="height:32px;width:32px;object-fit:cover;">
+                @endif
+                <span class="d-none d-md-inline">
+                    @if(Auth::check() && Auth::user()->agent)
+                        {{ Auth::user()->agent->prenom ?? '' }} {{ Auth::user()->agent->nom ?? 'Agent' }}
+                    @else
+                        Agent
+                    @endif
+                </span>
             </a>
             <div class="dropdown-menu dropdown-menu-right">
-                <a href="#" class="dropdown-item">
+                <a href="{{ route('profile.edit') }}" class="dropdown-item">
                     <i class="fas fa-user mr-2"></i> Profil
                 </a>
                 <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item">
-                    <i class="fas fa-sign-out-alt mr-2"></i> Déconnexion
-                </a>
+                <form method="POST" action="{{ route('logout') }}" class="dropdown-item p-0 m-0 border-0 bg-transparent">
+                    @csrf
+                    <button type="submit" class="btn btn-link dropdown-item" style="padding: 0; margin: 0; color: inherit;">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Déconnexion
+                    </button>
+                </form>
             </div>
         </li>
     </ul>

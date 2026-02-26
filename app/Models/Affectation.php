@@ -12,6 +12,7 @@ class Affectation extends Model
         'poste_id',
         'date_debut',
         'date_fin',
+        'Etat',
     ];
 
     public function agent()

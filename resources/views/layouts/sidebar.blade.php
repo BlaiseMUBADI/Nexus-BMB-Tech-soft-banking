@@ -64,7 +64,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</a>
 					<ul class="nav nav-treeview">
 						<li class="nav-item">
-							<a href="{{ url('/rh/agents') }}" class="nav-link {{ request()->is('rh/agents') ? 'active' : '' }}">
+							<a href="{{ route('agents.index') }}" class="nav-link {{ request()->is('rh/agents') ? 'active' : '' }}">
 								<i class="far fa-circle nav-icon"></i>
 								<p>Liste des agents</p>
 							</a>
@@ -91,48 +91,48 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 				</li>
 				<!-- Fin Ressources Humaines -->
 
-				<!-- Administration -->
-				<li class="nav-item has-treeview {{ request()->is('admin*') ? 'menu-open' : '' }}">
-					<a href="#" class="nav-link {{ request()->is('admin*') ? 'active' : '' }}">
-						<i class="nav-icon fas fa-user-shield"></i>
-						<p>
-							Administration
-							<i class="right fas fa-angle-left"></i>
-						</p>
-					</a>
-					<ul class="nav nav-treeview">
-						<li class="nav-item">
-							<a href="{{ url('/administration/utilisateurs') }}" class="nav-link {{ request()->is('administration/utilisateurs') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Liste des utilisateurs</p>
-							</a>
-						</li>
-						<li class="nav-item">
-							<a href="{{ url('/administration/utilisateurs/nouveau') }}" class="nav-link {{ request()->is('administration/utilisateurs/create') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Ajouter un utilisateur</p>
-							</a>
-						</li>
-						<li class="nav-item">
-							<a href="{{ route('administration.roles_permissions') }}" class="nav-link {{ request()->is('administration/roles-permissions') ? 'active' : '' }}">
-								<i class="nav-icon fas fa-user-shield"></i>
-								<p>Roles & Permissions</p>
-							</a>
-						</li>
-						<li class="nav-item">
-							<a href="{{ url('/admin/logs') }}" class="nav-link {{ request()->is('admin/logs') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Journal d’activité</p>
-							</a>
-						</li>
-						<li class="nav-item">
-							<a href="{{ url('/admin/security') }}" class="nav-link {{ request()->is('admin/security') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Paramètres de sécurité</p>
-							</a>
-						</li>
-					</ul>
-				</li>
+				   <!-- Administration -->
+				   <li class="nav-item has-treeview {{ request()->is('administration*') || request()->is('admin*') ? 'menu-open' : '' }}">
+					   <a href="#" class="nav-link {{ request()->is('administration*') || request()->is('admin*') ? 'active' : '' }}">
+						   <i class="nav-icon fas fa-user-shield"></i>
+						   <p>
+							   Administration
+							   <i class="right fas fa-angle-left"></i>
+						   </p>
+					   </a>
+					   <ul class="nav nav-treeview">
+						   <li class="nav-item">
+							   <a href="{{ url('/administration/utilisateurs') }}" class="nav-link {{ request()->is('administration/utilisateurs') ? 'active' : '' }}">
+								   <i class="far fa-circle nav-icon"></i>
+								   <p>Liste des utilisateurs</p>
+							   </a>
+						   </li>
+						   <li class="nav-item">
+							   <a href="{{ url('/administration/utilisateurs/nouveau') }}" class="nav-link {{ request()->is('administration/utilisateurs/nouveau') ? 'active' : '' }}">
+								   <i class="far fa-circle nav-icon"></i>
+								   <p>Ajouter un utilisateur</p>
+							   </a>
+						   </li>
+						   <li class="nav-item">
+							   <a href="{{ url('/administration/roles_permissions') }}" class="nav-link {{ request()->is('administration/roles_permissions') ? 'active' : '' }}">
+								   <i class="nav-icon fas fa-user-shield"></i>
+								   <p>Roles & Permissions</p>
+							   </a>
+						   </li>
+						   <li class="nav-item">
+							   <a href="{{ url('/admin/logs') }}" class="nav-link {{ request()->is('admin/logs') ? 'active' : '' }}">
+								   <i class="far fa-circle nav-icon"></i>
+								   <p>Journal d’activité</p>
+							   </a>
+						   </li>
+						   <li class="nav-item">
+							   <a href="{{ url('/admin/security') }}" class="nav-link {{ request()->is('admin/security') ? 'active' : '' }}">
+								   <i class="far fa-circle nav-icon"></i>
+								   <p>Paramètres de sécurité</p>
+							   </a>
+						   </li>
+					   </ul>
+				   </li>
 				<!-- Fin Administration -->
 			</ul>
 		</nav>

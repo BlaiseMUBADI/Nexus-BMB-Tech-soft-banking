@@ -17,7 +17,7 @@ Route::prefix('administration')->group(function () {
     Route::post('/permissions', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'storePermission'])->name('administration.permissions.store');
     // Route pour afficher un rôle spécifique (corrige l'erreur de route manquante)
     Route::get('/roles/{role}', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'show'])->name('administration.roles.show');
-    Route::get('/roles-permissions', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'index'])->name('administration.roles_permissions');
+    Route::get('/roles_permissions', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'index'])->name('administration.roles_permissions');
     Route::get('/roles-table', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'rolesTable'])->name('administration.roles.table');
     Route::get('/utilisateurs/nouveau', [UtilisateurController::class, 'nouveau'])->name('administration.utilisateurs.nouveau');
     Route::get('/utilisateurs', [UtilisateurController::class, 'liste'])->name('administration.utilisateurs.liste');

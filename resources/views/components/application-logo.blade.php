@@ -1,0 +1,1 @@
+<img src="{{ asset('dist/img/vrailogoeben_redimensionner 1 .png') }}" alt="Logo Banque" style="max-width: 80px; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.1); opacity: .9;" {{ $attributes }}>
