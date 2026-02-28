@@ -1,13 +1,15 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Profil;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\DB;
 
 class ProfileController extends Controller
 {
@@ -27,8 +29,8 @@ class ProfileController extends Controller
         $poste = $agent && $agent->poste ? $agent->poste : null;
         $service = $poste && $poste->service ? $poste->service : null;
         // Permissions/roles
-        $userRoles = \DB::table('tb_role_user')->where('user_id', $user->id)->pluck('role_code');
-        $userPermissions = \DB::table('tb_role_permission')
+        $userRoles = DB::table('tb_role_user')->where('user_id', $user->id)->pluck('role_code');
+        $userPermissions = DB::table('tb_role_permission')
             ->whereIn('role_code', $userRoles)
             ->pluck('permission_code');
         $roles = \App\Models\Role::orderBy('nom')->get();

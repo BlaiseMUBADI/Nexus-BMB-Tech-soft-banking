@@ -129,15 +129,16 @@
                                  </script>
                               @endpush
                               <div class="form-group col-md-4">
-                                 <label for="zone">Zone</label>
+                                 <label for="code_zone">Zone</label>
                                  <div class="input-group">
                                     <div class="input-group-prepend">
                                        <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
                                     </div>
-                                    <select class="form-control" id="zone" name="zone" required>
+                                    <select class="form-control" id="code_zone" name="code_zone" required>
                                        <option value="">Choisir...</option>
-                                       <option value="Urbain">Urbain</option>
-                                       <option value="Rural">Rural</option>
+                                       @foreach($zones as $zone)
+                                           <option value="{{ $zone->code_zone }}">{{ $zone->nom }}</option>
+                                       @endforeach
                                     </select>
                                  </div>
                               </div>

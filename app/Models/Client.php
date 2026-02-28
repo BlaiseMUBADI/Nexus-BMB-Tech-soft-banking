@@ -24,7 +24,7 @@ class Client extends Model
         'adresse',
         'etat_civil',
         'nom_conjoint',
-        'zone',
+        'code_zone',
         'type_piece_identite',
         'lieu_delivrance_piece',
         'date_delivrance_piece',

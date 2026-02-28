@@ -63,7 +63,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							</a>
 						</li>
 						<li class="nav-item submenu-indent">
-							<a href="{{ url('/comptes/create') }}" class="nav-link {{ request()->is('comptes/create') ? 'active' : '' }}">
+							<a href="{{ url('/comptes-clients/comptes/create') }}" class="nav-link {{ request()->is('comptes-clients/comptes/create') ? 'active' : '' }}">
 								<i class="fas fa-plus nav-icon"></i>
 								<p>Ouverture de compte</p>
 							</a>
@@ -151,7 +151,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							   </a>
 						   </li>
 						   <li class="nav-item submenu-indent">
-							   <a href="{{ url('/administration/roles_permissions') }}" class="nav-link {{ request()->is('administration/roles_permissions') ? 'active' : '' }}">
+							   <a href="{{ url('/administration/roles-permissions') }}" class="nav-link {{ request()->is('administration/roles_permissions') ? 'active' : '' }}">
 								   <i class="fas fa-user-shield nav-icon"></i>
 								   <p>Roles & Permissions</p>
 							   </a>

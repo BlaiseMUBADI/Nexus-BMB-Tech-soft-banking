@@ -1,19 +1,22 @@
 <?php
 
-namespace App\Http\Controllers;
 
+namespace App\Http\Controllers\Clients;
+
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
 
 class ClientController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+
+    /* La méthode pour afficher la liste des clients avec la possibilité de rechercher par nom, postnom ou matricule */
     public function index()
     {
         $query = \App\Models\Client::query();
+
+        // Si une recherche est effectuée, filtrer les clients
         if (request()->has('search') && request('search')) {
             $search = request('search');
             $query->where(function($q) use ($search) {
@@ -27,17 +30,16 @@ class ClientController extends Controller
         return view('clients.liste', compact('clients'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
+                
+     /* La méthode pour afficher le formulaire de création d'un nouveau client */
+
     public function create()
     {
-        return view('clients.create');
+        $zones = \App\Models\Zone::orderBy('nom')->get();
+        return view('clients.create', compact('zones'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+    /* La méthode pour stocker un nouveau client dans la base de données */
     public function store(Request $request)
     {
         try {
@@ -53,7 +55,7 @@ class ClientController extends Controller
                 'adresse' => 'required|string|max:255',
                 'etat_civil' => 'required|string|max:255',
                 'nom_conjoint' => 'nullable|string|max:255',
-                'zone' => 'required|string|max:255',
+                'code_zone' => 'required|exists:tb_zones,code_zone',
                 'type_piece_identite' => 'required|string|max:255',
                 'lieu_delivrance_piece' => 'required|string|max:255',
                 'date_delivrance_piece' => 'required|date',
@@ -151,7 +153,7 @@ class ClientController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * La méthode pour afficher les détails d'un client spécifique.
      */
     public function show(string $id)
     {
@@ -161,16 +163,18 @@ class ClientController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * La méthode pour afficher le formulaire de modification d'un client spécifique.
      */
+     
     public function edit(string $id)
     {
         $client = \App\Models\Client::where('matricule', $id)->firstOrFail();
-        return view('clients.edit', compact('client'));
+        $zones = \App\Models\Zone::orderBy('nom')->get();
+        return view('clients.edit', compact('client', 'zones'));
     }
 
     /**
-     * Update the specified resource in storage.
+     * La méthode pour mettre à jour les informations d'un client spécifique dans la base de données.
      */
     public function update(Request $request, string $id)
     {
@@ -188,7 +192,7 @@ class ClientController extends Controller
                 'adresse' => 'required|string|max:255',
                 'etat_civil' => 'required|string|max:255',
                 'nom_conjoint' => 'nullable|string|max:255',
-                'zone' => 'required|string|max:255',
+                'code_zone' => 'required|exists:tb_zones,code_zone',
                 'type_piece_identite' => 'required|string|max:255',
                 'lieu_delivrance_piece' => 'required|string|max:255',
                 'date_delivrance_piece' => 'required|date',
@@ -281,7 +285,7 @@ class ClientController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * La méthode pour supprimer un client spécifique de la base de données.
      */
     public function destroy(string $id)
     {
@@ -295,7 +299,7 @@ class ClientController extends Controller
     }
 
     /**
-     * Serve une image d'un client.
+     * La méthode pour servir une image d'un client.
      */
     public function serveImage(string $id)
     {
@@ -309,60 +313,13 @@ class ClientController extends Controller
         return response()->json(['message' => 'Image not found'], 404);
     }
 
-    /**
-     * Sert une image client stockée hors du dossier public.
-     */
-    /*public function photo($filename)
-    {
-        $path = base_path('images_projet/clients/' . $filename);
-
-        if (!file_exists($path)) {
-            abort(404);
-        }
-
-        // Récupérer le type de fichier (ex: image/jpeg)
-        $type = mime_content_type($path);
-
-        // On force la réponse avec le bon header
-        return response()->file($path, [
-            'Content-Type' => $type,
-            'Content-Disposition' => 'inline; filename="'.$filename.'"'
-        ]);
-    }
-
-    public function photo($filename)
-    {
-        $path = base_path('images_projet/clients/' . $filename);
-        dd([
-            'Fichier_Existe' => file_exists($path),
-            'Chemin_Complet' => $path,
-            'Taille_Fichier' => filesize($path) . ' octets'
-        ]);
-    }*/
-
-
-   /* public function photo($filename)
-    {
-        $path = base_path('images_projet/clients/' . $filename);
-
-        if (!file_exists($path)) {
-            abort(404);
-        }
-
-        // --- NETTOYAGE DU FLUX ---
-        // Supprime tout espace ou caractère envoyé par erreur avant l'image
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
-
-        $type = mime_content_type($path);
-
-        return response()->file($path, [
-            'Content-Type' => $type,
-            'Cache-Control' => 'no-cache, must-revalidate',
-            'Pragma' => 'no-cache',
-        ]);
-    }*/
+        /**
+        * La méthode pour afficher la photo d'un client.
+        * Cette méthode est utilisée pour afficher la photo du client dans les vues.
+        * Elle prend le nom de fichier de la photo en paramètre et retourne l'image correspondante.
+        * Si l'image n'existe pas, elle retourne une erreur 404.
+        */  
+    
     public function photo($filename)
     {
         $path = base_path('images_projet/clients/' . $filename);

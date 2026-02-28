@@ -36,7 +36,7 @@
                             <label for="commune">Commune</label>
                             <select name="commune" id="commune" class="form-control" onchange="if(this.value==='autre'){document.getElementById('commune_autre').style.display='block';}else{document.getElementById('commune_autre').style.display='none';}">
                                 <option value="">Sélectionner une commune</option>
-                                <option value="Kanange">Kanangea</option>
+                                <option value="Kanange">Kananga</option>
                                 <option value="Nganza">Nganza</option>
                                 <option value="Lukongo">Lukongo</option>
                                 <option value="Ndesha">Ndesha</option>
@@ -190,7 +190,10 @@
                     .done(function(response) {
                         showSystemMessage('success', 'Zone ajoutée avec succès !');
                         form[0].reset();
-                        zonesDataTable.ajax.reload(null, false); // recharge le tableau
+                        setTimeout(function() {
+                             window.location.reload();
+                        }, 300);
+                       
                     })
                     .fail(function(xhr) {
                         let msg = 'Erreur lors de l\'enregistrement de la zone.';

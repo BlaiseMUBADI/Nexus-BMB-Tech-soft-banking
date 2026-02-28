@@ -116,10 +116,13 @@
 												<div class="input-group-prepend">
 													<span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
 												</div>
-												<select class="form-control" id="zone" name="zone" required>
+												<select class="form-control" id="code_zone" name="code_zone" required>
 													<option value="">Choisir...</option>
-													<option value="Urbain" @if(old('zone', $client->zone)==='Urbain') selected @endif>Urbain</option>
-													<option value="Rural" @if(old('zone', $client->zone)==='Rural') selected @endif>Rural</option>
+													@foreach($zones as $zone)
+														<option value="{{ $zone->code_zone }}" @if(old('code_zone', $client->code_zone)==$zone->code_zone) selected @endif>
+															 {{ $zone->nom }}
+														</option>
+													@endforeach
 												</select>
 											</div>
 										</div>
