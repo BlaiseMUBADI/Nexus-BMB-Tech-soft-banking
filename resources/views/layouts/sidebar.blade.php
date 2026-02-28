@@ -20,76 +20,113 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 
 				<!-- Ajoutez des icônes aux liens en utilisant la classe .nav-icon avec font-awesome ou toute autre bibliothèque de polices d'icônes -->
 
-				<!--Clients / Membres -->
+					<!--Clients / Membres -->
+					<li class="nav-item has-treeview {{ request()->is('clients*') ? 'menu-open' : '' }}">
+						<a href="#" class="nav-link {{ request()->is('clients*') ? 'active' : '' }}">
+							<i class="nav-icon fas fa-users"></i>
+							<p>
+								Clients / Membres
+								<i class="right fas fa-angle-left"></i>
+							</p>
+						</a>
+						<ul class="nav nav-treeview">
+							<li class="nav-item submenu-indent">
+								<a href="{{ url('/clients') }}" class="nav-link {{ request()->is('clients') ? 'active' : '' }}">
+									<i class="fas fa-list nav-icon"></i>
+									<p>Liste des membres</p>
+								</a>
+							</li>
+							<li class="nav-item submenu-indent">
+								<a href="{{ url('/clients/create') }}" class="nav-link {{ request()->is('clients/create') ? 'active' : '' }}">
+									<i class="fas fa-plus nav-icon"></i>
+									<p>Ajouter un membre</p>
+								</a>
+							</li>
+						</ul>
+					</li>
+					<!-- Fin Clients / Membres -->
 
-				<li class="nav-item has-treeview {{ request()->is('clients*') ? 'menu-open' : '' }}">
-					<a href="#" class="nav-link {{ request()->is('clients*') ? 'active' : '' }}">
-						<i class="nav-icon fas fa-users"></i>
+				<!-- Compte / Client -->
+				<li class="nav-item has-treeview {{ request()->is('comptes*') ? 'menu-open' : '' }}">
+					<a href="#" class="nav-link {{ request()->is('comptes*') ? 'active' : '' }}">
+						<i class="nav-icon fas fa-university"></i>
 						<p>
-							Clients / Membres
+							Compte / Client
 							<i class="right fas fa-angle-left"></i>
 						</p>
 					</a>
 					<ul class="nav nav-treeview">
-						<li class="nav-item">
-							<a href="{{ url('/clients') }}" class="nav-link {{ request()->is('clients') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Liste des clients</p>
+						<li class="nav-item submenu-indent">
+							<a href="{{ url('/comptes') }}" class="nav-link {{ request()->is('comptes') ? 'active' : '' }}">
+								<i class="fas fa-list nav-icon"></i>
+								<p>Liste des comptes</p>
 							</a>
 						</li>
-						<li class="nav-item">
-							<a href="{{ url('/clients/create') }}" class="nav-link {{ request()->is('clients/create') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Ajouter un client</p>
+						<li class="nav-item submenu-indent">
+							<a href="{{ url('/comptes/create') }}" class="nav-link {{ request()->is('comptes/create') ? 'active' : '' }}">
+								<i class="fas fa-plus nav-icon"></i>
+								<p>Ouverture de compte</p>
 							</a>
 						</li>
-						<li class="nav-item">
-							<a href="{{ url('/test') }}" class="nav-link {{ request()->is('test') ? 'active' : '' }}">
-								<i class="nav-icon fas fa-vial"></i>
-								<p>Test</p>
+						<li class="nav-item submenu-indent">
+							<a href="{{ url('/comptes/etat') }}" class="nav-link {{ request()->is('comptes/etat') ? 'active' : '' }}">
+								<i class="fas fa-balance-scale nav-icon"></i>
+								<p>États des soldes</p>
+							</a>
+						</li>
+						<li class="nav-item submenu-indent">
+							<a href="{{ url('/comptes/blocage') }}" class="nav-link {{ request()->is('comptes/blocage') ? 'active' : '' }}">
+								<i class="fas fa-lock nav-icon"></i>
+								<p>Blocage & Activation</p>
+							</a>
+						</li>
+						<li class="nav-item submenu-indent">
+							<a href="{{ url('/comptes/cloture') }}" class="nav-link {{ request()->is('comptes/cloture') ? 'active' : '' }}">
+								<i class="fas fa-times nav-icon"></i>
+								<p>Clôture de compte</p>
 							</a>
 						</li>
 					</ul>
 				</li>
-				<!-- Fin Clients / Membres -->
+				<!-- Fin Compte / Client -->
 
-				<!-- Ressources Humaines -->
-				<li class="nav-item has-treeview {{ request()->is('rh*') ? 'menu-open' : '' }}">
-					<a href="#" class="nav-link {{ request()->is('rh*') ? 'active' : '' }}">
-						<i class="nav-icon fas fa-briefcase"></i>
-						<p>
-							Ressources Humaines
-							<i class="right fas fa-angle-left"></i>
-						</p>
-					</a>
-					<ul class="nav nav-treeview">
-						<li class="nav-item">
-							<a href="{{ route('agents.index') }}" class="nav-link {{ request()->is('rh/agents') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Liste des agents</p>
-							</a>
-						</li>
-						<li class="nav-item">
-							<a href="{{ url('/rh/agents/create') }}" class="nav-link {{ request()->is('rh/agents/create') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Ajouter un agent</p>
-							</a>
-						</li>
-						<li class="nav-item">
-							<a href="{{ url('/rh/affectations') }}" class="nav-link {{ request()->is('rh/affectations') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Affectations</p>
-							</a>
-						</li>
-						<li class="nav-item">
-							<a href="{{ url('/rh/services') }}" class="nav-link {{ request()->is('rh/services') ? 'active' : '' }}">
-								<i class="far fa-circle nav-icon"></i>
-								<p>Services/Postes</p>
-							</a>
-						</li>
-					</ul>
-				</li>
-				<!-- Fin Ressources Humaines -->
+					<!-- Ressources Humaines -->
+					<li class="nav-item has-treeview {{ request()->is('rh*') ? 'menu-open' : '' }}">
+						<a href="#" class="nav-link {{ request()->is('rh*') ? 'active' : '' }}">
+							<i class="nav-icon fas fa-briefcase"></i>
+							<p>
+								Ressources Humaines
+								<i class="right fas fa-angle-left"></i>
+							</p>
+						</a>
+						<ul class="nav nav-treeview">
+							<li class="nav-item submenu-indent">
+								<a href="{{ route('agents.index') }}" class="nav-link {{ request()->is('rh/agents') ? 'active' : '' }}">
+									<i class="fas fa-list nav-icon"></i>
+									<p>Liste des agents</p>
+								</a>
+							</li>
+							<li class="nav-item submenu-indent">
+								<a href="{{ url('/rh/agents/create') }}" class="nav-link {{ request()->is('rh/agents/create') ? 'active' : '' }}">
+									<i class="fas fa-plus nav-icon"></i>
+									<p>Ajouter un agent</p>
+								</a>
+							</li>
+							<li class="nav-item submenu-indent">
+								<a href="{{ url('/rh/affectations') }}" class="nav-link {{ request()->is('rh/affectations') ? 'active' : '' }}">
+									<i class="fas fa-user-friends nav-icon"></i>
+									<p>Affectations</p>
+								</a>
+							</li>
+							<li class="nav-item submenu-indent">
+								<a href="{{ url('/rh/services') }}" class="nav-link {{ request()->is('rh/services') ? 'active' : '' }}">
+									<i class="fas fa-briefcase nav-icon"></i>
+									<p>Services/Postes</p>
+								</a>
+							</li>
+						</ul>
+					</li>
+					<!-- Fin Ressources Humaines -->
 
 				   <!-- Administration -->
 				   <li class="nav-item has-treeview {{ request()->is('administration*') || request()->is('admin*') ? 'menu-open' : '' }}">
@@ -101,33 +138,39 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						   </p>
 					   </a>
 					   <ul class="nav nav-treeview">
-						   <li class="nav-item">
+						   <li class="nav-item submenu-indent">
 							   <a href="{{ url('/administration/utilisateurs') }}" class="nav-link {{ request()->is('administration/utilisateurs') ? 'active' : '' }}">
-								   <i class="far fa-circle nav-icon"></i>
+								   <i class="fas fa-list nav-icon"></i>
 								   <p>Liste des utilisateurs</p>
 							   </a>
 						   </li>
-						   <li class="nav-item">
+						   <li class="nav-item submenu-indent">
 							   <a href="{{ url('/administration/utilisateurs/nouveau') }}" class="nav-link {{ request()->is('administration/utilisateurs/nouveau') ? 'active' : '' }}">
-								   <i class="far fa-circle nav-icon"></i>
+								   <i class="fas fa-plus nav-icon"></i>
 								   <p>Ajouter un utilisateur</p>
 							   </a>
 						   </li>
-						   <li class="nav-item">
+						   <li class="nav-item submenu-indent">
 							   <a href="{{ url('/administration/roles_permissions') }}" class="nav-link {{ request()->is('administration/roles_permissions') ? 'active' : '' }}">
-								   <i class="nav-icon fas fa-user-shield"></i>
+								   <i class="fas fa-user-shield nav-icon"></i>
 								   <p>Roles & Permissions</p>
 							   </a>
 						   </li>
-						   <li class="nav-item">
+						   <li class="nav-item submenu-indent">
+							   <a href="{{ url('/administration/zones-portfeuille') }}" class="nav-link {{ request()->is('administration/zones_portfeuille') ? 'active' : '' }}">
+								   <i class="fas fa-map-marker-alt nav-icon"></i>
+								   <p>Zones/Portfeuille</p>
+							   </a>
+						   </li>
+						   <li class="nav-item submenu-indent">
 							   <a href="{{ url('/admin/logs') }}" class="nav-link {{ request()->is('admin/logs') ? 'active' : '' }}">
-								   <i class="far fa-circle nav-icon"></i>
+								   <i class="fas fa-book nav-icon"></i>
 								   <p>Journal d’activité</p>
 							   </a>
 						   </li>
-						   <li class="nav-item">
+						   <li class="nav-item submenu-indent">
 							   <a href="{{ url('/admin/security') }}" class="nav-link {{ request()->is('admin/security') ? 'active' : '' }}">
-								   <i class="far fa-circle nav-icon"></i>
+								   <i class="fas fa-lock nav-icon"></i>
 								   <p>Paramètres de sécurité</p>
 							   </a>
 						   </li>
@@ -140,3 +183,9 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 	</div>
 	<!-- /.sidebar -->
 </aside>
+
+<style>
+.submenu-indent {
+	padding-left: 0.5rem !important;
+}
+</style>

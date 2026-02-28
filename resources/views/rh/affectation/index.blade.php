@@ -350,8 +350,7 @@
 					}
 				});
 				
-				// Détecte le chemin de base Laravel (pour sous-dossier, sans /public)
-                var baseUrl = "{{ url('') }}";
+				
 				var url = baseUrl + '/rh/affectations';
 				// Construction des données à envoyer
 				var data = {

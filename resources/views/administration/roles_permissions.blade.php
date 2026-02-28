@@ -197,6 +197,7 @@
                             </div>
                         </form>
                     </div>
+                    
 
                     <div class="tab-pane fade" id="user-roles" role="tabpanel" aria-labelledby="user-roles-tab">
                         <h4>Attribution des rôles à un utilisateur</h4>

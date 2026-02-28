@@ -1,6 +1,7 @@
 <?php
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Administration\UtilisateurController;
+use App\Http\Controllers\Administration\ZoneController;
 
 Route::prefix('administration')->group(function () {
         // AJAX : attacher/détacher un rôle à un utilisateur
@@ -15,6 +16,7 @@ Route::prefix('administration')->group(function () {
     Route::delete('/roles/{role}', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'destroy'])->name('administration.roles.destroy');
     Route::post('/roles-permissions', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'store'])->name('administration.roles_permissions.store');
     Route::post('/permissions', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'storePermission'])->name('administration.permissions.store');
+   
     // Route pour afficher un rôle spécifique (corrige l'erreur de route manquante)
     Route::get('/roles/{role}', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'show'])->name('administration.roles.show');
     Route::get('/roles_permissions', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'index'])->name('administration.roles_permissions');
@@ -38,4 +40,9 @@ Route::prefix('administration')->group(function () {
     // AJAX : attacher/détacher une permission à un rôle
     Route::post('/role-permissions/attach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'attachPermission']);
     Route::post('/role-permissions/detach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'detachPermission']);
+
+    // Zones / Portfeuille
+    Route::get('/zones-portfeuille', [ZoneController::class, 'index'])->name('administration.zones.index');
+    Route::post('/zones-portfeuille', [ZoneController::class, 'store'])->name('administration.zones.store');
+    Route::get('/zones/data', [App\Http\Controllers\Administration\ZoneController::class, 'data'])->name('administration.zones.data');
 });

@@ -16,8 +16,33 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): View
     {
+        $user = $request->user();
+        $agent = $user->agent;
+        // Affectations for agent
+        $affectations = $agent ? \App\Models\Affectation::where('agent_matricule', $agent->matricule)
+            ->with(['poste.service'])
+            ->orderByDesc('date_debut')
+            ->get() : collect();
+        // Poste and Service (current)
+        $poste = $agent && $agent->poste ? $agent->poste : null;
+        $service = $poste && $poste->service ? $poste->service : null;
+        // Permissions/roles
+        $userRoles = \DB::table('tb_role_user')->where('user_id', $user->id)->pluck('role_code');
+        $userPermissions = \DB::table('tb_role_permission')
+            ->whereIn('role_code', $userRoles)
+            ->pluck('permission_code');
+        $roles = \App\Models\Role::orderBy('nom')->get();
+        $permissions = \App\Models\Permission::orderBy('nom')->get();
         return view('profile.edit', [
-            'user' => $request->user(),
+            'user' => $user,
+            'agent' => $agent,
+            'affectations' => $affectations,
+            'poste' => $poste,
+            'service' => $service,
+            'roles' => $roles,
+            'permissions' => $permissions,
+            'userRoles' => $userRoles,
+            'userPermissions' => $userPermissions,
         ]);
     }
 
