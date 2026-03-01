@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\Compte;
 use App\Models\Client;
 use Illuminate\Support\Facades\Log;
+use App\Models\Devise;
 
 
 class CompteController extends Controller
@@ -17,7 +18,9 @@ class CompteController extends Controller
     {
         $clients = Client::orderBy('nom')->get();
         $comptes = Compte::with('client')->orderByDesc('created_at')->get();
-        return view('comptes_clients.create', compact('clients', 'comptes'));
+        $portefeuilles = \App\Models\Portefeuille::orderBy('nom_portefeuille')->get();
+        $devises = \App\Models\Devise::orderBy('nom')->get();
+        return view('comptes_clients.create', compact('clients', 'comptes', 'portefeuilles', 'devises'));
     }
 
     // Enregistre un nouveau compte
@@ -26,21 +29,24 @@ class CompteController extends Controller
         $validated = $request->validate([
             'client_matricule' => 'required|exists:tb_clients,matricule',
             'type' => 'required|in:COURANT,EPARGNE_LIBRE,EPARGNE_BLOQUEE,CAUTION_CREDIT',
+            'devise' => 'required|exists:tb_devises,code_iso',
+            'portefeuille_id' => $request->type === 'CAUTION_CREDIT' ? 'required|exists:tb_portefeuilles_agents,id' : 'nullable',
         ]);
 
-        // Vérifier si le client a déjà un compte de ce type
+        // Vérifier si le client a déjà un compte de ce type et de cette devise
         $existe = Compte::where('client_matricule', $validated['client_matricule'])
             ->where('type', $validated['type'])
+            ->where('devise', $validated['devise'])
             ->exists();
         if ($existe) {
             if ($request->ajax()) {
                 return response()->json([
-                    'message' => 'Ce client possède déjà un compte de ce type.'
+                    'message' => 'Ce client possède déjà un compte de ce type et de cette devise.'
                 ], 422);
             }
             return redirect()->route('comptes.create')
                 ->with('success', null)
-                ->with('error', 'Ce client possède déjà un compte de ce type.');
+                ->with('error', 'Ce client possède déjà un compte de ce type et de cette devise.');
         }
 
         $compte = Compte::create([
@@ -48,20 +54,38 @@ class CompteController extends Controller
             'type' => $validated['type'],
             'solde_reel' => 0,
             'solde_bloque' => 0,
+            'devise' => $validated['devise'],
+            'portefeuille_id' => $validated['portefeuille_id'] ?? null,
         ]);
 
         return redirect()->route('comptes.create')->with('success', 'Compte ouvert avec succès.');
     }
 
-    // Fonction de génération sécurisée du numéro de compte
-    protected function generateSecureAccountNumber($length = 12)
+    // Supprime un compte
+    public function destroy($code_compte)
     {
-        // Format : 12 chiffres aléatoires
-        $digits = '';
-        for ($i = 0; $i < $length; $i++) {
-            $digits .= random_int(0, 9);
-        }
-        // Optionnel : ajouter un préfixe ou checksum
-        return $digits;
+        $compte = Compte::findOrFail($code_compte);
+        $compte->delete();
+        return response()->json(['message' => 'Compte supprimé avec succès.']);
+    }
+
+    // Affiche la liste des comptes avec les relations client et portefeuille.agent
+    public function index()
+    {
+        $comptes = Compte::with(['client', 'portefeuille.agent'])->orderByDesc('created_at')->get();
+        return view('comptes_clients.liste', compact('comptes'));
+    }
+
+    public function show($code_compte)
+    {
+        $compte = Compte::with(['client', 'portefeuille.agent'])->findOrFail($code_compte);
+        return view('comptes_clients.show', compact('compte'));
+    }
+
+    public function edit($code_compte)
+    {
+        $compte = Compte::with(['client', 'portefeuille.agent'])->findOrFail($code_compte);
+        // Ajoute ici la logique d'édition si besoin
+        return view('comptes_clients.edit', compact('compte'));
     }
 }

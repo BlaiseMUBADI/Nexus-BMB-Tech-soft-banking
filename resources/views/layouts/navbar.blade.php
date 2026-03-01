@@ -158,9 +158,11 @@
                 </span>
             </a>
             <div class="dropdown-menu dropdown-menu-right">
+                @auth
                 <a href="{{ route('profile.edit') }}" class="dropdown-item">
                     <i class="fas fa-user mr-2"></i> Profil
                 </a>
+                @endauth
                 <div class="dropdown-divider"></div>
                 <form method="POST" action="{{ route('logout') }}" class="dropdown-item p-0 m-0 border-0 bg-transparent">
                     @csrf

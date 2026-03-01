@@ -93,62 +93,39 @@
 @endsection
 
 @push('js')
-<!-- Modal de confirmation de suppression -->
-<div class="modal fade" id="deleteAgentModal" tabindex="-1" role="dialog" aria-labelledby="deleteAgentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteAgentModalLabel">Confirmer la suppression</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body text-center">
-                <div class="mb-3">
-                    <span class="display-4 text-danger">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </span>
-                </div>
-                <p class="mb-0">Êtes-vous sûr de vouloir supprimer cet agent ?<br>
-                    <span class="fw-bold" style="color:#ffc107; font-size:1.1em; text-shadow:0 1px 2px #000;">Cette action est <u>irréversible</u>.</span>
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteAgentBtn">Supprimer</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 <script>
 $(function() {
-        let formToDelete = null;
-        // Gestion du bouton supprimer
-        $('.btn-delete-agent').on('click', function(e) {
-                e.preventDefault();
-                formToDelete = $(this).closest('form');
-                $('#deleteAgentModal').modal('show');
-        });
-        $('#confirmDeleteAgentBtn').on('click', function() {
+    let formToDelete = null;
+    // Gestion du bouton supprimer
+    $('.btn-delete-agent').on('click', function(e) {
+        e.preventDefault();
+        formToDelete = $(this).closest('form');
+        // Utiliser le modal universel
+        showUniversalConfirm(
+            "Êtes-vous sûr de vouloir supprimer cet agent ?",
+            function() {
                 if(formToDelete) {
-                        formToDelete.submit();
+                    formToDelete.submit();
                 }
-                $('#deleteAgentModal').modal('hide');
-        });
-        // Quand une miniature est cliquée, afficher le mode dans la modale (identique à clients)
-        $('.client-photo-thumb').on('click', function() {
-                var matricule = $(this).data('target').replace('#photoModal-', '');
-                var src = $(this).attr('src');
-                var mode = '';
-                if (src) {
-                        var ext = src.split('.').pop().toLowerCase();
-                        switch(ext) {
-                                case 'jpg':
-                                case 'jpeg':
-                                        mode = 'JPEG';
-                                        break;
-                                case 'png':
-                                        mode = 'PNG';
+            },
+            "Confirmer la suppression"
+        );
+    });
+    // Quand une miniature est cliquée, afficher le mode dans la modale (identique à clients)
+    $('.client-photo-thumb').on('click', function() {
+        var matricule = $(this).data('target').replace('#photoModal-', '');
+        var src = $(this).attr('src');
+        var mode = '';
+        if (src) {
+            var ext = src.split('.').pop().toLowerCase();
+            switch(ext) {
+                case 'jpg':
+                case 'jpeg':
+                    mode = 'JPEG';
+                    break;
+                case 'png':
+                    mode = 'PNG';
                     break;
                 case 'gif':
                     mode = 'GIF';

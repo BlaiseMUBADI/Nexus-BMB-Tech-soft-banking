@@ -3,16 +3,20 @@ namespace App\Http\Controllers\Administration;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+
 use App\Models\Zone;
+use Illuminate\Support\Facades\Log;
+
 
 class ZoneController extends Controller
 {
     // Affiche la liste des zones
     public function index()
     {
-        $zones = Zone::all();
+        $zones = Zone::with('agent')->get();
         $agents = \App\Models\Agent::orderBy('nom')->get();
-        return view('administration.zones', compact('zones', 'agents'));
+        $portefeuilles = \App\Models\Portefeuille::all();
+        return view('administration.zones', compact('zones', 'agents', 'portefeuilles'));
     }
 
     // Ajoute une nouvelle zone
@@ -44,5 +48,23 @@ class ZoneController extends Controller
     {
         $zones = Zone::all();
         return response()->json(['data' => $zones]);
+    }
+
+    // Supprime une zone
+    public function destroy($code_zone)
+    {
+        $zone = Zone::find($code_zone);
+        if (!$zone) {
+            return response()->json(['message' => 'Zone introuvable.'], 404);
+        }
+        try {
+            $zone->delete();
+            return response()->json(['message' => 'Zone supprimée avec succès.']);
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Erreur suppression zone : '.$e->getMessage());
+            return response()->json([
+                'message' => "Impossible de supprimer la zone car elle est liée à des clients. Veuillez d'abord supprimer ou réaffecter les clients de cette zone.",
+            ], 409);
+        }
     }
 }

@@ -53,31 +53,29 @@
             </div>
 
             <!-- Modal de confirmation universel -->
-            <div class="modal fade" id="universalConfirmModal" tabindex="-1" role="dialog"
-                aria-labelledby="universalConfirmModalLabel" aria-hidden="true">
+            <!-- Modal de confirmation universel stylé suppression -->
+            <div class="modal fade" id="universalConfirmModal" tabindex="-1" role="dialog" aria-labelledby="universalConfirmModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered" role="document">
                     <div class="modal-content">
-                        <div class="modal-header"
-                            style="background: #f3f4f6; color: #222; border-bottom: 2px solid #fde68a;">
-                            <h5 class="modal-title" id="universalConfirmModalLabel">Confirmation</h5>
-                            <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title" id="universalConfirmModalLabel">Confirmer la suppression</h5>
+                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <div class="modal-body d-flex align-items-center" id="universalConfirmModalBody"
-                            style="background: #fff; color: #222; min-height: 70px;">
-                            <!-- Icône + message injectés par JS -->
+                        <div class="modal-body text-center" id="universalConfirmModalBody">
+                            <div class="mb-3">
+                                <span class="display-4 text-danger">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </span>
+                            </div>
+                            <p class="mb-0" id="universalConfirmModalText">Êtes-vous sûr de vouloir supprimer cet élément ?<br>
+                                <span class="fw-bold" style="color:#ffc107; font-size:1.1em; text-shadow:0 1px 2px #000;">Cette action est <u>irréversible</u>.</span>
+                            </p>
                         </div>
-                        <div class="modal-footer" style="background: #fff; border-top: 1px solid #eee;">
-                            <button type="button" class="btn"
-                                style="background: #cbd5e1; color: #222; border-radius: 4px; min-width: 110px; border: 1px solid #cbd5e1; font-weight: 500;"
-                                data-dismiss="modal">
-                                <i class="fas fa-times-circle mr-1"></i> Annuler
-                            </button>
-                            <button type="button" class="btn" id="universalConfirmModalOk"
-                                style="background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%); color: #fff; border-radius: 4px; min-width: 120px; border: none; font-weight: 500;">
-                                <i class="fas fa-check-circle mr-1"></i> Confirmer
-                            </button>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                            <button type="button" class="btn btn-danger" id="universalConfirmModalOk">Supprimer</button>
                         </div>
                     </div>
                 </div>
@@ -212,8 +210,8 @@
          * @param {string} [title] - Titre du modal (optionnel)
          */
         function showUniversalConfirm(message, onConfirm, title) {
-            $('#universalConfirmModalLabel').text(title || 'Confirmation');
-            $('#universalConfirmModalBody').html('<i class="fas fa-question-circle fa-2x" style="color:#fbbf24; margin-right:12px;"></i><span>' + message + '</span>');
+            $('#universalConfirmModalLabel').text(title || 'Confirmer la suppression');
+            $('#universalConfirmModalText').html(message + '<br><span class="fw-bold" style="color:#ffc107; font-size:1.1em; text-shadow:0 1px 2px #000;">Cette action est <u>irréversible</u>.</span>');
             $('#universalConfirmModal').modal('show');
             // Nettoyer les anciens handlers
             $('#universalConfirmModalOk').off('click');

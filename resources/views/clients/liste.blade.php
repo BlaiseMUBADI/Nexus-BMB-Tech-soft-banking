@@ -43,7 +43,7 @@
                                 <tr>
                                     <td>{{ $loopIndex + 1 }}</td>
                                     <td>{{ $client->matricule }}</td>
-                                    <td>{{ $client->zone ?? '' }}</td>
+                                    <td>{{ optional($client->zone)->nom }}</td>
                                     <td>{{ $client->nom }}</td>
                                     <td>{{ $client->postnom ?? '' }}</td>
                                     <td>{{ $client->prenom }}</td>
@@ -116,35 +116,6 @@
 @endsection
 
 @push('js')
-    <!-- Modal de confirmation de suppression -->
-    <div class="modal fade" id="deleteClientModal" tabindex="-1" role="dialog" aria-labelledby="deleteClientModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title" id="deleteClientModalLabel">Confirmer la suppression</h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body text-center">
-                    <div class="mb-3">
-                        <span class="display-4 text-danger">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </span>
-                    </div>
-                    <p class="mb-0">Êtes-vous sûr de vouloir supprimer ce client ?<br>
-                        <span class="fw-bold" style="color:#ffc107; font-size:1.1em; text-shadow:0 1px 2px #000;">Cette
-                            action est <u>irréversible</u>.</span>
-                    </p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteClientBtn">Supprimer</button>
-                </div>
-            </div>
-        </div>
-    </div>
     <script>
         $(function () {
             let formToDelete = null;
@@ -152,13 +123,11 @@
             $('.btn-delete-client').on('click', function (e) {
                 e.preventDefault();
                 formToDelete = $(this).closest('form');
-                $('#deleteClientModal').modal('show');
-            });
-            $('#confirmDeleteClientBtn').on('click', function () {
-                if (formToDelete) {
-                    formToDelete.submit();
-                }
-                $('#deleteClientModal').modal('hide');
+                showUniversalConfirm('Êtes-vous sûr de vouloir supprimer ce client ?', function () {
+                    if (formToDelete) {
+                        formToDelete.submit();
+                    }
+                }, 'Confirmer la suppression');
             });
             // Quand une miniature est cliquée, afficher le mode dans la modale
             $('.client-photo-thumb').on('click', function () {

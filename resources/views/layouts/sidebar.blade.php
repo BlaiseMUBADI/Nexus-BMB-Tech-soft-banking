@@ -57,7 +57,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</a>
 					<ul class="nav nav-treeview">
 						<li class="nav-item submenu-indent">
-							<a href="{{ url('/comptes') }}" class="nav-link {{ request()->is('comptes') ? 'active' : '' }}">
+							<a href="{{ url('/comptes-clients/comptes') }}" class="nav-link {{ request()->is('comptes') ? 'active' : '' }}">
 								<i class="fas fa-list nav-icon"></i>
 								<p>Liste des comptes</p>
 							</a>
@@ -119,6 +119,12 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								</a>
 							</li>
 							<li class="nav-item submenu-indent">
+								<a href="{{ route('administration.devises_taux.index') }}" class="nav-link">
+									<i class="nav-icon fas fa-coins"></i>
+									<p>Devises / Taux</p>
+								</a>
+							</li>
+							<li class="nav-item submenu-indent">
 								<a href="{{ url('/rh/services') }}" class="nav-link {{ request()->is('rh/services') ? 'active' : '' }}">
 									<i class="fas fa-briefcase nav-icon"></i>
 									<p>Services/Postes</p>
@@ -157,10 +163,14 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							   </a>
 						   </li>
 						   <li class="nav-item submenu-indent">
-							   <a href="{{ url('/administration/zones-portfeuille') }}" class="nav-link {{ request()->is('administration/zones_portfeuille') ? 'active' : '' }}">
-								   <i class="fas fa-map-marker-alt nav-icon"></i>
-								   <p>Zones/Portfeuille</p>
-							   </a>
+	 						   <a href="{{ url('/administration/zones-portfeuille') }}" class="nav-link {{ request()->is('administration/zones_portfeuille') ? 'active' : '' }}">
+	 							   <i class="fas fa-map-marker-alt nav-icon"></i>
+	 							   <p>Zones/Portfeuille</p>
+	 						   </a>
+	 						   <a href="{{ url('/administration/devises-taux') }}" class="nav-link {{ request()->is('administration/taux_devis') ? 'active' : '' }}">
+	 							   <i class="fas fa-coins nav-icon"></i>
+	 							   <p>Taux / Devis</p>
+	 						   </a>
 						   </li>
 						   <li class="nav-item submenu-indent">
 							   <a href="{{ url('/admin/logs') }}" class="nav-link {{ request()->is('admin/logs') ? 'active' : '' }}">

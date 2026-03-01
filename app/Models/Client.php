@@ -65,4 +65,11 @@ class Client extends Model
             }
         });
     }
+    /**
+     * Relation avec la zone
+     */
+    public function zone()
+    {
+        return $this->belongsTo(Zone::class, 'code_zone', 'code_zone');
+    }
 }

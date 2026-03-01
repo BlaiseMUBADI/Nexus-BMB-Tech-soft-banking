@@ -19,12 +19,20 @@ class Compte extends Model
         'type',
         'solde_reel',
         'solde_bloque',
+        'devise',
+        'portefeuille_id',
     ];
+           
 
     // Relation avec le client
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_matricule', 'matricule');
+    }
+
+    public function portefeuille()
+    {
+        return $this->belongsTo(\App\Models\Portefeuille::class, 'portefeuille_id', 'id');
     }
 
     public static function boot()

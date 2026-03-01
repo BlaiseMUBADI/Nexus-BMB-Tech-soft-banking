@@ -48,6 +48,33 @@
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
+                        <div class="form-group" id="portefeuille_group" style="display:none">
+                            <label for="portefeuille_id">Agent gestionnaire (Portefeuille)</label>
+                            <select name="portefeuille_id" id="portefeuille_id" class="form-control select2">
+                                <option value="">-- Sélectionner l'agent --</option>
+                                @foreach($portefeuilles as $portefeuille)
+                                    <option value="{{ $portefeuille->id }}">
+                                        ({{ $portefeuille->agent_matricule }}) {{ $portefeuille->agent_nom }} {{ $portefeuille->agent_prenom }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted">Obligatoire pour les comptes de type Caution Crédit.</small>
+                        </div>
+
+                        
+                        <div class="form-group">
+                            <label for="devise">Devise</label>
+                            <select name="devise" id="devise" class="form-control select2" required>
+                                <option value="">-- Sélectionner la devise --</option>
+                                @foreach($devises as $devise)
+                                    <option value="{{ $devise->code_iso }}">{{ $devise->nom }} ({{ $devise->symbole }})</option>
+                                @endforeach
+                            </select>
+                            @error('devise')
+                                <div class="text-danger">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        
                         <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle mr-1"></i>Ouvrir le compte</button>
                     </form>
                 </div>
@@ -69,6 +96,8 @@
                                     <th>Client</th>
                                     <th>Type</th>
                                     <th>Solde réel</th>
+                                    <th>Devise</th>
+                                    <th>Portefeuille</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -80,15 +109,27 @@
                                         <td>{{ $compte->client->nom }} {{ $compte->client->postnom }} {{ $compte->client->prenom }}</td>
                                         <td>{{ $compte->type }}</td>
                                         <td>{{ number_format($compte->solde_reel, 2, ',', ' ') }}</td>
+                                        <td>{{ $compte->devise }}</td>
                                         <td>
-                                            <button class="btn btn-sm btn-danger" data-id="{{ $compte->code_compte }}">
+                                            @if($compte->portefeuille_id)
+                                                @php
+                                                    $portefeuille = $portefeuilles->where('id', $compte->portefeuille_id)->first();
+                                                @endphp
+                                                ({{ $portefeuille->agent->matricule ?? '-' }}) {{ $portefeuille->agent->nom ?? '-' }} {{ $portefeuille->agent->prenom ?? '-' }}
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
+                                        <td>
+                                            
+                                            <button class="btn btn-sm btn-danger delete-compte-btn" data-id="{{ $compte->code_compte }}">
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted">Aucun compte enregistré.</td>
+                                        <td colspan="8" class="text-center text-muted">Aucun compte enregistré.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -120,74 +161,66 @@
     </style>
 @endsection
 
+
 @push('js')
 <script>
     $(document).ready(function() {
-        $('#client_matricule').select2({
+        // 1. Initialisation de Select2
+        $('#client_matricule, #type, #portefeuille_id, #devise').select2({
             theme: 'bootstrap4',
-            placeholder: 'Rechercher un client',
+            width: '100%',
+            placeholder: 'Sélectionner une option',
             allowClear: true,
-            width: 'resolve',
             language: {
                 noResults: function() { return "Aucun résultat trouvé"; }
-            },
-            matcher: function(params, data) {
-                if ($.trim(params.term) === '') return data;
-                if (typeof data.text === 'undefined') return null;
-                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
-                    return data;
-                }
-                return null;
-            }
-        });
-        $('#type').select2({
-            theme: 'bootstrap4',
-            placeholder: 'Rechercher le type de compte',
-            allowClear: true,
-            width: 'resolve',
-            language: {
-                noResults: function() { return "Aucun résultat trouvé"; }
-            },
-            matcher: function(params, data) {
-                if ($.trim(params.term) === '') return data;
-                if (typeof data.text === 'undefined') return null;
-                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
-                    return data;
-                }
-                return null;
             }
         });
 
-        // Setup global AJAX CSRF token pour toutes les requêtes
+        // 2. Logique pour afficher/masquer le portefeuille (Gestion Crédit)
+        $('#type').on('change', function() {
+            var selectedType = $(this).val();
+            var $portefeuilleGroup = $('#portefeuille_group');
+            var $portefeuilleSelect = $('#portefeuille_id');
+
+            if (selectedType === 'CAUTION_CREDIT') {
+                $portefeuilleGroup.fadeIn();
+                $portefeuilleSelect.prop('required', true);
+            } else {
+                $portefeuilleGroup.fadeOut();
+                $portefeuilleSelect.prop('required', false).val(null).trigger('change');
+            }
+        });
+
+        // 3. Setup global AJAX CSRF
         $.ajaxSetup({
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             }
         });
 
-        // Soumission AJAX du formulaire
+        // 4. Soumission AJAX du formulaire
         $('#compteForm').on('submit', function(e) {
             e.preventDefault();
             var form = $(this);
             var url = "{{ route('comptes.store') }}";
             var formData = form.serialize();
+
             $.post(url, formData)
                 .done(function(response) {
                     showSystemMessage('success', 'Compte ouvert avec succès !');
+                    
+                    // Reset complet du formulaire et des Select2
                     form[0].reset();
-                   /* setTimeout(function() {
-                        window.location.reload();
-                    }, 300);*/
+                    $('.select2').val(null).trigger('change'); 
+                    setTimeout(function () { window.location.reload(); }, 1500);
+                    
+                    // Optionnel : Recharger la table si vous n'utilisez pas de push temps réel
+                    // comptesDataTable.ajax.reload(); 
                 })
                 .fail(function(xhr) {
                     let msg = 'Erreur lors de l\'ouverture du compte.';
                     if(xhr.responseJSON && xhr.responseJSON.errors) {
-                        msg = '';
-                        $.each(xhr.responseJSON.errors, function(key, errors) {
-                            errors.forEach(function(error) {
-                                msg += '<div>' + error + '</div>';
-                            });
-                        });
+                        msg = Object.values(xhr.responseJSON.errors).flat().join('<br>');
                     } else if(xhr.responseJSON && xhr.responseJSON.message) {
                         msg = xhr.responseJSON.message;
                     }
@@ -195,37 +228,59 @@
                 });
         });
 
-        // DataTable + sélection de ligne
+        // 5. Initialisation DataTable
         var $comptesTable = $('.table.app-table');
-        $comptesTable.addClass('app-table');
-        
         var comptesDataTable = $comptesTable.DataTable({
-       
             paging: true,
             searching: true,
             info: true,
             lengthChange: true,
             lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Tous"]],
             language: {
-                url: window.DATATABLES_LANG_URL || '/plugins/datatables/i18n/fr-FR.json',
-                paginate: {
-                    first: "Premier",
-                    last: "Dernier",
-                    next: "Suivant",
-                    previous: "Précédent"
-                },
-                search: "Recherche :",
-                info: "Affichage de _START_ à _END_ sur _TOTAL_ entrées",
-                infoEmpty: "Aucune entrée à afficher",
-                infoFiltered: "(filtré à partir de _MAX_ entrées)",
-                lengthMenu: "Afficher _MENU_ entrées",
+                url: "{{ asset('plugins/datatables/i18n/fr-FR.json') }}" // Assurez-vous du chemin
             }
         });
+
+        // Sélection de ligne au clic
         $comptesTable.on('click', 'tbody tr', function () {
-            $comptesTable.find('tbody tr').removeClass('datatable-selected-row');
-            $(this).addClass('datatable-selected-row');
+            $(this).addClass('datatable-selected-row').siblings().removeClass('datatable-selected-row');
         });
+
+        // Suppression AJAX d'un compte
+        $('.table.app-table').on('click', '.delete-compte-btn', function(e) {
+            e.preventDefault();
+            var btn = $(this);
+            var codeCompte = btn.data('id');
+            var deleteUrl = "{{ route('comptes.destroy', ['code_compte' => 'CODE_COMPTE']) }}".replace('CODE_COMPTE', codeCompte);
+            showUniversalConfirm('Voulez-vous vraiment supprimer ce compte ?', function() {
+                $.ajax({
+                    url: deleteUrl,
+                    type: 'DELETE',
+                    data: {
+                        _token: $('input[name="_token"]').val()
+                    },
+                    success: function(response) {
+                        showSystemMessage('success', response.message || 'Compte supprimé avec succès !');
+                        setTimeout(function () { window.location.reload(); }, 1200);
+                    },
+                    error: function(xhr) {
+                        let msg = 'Erreur lors de la suppression du compte.';
+                        if(xhr.responseJSON && xhr.responseJSON.message) {
+                            msg = xhr.responseJSON.message;
+                        }
+                        showSystemMessage('error', msg);
+                    }
+                });
+            }, 'Confirmation suppression');
+        });
+
+        
+
+
+
+
     });
 </script>
 @endpush
+
 @endsection

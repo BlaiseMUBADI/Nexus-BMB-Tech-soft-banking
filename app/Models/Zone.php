@@ -4,6 +4,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 class Zone extends Model
+    
 {
     protected $table = 'tb_zones';
     protected $primaryKey = 'code_zone';
@@ -15,6 +16,11 @@ class Zone extends Model
         'agent_commercial_matricule',
         'commune',
     ];
+
+    public function agent()
+    {
+        return $this->belongsTo(Agent::class, 'agent_commercial_matricule', 'matricule');
+    }
     //public $timestamps = false;
     public static function boot()
     {
