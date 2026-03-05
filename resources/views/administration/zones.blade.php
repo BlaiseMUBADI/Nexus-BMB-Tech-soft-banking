@@ -93,16 +93,16 @@
                                                 </td>
                                                 <td>{{ $zone->commune }}</td>
                                                 <td>
-                                                    <form action="{{ route('administration.zones.destroy', $zone->code_zone) }}" method="POST" class="d-inline delete-zone-form" data-zone-id="{{ $zone->code_zone }}">
+                                                    <form action="{{ route('administration.zones.destroy', $zone->code_zone) }}" method="POST" class="delete-zone-form">
                                                         @csrf
                                                         @method('DELETE')
-                                                        <button type="button" class="btn btn-sm btn-danger btn-delete-zone" data-id="{{ $zone->code_zone }}" title="Supprimer">
+                                                        <button type="button" class="btn btn-sm btn-danger btn-delete-zone">
                                                             <i class="fas fa-trash-alt"></i>
                                                         </button>
                                                     </form>
                                                 </td>
                                             </tr>
-                                        @empty
+                                             @empty
                                             <tr>
                                                 <td colspan="5" class="text-center text-muted">Aucune zone enregistrée.</td>
                                             </tr>
@@ -138,177 +138,97 @@
     </style>
 @endsection
 
+
 @push('js')
-    <script>
-        // Suppression AJAX d'une zone avec confirmation universelle
-        let formToDeleteZone = null;
-        $('.table').on('click', '.btn-delete-zone', function(e) {
-            e.preventDefault();
-            formToDeleteZone = $(this).closest('form');
-            showUniversalConfirm(
-                "Êtes-vous sûr de vouloir supprimer cette zone ?",
-                function() {
-                    if(formToDeleteZone) {
-                        $.ajax({
-                            url: formToDeleteZone.attr('action'),
-                            type: 'POST',
-                            data: formToDeleteZone.serialize(),
-                            success: function(response) {
-                                showSystemMessage('success', 'Zone supprimée avec succès !');
-                                setTimeout(function() { window.location.reload(); }, 500);
-                            },
-                            error: function(xhr) {
-                                let msg = 'Erreur lors de la suppression de la zone.';
-                                if (xhr.responseJSON && xhr.responseJSON.message) {
-                                    msg = xhr.responseJSON.message;
-                                }
-                                showSystemMessage('error', msg);
-                            }
-                        });
-                    }
-                },
-                "Confirmer la suppression"
-            );
-        });
-        // Setup global AJAX CSRF token pour toutes les requêtes
-        $.ajaxSetup({
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            }
-        });
+<script>
+$(document).ready(function () {
+    // 1. Configuration globale AJAX
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
 
-        $(document).ready(function () {
-            // Initialisation Select2 pour agent zone
-            $('#agentMatricule').select2({
-                theme: 'bootstrap4',
-                placeholder: 'Rechercher un agent par matricule ou nom',
-                allowClear: true,
-                width: 'resolve',
-                language: {
-                    noResults: function () { return "Aucun résultat trouvé"; }
-                },
-                matcher: function (params, data) {
-                    if ($.trim(params.term) === '') return data;
-                    if (typeof data.text === 'undefined') return null;
-                    if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
-                        return data;
-                    }
-                    return null;
+    // 2. Initialisation Select2 (Corrigé pour correspondre à ton ID HTML)
+    $('#agentMatricule').select2({
+        theme: 'bootstrap4',
+        placeholder: 'Sélectionner un agent',
+        allowClear: true,
+        width: '100%'
+    });
+
+    // 3. Initialisation DataTable
+    /*var $zonesTable = $('.table');
+    $zonesTable.addClass('app-table');
+    /*var zonesDataTable = $zonesTable.DataTable({
+        language: { url: '/plugins/datatables/i18n/fr-FR.json' },
+        pageLength: 10
+    });*/
+    
+    // Sélection visuelle de ligne
+    $('.table').on('click', 'tbody tr', function () {
+        $(this).addClass('datatable-selected-row').siblings().removeClass('datatable-selected-row');
+    });
+
+    // 4. Soumission AJAX Formulaire ZONE
+    $('#zoneForm').on('submit', function (e) {
+        e.preventDefault();
+        let $form = $(this);
+        let url = "{{ route('administration.zones.store') }}";
+
+        showSystemMessage('info', 'Enregistrement en cours...');
+
+        $.post(url, $form.serialize())
+            .done(function (response) {
+                showSystemMessage('success', 'Zone ajoutée avec succès !');
+                $form[0].reset();
+                $('#agentMatricule').val(null).trigger('change'); // Reset Select2
+                setTimeout(() => { window.location.reload(); }, 1000);
+            })
+            .fail(function (xhr) {
+                if (typeof handleAjaxError === 'function') {
+                    handleAjaxError(xhr, 'Erreur lors de l\'enregistrement.');
+                } else {
+                    let msg = xhr.responseJSON?.message || 'Erreur lors de l\'enregistrement.';
+                    showSystemMessage('error', msg);
                 }
             });
+    });
 
-            // Initialisation Select2 pour agent portefeuille
-            $('#agentCreditMatricule').select2({
-                theme: 'bootstrap4',
-                placeholder: 'Rechercher un agent par matricule ou nom',
-                allowClear: true,
-                width: 'resolve',
-                language: {
-                    noResults: function () { return "Aucun résultat trouvé"; }
-                },
-                matcher: function (params, data) {
-                    if ($.trim(params.term) === '') return data;
-                    if (typeof data.text === 'undefined') return null;
-                    if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
-                        return data;
-                    }
-                    return null;
-                }
-            });
-
-            // DataTable + sélection de ligne
-            var $zonesTable = $('.table.table-bordered');
-            $zonesTable.addClass('app-table');
-            var zonesDataTable = $zonesTable.DataTable({
-                paging: true,
-                searching: true,
-                info: true,
-                lengthChange: true,
-                lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Tous"]],
-                language: {
-                    url: '/plugins/datatables/i18n/fr-FR.json',
-                    paginate: {
-                        first: "Premier",
-                        last: "Dernier",
-                        next: "Suivant",
-                        previous: "Précédent"
+    // 5. Suppression AJAX d'une zone
+    $(document).on('click', '.btn-delete-zone', function(e) {
+        e.preventDefault();
+        let $form = $(this).closest('form');
+        let url = $form.attr('action'); // L'URL contient l'ID de la zone
+        
+        showUniversalConfirm(
+            "Êtes-vous sûr de vouloir supprimer cette zone ?",
+            function() {
+                $.ajax({
+                    url: url,
+                    type: 'DELETE', // On envoie directement en DELETE
+                    data: {
+                        // On envoie manuellement le token pour être sûr
+                        _token: $('input[name="_token"]').val() 
                     },
-                    search: "Recherche :",
-                    info: "Affichage de _START_ à _END_ sur _TOTAL_ entrées",
-                    infoEmpty: "Aucune entrée à afficher",
-                    infoFiltered: "(filtré à partir de _MAX_ entrées)",
-                    lengthMenu: "Afficher _MENU_ entrées",
-                }
-            });
-            $zonesTable.on('click', 'tbody tr', function () {
-                $zonesTable.find('tbody tr').removeClass('datatable-selected-row');
-                $(this).addClass('datatable-selected-row');
-            });
-
-
-
-
-            // Soumission AJAX du formulaire zone
-            $('#zoneForm').on('submit', function (e) {
-                e.preventDefault();
-                var form = $(this);
-                var url = "{{ route('administration.zones.store') }}";
-                var formData = form.serialize();
-                $.post(url, formData)
-                    .done(function (response) {
-                        showSystemMessage('success', 'Zone ajoutée avec succès !');
-                        form[0].reset();
-                        /*setTimeout(function() {
-                             window.location.reload();
-                        }, 300);*/
-                    })
-                    .fail(function (xhr) {
-                        let msg = 'Erreur lors de l\'enregistrement de la zone.';
-                        if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            msg = '';
-                            $.each(xhr.responseJSON.errors, function (key, errors) {
-                                errors.forEach(function (error) {
-                                    msg += '<div>' + error + '</div>';
-                                });
-                            });
-                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                            msg = xhr.responseJSON.message;
+                    success: function(response) {
+                        showSystemMessage('success', 'Zone supprimée avec succès !');
+                        setTimeout(() => { window.location.reload(); }, 800);
+                    },
+                    error: function(xhr) {
+                        // Si Laravel renvoie encore une erreur de méthode
+                        if(xhr.status === 405) {
+                            showSystemMessage('error', 'Erreur de méthode HTTP (405).');
+                        } else {
+                            let msg = xhr.responseJSON?.message || 'Erreur lors de la suppression.';
+                            showSystemMessage('error', msg);
                         }
-                        showSystemMessage('error', msg);
-                    });
-            });
-
-            // Soumission AJAX du formulaire portefeuille
-            $('#portefeuilleForm').on('submit', function (e) {
-                e.preventDefault();
-                console.log('Soumission portefeuille AJAX interceptée');
-                var form = $(this);
-                showSystemMessage('info', 'Enregistrement en cours...');
-                var url = "{{ route('administration.portefeuilles.store') }}";
-                var formData = form.serialize();
-                $.post(url, formData)
-                    .done(function (response) {
-                        showSystemMessage('success', 'Portefeuille ajouté avec succès !');
-                        form[0].reset();
-                        setTimeout(function () {
-                            window.location.reload();
-                        }, 300);
-                    })
-                    .fail(function (xhr) {
-                        let msg = 'Erreur lors de l\'enregistrement du portefeuille.';
-                        if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            msg = '';
-                            $.each(xhr.responseJSON.errors, function (key, errors) {
-                                errors.forEach(function (error) {
-                                    msg += '<div>' + error + '</div>';
-                                });
-                            });
-                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                            msg = xhr.responseJSON.message;
-                        }
-                        showSystemMessage('error', msg);
-                    });
-            });
+                    }
+                });
+            },
+            "Confirmer la suppression"
+        );
         });
-    </script>
+});
+</script>
 @endpush

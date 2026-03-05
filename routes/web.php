@@ -22,6 +22,8 @@ require __DIR__.'/auth.php';
 // Routes pour la gestion des comptes clients
 require_once __DIR__.'/comptes_clients.php';
 
+require_once __DIR__.'/caisse.php';
+
 
 Route::get('/', function () {
     return view('dashboard');

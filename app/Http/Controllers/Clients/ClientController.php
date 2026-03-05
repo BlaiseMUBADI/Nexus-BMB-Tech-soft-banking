@@ -14,19 +14,22 @@ class ClientController extends Controller
     /* La méthode pour afficher la liste des clients avec la possibilité de rechercher par nom, postnom ou matricule */
     public function index()
     {
-        $query = \App\Models\Client::query();
+        // On ajoute with(['zone']) pour charger la relation
+        $query = \App\Models\Client::with(['zone']); 
 
         // Si une recherche est effectuée, filtrer les clients
         if (request()->has('search') && request('search')) {
             $search = request('search');
             $query->where(function($q) use ($search) {
                 $q->where('nom', 'like', "%$search%")
-                  ->orWhere('postnom', 'like', "%$search%")
-                  ->orWhere('matricule', 'like', "%$search%") ;
+                ->orWhere('postnom', 'like', "%$search%")
+                ->orWhere('matricule', 'like', "%$search%");
             });
         }
-        // Afficher le dernier client en premier (ordre décroissant par date de création)
+
+        // On récupère les résultats
         $clients = $query->orderByDesc('created_at')->get();
+        
         return view('clients.liste', compact('clients'));
     }
 

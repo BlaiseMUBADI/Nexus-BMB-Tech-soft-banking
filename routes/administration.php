@@ -45,7 +45,7 @@ Route::prefix('administration')->group(function () {
     // Zones / Portfeuille
 
     Route::get('/zones-portfeuille', [ZoneController::class, 'index'])->name('administration.zones.index');
-    Route::post('/zones-portfeuille', [ZoneController::class, 'store'])->name('administration.zones.store');
+    Route::post('/zones/store', [ZoneController::class, 'store'])->name('administration.zones.store');
     Route::delete('/zones-portfeuille/{code_zone}', [ZoneController::class, 'destroy'])->name('administration.zones.destroy');
     Route::get('/zones/data', [App\Http\Controllers\Administration\ZoneController::class, 'data'])->name('administration.zones.data');
 
@@ -59,13 +59,20 @@ Route::prefix('administration')->group(function () {
   
  
     // Gestion des devises et taux
-    Route::get('/devises-taux', [App\Http\Controllers\Administration\DeviseTauxController::class, 'index'])->name('administration.devises_taux.index');
-    Route::post('/devises-taux/devise', [App\Http\Controllers\Administration\DeviseTauxController::class, 'storeDevise'])->name('administration.devises_taux.storeDevise');
-    Route::post('/devises-taux/taux', [App\Http\Controllers\Administration\DeviseTauxController::class, 'storeTaux'])->name('administration.devises_taux.storeTaux');
+    Route::get('/devises-taux', [App\Http\Controllers\Administration\DeviseTauxController::class, 'index'])->name('administration.devises-taux.index');
+    Route::post('/devises-taux/devise', [App\Http\Controllers\Administration\DeviseTauxController::class, 'storeDevise'])->name('administration.devises-taux.storeDevise');
+    Route::post('/devises-taux/taux', [App\Http\Controllers\Administration\DeviseTauxController::class, 'storeTaux'])->name('administration.devises-taux.storeTaux');
     // Suppression taux d'échange
-    Route::delete('/devises-taux/taux/{id}', [App\Http\Controllers\Administration\DeviseTauxController::class, 'destroyTaux'])->name('administration.devises_taux.destroyTaux');
+    Route::delete('/devises-taux/taux/{id}', [App\Http\Controllers\Administration\DeviseTauxController::class, 'destroyTaux'])->name('administration.devises-taux.destroyTaux');
 
     // Suppression devise
-    Route::delete('/devises-taux/devise/{code_iso}', [App\Http\Controllers\Administration\DeviseTauxController::class, 'destroyDevise'])->name('administration.devises_taux.destroyDevise');
+    Route::delete('/devises-taux/devise/{code_iso}', [App\Http\Controllers\Administration\DeviseTauxController::class, 'destroyDevise'])->name('administration.devises-taux.destroyDevise');
+
+    // Gestion des Guichets — architecture multi-devises
+    Route::get('/guichets',                  [App\Http\Controllers\Administration\GuichetController::class, 'index'])    ->name('administration.guichets.index');
+    Route::post('/guichets',                 [App\Http\Controllers\Administration\GuichetController::class, 'store'])    ->name('administration.guichets.store');
+    Route::delete('/guichets/{id}',          [App\Http\Controllers\Administration\GuichetController::class, 'destroy'])  ->name('administration.guichets.destroy');
+    // Ajouter une devise à un guichet existant
+    Route::post('/guichets/{id}/devise',     [App\Http\Controllers\Administration\GuichetController::class, 'addDevise'])->name('administration.guichets.addDevise');
 
     });

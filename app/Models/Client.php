@@ -11,44 +11,28 @@ class Client extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
+    // SUPPRIME LE BLOC $casts ICI s'il contient 'zone'
+    // Aucun cast inutile ici, la relation zone() suffit
+
     protected $fillable = [
-        'matricule',
-        'nom',
-        'postnom',
-        'prenom',
-        'email',
-        'telephone',
-        'sexe',
-        'date_naissance',
-        'lieu_naissance',
-        'adresse',
-        'etat_civil',
-        'nom_conjoint',
-        'code_zone',
-        'type_piece_identite',
-        'lieu_delivrance_piece',
-        'date_delivrance_piece',
-        'numero_piece_identite',
-        'photo',
-        'secteur_activite',
-        'type_activite',
-        'nom_entreprise',
-        'adresse_entreprise',
-        'telephone_entreprise',
-        'statut_entreprise',
-        'nombre_annees_experience',
-        'revenu_mensuel',
-        'revenu_mensuel_devise',
-        'autres_details_activite',
-        'created_at',
-        'updated_at',
+        'matricule', 'nom', 'postnom', 'prenom', 'email', 'telephone',
+        'sexe', 'date_naissance', 'lieu_naissance', 'adresse', 'etat_civil',
+        'nom_conjoint', 'code_zone', 'type_piece_identite', 'lieu_delivrance_piece',
+        'date_delivrance_piece', 'numero_piece_identite', 'photo', 'secteur_activite',
+        'type_activite', 'nom_entreprise', 'adresse_entreprise', 'telephone_entreprise',
+        'statut_entreprise', 'nombre_annees_experience', 'revenu_mensuel',
+        'revenu_mensuel_devise', 'others_details_activite',
     ];
 
-    public static function boot()
+
+    /**
+     * Génération automatique du matricule lors de la création
+     */
+    protected static function booted()
     {
-        parent::boot();
+        parent::booted();
         static::creating(function ($client) {
-            if (!$client->matricule) {
+            if (empty($client->matricule)) {
                 $annee = date('y');
                 $prefix = 'CL-EBENKGA-' . $annee . '-';
                 $codes = self::where('matricule', 'like', $prefix.'%')
@@ -65,11 +49,13 @@ class Client extends Model
             }
         });
     }
+
     /**
      * Relation avec la zone
      */
     public function zone()
     {
+        // On s'assure que la relation utilise bien code_zone
         return $this->belongsTo(Zone::class, 'code_zone', 'code_zone');
     }
 }

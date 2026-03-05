@@ -77,33 +77,42 @@
 			<div class="col-md-4">
 				<div class="card mt-4">
 					<div class="card-header pb-0">
-						<h5>Affectaions</h5>
-					</div>
-					<div class="card-body">
-						<div class="table-responsive" style="max-height: 350px; min-height: 200px; overflow-y: auto;">
-							<table id="affectationsTable" class="table table-bordered table-striped mb-0 app-table">
-								<thead>
-									<tr>
-										<th>#</th>
-										<th>Agent</th>
-										<th>Poste</th>
-										<th>Début</th>
-										<th>Fin</th>
-										<th>Etat</th>
-									</tr>
-								</thead>
-								<tbody>
-									@foreach($affectations as $affectation)
+							<h5>Affectations</h5>
+						</div>
+						<div class="card-body">
+							<div class="table-responsive" style="max-height: 350px; min-height: 200px; overflow-y: auto;">
+								<table id="affectationsTable" class="table table-bordered table-striped mb-0 app-table">
+									<thead>
 										<tr>
-											<td>{{ $loop->iteration }}</td>
-											<td>{{ $affectation->agent ? $affectation->agent->nom . ' ' . $affectation->agent->postnom . ' ' . $affectation->agent->prenom : $affectation->agent_matricule }}</td>
-											<td>{{ $affectation->poste ? $affectation->poste->nom : $affectation->poste_id }}</td>
-											<td>{{ $affectation->date_debut }}</td>
-											<td>{{ $affectation->date_fin }}</td>
-											<td>{{ $affectation->etat }}</td>
+											<th>#</th>
+											<th>Agent</th>
+											<th>Poste</th>
+											<th>Guichet</th>
+											<th>Début</th>
+											<th>Fin</th>
+											<th>Etat</th>
 										</tr>
-									@endforeach
-								</tbody>
+									</thead>
+									<tbody>
+										@foreach($affectations as $affectation)
+											<tr>
+												<td>{{ $loop->iteration }}</td>
+												<td>{{ $affectation->agent ? $affectation->agent->nom . ' ' . $affectation->agent->postnom : $affectation->agent_matricule }}</td>
+												<td>{{ $affectation->poste ? $affectation->poste->nom : $affectation->poste_id }}</td>
+												<td>
+													@if($affectation->guichet)
+														<span class="badge badge-info">{{ $affectation->guichet->code_guichet }}</span>
+													@else
+														<span class="text-muted">—</span>
+													@endif
+												</td>
+												<td>{{ $affectation->date_debut }}</td>
+												<td>{{ $affectation->date_fin ?? '—' }}</td>
+												<td>
+													<span class="badge badge-{{ $affectation->Etat === 'ACTIF' ? 'success' : 'secondary' }}">
+														{{ $affectation->Etat }}
+													</span>
+												</td>
 							</table>
 						</div>
 					</div>
@@ -155,9 +164,30 @@
 								<div class="mb-3">
 									<label for="etat" class="form-label">Etat</label>
 									<select class="form-select" id="etat" name="etat" required>
-										<option value="actif">Actif</option>
-										<option value="non-actif">Non actif</option>
-									</select>
+									<option value="ACTIF">Actif</option>
+									<option value="TERMINE">Terminé</option>
+									<option value="SUSPENDU">Suspendu</option>
+								</select>
+							</div>
+							{{-- Guichet de caisse (optionnel) --}}
+							<div class="mb-3">
+								<label for="guichet_id" class="form-label">
+									<i class="fas fa-cash-register mr-1"></i>
+									Guichet de caisse
+									<small class="text-muted">(optionnel)</small>
+								</label>
+								<select class="form-select" id="guichet_id" name="guichet_id">
+									<option value="">— Aucun guichet —</option>
+									@foreach($guichets as $g)
+									<option value="{{ $g->id }}">
+										[{{ $g->code_guichet }}] {{ $g->intitule }}
+										({{ $g->statut_operationnel }})
+									</option>
+									@endforeach
+								</select>
+								<small class="text-muted">
+									L'agent deviendra titulaire de ce guichet (visible dans Caisse → Ouverture).
+								</small>
 								</div>
 							</form>
 						</div>
@@ -356,6 +386,7 @@
 				var data = {
 					agent_matricule: agentMatricule,
 					poste_id: posteId,
+					guichet_id: $('#guichet_id').val() || null,
 					date_debut: $('#dateDebut').val(),
 					date_fin: $('#dateFin').val(),
 					etat: $('#etat').val()

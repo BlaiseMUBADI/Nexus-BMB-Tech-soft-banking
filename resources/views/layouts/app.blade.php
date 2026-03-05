@@ -153,7 +153,7 @@
             clearTimeout(inactivityTimeout);
             inactivityTimeout = setTimeout(function() {
                 document.getElementById('logout-form').submit();
-            }, 60 * 60 * 1000); // 1 hour
+            }, 10 * 60 * 1000); // 10 minutes
         }
         window.onload = resetInactivityTimer;
         document.onmousemove = resetInactivityTimer;

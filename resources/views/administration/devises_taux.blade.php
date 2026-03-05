@@ -221,7 +221,7 @@
             $('#deviseForm').on('submit', function (e) {
                 e.preventDefault();
                 var form = $(this);
-                var url = "{{ route('administration.devises_taux.storeDevise') }}";
+                var url = "{{ route('administration.devises-taux.storeDevise') }}";
                 var formData = form.serialize();
                 
                 $.post(url, formData)
@@ -248,7 +248,7 @@
             $('#tauxForm').on('submit', function (e) {
                 e.preventDefault();
                 var form = $(this);
-                var url = "{{ route('administration.devises_taux.storeTaux') }}";
+                var url = "{{ route('administration.devises-taux.storeTaux') }}";
                 var formData = form.serialize();
                 
                 $.post(url, formData)
@@ -277,7 +277,7 @@
                 e.preventDefault();
                 var btn = $(this);
                 var tauxId = btn.data('id');
-                var deleteUrl = "{{ route('administration.devises_taux.destroyTaux', ['id' => 'TAUX_ID']) }}".replace('TAUX_ID', tauxId);
+                var deleteUrl = "{{ route('administration.devises-taux.destroyTaux', ['id' => 'TAUX_ID']) }}".replace('TAUX_ID', tauxId);
                 
                 showUniversalConfirm('Voulez-vous vraiment supprimer ce taux ?', function () {
                     $.ajax({
@@ -299,7 +299,7 @@
             $('#devisesTable').on('click', '.delete-devise-btn', function (e) {
                 e.preventDefault();
                 var codeIso = $(this).data('id');
-                var deleteUrl = "{{ route('administration.devises_taux.destroyDevise', ['code_iso' => 'DEV_CODE']) }}".replace('DEV_CODE', codeIso);
+                var deleteUrl = "{{ route('administration.devises-taux.destroyDevise', ['code_iso' => 'DEV_CODE']) }}".replace('DEV_CODE', codeIso);
                 
                 showUniversalConfirm('Voulez-vous vraiment supprimer cette devise ?', function () {
                     $.ajax({

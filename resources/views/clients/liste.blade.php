@@ -43,7 +43,7 @@
                                 <tr>
                                     <td>{{ $loopIndex + 1 }}</td>
                                     <td>{{ $client->matricule }}</td>
-                                    <td>{{ optional($client->zone)->nom }}</td>
+                                    <td>{{ $client->zone->nom ?? 'Non définie' }}</td>
                                     <td>{{ $client->nom }}</td>
                                     <td>{{ $client->postnom ?? '' }}</td>
                                     <td>{{ $client->prenom }}</td>
@@ -56,7 +56,8 @@
                                                 data-photo-src="{{ route('clients.photo', basename($client->photo)) }}?v={{ time() }}"
                                                 style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; cursor:pointer;"
                                                 data-toggle="modal" data-target="#photoModal-{{ $client->matricule }}">
-                                            <!-- Modal pour chaque client -->
+                                            
+                                                <!-- Modal pour chaque client -->
                                             <div class="modal fade" id="photoModal-{{ $client->matricule }}" tabindex="-1"
                                                 role="dialog" aria-labelledby="photoModalLabel-{{ $client->matricule }}"
                                                 aria-hidden="true">

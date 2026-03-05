@@ -15,13 +15,32 @@ class PortefeuilleController extends Controller
         return view('administration.portefeuilles', compact('agents', 'portefeuilles'));
     }
 
-    // Supprimer un portefeuille d'agent
-    public function destroy($id)
+    // Supprimer un portefeuille d'agent/*
+   /* public function destroy($id)
     {
         $portefeuille = Portefeuille::findOrFail($id);
         $portefeuille->delete();
         return response()->json(['success' => true, 'message' => 'Portefeuille supprimé avec succès !']);
+    }*/
+    public function destroy($id)
+    {
+        try {
+            $portefeuille = Portefeuille::findOrFail($id);
+            $portefeuille->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Le portefeuille a été supprimé avec succès.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Impossible de supprimer ce portefeuille car il est lié à d\'autres données.'
+            ], 422);
+        }
     }
+
+
     // Enregistre un portefeuille d'agent
     public function store(Request $request)
     {
