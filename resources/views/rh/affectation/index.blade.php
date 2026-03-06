@@ -529,7 +529,10 @@ $(document).ready(function () {
 
     // ── CSRF ──────────────────────────────────────────────────
     $.ajaxSetup({
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            'Accept'      : 'application/json'
+        }
     });
 
     // ── Auto-fermeture alertes flash ──────────────────────────
@@ -646,23 +649,27 @@ $(document).ready(function () {
 
         var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> En cours…');
 
-        $.post('{{ route("affectations.store") }}', {
-            agent_matricule: window.selectedAgent.matricule,
-            poste_id:        window.selectedPoste.id,
-            guichet_id:      $('#guichet_id').val() || null,
-            date_debut:      $('#dateDebut').val(),
-            date_fin:        $('#dateFin').val(),
-            etat:            $('#etat').val(),
+        $.ajax({
+            url     : '{{ route("affectations.store") }}',
+            method  : 'POST',
+            data    : {
+                agent_matricule: window.selectedAgent.matricule,
+                poste_id:        window.selectedPoste.id,
+                guichet_id:      $('#guichet_id').val() || null,
+                date_debut:      $('#dateDebut').val(),
+                date_fin:        $('#dateFin').val(),
+                etat:            $('#etat').val(),
+            },
+            dataType: 'json'
         })
-        .done(function () {
+        .done(function (response) {
             $('#affectationModal').modal('hide');
-            showSystemMessage('success', 'Affectation enregistrée avec succès !');
+            showSystemMessage('success', (response && response.message) ? response.message : 'Affectation enregistrée avec succès !');
             setTimeout(function () { location.reload(); }, 1200);
         })
         .fail(function (xhr) {
-            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Une erreur inattendue est survenue.';
-            $.post('{{ route("log.clientError") }}', { context: 'store affectation', status: xhr.status, message: msg });
-            showSystemMessage('error', msg, 'Erreur — store affectation');
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Une erreur inattendue est survenue (' + xhr.status + ').';
+            showSystemMessage('error', msg);
         })
         .always(function () {
             $btn.prop('disabled', false).html('<i class="fas fa-check mr-1"></i> Valider l\'affectation');
@@ -789,13 +796,14 @@ $('#confirmEditEtatBtn').on('click', function () {
     var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>');
 
     $.ajax({
-        url:    '{{ route("affectations.updateEtat", ["affectation" => "__ID__"]) }}'.replace('__ID__', id),
-        method: 'POST',
-        data: {
+        url     : '{{ route("affectations.updateEtat", ["affectation" => "__ID__"]) }}'.replace('__ID__', id),
+        method  : 'POST',
+        data    : {
             _method:  'PATCH',
             etat:     $('#editEtatVal').val(),
             date_fin: $('#editDateFin').val() || null,
         },
+        dataType: 'json'
     })
     .done(function (r) {
         $('#editEtatModal').modal('hide');
@@ -803,9 +811,8 @@ $('#confirmEditEtatBtn').on('click', function () {
         setTimeout(function () { location.reload(); }, 1200);
     })
     .fail(function (xhr) {
-        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Une erreur inattendue est survenue.';
-        $.post('{{ route("log.clientError") }}', { context: 'updateEtat affectation', status: xhr.status, message: msg });
-        showSystemMessage('error', msg, 'Erreur — updateEtat affectation');
+        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Une erreur inattendue est survenue (' + xhr.status + ').';
+        showSystemMessage('error', msg);
     })
     .always(function () {
         $btn.prop('disabled', false).html('<i class="fas fa-save mr-1"></i> Enregistrer');
@@ -831,9 +838,10 @@ $(document).on('click', '.btn-delete-affectation', function () {
         function () {
             $btn.prop('disabled', true);
             $.ajax({
-                url:    '{{ route("affectations.destroy", ["affectation" => "__ID__"]) }}'.replace('__ID__', id),
-                method: 'POST',
-                data:   { _method: 'DELETE' },
+                url     : '{{ route("affectations.destroy", ["affectation" => "__ID__"]) }}'.replace('__ID__', id),
+                method  : 'POST',
+                data    : { _method: 'DELETE' },
+                dataType: 'json'
             })
             .done(function (r) {
                 showSystemMessage('success', r.message || 'Affectation supprimée avec succès.');
@@ -842,8 +850,7 @@ $(document).on('click', '.btn-delete-affectation', function () {
             .fail(function (xhr) {
                 var msg = (xhr.responseJSON && xhr.responseJSON.message)
                     ? xhr.responseJSON.message
-                    : 'Suppression impossible.';
-                $.post('{{ route("log.clientError") }}', { context: 'destroy affectation', status: xhr.status, message: msg });
+                    : 'Suppression impossible (' + xhr.status + ').';
                 showSystemMessage('error', msg);
                 $btn.prop('disabled', false);
             });

@@ -247,7 +247,10 @@ $(document).ready(function () {
 
     // ── CSRF ────────────────────────────────────────────────────
     $.ajaxSetup({
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            'Accept'      : 'application/json'
+        }
     });
 
     // ── Auto-fermeture alertes flash ─────────────────────────────
@@ -287,9 +290,10 @@ $(document).ready(function () {
         var $tr = $(this).closest('tr');
         showUniversalConfirm('Voulez-vous vraiment supprimer ce service ?', function () {
             $.ajax({
-                url:  '{{ route("services.ajaxDestroy", ["service" => "__ID__"]) }}'.replace('__ID__', id),
-                type: 'POST',
-                data: { _method: 'DELETE' },
+                url     : '{{ route("services.ajaxDestroy", ["service" => "__ID__"]) }}'.replace('__ID__', id),
+                type    : 'POST',
+                data    : { _method: 'DELETE' },
+                dataType: 'json'
             })
             .done(function (response) {
                 showSystemMessage('success', response.message);
@@ -310,15 +314,20 @@ $(document).ready(function () {
         var $btn = $(this).find('[type=submit]');
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Ajout…');
 
-        $.post($(this).attr('action'), $(this).serialize())
-            .done(function () {
-                showSystemMessage('success', 'Service ajouté avec succès.');
+        $.ajax({
+            url     : $(this).attr('action'),
+            method  : 'POST',
+            data    : $(this).serialize(),
+            dataType: 'json'
+        })
+            .done(function (response) {
+                showSystemMessage('success', (response && response.message) ? response.message : 'Service ajouté avec succès.');
                 setTimeout(function () { location.reload(); }, 1200);
             })
             .fail(function (xhr) {
                 var msg = (xhr.responseJSON && xhr.responseJSON.message)
                     ? xhr.responseJSON.message
-                    : 'Erreur lors de l\'ajout du service.';
+                    : 'Erreur lors de l\'ajout du service (' + xhr.status + ').';
                 showSystemMessage('error', msg);
                 $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
             });
@@ -331,9 +340,10 @@ $(document).ready(function () {
         var $tr       = $(this).closest('tr');
         showUniversalConfirm('Voulez-vous vraiment supprimer ce poste ?', function () {
             $.ajax({
-                url:  '{{ route("postes.ajaxDestroy", ["service" => "__sID__", "poste" => "__pID__"]) }}'.replace('__sID__', serviceId).replace('__pID__', posteId),
-                type: 'POST',
-                data: { _method: 'DELETE' },
+                url     : '{{ route("postes.ajaxDestroy", ["service" => "__sID__", "poste" => "__pID__"]) }}'.replace('__sID__', serviceId).replace('__pID__', posteId),
+                type    : 'POST',
+                data    : { _method: 'DELETE' },
+                dataType: 'json'
             })
             .done(function (response) {
                 showSystemMessage('success', response.message);
@@ -356,16 +366,21 @@ $(document).ready(function () {
         var $btn      = form.find('[type=submit]');
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Ajout…');
 
-        $.post(form.attr('action'), form.serialize())
+        $.ajax({
+            url     : form.attr('action'),
+            method  : 'POST',
+            data    : form.serialize(),
+            dataType: 'json'
+        })
             .done(function (response) {
-                showSystemMessage('success', response.message);
+                showSystemMessage('success', (response && response.message) ? response.message : 'Poste ajouté avec succès.');
                 $.get('{{ route("postes.ajaxListe", ["service" => "__sID__"]) }}'.replace('__sID__', serviceId))
                     .done(function (data) { $('#postesSection').html(data); });
             })
             .fail(function (xhr) {
                 var msg = (xhr.responseJSON && xhr.responseJSON.message)
                     ? xhr.responseJSON.message
-                    : 'Erreur lors de l\'ajout du poste.';
+                    : 'Erreur lors de l\'ajout du poste (' + xhr.status + ').';
                 showSystemMessage('error', msg);
                 $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
             });
