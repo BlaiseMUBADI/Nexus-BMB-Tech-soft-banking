@@ -54,6 +54,15 @@ class User extends Authenticatable
     private ?array $_permCodesCache = null;
 
     /**
+     * Indique si cet utilisateur est super-administrateur (rôle EBEN-ROL1).
+     * Un super-admin a accès à TOUT sans restriction.
+     */
+    public function isAdmin(): bool
+    {
+        return in_array('EBEN-ROL1', $this->getRoleCodes(), true);
+    }
+
+    /**
      * Retourne tous les codes de rôles de l'utilisateur.
      * Résultat mis en cache mémoire pour éviter des requêtes SQL répétées.
      *
@@ -84,6 +93,12 @@ class User extends Authenticatable
 
             if (empty($roleCodes)) {
                 $this->_permCodesCache = [];
+            } elseif (in_array('EBEN-ROL1', $roleCodes, true)) {
+                // Super-admin : retourne TOUTES les permissions de la DB
+                // → le sidebar affiche tout, aucune route ne peut bloquer l'admin
+                $this->_permCodesCache = DB::table('tb_permissions')
+                    ->pluck('code')
+                    ->toArray();
             } else {
                 $this->_permCodesCache = DB::table('tb_role_permission')
                     ->whereIn('role_code', $roleCodes)
@@ -104,6 +119,11 @@ class User extends Authenticatable
      */
     public function hasPermission(string|array $code): bool
     {
+        // Super-admin bypass : EBEN-ROL1 passe toujours
+        if ($this->isAdmin()) {
+            return true;
+        }
+
         $userPerms = $this->getPermissionCodes();
 
         foreach ((array) $code as $c) {

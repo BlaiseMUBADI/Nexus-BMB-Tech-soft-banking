@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +28,9 @@ class CheckPermission
         }
 
         // 2. Vérifier la permission dynamiquement
-        if (! Auth::user()->hasPermission($permissionCode)) {
+        /** @var User $user */
+        $user = Auth::user();
+        if (! $user->hasPermission($permissionCode)) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Accès non autorisé. Permission requise : ' . $permissionCode,
