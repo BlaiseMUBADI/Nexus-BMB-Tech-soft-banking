@@ -8,7 +8,25 @@ use App\Http\Controllers\RH\PosteController;
 
 Route::middleware('auth')->group(function () {
 
-    // ── Agents : consultation (EBEN-PER6) ─────────────────────────────────
+    // ══════════════════════════════════════════════════════════════
+    // ⚠  RÈGLE LARAVEL : les routes statiques (/create) DOIVENT être
+    //    déclarées AVANT les routes avec wildcard (/{agent}, /{service})
+    //    sinon Laravel capture "create" comme paramètre → 404.
+    // ══════════════════════════════════════════════════════════════
+
+    // ── Routes statiques "create" — PER7 (agents) ─────────────────
+    Route::middleware('permission:EBEN-PER7')->group(function () {
+        Route::get('rh/agents/create',    [AgentController::class, 'create'])->name('agents.create');
+        Route::post('rh/agents',          [AgentController::class, 'store'])->name('agents.store');
+    });
+
+    // ── Routes statiques "create" — PER8 (services) ───────────────
+    Route::middleware('permission:EBEN-PER8')->group(function () {
+        Route::get('rh/services/create',  [ServiceController::class, 'create'])->name('services.create');
+        Route::post('rh/services',        [ServiceController::class, 'store'])->name('services.store');
+    });
+
+    // ── Agents : consultation (EBEN-PER6) — wildcards après /create ─
     Route::middleware('permission:EBEN-PER6')->group(function () {
         Route::get('rh/agents',           [AgentController::class, 'index'])->name('agents.index');
         Route::get('rh/agents/{agent}',   [AgentController::class, 'show'])->name('agents.show');
@@ -19,12 +37,6 @@ Route::middleware('auth')->group(function () {
         Route::get('rh/services/{service}/postes-ajax',  [PosteController::class, 'ajaxListe'])->name('postes.ajaxListe');
     });
 
-    // ── Agents : création (EBEN-PER7) ─────────────────────────────────────
-    Route::middleware('permission:EBEN-PER7')->group(function () {
-        Route::get('rh/agents/create',    [AgentController::class, 'create'])->name('agents.create');
-        Route::post('rh/agents',          [AgentController::class, 'store'])->name('agents.store');
-    });
-
     // ── Agents : modification / suppression (EBEN-PER8) ───────────────────
     Route::middleware('permission:EBEN-PER8')->group(function () {
         Route::get('rh/agents/{agent}/edit',    [AgentController::class, 'edit'])->name('agents.edit');
@@ -32,8 +44,6 @@ Route::middleware('auth')->group(function () {
         Route::patch('rh/agents/{agent}',       [AgentController::class, 'update']);
         Route::delete('rh/agents/{agent}',      [AgentController::class, 'destroy'])->name('agents.destroy');
 
-        Route::get('rh/services/create',                 [ServiceController::class, 'create'])->name('services.create');
-        Route::post('rh/services',                       [ServiceController::class, 'store'])->name('services.store');
         Route::get('rh/services/{service}/edit',         [ServiceController::class, 'edit'])->name('services.edit');
         Route::put('rh/services/{service}',              [ServiceController::class, 'update'])->name('services.update');
         Route::patch('rh/services/{service}',            [ServiceController::class, 'update']);
