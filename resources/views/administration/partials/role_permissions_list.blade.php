@@ -35,6 +35,7 @@
     <div id="permModuleAccordion">
         @foreach($grouped->sortKeys() as $moduleNum => $perms)
         @php
+            $attached   ??= [];
             $mod        = $moduleMap[$moduleNum] ?? ['label' => 'Autre', 'icon' => 'fa-puzzle-piece', 'color' => 'secondary'];
             $modTotal   = $perms->count();
             $modChecked = $perms->filter(fn($p) => in_array($p->code, $attached))->count();

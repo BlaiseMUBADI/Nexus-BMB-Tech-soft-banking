@@ -361,9 +361,12 @@
 (function () {
     'use strict';
 
-    // ── CSRF global ────────────────────────────────────────────────────────────
+    // ── CSRF + JSON global ────────────────────────────────────────────────────
     $.ajaxSetup({
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            'Accept': 'application/json'
+        }
     });
 
     $(function () {

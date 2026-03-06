@@ -48,6 +48,10 @@ Route::middleware('auth')->prefix('administration')->group(function () {
     Route::middleware('permission:EBEN-PER3')->group(function () {
         Route::post('/roles-permissions',                 [RolesPermissionsController::class, 'store'])->name('administration.roles_permissions.store');
         Route::delete('/roles/{role}',                    [RolesPermissionsController::class, 'destroy'])->name('administration.roles.destroy');
+    });
+
+    // ── Permissions : attribution aux rôles (EBEN-PER5) ─────────────────────
+    Route::middleware('permission:EBEN-PER5')->group(function () {
         Route::post('/role-permissions/attach',           [RolesPermissionsController::class, 'attachPermission'])->name('administration.role-permissions.attach');
         Route::post('/role-permissions/detach',           [RolesPermissionsController::class, 'detachPermission'])->name('administration.role-permissions.detach');
         Route::post('/user-roles/attach',                 [RolesPermissionsController::class, 'attachUserRole'])->name('administration.user-roles.attach');
