@@ -407,7 +407,10 @@
 $(document).ready(function () {
 
     $.ajaxSetup({
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            'Accept'      : 'application/json'
+        }
     });
 
     // ── Recherche live : tableau guichets ─────────────────────
@@ -434,18 +437,22 @@ $(document).ready(function () {
 
         showSystemMessage('info', 'Création en cours…');
 
-        $.post('{{ route("administration.guichets.store") }}', $(this).serialize())
+        $.ajax({
+            url     : '{{ route("administration.guichets.store") }}',
+            method  : 'POST',
+            data    : $(this).serialize(),
+            dataType: 'json'
+        })
             .done(function (response) {
-                showSystemMessage('success', response.message);
+                showSystemMessage('success', response.message || 'Guichet créé avec succès.');
                 $('#guichetForm')[0].reset();
                 setTimeout(function () { location.reload(); }, 1200);
             })
             .fail(function (xhr) {
                 var msg = (xhr.responseJSON && xhr.responseJSON.message)
                     ? xhr.responseJSON.message
-                    : 'Erreur lors de la création.';
-                $.post('{{ route("log.clientError") }}', { context: 'store guichet', status: xhr.status, message: msg });
-                showSystemMessage('error', msg, 'Erreur — création guichet');
+                    : 'Erreur lors de la création (' + xhr.status + ').';
+                showSystemMessage('error', msg);
             });
     });
 
@@ -470,12 +477,13 @@ $(document).ready(function () {
             function () {
                 $btn.prop('disabled', true);
                 $.ajax({
-                    url   : '{{ route("administration.guichets.destroy", ["id" => "__ID__"]) }}'.replace('__ID__', id),
-                    method: 'POST',
-                    data  : { _method: 'DELETE' },
+                    url     : '{{ route("administration.guichets.destroy", ["id" => "__ID__"]) }}'.replace('__ID__', id),
+                    method  : 'POST',
+                    data    : { _method: 'DELETE' },
+                    dataType: 'json'
                 })
                 .done(function (response) {
-                    showSystemMessage('success', response.message);
+                    showSystemMessage('success', response.message || 'Guichet supprimé.');
                     $('#row-guichet-' + id).fadeOut(400, function () { $(this).remove(); });
                     var badge = $('.card-header .badge-info');
                     badge.text(parseInt(badge.text()) - 1);
@@ -483,9 +491,8 @@ $(document).ready(function () {
                 .fail(function (xhr) {
                     var msg = (xhr.responseJSON && xhr.responseJSON.message)
                         ? xhr.responseJSON.message
-                        : 'Erreur lors de la suppression.';
-                    $.post('{{ route("log.clientError") }}', { context: 'destroy guichet', status: xhr.status, message: msg });
-                    showSystemMessage('error', msg, 'Erreur — suppression guichet');
+                        : 'Erreur lors de la suppression (' + xhr.status + ').';
+                    showSystemMessage('error', msg);
                     $btn.prop('disabled', false);
                 });
             },
