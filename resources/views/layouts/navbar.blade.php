@@ -139,10 +139,11 @@
             </a>
         </li>
         <!-- User Dropdown -->
+        @php /** @var \App\Models\User|null $authUser */ $authUser = Auth::user(); @endphp
         <li class="nav-item dropdown">
             <a class="nav-link" data-toggle="dropdown" href="#" aria-expanded="false">
-                @if(Auth::check() && Auth::user()->agent && Auth::user()->agent->photo)
-                    <img src="{{ route('agents.photo', basename(Auth::user()->agent->photo)) }}?v={{ time() }}"
+                @if($authUser && $authUser->agent && $authUser->agent->photo)
+                    <img src="{{ route('agents.photo', basename($authUser->agent->photo)) }}?v={{ time() }}"
                          alt="Photo de profil"
                          class="img-size-32 img-circle mr-2"
                          style="height:32px;width:32px;object-fit:cover;">
@@ -150,8 +151,8 @@
                     <img src="{{ asset('dist/img/user2-160x160.jpg') }}" alt="User Image" class="img-size-32 img-circle mr-2" style="height:32px;width:32px;object-fit:cover;">
                 @endif
                 <span class="d-none d-md-inline">
-                    @if(Auth::check() && Auth::user()->agent)
-                        {{ Auth::user()->agent->prenom ?? '' }} {{ Auth::user()->agent->nom ?? 'Agent' }}
+                    @if($authUser && $authUser->agent)
+                        {{ $authUser->agent->prenom ?? '' }} {{ $authUser->agent->nom ?? 'Agent' }}
                     @else
                         Agent
                     @endif
