@@ -488,13 +488,36 @@
                            ? '{{ route("administration.role-permissions.attach") }}'
                            : '{{ route("administration.role-permissions.detach") }}';
             $cb.prop('disabled', true);
-            $.post(url, { role_code: roleCode, permission_code: permCode })
-                .done(function () {
-                    showSystemMessage('success', checked ? 'Permission attribuée.' : 'Permission retirée.');
-                    // Notifier le partial pour mettre à jour les compteurs
-                    document.dispatchEvent(new CustomEvent('perm:updated', { detail: { moduleId: moduleId } }));
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: { role_code: roleCode, permission_code: permCode },
+                dataType: 'json'
+            })
+                .done(function (data) {
+                    if (data && data.success === false) {
+                        $cb.prop('checked', !checked);
+                        showSystemMessage('error', data.message || 'Opération échouée.');
+                    } else {
+                        showSystemMessage('success', (data && data.message) ? data.message : (checked ? 'Permission attribuée.' : 'Permission retirée.'));
+                        // Notifier le partial pour mettre à jour les compteurs
+                        document.dispatchEvent(new CustomEvent('perm:updated', { detail: { moduleId: moduleId } }));
+                    }
                 })
-                .fail(function (xhr) {
+                .fail(function (xhr, textStatus) {
+                    // Cas "parseerror" avec HTTP 200 : la requête a réussi côté serveur
+                    // mais jQuery n'a pas pu parser le JSON (BOM ou caractère parasite)
+                    if (xhr.status === 200) {
+                        try {
+                            var raw = xhr.responseText.replace(/^\uFEFF/, '').trim();
+                            var d = JSON.parse(raw);
+                            if (d && d.success !== false) {
+                                showSystemMessage('success', (d.message) ? d.message : (checked ? 'Permission attribuée.' : 'Permission retirée.'));
+                                document.dispatchEvent(new CustomEvent('perm:updated', { detail: { moduleId: moduleId } }));
+                                return;
+                            }
+                        } catch(e) { /* NOOP */ }
+                    }
                     // Annuler visuellement le changement
                     $cb.prop('checked', !checked);
                     var msg;
@@ -505,7 +528,7 @@
                     } else if (xhr.status === 403) {
                         msg = 'Accès refusé. Permission EBEN-PER5 requise.';
                     } else {
-                        msg = 'Erreur HTTP ' + xhr.status + (xhr.responseText ? ' — ' + xhr.responseText.substring(0, 200) : '');
+                        msg = 'Erreur ' + xhr.status + (xhr.responseText ? ' — ' + xhr.responseText.replace(/^\uFEFF/, '').substring(0, 200) : '');
                     }
                     showSystemMessage('error', msg);
                 })
@@ -542,15 +565,33 @@
             var url      = checked
                            ? '{{ route("administration.user-roles.attach") }}'
                            : '{{ route("administration.user-roles.detach") }}';
-            $.post(url, { user_id: userId, role_code: roleCode })
-                .done(function () {
-                    showSystemMessage('success', checked ? 'Rôle attribué.' : 'Rôle retiré.');
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: { user_id: userId, role_code: roleCode },
+                dataType: 'json'
+            })
+                .done(function (data) {
+                    showSystemMessage('success', (data && data.message) ? data.message : (checked ? 'Rôle attribué.' : 'Rôle retiré.'));
                     $.get('{{ route("administration.user-roles-permissions", ["user_id" => "__ID__"]) }}'.replace('__ID__', userId), function (html) {
                         $('#rolesListContainer').html(html);
                     });
                 })
-                .fail(function () {
-                    showSystemMessage('error', 'Erreur de mise à jour.');
+                .fail(function (xhr, textStatus) {
+                    // Parseerror avec HTTP 200 → succès réel côté serveur
+                    if (xhr.status === 200) {
+                        try {
+                            var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                            if (!d || d.success !== false) {
+                                showSystemMessage('success', (d && d.message) ? d.message : (checked ? 'Rôle attribué.' : 'Rôle retiré.'));
+                                $.get('{{ route("administration.user-roles-permissions", ["user_id" => "__ID__"]) }}'.replace('__ID__', userId), function (html) {
+                                    $('#rolesListContainer').html(html);
+                                });
+                                return;
+                            }
+                        } catch(e) { /* NOOP */ }
+                    }
+                    showSystemMessage('error', 'Erreur de mise à jour (' + xhr.status + ').');
                 });
         });
 
