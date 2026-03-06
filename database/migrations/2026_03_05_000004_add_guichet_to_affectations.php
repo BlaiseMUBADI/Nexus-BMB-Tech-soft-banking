@@ -32,7 +32,7 @@ return new class extends Migration
             $table->foreign('guichet_id', 'fk_affectation_guichet')
                   ->references('id')
                   ->on('tb_caisses_guichets')
-                  ->onDelete('set null')
+                  ->onDelete('restrict')
                   ->onUpdate('cascade');
         });
     }

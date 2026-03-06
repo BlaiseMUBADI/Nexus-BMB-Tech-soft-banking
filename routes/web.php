@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Profil\ProfileController;
+use App\Http\Controllers\Utility\ClientLogController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\RH\AffectationController;
@@ -24,6 +25,11 @@ require_once __DIR__.'/comptes_clients.php';
 
 require_once __DIR__.'/caisse.php';
 
+
+// Log erreurs AJAX côté client → storage/logs/laravel.log
+Route::post('log/client-error', [ClientLogController::class, 'store'])
+    ->middleware('auth')
+    ->name('log.clientError');
 
 Route::get('/', function () {
     return view('dashboard');

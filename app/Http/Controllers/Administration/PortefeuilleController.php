@@ -7,12 +7,10 @@ use App\Models\Portefeuille;
 
 class PortefeuilleController extends Controller
 {
-    // Affiche la liste des portefeuilles d'agents
+    // Redirige vers la page unifiée Zones + Portefeuilles (onglet Portefeuilles)
     public function index()
     {
-        $agents = \App\Models\Agent::orderBy('nom')->get();
-        $portefeuilles = Portefeuille::with('agent')->get();
-        return view('administration.portefeuilles', compact('agents', 'portefeuilles'));
+        return redirect()->route('administration.zones.index')->with('_tab', 'portefeuilles');
     }
 
     // Supprimer un portefeuille d'agent/*

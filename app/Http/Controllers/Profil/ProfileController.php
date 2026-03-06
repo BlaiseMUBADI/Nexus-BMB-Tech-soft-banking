@@ -7,6 +7,7 @@ use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
@@ -14,58 +15,98 @@ use Illuminate\Support\Facades\DB;
 class ProfileController extends Controller
 {
     /**
-     * Display the user's profile form.
+     * Affiche le profil (redirige vers edit).
+     */
+    public function index(Request $request): RedirectResponse
+    {
+        return redirect()->route('profile.edit');
+    }
+
+    /**
+     * Affiche le formulaire de profil complet.
      */
     public function edit(Request $request): View
     {
         $user = $request->user();
         $agent = $user->agent;
-        // Affectations for agent
-        $affectations = $agent ? \App\Models\Affectation::where('agent_matricule', $agent->matricule)
-            ->with(['poste.service'])
-            ->orderByDesc('date_debut')
-            ->get() : collect();
-        // Poste and Service (current)
-        $poste = $agent && $agent->poste ? $agent->poste : null;
-        $service = $poste && $poste->service ? $poste->service : null;
-        // Permissions/roles
-        $userRoles = DB::table('tb_role_user')->where('user_id', $user->id)->pluck('role_code');
+
+        // Affectations de l'agent avec poste + service
+        $affectations = $agent
+            ? \App\Models\Affectation::where('agent_matricule', $agent->matricule)
+                ->with(['poste.service'])
+                ->orderByDesc('date_debut')
+                ->get()
+            : collect();
+
+        // Poste et service courants (via affectation active)
+        $activeAff = $affectations->firstWhere('Etat', 'Actif');
+        $poste   = $activeAff?->poste   ?? null;
+        $service = $poste?->service     ?? null;
+
+        // Rôles et permissions
+        $userRoles = DB::table('tb_role_user')
+            ->where('user_id', $user->id)
+            ->pluck('role_code');
+
         $userPermissions = DB::table('tb_role_permission')
             ->whereIn('role_code', $userRoles)
             ->pluck('permission_code');
-        $roles = \App\Models\Role::orderBy('nom')->get();
+
+        $roles       = \App\Models\Role::orderBy('nom')->get();
         $permissions = \App\Models\Permission::orderBy('nom')->get();
-        return view('profile.edit', [
-            'user' => $user,
-            'agent' => $agent,
-            'affectations' => $affectations,
-            'poste' => $poste,
-            'service' => $service,
-            'roles' => $roles,
-            'permissions' => $permissions,
-            'userRoles' => $userRoles,
-            'userPermissions' => $userPermissions,
-        ]);
+
+        return view('profile.edit', compact(
+            'user', 'agent', 'affectations',
+            'poste', 'service',
+            'roles', 'permissions',
+            'userRoles', 'userPermissions'
+        ));
     }
 
     /**
-     * Update the user's profile information.
+     * Met à jour les informations du compte (nom + email) ou le mot de passe.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(Request $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        // ── Changement de mot de passe ─────────────────────────
+        if ($request->filled('_change_password')) {
+            $request->validate([
+                'current_password'      => ['required', 'current_password'],
+                'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            ], [
+                'current_password.current_password' => 'Le mot de passe actuel est incorrect.',
+                'password.min'                      => 'Le nouveau mot de passe doit contenir au moins 8 caractères.',
+                'password.confirmed'                => 'La confirmation ne correspond pas.',
+            ]);
+
+            $user->password = Hash::make($request->password);
+            $user->save();
+
+            return redirect()->route('profile.edit')->with('status', 'password-updated');
         }
 
-        $request->user()->save();
+        // ── Mise à jour nom + email ────────────────────────────
+        $request->validate([
+            'name'  => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255',
+                        \Illuminate\Validation\Rule::unique('users', 'email')->ignore($user->id)],
+        ]);
 
-        return Redirect::route('profile.edit')->with('status', 'profile-updated');
+        $user->fill($request->only('name', 'email'));
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
+
+        return redirect()->route('profile.edit')->with('status', 'profile-updated');
     }
 
     /**
-     * Delete the user's account.
+     * Supprime le compte utilisateur.
      */
     public function destroy(Request $request): RedirectResponse
     {
@@ -74,22 +115,12 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
-
         Auth::logout();
-
         $user->delete();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return Redirect::to('/');
-    }
-
-    /**
-     * Affiche le profil utilisateur.
-     */
-    public function index(Request $request): View
-    {
-        return view('profile.index');
+        return redirect('/');
     }
 }

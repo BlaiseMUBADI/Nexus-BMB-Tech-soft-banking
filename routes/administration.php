@@ -6,10 +6,10 @@ use App\Http\Controllers\Administration\PortefeuilleController;
 
 Route::prefix('administration')->group(function () {
     // AJAX : attacher/détacher un rôle à un utilisateur
-    Route::post('/user-roles/attach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'attachUserRole']);
-    Route::post('/user-roles/detach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'detachUserRole']);
+    Route::post('/user-roles/attach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'attachUserRole'])->name('administration.user-roles.attach');
+    Route::post('/user-roles/detach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'detachUserRole'])->name('administration.user-roles.detach');
     // AJAX : liste des rôles et permissions d'un utilisateur
-    Route::get('/user-roles-permissions/{user_id}', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'userRolesPermissionsList']);
+    Route::get('/user-roles-permissions/{user_id}', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'userRolesPermissionsList'])->name('administration.user-roles-permissions');
 
     //Route::get('/permissions-table', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'permissionsTable'])->name('administration.permissions.table');
 
@@ -30,17 +30,17 @@ Route::prefix('administration')->group(function () {
 
     Route::post('/utilisateurs', [UtilisateurController::class, 'store'])->name('administration.utilisateurs.store');
     // Route AJAX pour infos agent (utilisée dans la création utilisateur)
-    Route::get('/utilisateurs/agent-info/{matricule}', [App\Http\Controllers\Administration\UtilisateurController::class, 'agentInfo']);
+    Route::get('/utilisateurs/agent-info/{matricule}', [App\Http\Controllers\Administration\UtilisateurController::class, 'agentInfo'])->name('administration.utilisateurs.agentInfo');
     // Suppression utilisateur
     Route::delete('/utilisateurs/{id}', [UtilisateurController::class, 'destroy'])->name('administration.utilisateurs.destroy');
     // Modification utilisateur
     Route::put('/utilisateurs/{id}', [UtilisateurController::class, 'update'])->name('administration.utilisateurs.update');
 
     // AJAX : liste des permissions d'un rôle (avec cochage)
-    Route::get('/role-permissions/{role_code}', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'rolePermissionsList']);
+    Route::get('/role-permissions/{role_code}', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'rolePermissionsList'])->name('administration.role-permissions.list');
     // AJAX : attacher/détacher une permission à un rôle
-    Route::post('/role-permissions/attach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'attachPermission']);
-    Route::post('/role-permissions/detach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'detachPermission']);
+    Route::post('/role-permissions/attach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'attachPermission'])->name('administration.role-permissions.attach');
+    Route::post('/role-permissions/detach', [App\Http\Controllers\Administration\RolesPermissionsController::class, 'detachPermission'])->name('administration.role-permissions.detach');
 
     // Zones / Portfeuille
 
@@ -50,8 +50,10 @@ Route::prefix('administration')->group(function () {
     Route::get('/zones/data', [App\Http\Controllers\Administration\ZoneController::class, 'data'])->name('administration.zones.data');
 
 
-    // Page liste des portefeuilles d'agents
-    Route::get('/portefeuilles', [App\Http\Controllers\Administration\PortefeuilleController::class, 'index'])->name('administration.portefeuilles.index');
+    // Page liste des portefeuilles — redirige vers la page unifiée Zones+Portefeuilles
+    Route::get('/portefeuilles', function() {
+        return redirect()->route('administration.zones.index', ['#tab-portefeuilles']);
+    })->name('administration.portefeuilles.index');
     // Portefeuilles d'agents
     Route::post('/portefeuilles', [PortefeuilleController::class, 'store'])->name('administration.portefeuilles.store');
     // Suppression portefeuille d'agent

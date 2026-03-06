@@ -17,8 +17,8 @@ class CompteController extends Controller
     public function create()
     {
         $clients = Client::orderBy('nom')->get();
-        $comptes = Compte::with('client')->orderByDesc('created_at')->get();
-        $portefeuilles = \App\Models\Portefeuille::orderBy('nom_portefeuille')->get();
+        $comptes = Compte::with(['client', 'portefeuille.agent'])->orderByDesc('created_at')->get();
+        $portefeuilles = \App\Models\Portefeuille::with('agent')->orderBy('nom_portefeuille')->get();
         $devises = \App\Models\Devise::orderBy('nom')->get();
         return view('comptes_clients.create', compact('clients', 'comptes', 'portefeuilles', 'devises'));
     }
@@ -58,6 +58,9 @@ class CompteController extends Controller
             'portefeuille_id' => $validated['portefeuille_id'] ?? null,
         ]);
 
+        if ($request->ajax()) {
+            return response()->json(['message' => 'Compte ouvert avec succès.']);
+        }
         return redirect()->route('comptes.create')->with('success', 'Compte ouvert avec succès.');
     }
 
@@ -73,7 +76,13 @@ class CompteController extends Controller
     public function index()
     {
         $comptes = Compte::with(['client', 'portefeuille.agent'])->orderByDesc('created_at')->get();
-        return view('comptes_clients.liste', compact('comptes'));
+        $stats = [
+            'total'          => $comptes->count(),
+            'courant'        => $comptes->where('type', 'COURANT')->count(),
+            'epargne'        => $comptes->whereIn('type', ['EPARGNE_LIBRE', 'EPARGNE_BLOQUEE'])->count(),
+            'caution_credit' => $comptes->where('type', 'CAUTION_CREDIT')->count(),
+        ];
+        return view('comptes_clients.liste', compact('comptes', 'stats'));
     }
 
     public function show($code_compte)

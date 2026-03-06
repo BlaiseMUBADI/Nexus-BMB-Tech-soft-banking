@@ -2,7 +2,7 @@
     <div class="card-body">
         <div class="table-responsive">
             <table id="usersTable" class="table table-bordered table-striped mb-0">
-                <thead>
+                <thead class="thead-dark">
                     <tr>
                         <th>#</th>
                         <th>Login</th>
@@ -36,7 +36,7 @@ function loadUsersTable() {
                     <td><span class="badge badge-${user.etat === 'actif' ? 'success' : 'secondary'}">${user.etat}</span></td>
                     <td>${user.agent ? user.agent.nom + ' ' + user.agent.postnom : ''}</td>
                     <td>
-                        <button class="btn btn-sm btn-info editUserBtn" data-id="${user.id}"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-info editUserBtn" data-id="${user.id}" title="Modifier"><i class="fas fa-edit"></i></button>
                         <button class="btn btn-sm btn-danger deleteUserBtn" data-id="${user.id}"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>`;
@@ -53,12 +53,11 @@ $(document).ready(function() {
     $('#refreshUsersTable').on('click', loadUsersTable);
 
     // Suppression utilisateur
-    var baseUrl = "{{ url('') }}";
     $(document).on('click', '.deleteUserBtn', function() {
         var userId = $(this).data('id');
         showUniversalConfirm('Voulez-vous vraiment supprimer cet utilisateur ?', function() {
             $.ajax({
-                url: baseUrl + '/administration/utilisateurs/' + userId,
+                url: '{{ route("administration.utilisateurs.destroy", ["id" => "__ID__"]) }}'.replace('__ID__', userId),
                 type: 'POST',
                 data: {
                     _method: 'DELETE',
@@ -114,9 +113,10 @@ $(document).ready(function() {
         var email = tr.find('#editEmail').val();
         var etat = tr.find('#editEtat').val();
         $.ajax({
-            url: '/administration/utilisateurs/' + userId,
-            type: 'PUT',
+            url: '{{ route("administration.utilisateurs.update", ["id" => "__ID__"]) }}'.replace('__ID__', userId),
+            type: 'POST',
             data: {
+                _method: 'PUT',
                 _token: $('meta[name="csrf-token"]').attr('content'),
                 login: login,
                 email: email,

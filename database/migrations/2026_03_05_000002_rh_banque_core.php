@@ -205,10 +205,12 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('devise_source', 'fk_devise_src')
-                  ->references('code_iso')->on('tb_devises');
+                  ->references('code_iso')->on('tb_devises')
+                  ->onDelete('restrict')->onUpdate('restrict');
 
             $table->foreign('devise_destination', 'fk_devise_dest')
-                  ->references('code_iso')->on('tb_devises');
+                  ->references('code_iso')->on('tb_devises')
+                  ->onDelete('restrict')->onUpdate('restrict');
         });
 
         // ========================================================
@@ -294,11 +296,11 @@ return new class extends Migration
 
             $table->foreign('compte_code', 'tb_transactions_ibfk_1')
                   ->references('code_compte')->on('tb_comptes')
-                  ->onDelete('restrict');
+                  ->onDelete('restrict')->onUpdate('restrict');
 
             $table->foreign('agent_matricule', 'tb_transactions_ibfk_2')
                   ->references('matricule')->on('tb_agents')
-                  ->onDelete('restrict');
+                  ->onDelete('restrict')->onUpdate('restrict');
         });
     }
 

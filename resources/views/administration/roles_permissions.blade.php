@@ -1,544 +1,545 @@
-@push('js')
-<script>
-    // Setup global AJAX CSRF token
-    $.ajaxSetup({
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        }
-    });
-    $(function () {
-        // Disparition automatique de l'alerte de succès après 2,5s
-        setTimeout(function () {
-            $('.alert-success').alert('close');
-        }, 2500);
-    });
+﻿@extends('layouts.app')
 
-</script>
-@endpush
-@extends('layouts.app')
-
-@section('page_title', 'Gestion des rôles et permissions')
+@section('page_title', 'Rôles & Permissions')
 @section('breadcrumb_parent', 'Administration')
 @section('breadcrumb', 'Rôles & Permissions')
 
 @section('content')
-    <div class="container-fluid">
-        <div class="card">
-            <div class="card-header">
-                <ul class="nav nav-tabs" id="rolesPermissionsTabs" role="tablist">
-                    <li class="nav-item">
-                        <a class="nav-link active" id="roles-tab" data-toggle="tab" href="#roles" role="tab"
-                            aria-controls="roles" aria-selected="true">Rôles</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="permissions-tab" data-toggle="tab" href="#permissions" role="tab"
-                            aria-controls="permissions" aria-selected="false">Permissions</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="attribution-tab" data-toggle="tab" href="#attribution" role="tab"
-                            aria-controls="attribution" aria-selected="false">Attribution</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="user-roles-tab" data-toggle="tab" href="#user-roles" role="tab"
-                            aria-controls="user-roles" aria-selected="false">Users / Roles</a>
-                    </li>
-                </ul>
+<div class="container-fluid">
+
+    {{-- FLASH --}}
+    @if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <i class="icon fas fa-check mr-1"></i> {{ session('success') }}
+    </div>
+    @endif
+
+    {{-- MINI-DASHBOARD --}}
+    <div class="row mb-3">
+        <div class="col-6 col-md-3">
+            <div class="info-box shadow-sm">
+                <span class="info-box-icon bg-primary elevation-1"><i class="fas fa-shield-alt"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Total Rôles</span>
+                    <span class="info-box-number">{{ $stats['total_roles'] }}</span>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="tab-content" id="rolesPermissionsTabsContent">
-                    <div class="tab-pane fade show active" id="roles" role="tabpanel" aria-labelledby="roles-tab">
-                        <h4>Liste des rôles</h4>
-                        @if(session('success'))
-                            <div class="alert alert-success">{{ session('success') }}</div>
-                        @endif
-                        <form id="addRoleForm" class="mb-4">
-                            @csrf
-                            <div class="form-row">
-                                <div class="form-group col-md-4">
-                                    <label for="roleName">Nom du rôle</label>
-                                    <input type="text" name="nom" id="roleName" class="form-control" required>
-                                </div>
-                                <div class="form-group col-md-6">
-                                    <label for="roleDesc">Description</label>
-                                    <input type="text" name="description" id="roleDesc" class="form-control">
-                                </div>
-                                <div class="form-group col-md-2 align-self-end">
-                                    <button type="submit" class="btn btn-primary"><i
-                                            class="fas fa-plus-circle mr-1"></i>Ajouter</button>
-                                </div>
-                            </div>
-                        </form>
-                        <div class="table-responsive">
-                            <table id="roles-table" class="table table-bordered table-striped"
-                                data-buttons-container="#roles-table-buttons">
-                                <thead>
-                                    <tr>
-                                        <th>N°</th>
-                                        <th>Code</th>
-                                        <th>Nom</th>
-                                        <th>Description</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($roles as $loopIndex => $role)
-                                        <tr>
-                                            <td>{{ $loopIndex + 1 }}</td>
-                                            <td>{{ $role->code }}</td>
-                                            <td>{{ $role->nom }}</td>
-                                            <td>{{ $role->description }}</td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-warning btn-edit-role"
-                                                    data-id="{{ $role->code }}" title="Modifier">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <form action="{{ route('administration.roles.destroy', $role->code) }}"
-                                                    method="POST" class="d-inline delete-role-form"
-                                                    data-role-id="{{ $role->code }}">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="button" class="btn btn-sm btn-danger btn-delete-role"
-                                                        data-id="{{ $role->id }}" title="Supprimer">
-                                                        <i class="fas fa-trash-alt"></i>
-                                                    </button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-
-
-                    <div class="tab-pane fade" id="permissions" role="tabpanel" aria-labelledby="permissions-tab">
-                        <h4>Liste des permissions</h4>
-                        <form id="addPermissionForm" class="mb-4">
-                            @csrf
-                            <div class="form-row">
-                                <div class="form-group col-md-4">
-                                    <label for="permissionName">Nom de la permission</label>
-                                    <input type="text" name="nom" id="permissionName" class="form-control" required>
-                                </div>
-                                <div class="form-group col-md-6">
-                                    <label for="permissionDesc">Description</label>
-                                    <input type="text" name="description" id="permissionDesc" class="form-control">
-                                </div>
-                                <div class="form-group col-md-2 align-self-end">
-                                    <button type="submit" class="btn btn-primary"><i
-                                            class="fas fa-plus-circle mr-1"></i>Ajouter</button>
-                                </div>
-                            </div>
-                        </form>
-                        <div class="table-responsive">
-                            <table id="permissions-table" class="table table-bordered table-striped"
-                                data-buttons-container="#permissions-table-buttons">
-                                <thead>
-                                    <tr>
-                                        <th>N°</th>
-                                        <th>Code</th>
-                                        <th>Nom</th>
-                                        <th>Description</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($permissions as $loopIndex => $permission)
-                                        <tr>
-                                            <td>{{ $loopIndex + 1 }}</td>
-                                            <td>{{ $permission->code }}</td>
-                                            <td>{{ $permission->nom }}</td>
-                                            <td>{{ $permission->description }}</td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-warning btn-edit-permission"
-                                                    data-id="{{ $permission->code }}" title="Modifier">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-
-
-
-                    <div class="tab-pane fade" id="attribution" role="tabpanel" aria-labelledby="attribution-tab">
-                        <h4>Attribution des permissions à un rôle</h4>
-                        <form id="attachPermissionsForm">
-                            <div class="form-group">
-                                <label for="selectRole">Choisir un rôle :</label>
-                                <select id="selectRole" name="role_code" class="form-control select2" style="width: 100%;" required>
-                                    <option value="">-- Sélectionner un rôle --</option>
-                                    @foreach($roles as $role)
-                                        <option value="{{ $role->code }}">[{{ $role->code }}] {{ $role->nom }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div id="permissionsListContainer" class="card card-primary card-outline shadow-sm p-3 mb-2 bg-white rounded permissions-card">
-                                <div class="permissions-title mb-2">Permissions disponibles :</div>
-                                <div class="mb-3">
-                                    <label style="font-weight:600; color:#e02424; cursor:pointer;">
-                                        <input type="checkbox" id="disableAllPermissions" style="margin-right:0.5em; accent-color:#e02424;"> Désactiver tout
-                                    </label>
-                                </div>
-                                <div class="permissions-list">
-                                    @php if (!isset($rolePermissions)) $rolePermissions = collect(); @endphp
-                                    @foreach($permissions as $permission)
-                                        <label class="permission-item">
-                                            <input type="checkbox" class="permission-checkbox perm-checkbox" data-perm-code="{{ $permission->code }}" @if($rolePermissions->contains($permission->code)) checked @endif>
-                                            {{ $permission->nom }}
-                                        </label>
-                                    @endforeach
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    
-
-                    <div class="tab-pane fade" id="user-roles" role="tabpanel" aria-labelledby="user-roles-tab">
-                        <h4>Attribution des rôles à un utilisateur</h4>
-                        <form id="attachRolesToUserForm">
-                            <div class="form-group">
-                                <label for="selectUser">Choisir un utilisateur :</label>
-                                <select id="selectUser" name="user_id" class="form-control select2" style="width: 100%;" required>
-                                    <option value="">-- Sélectionner un utilisateur --</option>
-                                    @foreach($users as $user)
-                                        <option value="{{ $user->id }}">
-                                            [{{ $user->agent ? $user->agent->matricule : 'N/A' }}] 
-                                            {{ $user->agent ? ($user->agent->nom . ' ' . $user->agent->postnom . ' ' . $user->agent->prenom) : '(Agent inconnu)'}}
-                                            | Login: {{ $user->name }}
-                                            | {{ $user->email }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div id="rolesListContainer" class="card card-primary card-outline shadow-sm p-3 mb-2 bg-white rounded">
-                                <!-- La liste des rôles à cocher sera chargée ici en AJAX -->
-                            </div>
-                        </form>
-                    </div>
-
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="info-box shadow-sm">
+                <span class="info-box-icon bg-success elevation-1"><i class="fas fa-key"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Total Permissions</span>
+                    <span class="info-box-number">{{ $stats['total_permissions'] }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="info-box shadow-sm">
+                <span class="info-box-icon bg-info elevation-1"><i class="fas fa-link"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Liaisons Rôle→Perm.</span>
+                    <span class="info-box-number">{{ $stats['total_liaisons'] }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="info-box shadow-sm">
+                <span class="info-box-icon bg-warning elevation-1"><i class="fas fa-users-cog"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Utilisateurs affectés</span>
+                    <span class="info-box-number">{{ $stats['users_avec_role'] }}</span>
                 </div>
             </div>
         </div>
     </div>
+
+    {{-- ONGLETS --}}
+    <div class="card card-primary card-outline">
+        <div class="card-header p-0 pt-1">
+            <ul class="nav nav-tabs" id="rbacTabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-toggle="tab" href="#tab-roles">
+                        <i class="fas fa-shield-alt mr-1"></i> Rôles
+                        <span class="badge badge-primary badge-pill ml-1">{{ $stats['total_roles'] }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#tab-permissions">
+                        <i class="fas fa-key mr-1"></i> Permissions
+                        <span class="badge badge-success badge-pill ml-1">{{ $stats['total_permissions'] }}</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#tab-attribution">
+                        <i class="fas fa-link mr-1"></i> Attribution Rôle→Perm.
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#tab-users">
+                        <i class="fas fa-users-cog mr-1"></i> Utilisateurs→Rôles
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card-body">
+        <div class="tab-content" id="rbacTabsContent">
+
+            {{-- ═══════════════════════ ONGLET RÔLES ═══════════════════════════ --}}
+            <div class="tab-pane fade show active" id="tab-roles">
+                <div class="row">
+                    {{-- Formulaire ajout rôle --}}
+                    <div class="col-md-4">
+                        <div class="card card-primary card-outline">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fas fa-plus-circle mr-1"></i> Nouveau rôle</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="addRoleForm">
+                                    @csrf
+                                    <div class="form-group">
+                                        <label><i class="fas fa-tag mr-1 text-primary"></i> Nom du rôle <span class="text-danger">*</span></label>
+                                        <input type="text" name="nom" class="form-control form-control-sm" placeholder="ex : Caissier, Directeur…" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label><i class="fas fa-align-left mr-1 text-muted"></i> Description</label>
+                                        <textarea name="description" class="form-control form-control-sm" rows="2" placeholder="Description du rôle…"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-sm btn-primary" id="btnAddRole">
+                                        <i class="fas fa-plus-circle mr-1"></i> Ajouter le rôle
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Tableau des rôles --}}
+                    <div class="col-md-8">
+                        <div class="card card-info card-outline">
+                            <div class="card-header d-flex align-items-center justify-content-between">
+                                <h3 class="card-title mb-0"><i class="fas fa-list mr-2"></i> Liste des rôles</h3>
+                                <span class="badge badge-info badge-pill">{{ $stats['total_roles'] }}</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="px-2 pt-2">
+                                    <input type="text" id="searchRoles" class="form-control form-control-sm" placeholder="🔍 Rechercher un rôle…">
+                                </div>
+                                <div class="table-responsive mt-1" style="max-height:420px;overflow-y:auto">
+                                    <table id="rolesTable" class="table table-sm rbac-table mb-0">
+                                        <thead class="thead-dark">
+                                            <tr>
+                                                <th style="width:35px">#</th>
+                                                <th style="width:140px">Code</th>
+                                                <th>Nom</th>
+                                                <th>Description</th>
+                                                <th class="text-center" style="width:80px">Perms.</th>
+                                                <th class="text-center" style="width:65px">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="rolesTbody">
+                                            @forelse($roles as $role)
+                                            <tr>
+                                                <td class="text-muted">{{ $loop->iteration }}</td>
+                                                <td><code class="text-primary">{{ $role->code }}</code></td>
+                                                <td><strong>{{ $role->nom }}</strong></td>
+                                                <td class="text-muted small">{{ $role->description ?: '—' }}</td>
+                                                <td class="text-center">
+                                                    <span class="badge badge-{{ $role->permissions_count > 0 ? 'success' : 'secondary' }}">
+                                                        {{ $role->permissions_count }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <button class="btn btn-xs btn-danger btn-delete-role"
+                                                            data-id="{{ $role->code }}"
+                                                            data-nom="{{ $role->nom }}"
+                                                            title="Supprimer ce rôle">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            @empty
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted py-4">
+                                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i> Aucun rôle défini.
+                                                </td>
+                                            </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>{{-- /tab-roles --}}
+
+            {{-- ══════════════════════ ONGLET PERMISSIONS ══════════════════════ --}}
+            <div class="tab-pane fade" id="tab-permissions">
+                <div class="row">
+                    {{-- Formulaire ajout permission --}}
+                    <div class="col-md-4">
+                        <div class="card card-success card-outline">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fas fa-plus-circle mr-1"></i> Nouvelle permission</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="addPermissionForm">
+                                    @csrf
+                                    <div class="form-group">
+                                        <label><i class="fas fa-tag mr-1 text-success"></i> Nom <span class="text-danger">*</span></label>
+                                        <input type="text" name="nom" class="form-control form-control-sm" placeholder="ex : VOIR_CAISSE, VALIDER_TX…" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label><i class="fas fa-align-left mr-1 text-muted"></i> Description</label>
+                                        <textarea name="description" class="form-control form-control-sm" rows="2" placeholder="Description…"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-sm btn-success" id="btnAddPerm">
+                                        <i class="fas fa-plus-circle mr-1"></i> Ajouter la permission
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Tableau des permissions --}}
+                    <div class="col-md-8">
+                        <div class="card card-success card-outline">
+                            <div class="card-header d-flex align-items-center justify-content-between">
+                                <h3 class="card-title mb-0"><i class="fas fa-list mr-2"></i> Liste des permissions</h3>
+                                <span class="badge badge-success badge-pill">{{ $stats['total_permissions'] }}</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="px-2 pt-2">
+                                    <input type="text" id="searchPermissions" class="form-control form-control-sm" placeholder="🔍 Rechercher une permission…">
+                                </div>
+                                <div class="table-responsive mt-1" style="max-height:420px;overflow-y:auto">
+                                    <table id="permissionsTable" class="table table-sm rbac-table mb-0">
+                                        <thead class="thead-dark">
+                                            <tr>
+                                                <th style="width:35px">#</th>
+                                                <th style="width:160px">Code</th>
+                                                <th>Nom</th>
+                                                <th>Description</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="permsTbody">
+                                            @forelse($permissions as $perm)
+                                            <tr>
+                                                <td class="text-muted">{{ $loop->iteration }}</td>
+                                                <td><code class="text-success">{{ $perm->code }}</code></td>
+                                                <td><strong>{{ $perm->nom }}</strong></td>
+                                                <td class="text-muted small">{{ $perm->description ?: '—' }}</td>
+                                            </tr>
+                                            @empty
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted py-4">
+                                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i> Aucune permission définie.
+                                                </td>
+                                            </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>{{-- /tab-permissions --}}
+
+            {{-- ═════════════════════ ONGLET ATTRIBUTION ════════════════════════ --}}
+            <div class="tab-pane fade" id="tab-attribution">
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="card card-info card-outline">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fas fa-shield-alt mr-1"></i> Sélectionner un rôle</h3>
+                            </div>
+                            <div class="card-body">
+                                <select id="selectRole" name="role_code" class="form-control form-control-sm select2" style="width:100%" required>
+                                    <option value="">— Choisir un rôle —</option>
+                                    @foreach($roles as $role)
+                                        <option value="{{ $role->code }}">[{{ $role->code }}] {{ $role->nom }}</option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted mt-2 d-block">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Cochez/décochez les permissions à associer au rôle sélectionné.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="card card-info card-outline">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fas fa-key mr-1"></i> Permissions du rôle</h3>
+                            </div>
+                            <div class="card-body" id="permissionsListContainer">
+                                <div class="text-center text-muted py-4">
+                                    <i class="fas fa-hand-point-left fa-2x mb-2 d-block"></i>
+                                    Sélectionnez un rôle à gauche.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>{{-- /tab-attribution --}}
+
+            {{-- ══════════════════════ ONGLET USERS / RÔLES ════════════════════ --}}
+            <div class="tab-pane fade" id="tab-users">
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="card card-warning card-outline">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fas fa-user mr-1"></i> Sélectionner un utilisateur</h3>
+                            </div>
+                            <div class="card-body">
+                                <select id="selectUser" name="user_id" class="form-control form-control-sm select2" style="width:100%" required>
+                                    <option value="">— Choisir un utilisateur —</option>
+                                    @foreach($users as $user)
+                                        <option value="{{ $user->id }}">
+                                            @if($user->agent)
+                                                [{{ $user->agent->matricule }}]
+                                                {{ $user->agent->nom }} {{ $user->agent->postnom }}
+                                            @else
+                                                (Agent inconnu)
+                                            @endif
+                                             — {{ $user->email }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted mt-2 d-block">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Cochez/décochez les rôles à assigner à l'utilisateur.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="card card-warning card-outline">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fas fa-shield-alt mr-1"></i> Rôles de l'utilisateur</h3>
+                            </div>
+                            <div class="card-body" id="rolesListContainer">
+                                <div class="text-center text-muted py-4">
+                                    <i class="fas fa-hand-point-left fa-2x mb-2 d-block"></i>
+                                    Sélectionnez un utilisateur à gauche.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>{{-- /tab-users --}}
+
+        </div>{{-- /tab-content --}}
+        </div>{{-- /card-body --}}
+    </div>{{-- /card --}}
+
+</div>{{-- /container-fluid --}}
 @endsection
 
-
-@section('css')
-    <style>
-        /* Couleurs modernes pour la sélection et le survol des lignes DataTable (universel pour cette page) */
-        table.dataTable tbody tr.datatable-selected-row {
-            background: linear-gradient(90deg, #6366f1 0%, #a21caf 100%) !important;
-            color: #fff !important;
-            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
-            transition: background 0.3s, color 0.3s;
-        }
-
-        table.dataTable tbody tr:hover:not(.datatable-selected-row) {
-            background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%) !important;
-            color: #fff !important;
-            cursor: pointer;
-            box-shadow: 0 1px 4px rgba(59, 130, 246, 0.10);
-            transition: background 0.3s, color 0.3s;
-        }
-    </style>
-@endsection
+@push('css')
+<style>
+    /* ═══ RBAC Tables ═══ */
+    .rbac-table thead th {
+        background-color: #2c3136 !important;
+        color: #c2c7d0 !important;
+        border-color: #3d4349 !important;
+        font-size: .8rem;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .rbac-table tbody tr:hover > td {
+        background-color: rgba(0, 123, 255, 0.12) !important;
+    }
+    .rbac-table td {
+        vertical-align: middle;
+        font-size: .85rem;
+    }
+    /* ═══ Info-box consistency ═══ */
+    .info-box { min-height: 72px; }
+    .info-box-icon { line-height: 72px; width: 70px; font-size: 1.6rem; }
+    .info-box-content { padding: 8px 10px; }
+    /* ═══ Live-search highlight ═══ */
+    .rbac-table tbody tr.d-none { display: none !important; }
+    /* ═══ Select2 dark compatibility ═══ */
+    .select2-container--bootstrap4 .select2-selection {
+        font-size: .85rem;
+    }
+</style>
+@endpush
 
 @push('js')
-    <script>
-        var baseUrl = "{{ url('') }}";
-        $(document).ready(function () {
-            // Soumission AJAX simplifiée du formulaire d'ajout de rôle
-            $('#addRoleForm').on('submit', function (e) {
-                e.preventDefault();
-                var form = $(this);
-                var url = baseUrl + '/administration/roles-permissions';
-                var formData = form.serialize();
-                $.post(url, formData)
-                    .done(function (response) {
-                        showAppModal('success', 'Rôle ajouté avec succès.');
-                        reloadRolesTable();
-                        // Réinitialise le formulaire
-                        form[0].reset();
-                    })
-                    .fail(function (xhr) {
-                        let msg = 'Erreur lors de l\'ajout du rôle.';
-                        if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            msg += '<ul>';
-                            $.each(xhr.responseJSON.errors, function (k, v) { msg += '<li>' + v + '</li>'; });
-                            msg += '</ul>';
-                        }
-                        showAppModal('error', msg);
-                    });
-            });
+<script>
+(function () {
+    'use strict';
 
-
-            // Soumission AJAX simplifiée du formulaire d'ajout de permission
-            $('#addPermissionForm').on('submit', function (e) {
-                e.preventDefault();
-                var form = $(this);
-                var url = baseUrl + '/administration/permissions';
-                var formData = form.serialize();
-                $.post(url, formData)
-                    .done(function (response) {
-                        showAppModal('success', 'Permission ajoutée avec succès.');
-                        reloadPermissionsTable();
-                        form[0].reset();
-                    })
-                    .fail(function (xhr) {
-                        let msg = "Erreur lors de l'ajout de la permission.";
-                        if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            msg += '<ul>';
-                            $.each(xhr.responseJSON.errors, function (k, v) { msg += '<li>' + v + '</li>'; });
-                            msg += '</ul>';
-                        }
-                        showAppModal('error', msg);
-                    });
-            });
-
-
-            
-            // DataTable init pour le tableau des rôles (évite la réinitialisation)
-            if (!$.fn.DataTable.isDataTable('#roles-table')) {
-                $('#roles-table').DataTable({
-                    paging: true,
-                    searching: true,
-                    info: true,
-                    lengthChange: true,
-                    lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Tous"]],
-                    language: {
-                        url: baseUrl + '/plugins/datatables/i18n/fr-FR.json',
-                        paginate: {
-                            first: "Premier",
-                            last: "Dernier",
-                            next: "Suivant",
-                            previous: "Précédent"
-                        },
-                        search: "Recherche :",
-                        info: "Affichage de _START_ à _END_ sur _TOTAL_ entrées",
-                        infoEmpty: "Aucune entrée à afficher",
-                        infoFiltered: "(filtré à partir de _MAX_ entrées)",
-                        lengthMenu: "Afficher _MENU_ entrées",
-                    }
-                });
-            }
-            // DataTable init pour le tableau des permissions
-            if (!$.fn.DataTable.isDataTable('#permissions-table')) {
-                $('#permissions-table').DataTable({
-                    paging: true,
-                    searching: true,
-                    info: true,
-                    lengthChange: true,
-                    lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Tous"]],
-                    language: {
-                        url: baseUrl + '/plugins/datatables/i18n/fr-FR.json',
-                        paginate: {
-                            first: "Premier",
-                            last: "Dernier",
-                            next: "Suivant",
-                            previous: "Précédent"
-                        },
-                        search: "Recherche :",
-                        info: "Affichage de _START_ à _END_ sur _TOTAL_ entrées",
-                        infoEmpty: "Aucune entrée à afficher",
-                        infoFiltered: "(filtré à partir de _MAX_ entrées)",
-                        lengthMenu: "Afficher _MENU_ entrées",
-                    }
-                });
-            }
-            // Sélection d'un rôle
-            $('#roles-table tbody').on('click', 'tr', function () {
-                $('#roles-table tbody tr').removeClass('datatable-selected-row');
-                $(this).addClass('datatable-selected-row');
-            });
-
-            // Selection d'une permission
-            $('#permissions-table tbody').on('click', 'tr', function () {
-                $('#permissions-table tbody tr').removeClass('datatable-selected-row');
-                $(this).addClass('datatable-selected-row');
-            });
-
-
-            // Attribution des permissions à un rôle (onglet Attribution)
-            $('#selectRole').on('change', function () {
-                var roleCode = $(this).val();
-                if (!roleCode) {
-                    $('#permissionsListContainer').html('');
-                    return;
-                }
-                $.get(baseUrl + '/administration/role-permissions/' + roleCode, function (html) {
-                    $('#permissionsListContainer').html(html);
-                });
-            });
-
-            // Délégation d'événement pour les cases à cocher (car contenu AJAX)
-            $('#permissionsListContainer').on('change', '.perm-checkbox', function () {
-                var roleCode = $('#selectRole').val();
-                var permCode = $(this).data('perm-code');
-                var checked = $(this).is(':checked');
-                var url = checked ? baseUrl + '/administration/role-permissions/attach' : baseUrl + '/administration/role-permissions/detach';
-                $.post(url, {
-                    role_code: roleCode,
-                    permission_code: permCode,
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                })
-                .done(function () {
-                    showAppModal('success', checked ? 'Permission attachée.' : 'Permission détachée.');
-                })
-                .fail(function () {
-                    showAppModal('error', 'Erreur lors de la mise à jour.');
-                });
-            });
-
-
-            // Désactiver tout : coche/décoche toutes les permissions
-            $(document).on('change', '#disableAllPermissions', function() {
-                var checked = $(this).is(':checked');
-                $('.perm-checkbox').prop('checked', !checked).trigger('change');
-            });
-
-        });
-
-        // Fonction utilitaire pour recharger le tableau des rôles et réinitialiser DataTable
-        function reloadRolesTable() {
-            var reloadUrl = baseUrl + '/administration/roles-table';
-            $.get(reloadUrl, function (tableHtml) {
-                var $tableContainer = $('#roles-table').closest('.table-responsive');
-                $tableContainer.html(tableHtml);
-                $('#roles-table').DataTable({
-                    paging: true,
-                    searching: true,
-                    info: true,
-                    lengthChange: true,
-                    lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Tous"]],
-                    language: {
-                        url: baseUrl + '/plugins/datatables/i18n/fr-FR.json',
-                        paginate: {
-                            first: "Premier",
-                            last: "Dernier",
-                            next: "Suivant",
-                            previous: "Précédent"
-                        },
-                        search: "Recherche :",
-                        info: "Affichage de _START_ à _END_ sur _TOTAL_ entrées",
-                        infoEmpty: "Aucune entrée à afficher",
-                        infoFiltered: "(filtré à partir de _MAX_ entrées)",
-                        lengthMenu: "Afficher _MENU_ entrées",
-                    }
-                });
-            });
-        }
-
-        // Fonction utilitaire pour recharger le tableau des permissions et réinitialiser DataTable
-        function reloadPermissionsTable() {
-            var reloadUrl = baseUrl + '/administration/permissions-table';
-            $.get(reloadUrl, function (tableHtml) {
-                var $tableContainer = $('#permissions-table').closest('.table-responsive');
-                $tableContainer.html(tableHtml);
-                $('#permissions-table').DataTable({
-                    paging: true,
-                    searching: true,
-                    info: true,
-                    lengthChange: true,
-                    lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Tous"]],
-                    language: {
-                        url: baseUrl + '/plugins/datatables/i18n/fr-FR.json',
-                        paginate: {
-                            first: "Premier",
-                            last: "Dernier",
-                            next: "Suivant",
-                            previous: "Précédent"
-                        },
-                        search: "Recherche :",
-                        info: "Affichage de _START_ à _END_ sur _TOTAL_ entrées",
-                        infoEmpty: "Aucune entrée à afficher",
-                        infoFiltered: "(filtré à partir de _MAX_ entrées)",
-                        lengthMenu: "Afficher _MENU_ entrées",
-                    }
-                });
-            });
-        }
-
-        
-    // Initialisation Select2 sur le select des rôles (avec recherche code/nom)
-    $(document).ready(function() {
-        // Select2 pour le select des rôles
-        $('#selectRole').select2({
-            theme: 'bootstrap4',
-            placeholder: 'Rechercher un rôle par code ou nom',
-            allowClear: true,
-            width: 'resolve',
-            language: {
-                noResults: function() { return "Aucun résultat trouvé"; }
-            },
-            matcher: function(params, data) {
-                if ($.trim(params.term) === '') return data;
-                if (typeof data.text === 'undefined') return null;
-                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
-                    return data;
-                }
-                return null;
-            }
-        });
-
-        // Select2 pour le select des utilisateurs (identique à rôles)
-        $('#selectUser').select2({
-            theme: 'bootstrap4',
-            placeholder: 'Rechercher un utilisateur par nom, email ou ID',
-            allowClear: true,
-            width: 'resolve',
-            language: {
-                noResults: function() { return "Aucun résultat trouvé"; }
-            },
-            matcher: function(params, data) {
-                if ($.trim(params.term) === '') return data;
-                if (typeof data.text === 'undefined') return null;
-                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
-                    return data;
-                }
-                return null;
-            }
-        });
-
-        // Chargement dynamique des rôles/permissions de l'utilisateur sélectionné
-        $('#selectUser').on('change', function() {
-            var userId = $(this).val();
-            if (!userId) {
-                $('#rolesListContainer').html('<div class="alert alert-info">Aucun utilisateur sélectionné.</div>');
-                return;
-            }
-            $.get(baseUrl + '/administration/user-roles-permissions/' + userId, function(html) {
-                $('#rolesListContainer').html(html);
-            });
-        });
+    // ── CSRF global ────────────────────────────────────────────────────────────
+    $.ajaxSetup({
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
     });
 
-     // Attribution/suppression de rôles à l'utilisateur (onglet Users / Roles)
-        $('#rolesListContainer').on('change', '.user-role-checkbox', function() {
-            var userId = $('#selectUser').val();
-            var roleCode = $(this).data('role-code');
-            var checked = $(this).is(':checked');
-            var url = checked ? baseUrl + '/administration/user-roles/attach' : baseUrl + '/administration/user-roles/detach';
-            $.post(url, {
-                user_id: userId,
-                role_code: roleCode,
-                _token: $('meta[name="csrf-token"]').attr('content')
-            })
-            .done(function () {
-                showAppModal('success', checked ? 'Rôle attribué.' : 'Rôle retiré.');
-                // Recharge la liste pour mettre à jour les permissions héritées
-                $.get(baseUrl + '/administration/user-roles-permissions/' + userId, function(html) {
-                    $('#rolesListContainer').html(html);
-                });
-            })
-            .fail(function () {
-                showAppModal('error', 'Erreur lors de la mise à jour.');
+    $(function () {
+
+        // Auto-close flash
+        // (géré par showSystemMessage — pas besoin de timeout)
+
+        // ── LIVE SEARCH : Rôles ──────────────────────────────────────────────
+        $('#searchRoles').on('input', function () {
+            var q = $(this).val().toLowerCase();
+            $('#rolesTbody tr').each(function () {
+                $(this).toggle($(this).text().toLowerCase().indexOf(q) > -1);
             });
         });
-    </script>
+
+        // ── LIVE SEARCH : Permissions ────────────────────────────────────────
+        $('#searchPermissions').on('input', function () {
+            var q = $(this).val().toLowerCase();
+            $('#permsTbody tr').each(function () {
+                $(this).toggle($(this).text().toLowerCase().indexOf(q) > -1);
+            });
+        });
+
+        // ── AJOUTER UN RÔLE ──────────────────────────────────────────────────
+        $('#addRoleForm').on('submit', function (e) {
+            e.preventDefault();
+            var $btn = $('#btnAddRole').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Envoi…');
+            $.post('{{ route("administration.roles_permissions.store") }}', $(this).serialize())
+                .done(function () {
+                    showSystemMessage('success', 'Rôle ajouté avec succès.');
+                    setTimeout(function () { location.reload(); }, 900);
+                })
+                .fail(function (xhr) {
+                    showSystemMessage('error', 'Erreur : ' + (xhr.responseJSON?.message ?? 'impossible d\'ajouter le rôle.'));
+                    $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter le rôle');
+                });
+        });
+
+        // ── SUPPRIMER UN RÔLE ────────────────────────────────────────────────
+        $(document).on('click', '.btn-delete-role', function () {
+            var id  = $(this).data('id');
+            var nom = $(this).data('nom');
+            var url = '{{ route("administration.roles.destroy", ["role" => "__ID__"]) }}'.replace('__ID__', id);
+            showUniversalConfirm('Supprimer le rôle <strong>« ' + nom + ' »</strong> ?<br><small class="text-danger">Toutes ses attributions seront perdues.</small>', function () {
+                $.post(url, { _method: 'DELETE' })
+                    .done(function () {
+                        showSystemMessage('success', 'Rôle supprimé.');
+                        setTimeout(function () { location.reload(); }, 900);
+                    })
+                    .fail(function (xhr) {
+                        showSystemMessage('error', 'Erreur : ' + (xhr.responseJSON?.message ?? 'suppression impossible.'));
+                    });
+            }, 'Confirmer la suppression');
+        });
+
+        // ── AJOUTER UNE PERMISSION ────────────────────────────────────────────
+        $('#addPermissionForm').on('submit', function (e) {
+            e.preventDefault();
+            var $btn = $('#btnAddPerm').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Envoi…');
+            $.post('{{ route("administration.permissions.store") }}', $(this).serialize())
+                .done(function () {
+                    showSystemMessage('success', 'Permission ajoutée avec succès.');
+                    setTimeout(function () { location.reload(); }, 900);
+                })
+                .fail(function (xhr) {
+                    showSystemMessage('error', 'Erreur : ' + (xhr.responseJSON?.message ?? 'impossible d\'ajouter la permission.'));
+                    $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter la permission');
+                });
+        });
+
+        // ── SELECT 2 ──────────────────────────────────────────────────────────
+        var select2Opts = {
+            theme: 'bootstrap4',
+            allowClear: true,
+            width: 'resolve',
+            language: { noResults: function () { return 'Aucun résultat'; } }
+        };
+        $('#selectRole').select2($.extend({}, select2Opts, { placeholder: 'Rechercher un rôle…' }));
+        $('#selectUser').select2($.extend({}, select2Opts, { placeholder: 'Rechercher un utilisateur…' }));
+
+        // ── ATTRIBUTION : charger les permissions d'un rôle ───────────────────
+        $('#selectRole').on('change', function () {
+            var roleCode = $(this).val();
+            if (!roleCode) {
+                $('#permissionsListContainer').html(
+                    '<div class="text-center text-muted py-4"><i class="fas fa-hand-point-left fa-2x mb-2 d-block"></i>Sélectionnez un rôle à gauche.</div>'
+                );
+                return;
+            }
+            $('#permissionsListContainer').html('<div class="text-center py-3"><i class="fas fa-spinner fa-spin fa-2x text-info"></i></div>');
+            $.get('{{ route("administration.role-permissions.list", ["role_code" => "__CODE__"]) }}'.replace('__CODE__', roleCode))
+                .done(function (html) {
+                    $('#permissionsListContainer').html(html);
+                })
+                .fail(function () {
+                    $('#permissionsListContainer').html('<div class="alert alert-danger">Erreur de chargement.</div>');
+                });
+        });
+
+        // ── ATTRIBUTION : cocher/décocher une permission ──────────────────────
+        $(document).on('change', '#permissionsListContainer .perm-checkbox', function () {
+            var roleCode = $('#selectRole').val();
+            var permCode = $(this).data('perm-code');
+            var checked  = $(this).is(':checked');
+            var url      = checked
+                           ? '{{ route("administration.role-permissions.attach") }}'
+                           : '{{ route("administration.role-permissions.detach") }}';
+            $.post(url, { role_code: roleCode, permission_code: permCode })
+                .done(function () {
+                    showSystemMessage('success', checked ? 'Permission attribuée.' : 'Permission retirée.');
+                })
+                .fail(function () {
+                    showSystemMessage('error', 'Erreur de mise à jour.');
+                });
+        });
+
+        // ── ATTRIBUTION : désactiver tout ─────────────────────────────────────
+        $(document).on('change', '#disableAllPermissions', function () {
+            var uncheck = $(this).is(':checked');
+            $('#permissionsListContainer .perm-checkbox').prop('checked', !uncheck).trigger('change');
+        });
+
+        // ── USERS/RÔLES : charger les rôles d'un utilisateur ──────────────────
+        $('#selectUser').on('change', function () {
+            var userId = $(this).val();
+            if (!userId) {
+                $('#rolesListContainer').html(
+                    '<div class="text-center text-muted py-4"><i class="fas fa-hand-point-left fa-2x mb-2 d-block"></i>Sélectionnez un utilisateur à gauche.</div>'
+                );
+                return;
+            }
+            $('#rolesListContainer').html('<div class="text-center py-3"><i class="fas fa-spinner fa-spin fa-2x text-warning"></i></div>');
+            $.get('{{ route("administration.user-roles-permissions", ["user_id" => "__ID__"]) }}'.replace('__ID__', userId))
+                .done(function (html) {
+                    $('#rolesListContainer').html(html);
+                })
+                .fail(function () {
+                    $('#rolesListContainer').html('<div class="alert alert-danger">Erreur de chargement.</div>');
+                });
+        });
+
+        // ── USERS/RÔLES : cocher/décocher un rôle ─────────────────────────────
+        $(document).on('change', '#rolesListContainer .user-role-checkbox', function () {
+            var userId   = $('#selectUser').val();
+            var roleCode = $(this).data('role-code');
+            var checked  = $(this).is(':checked');
+            var url      = checked
+                           ? '{{ route("administration.user-roles.attach") }}'
+                           : '{{ route("administration.user-roles.detach") }}';
+            $.post(url, { user_id: userId, role_code: roleCode })
+                .done(function () {
+                    showSystemMessage('success', checked ? 'Rôle attribué.' : 'Rôle retiré.');
+                    $.get('{{ route("administration.user-roles-permissions", ["user_id" => "__ID__"]) }}'.replace('__ID__', userId), function (html) {
+                        $('#rolesListContainer').html(html);
+                    });
+                })
+                .fail(function () {
+                    showSystemMessage('error', 'Erreur de mise à jour.');
+                });
+        });
+
+    }); // /document.ready
+}());
+</script>
 @endpush

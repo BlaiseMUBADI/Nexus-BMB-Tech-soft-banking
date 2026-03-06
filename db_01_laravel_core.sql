@@ -167,8 +167,8 @@ CREATE TABLE `tb_role_permission` (
   `updated_at`      timestamp   NULL DEFAULT NULL,
   PRIMARY KEY (`role_code`, `permission_code`),
   KEY `fk_rp_permission` (`permission_code`),
-  CONSTRAINT `fk_rp_role`       FOREIGN KEY (`role_code`)       REFERENCES `tb_roles`       (`code`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_rp_permission` FOREIGN KEY (`permission_code`) REFERENCES `tb_permissions` (`code`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `fk_rp_role`       FOREIGN KEY (`role_code`)       REFERENCES `tb_roles`       (`code`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_rp_permission` FOREIGN KEY (`permission_code`) REFERENCES `tb_permissions` (`code`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==============================================================

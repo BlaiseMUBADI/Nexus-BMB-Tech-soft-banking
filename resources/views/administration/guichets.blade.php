@@ -68,6 +68,35 @@
                 </div>
             </div>
         </div>
+
+    </div>{{-- /dashboard --}}
+
+    {{-- Ligne 1b : Agents affectés --}}
+    <div class="row mb-3">
+        <div class="col-6 col-md-3">
+            <div class="info-box shadow-sm">
+                <span class="info-box-icon bg-teal elevation-1">
+                    <i class="fas fa-user-check"></i>
+                </span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Avec titulaire</span>
+                    <span class="info-box-number">{{ $stats['avec_titulaire'] }}</span>
+                    <span class="progress-description">agent actif affecté</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="info-box shadow-sm">
+                <span class="info-box-icon bg-secondary elevation-1">
+                    <i class="fas fa-user-times"></i>
+                </span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Sans titulaire</span>
+                    <span class="info-box-number">{{ $stats['sans_titulaire'] }}</span>
+                    <span class="progress-description">non encore affecté</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- ══════════════════════════════════════════════════════════
@@ -193,20 +222,29 @@
 
         {{-- ──────────────── TABLEAU LISTE ──────────────── --}}
         <div class="col-md-8">
-            <div class="card">
-                <div class="card-header pb-0 d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0"><i class="fas fa-list mr-1"></i> Liste des Guichets</h5>
-                    <span class="badge badge-primary">{{ $guichets->count() }} guichet(s)</span>
+            <div class="card card-info card-outline">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-list mr-2"></i> Liste des Guichets
+                    </h3>
+                    <div class="card-tools">
+                        <span class="badge badge-info badge-pill">{{ $guichets->count() }}</span>
+                    </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height:680px; overflow-y:auto;">
-                        <table class="table table-bordered table-striped table-hover mb-0" id="guichetsTable">
-                            <thead class="thead-light sticky-top">
+                    <div class="px-2 pt-2">
+                        <input type="text" id="searchGuichets" class="form-control form-control-sm"
+                               placeholder="🔍 Rechercher un guichet…">
+                    </div>
+                    <div class="table-responsive mt-1" style="max-height:640px; overflow-y:auto;">
+                        <table class="table table-bordered table-striped table-sm mb-0" id="guichetsTable">
+                            <thead class="thead-dark">
                                 <tr>
                                     <th style="width:35px">#</th>
                                     <th>Code</th>
                                     <th>Intitulé</th>
                                     <th>Devises &amp; Soldes</th>
+                                    <th>Titulaire actif</th>
                                     <th class="text-center" style="width:100px">Statut</th>
                                     <th class="text-center" style="width:70px">Actions</th>
                                 </tr>
@@ -221,15 +259,35 @@
                                     {{-- Soldes par devise --}}
                                     <td>
                                         @forelse($g->soldes as $s)
-                                        <span class="badge badge-light border mr-1 mb-1 px-2 py-1" title="{{ $s->devise->nom ?? $s->devise_code }}">
-                                            <span class="text-secondary font-weight-bold">{{ $s->devise_code }}</span>
-                                            <span class="ml-1">{{ number_format($s->solde_en_caisse, 2, ',', ' ') }}</span>
+                                        <span class="solde-badge mr-1 mb-1" title="{{ $s->devise->nom ?? $s->devise_code }}">
+                                            <span class="solde-devise-code">{{ $s->devise_code }}</span>
+                                            <span class="solde-montant ml-1">{{ number_format($s->solde_en_caisse, 2, ',', ' ') }}</span>
                                         </span>
                                         @empty
                                         <span class="text-muted small">
                                             <i class="fas fa-minus-circle mr-1"></i>Aucune devise
                                         </span>
                                         @endforelse
+                                    </td>
+
+                                    {{-- Titulaire actif --}}
+                                    <td>
+                                        @if($g->affectationActive && $g->affectationActive->agent)
+                                            @php $ag = $g->affectationActive->agent; @endphp
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge badge-success mr-1" title="Affecté depuis {{ $g->affectationActive->date_debut ?? '' }}">
+                                                    <i class="fas fa-user-check mr-1"></i>
+                                                    <code style="color:inherit;font-size:.8em">{{ $ag->matricule }}</code>
+                                                </span>
+                                            </div>
+                                            <small class="text-muted d-block" style="font-size:.75rem">
+                                                {{ $ag->nom }} {{ $ag->postnom }}
+                                            </small>
+                                        @else
+                                            <span class="text-muted small">
+                                                <i class="fas fa-user-slash mr-1"></i>Non affecté
+                                            </span>
+                                        @endif
                                     </td>
 
                                     {{-- Statut --}}
@@ -255,7 +313,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-5">
+                                    <td colspan="7" class="text-center text-muted py-5">
                                         <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                                         Aucun guichet enregistré.
                                     </td>
@@ -273,12 +331,46 @@
 @endsection
 
 
-@section('css')
+@push('css')
 <style>
-    /* Card outline primary */
-    .card-primary.card-outline { border-top: 3px solid #007bff; }
+    /* ══ DARK ADMINLTE — En-têtes tableau ═══════════════════════ */
+    #guichetsTable thead th {
+        background-color: #2c3136 !important;
+        color: #c2c7d0 !important;
+        border-color: #3d4349 !important;
+        font-size: .78rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
 
-    /* ── Grille devises checkbox ──────────────────────────────── */
+    /* ── Survol lignes ──────────────────────────────────────── */
+    #guichetsTable tbody tr:hover > td {
+        background-color: rgba(0, 123, 255, 0.15) !important;
+        color: #fff !important;
+    }
+
+    /* ── Badges soldes par devise (dark-friendly) ───────────── */
+    .solde-badge {
+        display: inline-flex;
+        align-items: center;
+        background-color: rgba(255,255,255,.08);
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: .78rem;
+    }
+    .solde-badge .solde-devise-code {
+        font-weight: 700;
+        color: #74c0fc;
+    }
+    .solde-badge .solde-montant {
+        color: #c2c7d0;
+    }
+
+    /* ── Grille devises checkbox ────────────────────────────── */
     .devises-checkbox-grid {
         background: transparent;
         border-color: rgba(255,255,255,.12) !important;
@@ -286,15 +378,14 @@
     .devises-checkbox-grid .custom-control-label {
         cursor: pointer;
         font-size: .88rem;
-        color: inherit;          /* hérite la couleur du thème (blanc en dark) */
+        color: inherit;
     }
-    /* Fix: le carré de la checkbox AdminLTE en thème sombre */
     .devises-checkbox-grid .custom-control-input ~ .custom-control-label::before {
         background-color: rgba(255,255,255,.08);
         border-color: rgba(255,255,255,.3);
     }
 
-    /* ── Cartes soldes globaux par devise ─────────────────────── */
+    /* ── Cartes soldes globaux par devise ───────────────────── */
     .solde-devise-card {
         background: rgba(255,255,255,.06);
         border: 1px solid rgba(255,255,255,.15);
@@ -302,16 +393,13 @@
         display: inline-flex;
         align-items: center;
     }
-    .solde-devise-card .devise-label  { font-weight: 600; font-size: .88rem; }
+    .solde-devise-card .devise-label   { font-weight: 600; font-size: .88rem; }
     .solde-devise-card .devise-montant { font-size: 1rem; font-weight: 700; }
 
-    /* ── Tableau ──────────────────────────────────────────────── */
-    #guichetsTable thead.sticky-top th {
-        top: 0;
-        z-index: 2;
-    }
+    /* ── Input recherche ────────────────────────────────────── */
+    #searchGuichets { margin-bottom: 0; }
 </style>
-@endsection
+@endpush
 
 
 @push('js')
@@ -322,6 +410,14 @@ $(document).ready(function () {
         headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
     });
 
+    // ── Recherche live : tableau guichets ─────────────────────
+    $('#searchGuichets').on('input', function () {
+        var q = $(this).val().toLowerCase();
+        $('#guichetsTable tbody tr').each(function () {
+            $(this).toggle(q === '' || $(this).text().toLowerCase().indexOf(q) !== -1);
+        });
+    });
+
     // ══════════════════════════════════════════════════════
     // CRÉER GUICHET (multi-devises)
     // ══════════════════════════════════════════════════════
@@ -329,29 +425,27 @@ $(document).ready(function () {
         e.preventDefault();
 
         // Validation côté client : au moins une devise cochée
-        let devisesCochees = $('input.devise-cb:checked');
+        var devisesCochees = $('input.devise-cb:checked');
         if (devisesCochees.length === 0) {
             $('#devises-error').removeClass('d-none');
             return;
         }
         $('#devises-error').addClass('d-none');
 
-        showSystemMessage('info', 'Création en cours...');
+        showSystemMessage('info', 'Création en cours…');
 
-        $.post("{{ route('administration.guichets.store') }}", $(this).serialize())
+        $.post('{{ route("administration.guichets.store") }}', $(this).serialize())
             .done(function (response) {
                 showSystemMessage('success', response.message);
                 $('#guichetForm')[0].reset();
-                setTimeout(() => location.reload(), 1200);
+                setTimeout(function () { location.reload(); }, 1200);
             })
             .fail(function (xhr) {
-                let errors = xhr.responseJSON?.errors;
-                if (errors) {
-                    let msg = Object.values(errors).flat().join('<br>');
-                    showSystemMessage('error', msg);
-                } else {
-                    showSystemMessage('error', xhr.responseJSON?.message || 'Erreur lors de la création.');
-                }
+                var msg = (xhr.responseJSON && xhr.responseJSON.message)
+                    ? xhr.responseJSON.message
+                    : 'Erreur lors de la création.';
+                $.post('{{ route("log.clientError") }}', { context: 'store guichet', status: xhr.status, message: msg });
+                showSystemMessage('error', msg, 'Erreur — création guichet');
             });
     });
 
@@ -366,32 +460,36 @@ $(document).ready(function () {
     // SUPPRIMER GUICHET
     // ══════════════════════════════════════════════════════
     $(document).on('click', '.btn-delete-guichet', function () {
-        let id   = $(this).data('id');
-        let code = $(this).data('code');
+        var id   = $(this).data('id');
+        var code = $(this).data('code');
+        var $btn = $(this);
 
         showUniversalConfirm(
-            `Supprimer le guichet <strong>${code}</strong> ?<br>
-             <small class="text-danger">
-                 Uniquement si <strong>FERMÉ</strong> et tous les soldes sont à <strong>0</strong>.
-             </small>`,
+            'Supprimer le guichet <strong>' + code + '</strong> ?<br>' +
+            '<small class="text-danger">Uniquement si <strong>FERMÉ</strong> et tous les soldes sont à <strong>0</strong>.</small>',
             function () {
+                $btn.prop('disabled', true);
                 $.ajax({
-                    url  : `{{ url('administration/guichets') }}/${id}`,
-                    type : 'DELETE',
-                    success: function (response) {
-                        showSystemMessage('success', response.message);
-                        $(`#row-guichet-${id}`).fadeOut(400, function () { $(this).remove(); });
-                        // Décrémenter le compteur dans le badge header
-                        let badge = $('.card-header .badge-primary');
-                        let n = parseInt(badge.text()) - 1;
-                        badge.text(n + ' guichet(s)');
-                    },
-                    error: function (xhr) {
-                        showSystemMessage('error', xhr.responseJSON?.message || 'Erreur lors de la suppression.');
-                    }
+                    url   : '{{ route("administration.guichets.destroy", ["id" => "__ID__"]) }}'.replace('__ID__', id),
+                    method: 'POST',
+                    data  : { _method: 'DELETE' },
+                })
+                .done(function (response) {
+                    showSystemMessage('success', response.message);
+                    $('#row-guichet-' + id).fadeOut(400, function () { $(this).remove(); });
+                    var badge = $('.card-header .badge-info');
+                    badge.text(parseInt(badge.text()) - 1);
+                })
+                .fail(function (xhr) {
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message)
+                        ? xhr.responseJSON.message
+                        : 'Erreur lors de la suppression.';
+                    $.post('{{ route("log.clientError") }}', { context: 'destroy guichet', status: xhr.status, message: msg });
+                    showSystemMessage('error', msg, 'Erreur — suppression guichet');
+                    $btn.prop('disabled', false);
                 });
             },
-            'Confirmer la suppression'
+            { title: 'Confirmer la suppression' }
         );
     });
 

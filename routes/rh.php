@@ -22,6 +22,9 @@ Route::get('rh/services/{service}/postes-ajax', [PosteController::class, 'ajaxLi
 Route::post('rh/services/{service}/postes-ajax', [PosteController::class, 'ajaxStore'])->name('postes.ajaxStore');
 // Affectation agents/postes (RH)
 Route::prefix('rh')->group(function () {
-    Route::get('affectations', [AffectationController::class, 'index'])->name('affectations.index');
-    Route::post('affectations', [AffectationController::class, 'store'])->name('affectations.store');
+    Route::get('affectations',                          [AffectationController::class, 'index'])->name('affectations.index');
+    Route::post('affectations',                         [AffectationController::class, 'store'])->name('affectations.store');
+    Route::get('affectations/{affectation}',            [AffectationController::class, 'show'])->name('affectations.show');
+    Route::patch('affectations/{affectation}/etat',     [AffectationController::class, 'updateEtat'])->name('affectations.updateEtat');
+    Route::delete('affectations/{affectation}',         [AffectationController::class, 'destroy'])->name('affectations.destroy');
 });

@@ -99,9 +99,10 @@ CREATE TABLE `tb_caisses_guichets_soldes` (
   UNIQUE KEY `uk_guichet_devise` (`guichet_id`, `devise_code`),
   CONSTRAINT `fk_solde_guichet`
     FOREIGN KEY (`guichet_id`)  REFERENCES `tb_caisses_guichets` (`id`)
-    ON DELETE CASCADE,
+    ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_solde_devise`
     FOREIGN KEY (`devise_code`) REFERENCES `tb_devises` (`code_iso`)
+    ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==============================================================
@@ -124,14 +125,17 @@ CREATE TABLE `tb_mouvements_inter_caisses` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_reference_bordereau` (`reference_bordereau`),
   CONSTRAINT `fk_mouv_guichet_src`
-    FOREIGN KEY (`guichet_source_id`) REFERENCES `tb_caisses_guichets` (`id`),
+    FOREIGN KEY (`guichet_source_id`) REFERENCES `tb_caisses_guichets` (`id`)
+    ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_mouv_guichet_dest`
-    FOREIGN KEY (`guichet_dest_id`)   REFERENCES `tb_caisses_guichets` (`id`),
+    FOREIGN KEY (`guichet_dest_id`)   REFERENCES `tb_caisses_guichets` (`id`)
+    ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_mouv_agent`
     FOREIGN KEY (`agent_initiateur`)  REFERENCES `tb_agents` (`matricule`)
-    ON UPDATE CASCADE,
+    ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_mouv_devise`
     FOREIGN KEY (`devise_code`)       REFERENCES `tb_devises` (`code_iso`)
+    ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==============================================================
@@ -154,12 +158,14 @@ CREATE TABLE `tb_cloture_caisse` (
   `date_cloture`     timestamp    DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   CONSTRAINT `fk_cloture_guichet`
-    FOREIGN KEY (`guichet_id`)     REFERENCES `tb_caisses_guichets` (`id`),
+    FOREIGN KEY (`guichet_id`)     REFERENCES `tb_caisses_guichets` (`id`)
+    ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_cloture_devise`
-    FOREIGN KEY (`devise_code`)    REFERENCES `tb_devises` (`code_iso`),
+    FOREIGN KEY (`devise_code`)    REFERENCES `tb_devises` (`code_iso`)
+    ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_cloture_agent`
     FOREIGN KEY (`agent_cloturant`) REFERENCES `tb_agents` (`matricule`)
-    ON UPDATE CASCADE
+    ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==============================================================
@@ -170,7 +176,7 @@ CREATE TABLE `tb_cloture_caisse` (
 ALTER TABLE `tb_affectations`
   ADD CONSTRAINT `fk_affectation_guichet`
     FOREIGN KEY (`guichet_id`) REFERENCES `tb_caisses_guichets` (`id`)
-    ON DELETE SET NULL ON UPDATE CASCADE;
+    ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- ==============================================================
 -- FIN DU FICHIER 3/3

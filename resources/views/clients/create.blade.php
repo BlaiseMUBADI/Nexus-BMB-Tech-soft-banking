@@ -8,12 +8,9 @@
    <div class="container-fluid ">
 
       @if(session('success'))
-         <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
-            {{ session('success') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-               <span aria-hidden="true">&times;</span>
-            </button>
-         </div>
+         @push('js')
+            <script>$(function () { showSystemMessage('success', '{{ addslashes(session("success")) }}'); });</script>
+         @endpush
       @endif
       @if($errors->any())
          <div class="alert alert-danger mt-2">
@@ -72,11 +69,13 @@
                               </div>
                               <div class="form-group col-md-3">
                                  <label for="date_naissance">Date de naissance</label>
-                                 <input type="date" class="form-control" id="date_naissance" name="date_naissance" required>
+                                 <input type="date" class="form-control" id="date_naissance" name="date_naissance"
+                                    required>
                               </div>
                               <div class="form-group col-md-3">
                                  <label for="lieu_naissance">Lieu de naissance</label>
-                                 <input type="text" class="form-control" id="lieu_naissance" name="lieu_naissance" required>
+                                 <input type="text" class="form-control" id="lieu_naissance" name="lieu_naissance"
+                                    required>
                               </div>
                               <div class="form-group col-md-3">
                                  <label for="telephone">Téléphone</label>
@@ -137,7 +136,7 @@
                                     <select class="form-control" id="code_zone" name="code_zone" required>
                                        <option value="">Choisir...</option>
                                        @foreach($zones as $zone)
-                                           <option value="{{ $zone->code_zone }}">{{ $zone->nom }}</option>
+                                          <option value="{{ $zone->code_zone }}">{{ $zone->nom }}</option>
                                        @endforeach
                                     </select>
                                  </div>
@@ -212,90 +211,62 @@
                            </div>
                         </div>
                      </div>
-                     
-                     <script>
-                        document.addEventListener('DOMContentLoaded', function () {
-                           const input = document.getElementById('photo');
-                           const previewPanel = document.getElementById('photo-preview-panel');
-                           const preview = document.getElementById('photo-preview');
-                           const errorDiv = document.getElementById('photo-error');
-                           input.addEventListener('change', function (e) {
-                              errorDiv.textContent = '';
-                              previewPanel.style.display = 'none';
-                              if (!input.files || !input.files[0]) return;
-                              const file = input.files[0];
-                              // Vérification type
-                              if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
-                                 errorDiv.textContent = 'Le format de la photo doit être JPEG, PNG ou GIF.';
-                                 input.value = '';
-                                 return;
-                              }
-                              // Redimensionnement côté client (max 600x600)
-                              const img = new window.Image();
-                              const reader = new FileReader();
-                              reader.onload = function (ev) {
-                                 img.onload = function () {
-                                    let width = img.width;
-                                    let height = img.height;
-                                    const maxDim = 600;
-                                    if (width > maxDim || height > maxDim) {
-                                       if (width > height) {
-                                          height = Math.round(height * maxDim / width);
-                                          width = maxDim;
-                                       } else {
-                                          width = Math.round(width * maxDim / height);
-                                          height = maxDim;
+
+                     @push('js')
+                        <script>
+                           document.addEventListener('DOMContentLoaded', function () {
+                              const input = document.getElementById('photo');
+                              const previewPanel = document.getElementById('photo-preview-panel');
+                              const preview = document.getElementById('photo-preview');
+                              const errorDiv = document.getElementById('photo-error');
+                              input.addEventListener('change', function (e) {
+                                 errorDiv.textContent = '';
+                                 previewPanel.style.display = 'none';
+                                 if (!input.files || !input.files[0]) return;
+                                 const file = input.files[0];
+                                 if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+                                    errorDiv.textContent = 'Le format de la photo doit être JPEG, PNG ou GIF.';
+                                    input.value = '';
+                                    return;
+                                 }
+                                 const img = new window.Image();
+                                 const reader = new FileReader();
+                                 reader.onload = function (ev) {
+                                    img.onload = function () {
+                                       let width = img.width;
+                                       let height = img.height;
+                                       const maxDim = 600;
+                                       if (width > maxDim || height > maxDim) {
+                                          if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+                                          else { width = Math.round(width * maxDim / height); height = maxDim; }
                                        }
-                                    }
-                                    const canvas = document.createElement('canvas');
-                                    canvas.width = width;
-                                    canvas.height = height;
-                                    const ctx = canvas.getContext('2d');
-                                    ctx.drawImage(img, 0, 0, width, height);
-                                    // Compression JPEG à 80% (ou PNG/GIF sans compression supplémentaire)
-                                    let mime = file.type;
-                                    let quality = 0.8;
-                                    let dataUrl;
-                                    if (mime === 'image/jpeg') {
-                                       dataUrl = canvas.toDataURL('image/jpeg', quality);
-                                    } else if (mime === 'image/png') {
-                                       dataUrl = canvas.toDataURL('image/png');
-                                    } else if (mime === 'image/gif') {
-                                       // GIF non supporté par toDataURL, on garde l'original
-                                       dataUrl = ev.target.result;
-                                    }
-                                    // Aperçu
-                                    preview.src = dataUrl;
-                                    previewPanel.style.display = 'block';
-                                    // Remplacement du fichier dans l'input (Blob -> File)
-                                    fetch(dataUrl)
-                                       .then(res => res.arrayBuffer())
-                                       .then(buf => {
+                                       const canvas = document.createElement('canvas');
+                                       canvas.width = width; canvas.height = height;
+                                       canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                                       let mime = file.type;
+                                       let dataUrl = (mime === 'image/jpeg') ? canvas.toDataURL('image/jpeg', 0.8)
+                                          : (mime === 'image/png') ? canvas.toDataURL('image/png')
+                                             : ev.target.result;
+                                       preview.src = dataUrl;
+                                       previewPanel.style.display = 'block';
+                                       fetch(dataUrl).then(r => r.arrayBuffer()).then(buf => {
                                           const ext = mime.split('/')[1];
-                                          const newFile = new File([buf], file.name.replace(/\.[^.]+$/, '.'+ext), {type: mime});
-                                          // Vérification taille (1 Mo max)
+                                          const newFile = new File([buf], file.name.replace(/\.[^.]+$/, '.' + ext), { type: mime });
                                           if (newFile.size > 1 * 1024 * 1024) {
                                              errorDiv.textContent = 'La taille de la photo redimensionnée dépasse 1 Mo.';
-                                             input.value = '';
-                                             previewPanel.style.display = 'none';
-                                             return;
+                                             input.value = ''; previewPanel.style.display = 'none'; return;
                                           }
-                                          // Remplacement du fichier dans l'input
-                                          const dt = new DataTransfer();
-                                          dt.items.add(newFile);
-                                          input.files = dt.files;
+                                          const dt = new DataTransfer(); dt.items.add(newFile); input.files = dt.files;
                                        });
+                                    };
+                                    img.onerror = function () { errorDiv.textContent = "Impossible de lire l'image."; input.value = ''; };
+                                    img.src = ev.target.result;
                                  };
-                                 img.onerror = function () {
-                                    errorDiv.textContent = 'Impossible de lire l\'image.';
-                                    input.value = '';
-                                 };
-                                 img.src = ev.target.result;
-                              };
-                              reader.readAsDataURL(file);
+                                 reader.readAsDataURL(file);
+                              });
                            });
-                        });
-                     </script>
+                        </script>
+                     @endpush
 
 
 
@@ -356,8 +327,10 @@
                               <div class="form-group col-md-4">
                                  <label for="revenu_mensuel">Revenu mensuel</label>
                                  <div class="input-group">
-                                    <input type="number" min="0" step="0.01" class="form-control" id="revenu_mensuel" name="revenu_mensuel">
-                                    <select class="form-select" id="revenu_mensuel_devise" name="revenu_mensuel_devise" style="max-width: 90px;">
+                                    <input type="number" min="0" step="0.01" class="form-control" id="revenu_mensuel"
+                                       name="revenu_mensuel">
+                                    <select class="form-select" id="revenu_mensuel_devise" name="revenu_mensuel_devise"
+                                       style="max-width: 90px;">
                                        <option value="FC">FC</option>
                                        <option value="USD">USD</option>
                                     </select>

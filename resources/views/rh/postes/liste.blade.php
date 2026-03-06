@@ -31,7 +31,7 @@
 </table>
 
 <hr>
-<form class="form-ajout-poste mt-3" method="POST" action="{{ url('/rh/services/' . $service->id . '/postes-ajax') }}" data-service-id="{{ $service->id }}">
+<form class="form-ajout-poste mt-3" method="POST" action="{{ route('postes.ajaxStore', ['service' => $service->id]) }}" data-service-id="{{ $service->id }}">
     @csrf
     <div class="form-group">
         <label for="posteNom">Nom du poste</label>

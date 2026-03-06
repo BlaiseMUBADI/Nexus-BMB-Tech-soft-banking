@@ -142,11 +142,11 @@ return new class extends Migration
 
             $table->foreign('role_code', 'fk_rp_role')
                   ->references('code')->on('tb_roles')
-                  ->onDelete('cascade')->onUpdate('cascade');
+                  ->onDelete('restrict')->onUpdate('cascade');
 
             $table->foreign('permission_code', 'fk_rp_permission')
                   ->references('code')->on('tb_permissions')
-                  ->onDelete('cascade')->onUpdate('cascade');
+                  ->onDelete('restrict')->onUpdate('cascade');
         });
     }
 

@@ -39,10 +39,18 @@ class RolesPermissionsController extends Controller
 
     public function index()
     {
-        $roles = Role::orderBy('created_at', 'desc')->get();
+        $roles       = Role::withCount('permissions')->orderBy('created_at', 'desc')->get();
         $permissions = \App\Models\Permission::orderBy('created_at', 'desc')->get();
-        $users = \App\Models\User::with('agent')->orderBy('name')->get();
-        return view('administration.roles_permissions', compact('roles', 'permissions', 'users'));
+        $users       = \App\Models\User::with('agent')->orderBy('name')->get();
+
+        $stats = [
+            'total_roles'       => $roles->count(),
+            'total_permissions' => $permissions->count(),
+            'total_liaisons'    => DB::table('tb_role_permission')->count(),
+            'users_avec_role'   => DB::table('tb_role_user')->distinct('user_id')->count('user_id'),
+        ];
+
+        return view('administration.roles_permissions', compact('roles', 'permissions', 'users', 'stats'));
     }
 
     public function store(Request $request)

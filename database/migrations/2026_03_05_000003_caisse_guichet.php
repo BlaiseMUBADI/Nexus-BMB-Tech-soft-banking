@@ -111,10 +111,11 @@ return new class extends Migration
 
             $table->foreign('guichet_id', 'fk_solde_guichet')
                   ->references('id')->on('tb_caisses_guichets')
-                  ->onDelete('cascade');
+                  ->onDelete('restrict')->onUpdate('restrict');
 
             $table->foreign('devise_code', 'fk_solde_devise')
-                  ->references('code_iso')->on('tb_devises');
+                  ->references('code_iso')->on('tb_devises')
+                  ->onDelete('restrict')->onUpdate('restrict');
         });
 
         // ========================================================
@@ -146,17 +147,20 @@ return new class extends Migration
                   ->default(DB::raw('CURRENT_TIMESTAMP'));
 
             $table->foreign('guichet_source_id', 'fk_mouv_guichet_src')
-                  ->references('id')->on('tb_caisses_guichets');
+                  ->references('id')->on('tb_caisses_guichets')
+                  ->onDelete('restrict')->onUpdate('restrict');
 
             $table->foreign('guichet_dest_id', 'fk_mouv_guichet_dest')
-                  ->references('id')->on('tb_caisses_guichets');
+                  ->references('id')->on('tb_caisses_guichets')
+                  ->onDelete('restrict')->onUpdate('restrict');
 
             $table->foreign('agent_initiateur', 'fk_mouv_agent')
                   ->references('matricule')->on('tb_agents')
-                  ->onUpdate('cascade');
+                  ->onDelete('restrict')->onUpdate('cascade');
 
             $table->foreign('devise_code', 'fk_mouv_devise')
-                  ->references('code_iso')->on('tb_devises');
+                  ->references('code_iso')->on('tb_devises')
+                  ->onDelete('restrict')->onUpdate('restrict');
         });
 
         // ========================================================
@@ -187,14 +191,16 @@ return new class extends Migration
                   ->default(DB::raw('CURRENT_TIMESTAMP'));
 
             $table->foreign('guichet_id', 'fk_cloture_guichet')
-                  ->references('id')->on('tb_caisses_guichets');
+                  ->references('id')->on('tb_caisses_guichets')
+                  ->onDelete('restrict')->onUpdate('restrict');
 
             $table->foreign('devise_code', 'fk_cloture_devise')
-                  ->references('code_iso')->on('tb_devises');
+                  ->references('code_iso')->on('tb_devises')
+                  ->onDelete('restrict')->onUpdate('restrict');
 
             $table->foreign('agent_cloturant', 'fk_cloture_agent')
                   ->references('matricule')->on('tb_agents')
-                  ->onUpdate('cascade');
+                  ->onDelete('restrict')->onUpdate('cascade');
         });
     }
 

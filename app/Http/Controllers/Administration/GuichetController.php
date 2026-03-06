@@ -18,19 +18,22 @@ class GuichetController extends Controller
      */
     public function index()
     {
-        // Liste complète des guichets avec leurs soldes multi-devises
-        $guichets = CaissesGuichet::with('soldes')->orderBy('code_guichet')->get();
+        // Liste complète des guichets avec leurs soldes multi-devises et l'agent actif
+        $guichets = CaissesGuichet::with(['soldes', 'affectationActive'])
+                        ->orderBy('code_guichet')->get();
 
         // Devises disponibles pour créer les soldes initiaux
         $devises  = Devise::orderBy('code_iso')->get();
 
-        // ── Statistiques pour le mini-dashboard ─────────────────
+        // ── Statistiques pour le mini-dashboard ─────────────────────
 
         $stats = [
-            'total'     => $guichets->count(),
-            'ouverts'   => $guichets->where('statut_operationnel', 'OUVERT')->count(),
-            'fermes'    => $guichets->where('statut_operationnel', 'FERME')->count(),
-            'suspendus' => $guichets->where('statut_operationnel', 'SUSPENDU')->count(),
+            'total'        => $guichets->count(),
+            'ouverts'      => $guichets->where('statut_operationnel', 'OUVERT')->count(),
+            'fermes'       => $guichets->where('statut_operationnel', 'FERME')->count(),
+            'suspendus'    => $guichets->where('statut_operationnel', 'SUSPENDU')->count(),
+            'avec_titulaire' => $guichets->filter(fn($g) => $g->affectationActive !== null)->count(),
+            'sans_titulaire' => $guichets->filter(fn($g) => $g->affectationActive === null)->count(),
         ];
 
         // Soldes totaux par devise (somme tous guichets confondus)

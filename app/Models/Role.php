@@ -13,6 +13,18 @@ class Role extends Model
     protected $keyType = 'string';
     protected $fillable = ['code', 'nom', 'description'];
 
+    public function permissions()
+    {
+        return $this->belongsToMany(
+            \App\Models\Permission::class,
+            'tb_role_permission',
+            'role_code',
+            'permission_code',
+            'code',
+            'code'
+        );
+    }
+
     // Génération automatique du code EBEN-ROLx (le plus petit numéro libre)
     public static function boot()
     {

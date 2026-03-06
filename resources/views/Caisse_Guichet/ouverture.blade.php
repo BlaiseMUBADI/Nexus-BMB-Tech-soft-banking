@@ -201,7 +201,7 @@ $(document).ready(function () {
         showUniversalConfirm(
             `ÃŠtes-vous sÃ»r de vouloir <strong>${labels[statut]}</strong> le guichet <strong>${code}</strong> ?`,
             function () {
-                $.post(`{{ url('caisses/changer-statut') }}/${id}`, { statut: statut })
+                $.post(`{{ route('caisses.changerStatut', ['id' => '__ID__']) }}`.replace('__ID__', id), { statut: statut })
                     .done(function (response) {
                         showSystemMessage('success', response.message);
                         setTimeout(() => location.reload(), 800);

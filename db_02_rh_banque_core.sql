@@ -230,9 +230,11 @@ CREATE TABLE `tb_taux_echanges` (
   KEY `fk_devise_src`  (`devise_source`),
   KEY `fk_devise_dest` (`devise_destination`),
   CONSTRAINT `fk_devise_src`
-    FOREIGN KEY (`devise_source`)      REFERENCES `tb_devises` (`code_iso`),
+    FOREIGN KEY (`devise_source`)      REFERENCES `tb_devises` (`code_iso`)
+    ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_devise_dest`
     FOREIGN KEY (`devise_destination`) REFERENCES `tb_devises` (`code_iso`)
+    ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==============================================================
@@ -324,10 +326,10 @@ CREATE TABLE `tb_transactions` (
   KEY `agent_matricule` (`agent_matricule`),
   CONSTRAINT `tb_transactions_ibfk_1`
     FOREIGN KEY (`compte_code`)     REFERENCES `tb_comptes` (`code_compte`)
-    ON DELETE RESTRICT,
+    ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `tb_transactions_ibfk_2`
     FOREIGN KEY (`agent_matricule`) REFERENCES `tb_agents`  (`matricule`)
-    ON DELETE RESTRICT
+    ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==============================================================

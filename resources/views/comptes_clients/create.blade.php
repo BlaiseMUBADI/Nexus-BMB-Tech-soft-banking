@@ -4,36 +4,34 @@
 @section('breadcrumb_parent', 'Gestion des comptes')
 @section('breadcrumb', 'Ouverture de compte')
 
+@push('css')
+<style>
+    .select2-container .select2-selection--single { height: 38px !important; }
+    .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered { line-height: 36px !important; }
+    .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow { height: 36px !important; }
+</style>
+@endpush
+
 @section('content')
 <div class="container-fluid">
     <div class="row">
         <!-- Bloc formulaire à gauche -->
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header pb-0">
-                    <h5>Ouverture de compte bancaire</h5>
+        <div class="col-lg-5">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-university mr-2"></i>Ouverture de compte bancaire</h3>
                 </div>
                 <div class="card-body">
-                    @if(session('success'))
-                        <div class="alert alert-success">{{ session('success') }}</div>
-                    @endif
-                    @if(session('error'))
-                        <div class="alert alert-danger">{{ session('error') }}</div>
-                    @endif
-
-                    <form id="compteForm">
+                    <form id="compteForm" method="POST" action="{{ route('comptes.store') }}">
                         @csrf
                         <div class="form-group">
                             <label for="client_matricule">Client</label>
                             <select name="client_matricule" id="client_matricule" class="form-control select2" required>
                                 <option value="">-- Sélectionner un client --</option>
                                 @foreach($clients as $client)
-                                    <option value="{{ $client->matricule }}">{{ $client->nom }} {{ $client->postnom }} {{ $client->prenom }} ({{ $client->matricule }})</option>
+                                    <option value="{{ $client->matricule }}">{{ $client->nom }} {{ $client->postnom ?? '' }} {{ $client->prenom ?? '' }} ({{ $client->matricule }})</option>
                                 @endforeach
                             </select>
-                            @error('client_matricule')
-                                <div class="text-danger">{{ $message }}</div>
-                            @enderror
                         </div>
                         <div class="form-group">
                             <label for="type">Type de compte</label>
@@ -44,24 +42,23 @@
                                 <option value="EPARGNE_BLOQUEE">Épargne bloquée</option>
                                 <option value="CAUTION_CREDIT">Caution crédit</option>
                             </select>
-                            @error('type')
-                                <div class="text-danger">{{ $message }}</div>
-                            @enderror
                         </div>
                         <div class="form-group" id="portefeuille_group" style="display:none">
                             <label for="portefeuille_id">Agent gestionnaire (Portefeuille)</label>
                             <select name="portefeuille_id" id="portefeuille_id" class="form-control select2">
                                 <option value="">-- Sélectionner l'agent --</option>
-                                @foreach($portefeuilles as $portefeuille)
-                                    <option value="{{ $portefeuille->id }}">
-                                        ({{ $portefeuille->agent_matricule }}) {{ $portefeuille->agent_nom }} {{ $portefeuille->agent_prenom }}
+                                @foreach($portefeuilles as $pf)
+                                    <option value="{{ $pf->id }}">
+                                        @if($pf->agent)
+                                            ({{ $pf->agent->matricule }}) {{ $pf->agent->nom }} {{ $pf->agent->prenom }}
+                                        @else
+                                            Portefeuille #{{ $pf->id }}
+                                        @endif
                                     </option>
                                 @endforeach
                             </select>
                             <small class="text-muted">Obligatoire pour les comptes de type Caution Crédit.</small>
                         </div>
-
-                        
                         <div class="form-group">
                             <label for="devise">Devise</label>
                             <select name="devise" id="devise" class="form-control select2" required>
@@ -70,66 +67,92 @@
                                     <option value="{{ $devise->code_iso }}">{{ $devise->nom }} ({{ $devise->symbole }})</option>
                                 @endforeach
                             </select>
-                            @error('devise')
-                                <div class="text-danger">{{ $message }}</div>
-                            @enderror
                         </div>
-                        
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle mr-1"></i>Ouvrir le compte</button>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-plus-circle mr-1"></i>Ouvrir le compte
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
         <!-- Bloc tableau à droite -->
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header pb-0">
-                    <h5>Liste des comptes</h5>
+        <div class="col-lg-7">
+            <div class="card card-info card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-list mr-2"></i>Comptes ouverts</h3>
+                    <div class="card-tools">
+                        <div class="input-group input-group-sm" style="width:200px;">
+                            <input type="text" id="searchComptesCreate" class="form-control" placeholder="Rechercher…">
+                            <div class="input-group-append">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive" style="max-height: 700px; min-height: 200px; overflow-y: auto;">
-                        <table class="table table-bordered app-table table-striped mb-0">
-                            <thead>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height:520px; overflow-y:auto;">
+                        <table class="table table-bordered table-striped table-hover mb-0" id="comptesCreateTable">
+                            <thead class="thead-dark">
                                 <tr>
-                                    <th>#</th>
+                                    <th style="width:35px">#</th>
                                     <th>Code Compte</th>
                                     <th>Client</th>
                                     <th>Type</th>
                                     <th>Solde réel</th>
                                     <th>Devise</th>
                                     <th>Portefeuille</th>
-                                    <th>Actions</th>
+                                    <th style="width:60px">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($comptes as $compte)
                                     <tr>
                                         <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $compte->code_compte }}</td>
-                                        <td>{{ $compte->client->nom }} {{ $compte->client->postnom }} {{ $compte->client->prenom }}</td>
-                                        <td>{{ $compte->type }}</td>
-                                        <td>{{ number_format($compte->solde_reel, 2, ',', ' ') }}</td>
-                                        <td>{{ $compte->devise }}</td>
+                                        <td><code>{{ $compte->code_compte }}</code></td>
                                         <td>
-                                            @if($compte->portefeuille_id)
-                                                @php
-                                                    $portefeuille = $portefeuilles->where('id', $compte->portefeuille_id)->first();
-                                                @endphp
-                                                ({{ $portefeuille->agent->matricule ?? '-' }}) {{ $portefeuille->agent->nom ?? '-' }} {{ $portefeuille->agent->prenom ?? '-' }}
+                                            @if($compte->client)
+                                                {{ $compte->client->nom }}
+                                                {{ $compte->client->postnom ?? '' }}
+                                                {{ $compte->client->prenom ?? '' }}
                                             @else
-                                                -
+                                                <span class="text-muted">–</span>
                                             @endif
                                         </td>
                                         <td>
-                                            
-                                            <button class="btn btn-sm btn-danger delete-compte-btn" data-id="{{ $compte->code_compte }}">
+                                            @php
+                                                $typeBadge = [
+                                                    'COURANT'         => 'badge-info',
+                                                    'EPARGNE_LIBRE'   => 'badge-success',
+                                                    'EPARGNE_BLOQUEE' => 'badge-warning',
+                                                    'CAUTION_CREDIT'  => 'badge-primary',
+                                                ][$compte->type] ?? 'badge-secondary';
+                                            @endphp
+                                            <span class="badge {{ $typeBadge }}">{{ $compte->type }}</span>
+                                        </td>
+                                        <td class="text-right">{{ number_format($compte->solde_reel, 2, ',', ' ') }}</td>
+                                        <td><span class="badge badge-secondary">{{ $compte->devise }}</span></td>
+                                        <td>
+                                            @if($compte->portefeuille && $compte->portefeuille->agent)
+                                                <small>({{ $compte->portefeuille->agent->matricule }})
+                                                {{ $compte->portefeuille->agent->nom }}</small>
+                                            @else
+                                                <span class="text-muted">–</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-xs btn-danger delete-compte-btn"
+                                                    data-id="{{ $compte->code_compte }}"
+                                                    data-url="{{ route('comptes.destroy', $compte->code_compte) }}"
+                                                    title="Supprimer">
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="text-center text-muted">Aucun compte enregistré.</td>
+                                        <td colspan="8" class="text-center text-muted py-3">
+                                            <i class="fas fa-inbox fa-2x mb-1 d-block"></i>Aucun compte enregistré.
+                                        </td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -140,147 +163,110 @@
         </div>
     </div>
 </div>
-
-
-@section('css')
-    <style>
-        
-        .app-table tbody tr.datatable-selected-row {
-            background: linear-gradient(90deg, #6366f1 0%, #a21caf 100%) !important;
-            color: #fff !important;
-            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
-            transition: background 0.3s, color 0.3s;
-        }
-        .app-table tbody tr:hover:not(.datatable-selected-row) {
-            background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%) !important;
-            color: #fff !important;
-            cursor: pointer;
-            box-shadow: 0 1px 4px rgba(59, 130, 246, 0.10);
-            transition: background 0.3s, color 0.3s;
-        }
-    </style>
 @endsection
-
 
 @push('js')
 <script>
-    $(document).ready(function() {
-        // 1. Initialisation de Select2
-        $('#client_matricule, #type, #portefeuille_id, #devise').select2({
+(function () {
+    'use strict';
+    $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } });
+
+    $(function () {
+
+        /* ── Select2 (visible fields only – portefeuille init lazily) ─── */
+        var s2Opts = {
             theme: 'bootstrap4',
             width: '100%',
             placeholder: 'Sélectionner une option',
             allowClear: true,
-            language: {
-                noResults: function() { return "Aucun résultat trouvé"; }
-            }
-        });
+            language: { noResults: function () { return 'Aucun résultat trouvé'; } }
+        };
+        $('#client_matricule, #type, #devise').select2(s2Opts);
 
-        // 2. Logique pour afficher/masquer le portefeuille (Gestion Crédit)
-        $('#type').on('change', function() {
-            var selectedType = $(this).val();
-            var $portefeuilleGroup = $('#portefeuille_group');
-            var $portefeuilleSelect = $('#portefeuille_id');
-
-            if (selectedType === 'CAUTION_CREDIT') {
-                $portefeuilleGroup.fadeIn();
-                $portefeuilleSelect.prop('required', true);
+        /* ── Afficher / masquer portefeuille ─────────── */
+        $('#type').on('change', function () {
+            if ($(this).val() === 'CAUTION_CREDIT') {
+                $('#portefeuille_group').fadeIn(300, function () {
+                    // Init Select2 the first time the group becomes visible
+                    if (!$('#portefeuille_id').data('select2')) {
+                        $('#portefeuille_id').select2(s2Opts);
+                    }
+                });
+                $('#portefeuille_id').prop('required', true);
             } else {
-                $portefeuilleGroup.fadeOut();
-                $portefeuilleSelect.prop('required', false).val(null).trigger('change');
+                $('#portefeuille_group').fadeOut(300, function () {
+                    $('#portefeuille_id').prop('required', false);
+                    if ($('#portefeuille_id').data('select2')) {
+                        $('#portefeuille_id').val(null).trigger('change');
+                    }
+                });
             }
         });
 
-        // 3. Setup global AJAX CSRF
-        $.ajaxSetup({
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            }
+        /* ── Live search dans la table ───────────────── */
+        $('#searchComptesCreate').on('input', function () {
+            var q = $(this).val().toLowerCase();
+            $('#comptesCreateTable tbody tr').each(function () {
+                $(this).toggle($(this).text().toLowerCase().indexOf(q) !== -1);
+            });
         });
 
-        // 4. Soumission AJAX du formulaire
-        $('#compteForm').on('submit', function(e) {
+        /* ── Soumission AJAX formulaire ──────────────── */
+        $('#compteForm').on('submit', function (e) {
             e.preventDefault();
             var form = $(this);
-            var url = "{{ route('comptes.store') }}";
-            var formData = form.serialize();
+            var $btn = form.find('[type=submit]');
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Traitement…');
 
-            $.post(url, formData)
-                .done(function(response) {
-                    showSystemMessage('success', 'Compte ouvert avec succès !');
-                    
-                    // Reset complet du formulaire et des Select2
+            $.post("{{ route('comptes.store') }}", form.serialize())
+                .done(function (res) {
                     form[0].reset();
-                    $('.select2').val(null).trigger('change'); 
-                    setTimeout(function () { window.location.reload(); }, 1500);
-                    
-                    // Optionnel : Recharger la table si vous n'utilisez pas de push temps réel
-                    // comptesDataTable.ajax.reload(); 
+                    $('.select2').val(null).trigger('change');
+                    $('#portefeuille_group').hide();
+                    showSystemMessage('success', res.message || 'Compte ouvert avec succès !');
+                    $('#systemMessageModal').one('hidden.bs.modal', function () {
+                        window.location.reload();
+                    });
                 })
-                .fail(function(xhr) {
-                    let msg = 'Erreur lors de l\'ouverture du compte.';
-                    if(xhr.responseJSON && xhr.responseJSON.errors) {
+                .fail(function (xhr) {
+                    var msg = "Erreur lors de l'ouverture du compte.";
+                    if (xhr.responseJSON && xhr.responseJSON.errors) {
                         msg = Object.values(xhr.responseJSON.errors).flat().join('<br>');
-                    } else if(xhr.responseJSON && xhr.responseJSON.message) {
+                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
                         msg = xhr.responseJSON.message;
                     }
                     showSystemMessage('error', msg);
+                })
+                .always(function () {
+                    $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i>Ouvrir le compte');
                 });
         });
 
-        // 5. Initialisation DataTable
-        var $comptesTable = $('.table.app-table');
-        var comptesDataTable = $comptesTable.DataTable({
-            paging: true,
-            searching: true,
-            info: true,
-            lengthChange: true,
-            lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "Tous"]],
-            language: {
-                url: "{{ asset('plugins/datatables/i18n/fr-FR.json') }}" // Assurez-vous du chemin
-            }
+        /* ── Suppression AJAX ────────────────────────── */
+        $(document).on('click', '.delete-compte-btn', function () {
+            var code = $(this).data('id');
+            var url  = $(this).data('url');
+            showUniversalConfirm(
+                'Voulez-vous vraiment supprimer le compte <strong>' + code + '</strong> ?',
+                function () {
+                    $.post(url, { _method: 'DELETE' })
+                        .done(function (res) {
+                            showSystemMessage('success', res.message || 'Compte supprimé avec succès.');
+                            $('#systemMessageModal').one('hidden.bs.modal', function () {
+                                window.location.reload();
+                            });
+                        })
+                        .fail(function (xhr) {
+                            var msg = 'Erreur lors de la suppression.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                            showSystemMessage('error', msg);
+                        });
+                },
+                'Confirmation suppression'
+            );
         });
-
-        // Sélection de ligne au clic
-        $comptesTable.on('click', 'tbody tr', function () {
-            $(this).addClass('datatable-selected-row').siblings().removeClass('datatable-selected-row');
-        });
-
-        // Suppression AJAX d'un compte
-        $('.table.app-table').on('click', '.delete-compte-btn', function(e) {
-            e.preventDefault();
-            var btn = $(this);
-            var codeCompte = btn.data('id');
-            var deleteUrl = "{{ route('comptes.destroy', ['code_compte' => 'CODE_COMPTE']) }}".replace('CODE_COMPTE', codeCompte);
-            showUniversalConfirm('Voulez-vous vraiment supprimer ce compte ?', function() {
-                $.ajax({
-                    url: deleteUrl,
-                    type: 'DELETE',
-                    data: {
-                        _token: $('input[name="_token"]').val()
-                    },
-                    success: function(response) {
-                        showSystemMessage('success', response.message || 'Compte supprimé avec succès !');
-                        setTimeout(function () { window.location.reload(); }, 1200);
-                    },
-                    error: function(xhr) {
-                        let msg = 'Erreur lors de la suppression du compte.';
-                        if(xhr.responseJSON && xhr.responseJSON.message) {
-                            msg = xhr.responseJSON.message;
-                        }
-                        showSystemMessage('error', msg);
-                    }
-                });
-            }, 'Confirmation suppression');
-        });
-
-        
-
-
-
 
     });
+}());
 </script>
 @endpush
-
-@endsection

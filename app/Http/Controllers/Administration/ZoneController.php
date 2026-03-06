@@ -10,13 +10,21 @@ use Illuminate\Support\Facades\Log;
 
 class ZoneController extends Controller
 {
-    // Affiche la liste des zones
+    // Affiche la liste des zones (page unifiée Zones + Portefeuilles)
     public function index()
     {
-        $zones = Zone::with('agent')->get();
-        $agents = \App\Models\Agent::orderBy('nom')->get();
-        $portefeuilles = \App\Models\Portefeuille::all();
-        return view('administration.zones', compact('zones', 'agents', 'portefeuilles'));
+        $zones         = Zone::with('agent')->orderBy('created_at', 'desc')->get();
+        $agents        = \App\Models\Agent::orderBy('nom')->get();
+        $portefeuilles = \App\Models\Portefeuille::with('agent')->orderBy('created_at', 'desc')->get();
+
+        $stats = [
+            'total_zones'         => $zones->count(),
+            'zones_avec_agent'    => $zones->filter(fn($z) => $z->agent)->count(),
+            'total_portefeuilles' => $portefeuilles->count(),
+            'taux_moyen'          => $portefeuilles->avg('taux_commission_agent') ?? 0,
+        ];
+
+        return view('administration.zones', compact('zones', 'agents', 'portefeuilles', 'stats'));
     }
 
     // Ajoute une nouvelle zone

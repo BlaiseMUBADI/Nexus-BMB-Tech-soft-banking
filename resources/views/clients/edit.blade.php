@@ -7,13 +7,10 @@
 @section('content')
 	<div class="container-fluid">
 		@if(session('success'))
-			<div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
-				{{ session('success') }}
-				<button type="button" class="close" data-dismiss="alert" aria-label="Close">
-					<span aria-hidden="true">&times;</span>
-				</button>
-			</div>
-		@endif
+		@push('js')
+		<script>$(function () { showSystemMessage('success', '{{ addslashes(session("success")) }}'); });</script>
+		@endpush
+	@endif
 		@if($errors->any())
 			<div class="alert alert-danger mt-2">
 				<ul class="mb-0">
@@ -205,7 +202,7 @@
 												</div>
 												@if($client->photo)
 													<div id="photo-current-panel" style="margin-left:15px;">
-														<img src="{{ url('/clients/photo/' . basename($client->photo)) }}" alt="Photo actuelle" class="img-thumbnail mt-2" style="max-width: 120px;">
+														<img src="{{ route('clients.photo', basename($client->photo)) }}" alt="Photo actuelle" class="img-thumbnail mt-2" style="max-width: 120px;">
 													</div>
 												@endif
 											</div>
@@ -213,6 +210,7 @@
 									</div>
 								</div>
 							</div>
+							@push('js')
 							<script>
 							document.addEventListener('DOMContentLoaded', function () {
 								const input = document.getElementById('photo');
@@ -298,6 +296,7 @@
 								});
 							});
 							</script>
+							@endpush
 							<!-- Activité économique -->
 							<div class="card card-primary mb-4">
 								<div class="card-header bg-primary">
@@ -369,7 +368,7 @@
 						</div>
 						<div class="card-footer">
 							<button type="submit" class="btn btn-primary" id="btn-save" disabled>Enregistrer les modifications</button>
-							<a href="{{ url('/clients/' . $client->matricule) }}" class="btn btn-secondary ms-2">Annuler</a>
+									<a href="{{ route('clients.show', $client->matricule) }}" class="btn btn-secondary ms-2">Annuler</a>
 						</div>
 					</form>
 					<script>

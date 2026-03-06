@@ -29,8 +29,15 @@ class ClientController extends Controller
 
         // On récupère les résultats
         $clients = $query->orderByDesc('created_at')->get();
-        
-        return view('clients.liste', compact('clients'));
+
+        $stats = [
+            'total'      => $clients->count(),
+            'hommes'     => $clients->where('sexe', 'M')->count(),
+            'femmes'     => $clients->where('sexe', 'F')->count(),
+            'avec_photo' => $clients->filter(fn($c) => $c->photo)->count(),
+        ];
+
+        return view('clients.liste', compact('clients', 'stats'));
     }
 
                 
@@ -298,6 +305,11 @@ class ClientController extends Controller
             @unlink(base_path('images_projet/' . $client->photo));
         }
         $client->delete();
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Client supprimé avec succès.']);
+        }
+
         return redirect()->route('clients.index')->with('success', 'Client supprimé avec succès.');
     }
 

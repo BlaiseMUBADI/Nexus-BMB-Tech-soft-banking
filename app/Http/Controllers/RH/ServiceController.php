@@ -6,6 +6,7 @@ namespace App\Http\Controllers\RH;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Service;
+use App\Models\Poste;
 use Illuminate\Support\Facades\Log;
 
 class ServiceController extends Controller
@@ -38,8 +39,20 @@ class ServiceController extends Controller
 
     public function index()
     {
-        $services = Service::orderByDesc('created_at')->get();
-        return view('rh.services.liste', compact('services'));
+        $services = Service::withCount('postes')->orderByDesc('created_at')->get();
+
+        $totalPostes        = Poste::count();
+        $servicesAvecPostes = $services->where('postes_count', '>', 0)->count();
+        $postesGuichet      = Poste::where('nom', 'like', '%guichet%')->count();
+
+        $stats = [
+            'total_services'      => $services->count(),
+            'total_postes'        => $totalPostes,
+            'services_avec_postes'=> $servicesAvecPostes,
+            'postes_guichet'      => $postesGuichet,
+        ];
+
+        return view('rh.services.liste', compact('services', 'stats'));
     }
     /**
      * Supprimer un service (AJAX)

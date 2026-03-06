@@ -71,9 +71,17 @@ class DeviseTauxController extends Controller
 
     public function index()
     {
-        $devises = Devise::all();
-        $taux = TauxEchange::orderBy('date_application', 'desc')->get();
-        return view('administration.devises_taux', compact('devises', 'taux'));
+        $devises = Devise::orderBy('code_iso')->get();
+        $taux    = TauxEchange::orderBy('date_application', 'desc')->get();
+
+        $stats = [
+            'total_devises'    => $devises->count(),
+            'devise_reference' => $devises->firstWhere('est_reference', true)?->code_iso ?? '—',
+            'total_taux'       => $taux->count(),
+            'dernier_taux'     => $taux->first()?->date_application ?? '—',
+        ];
+
+        return view('administration.devises_taux', compact('devises', 'taux', 'stats'));
     }
 
     public function storeDevise(Request $request)

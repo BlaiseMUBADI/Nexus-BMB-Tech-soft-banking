@@ -1,320 +1,372 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
-@section('page_title', 'Gestion des devises et taux')
+@section('page_title', 'Devises & Taux de change')
 @section('breadcrumb_parent', 'Administration')
 @section('breadcrumb', 'Devises / Taux')
 
 @section('content')
-    <div class="container-fluid">
-        <ul class="nav nav-tabs mb-3" id="devisesTauxTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <a class="nav-link active" id="devise-tab" data-toggle="tab" href="#devise" role="tab"
-                    aria-controls="devise" aria-selected="true">Devise</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link" id="taux-tab" data-toggle="tab" href="#taux" role="tab" aria-controls="taux"
-                    aria-selected="false">Taux d'échange</a>
-            </li>
-        </ul>
-        <div class="tab-content" id="devisesTauxTabsContent">
-            <div class="tab-pane fade show active" id="devise" role="tabpanel" aria-labelledby="devise-tab">
-                <div class="row">
-                    <div class="col-md-5">
-                        <div class="card mb-4">
-                            <div class="card-header pb-0">
-                                <h5>Ajouter une devise</h5>
-                            </div>
-                            <div class="card-body">
-                                <form id="deviseForm">
-                                    @csrf
-                                    <div class="form-group">
-                                        <label for="code_iso">Code ISO</label>
-                                        <input type="text" name="code_iso" id="code_iso" class="form-control" maxlength="3"
-                                            required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="nom">Nom</label>
-                                        <input type="text" name="nom" id="nom" class="form-control" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="symbole">Symbole</label>
-                                        <input type="text" name="symbole" id="symbole" class="form-control" maxlength="5"
-                                            required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="est_reference">Devise de référence ?</label>
-                                        <select name="est_reference" id="est_reference" class="form-control">
-                                            <option value="0">Non</option>
-                                            <option value="1">Oui</option>
-                                        </select>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">Ajouter</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-7">
-                        <div class="card">
-                            <div class="card-header pb-0">
-                                <h5>Liste des devises</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table id="devisesTable" class="table table-bordered table-striped mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Code ISO</th>
-                                                <th>Nom</th>
-                                                <th>Symbole</th>
-                                                <th>Référence</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach($devises as $devise)
-                                                <tr>
-                                                    <td>{{ $devise->code_iso }}</td>
-                                                    <td>{{ $devise->nom }}</td>
-                                                    <td>{{ $devise->symbole }}</td>
-                                                    <td>{{ $devise->est_reference ? 'Oui' : 'Non' }}</td>
-                                                    <td>
-                                                        <button class="btn btn-sm btn-danger delete-devise-btn"
-                                                            data-id="{{ $devise->code_iso }}" title="Supprimer">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+<div class="container-fluid">
+
+    {{-- MINI-DASHBOARD --}}
+    <div class="row mb-3">
+        <div class="col-6 col-md-3">
+            <div class="info-box shadow-sm">
+                <span class="info-box-icon bg-primary elevation-1"><i class="fas fa-money-bill-wave"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Total Devises</span>
+                    <span class="info-box-number">{{ $stats['total_devises'] }}</span>
                 </div>
             </div>
-            <div class="tab-pane fade" id="taux" role="tabpanel" aria-labelledby="taux-tab">
-                <div class="row">
-                    <div class="col-md-5">
-                        <div class="card mb-4">
-                            <div class="card-header pb-0">
-                                <h5>Ajouter un taux de change</h5>
-                            </div>
-                            <div class="card-body">
-                                <form id="tauxForm">
-                                    @csrf
-                                    <div class="form-group">
-                                        <label for="devise_source">Devise source</label>
-                                        <select name="devise_source" id="devise_source" class="form-control" required>
-                                            @foreach($devises as $devise)
-                                                <option value="{{ $devise->code_iso }}">{{ $devise->nom }}
-                                                    ({{ $devise->code_iso }})</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="devise_destination">Devise destination</label>
-                                        <select name="devise_destination" id="devise_destination" class="form-control"
-                                            required>
-                                            @foreach($devises as $devise)
-                                                <option value="{{ $devise->code_iso }}">{{ $devise->nom }}
-                                                    ({{ $devise->code_iso }})</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="taux">Taux</label>
-                                        <input type="number" step="0.0001" name="taux" id="taux" class="form-control"
-                                            required>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">Ajouter</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-7">
-                        <div class="card">
-                            <div class="card-header pb-0">
-                                <h5>Liste des taux de change</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table id="tauxTable" class="table table-bordered table-striped mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Source</th>
-                                                <th>Destination</th>
-                                                <th>Taux</th>
-                                                <th>Date</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach($taux as $t)
-                                                <tr>
-                                                    <td>{{ $t->devise_source }}</td>
-                                                    <td>{{ $t->devise_destination }}</td>
-                                                    <td>{{ $t->taux }}</td>
-                                                    <td>{{ $t->date_application }}</td>
-                                                    <td>
-                                                        <button class="btn btn-sm btn-danger delete-taux-btn"
-                                                            data-id="{{ $t->id }}" title="Supprimer">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="info-box shadow-sm">
+                <span class="info-box-icon bg-success elevation-1"><i class="fas fa-star"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Devise Référence</span>
+                    <span class="info-box-number">{{ $stats['devise_reference'] }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="info-box shadow-sm">
+                <span class="info-box-icon bg-info elevation-1"><i class="fas fa-exchange-alt"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Total Taux</span>
+                    <span class="info-box-number">{{ $stats['total_taux'] }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="info-box shadow-sm">
+                <span class="info-box-icon bg-warning elevation-1"><i class="fas fa-calendar-alt"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Dernier taux</span>
+                    <span class="info-box-number" style="font-size:.95rem;">{{ $stats['dernier_taux'] }}</span>
                 </div>
             </div>
         </div>
     </div>
+
+    {{-- ONGLETS --}}
+    <div class="card card-primary card-outline">
+        <div class="card-header p-0 border-bottom-0">
+            <ul class="nav nav-tabs" id="dtTabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-toggle="tab" href="#tab-devises" role="tab">
+                        <i class="fas fa-money-bill-wave mr-1"></i> Devises
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="tab" href="#tab-taux" role="tab">
+                        <i class="fas fa-exchange-alt mr-1"></i> Taux de change
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content">
+
+                {{-- ─── Onglet DEVISES ─── --}}
+                <div class="tab-pane fade show active" id="tab-devises">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card card-primary card-outline">
+                                <div class="card-header pb-1">
+                                    <h5 class="mb-0"><i class="fas fa-plus-circle mr-1 text-primary"></i> Ajouter une devise</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="deviseForm">
+                                        @csrf
+                                        <div class="form-group">
+                                            <label>Code ISO <span class="text-danger">*</span></label>
+                                            <input type="text" name="code_iso" id="code_iso" class="form-control text-uppercase" maxlength="3" required placeholder="Ex : USD, CDF">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Nom <span class="text-danger">*</span></label>
+                                            <input type="text" name="nom" id="nom" class="form-control" required placeholder="Ex : Dollar américain">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Symbole <span class="text-danger">*</span></label>
+                                            <input type="text" name="symbole" id="symbole" class="form-control" maxlength="5" required placeholder="Ex : $, FC">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Devise de référence ?</label>
+                                            <select name="est_reference" id="est_reference" class="form-control">
+                                                <option value="0">Non</option>
+                                                <option value="1">Oui</option>
+                                            </select>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-block" id="btnAddDevise">
+                                            <i class="fas fa-plus-circle mr-1"></i> Ajouter
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card card-info card-outline">
+                                <div class="card-header d-flex align-items-center justify-content-between">
+                                    <h3 class="card-title mb-0"><i class="fas fa-list mr-2"></i> Liste des devises</h3>
+                                    <span class="badge badge-info badge-pill">{{ $devises->count() }}</span>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="px-2 pt-2">
+                                        <input type="text" id="searchDevises" class="form-control form-control-sm" placeholder="🔍 Rechercher une devise…">
+                                    </div>
+                                    <div class="table-responsive mt-1">
+                                        <table class="table table-bordered table-striped table-sm mb-0" id="devisesTable">
+                                            <thead class="thead-dark">
+                                                <tr>
+                                                    <th style="width:40px">#</th>
+                                                    <th>Code ISO</th>
+                                                    <th>Nom</th>
+                                                    <th>Symbole</th>
+                                                    <th class="text-center">Référence</th>
+                                                    <th class="text-center" style="width:70px">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @forelse($devises as $devise)
+                                                <tr>
+                                                    <td class="text-muted">{{ $loop->iteration }}</td>
+                                                    <td><strong>{{ $devise->code_iso }}</strong></td>
+                                                    <td>{{ $devise->nom }}</td>
+                                                    <td>{{ $devise->symbole }}</td>
+                                                    <td class="text-center">
+                                                        @if($devise->est_reference)
+                                                            <span class="badge badge-success"><i class="fas fa-star mr-1"></i>Oui</span>
+                                                        @else
+                                                            <span class="badge badge-secondary">Non</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <button class="btn btn-xs btn-danger btn-delete-devise"
+                                                            data-id="{{ $devise->code_iso }}"
+                                                            data-nom="{{ $devise->nom }}"
+                                                            title="Supprimer">
+                                                            <i class="fas fa-trash-alt"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                @empty
+                                                <tr><td colspan="6" class="text-center text-muted py-5">
+                                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i> Aucune devise.
+                                                </td></tr>
+                                                @endforelse
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>{{-- /tab-devises --}}
+
+                {{-- ─── Onglet TAUX ─── --}}
+                <div class="tab-pane fade" id="tab-taux">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card card-warning card-outline">
+                                <div class="card-header pb-1">
+                                    <h5 class="mb-0"><i class="fas fa-plus-circle mr-1 text-warning"></i> Nouveau taux</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="tauxForm">
+                                        @csrf
+                                        <div class="form-group">
+                                            <label>Devise source <span class="text-danger">*</span></label>
+                                            <select name="devise_source" id="devise_source" class="form-control" required>
+                                                @foreach($devises as $d)
+                                                    <option value="{{ $d->code_iso }}">{{ $d->nom }} ({{ $d->code_iso }})</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Devise destination <span class="text-danger">*</span></label>
+                                            <select name="devise_destination" id="devise_destination" class="form-control" required>
+                                                @foreach($devises as $d)
+                                                    <option value="{{ $d->code_iso }}">{{ $d->nom }} ({{ $d->code_iso }})</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Taux <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.0001" name="taux" id="taux" class="form-control" required placeholder="Ex : 2850.0000">
+                                        </div>
+                                        <div class="alert alert-info py-2 px-3 mb-3" style="font-size:.82rem;">
+                                            <i class="fas fa-info-circle mr-1"></i> Le taux inverse sera créé automatiquement.
+                                        </div>
+                                        <button type="submit" class="btn btn-warning btn-block text-dark" id="btnAddTaux">
+                                            <i class="fas fa-plus-circle mr-1"></i> Ajouter le taux
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card card-info card-outline">
+                                <div class="card-header d-flex align-items-center justify-content-between">
+                                    <h3 class="card-title mb-0"><i class="fas fa-list mr-2"></i> Taux de change</h3>
+                                    <span class="badge badge-info badge-pill">{{ $taux->count() }}</span>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="px-2 pt-2">
+                                        <input type="text" id="searchTaux" class="form-control form-control-sm" placeholder="🔍 Rechercher un taux…">
+                                    </div>
+                                    <div class="table-responsive mt-1" style="max-height:500px; overflow-y:auto;">
+                                        <table class="table table-bordered table-striped table-sm mb-0" id="tauxTable">
+                                            <thead class="thead-dark">
+                                                <tr>
+                                                    <th style="width:40px">#</th>
+                                                    <th>Source</th>
+                                                    <th>Destination</th>
+                                                    <th>Taux</th>
+                                                    <th>Date</th>
+                                                    <th class="text-center" style="width:70px">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @forelse($taux as $t)
+                                                <tr>
+                                                    <td class="text-muted">{{ $loop->iteration }}</td>
+                                                    <td><span class="badge badge-secondary">{{ $t->devise_source }}</span></td>
+                                                    <td><span class="badge badge-secondary">{{ $t->devise_destination }}</span></td>
+                                                    <td><strong>{{ number_format($t->taux, 4, '.', ' ') }}</strong></td>
+                                                    <td><small>{{ $t->date_application ?? '—' }}</small></td>
+                                                    <td class="text-center">
+                                                        <button class="btn btn-xs btn-danger btn-delete-taux"
+                                                            data-id="{{ $t->id }}"
+                                                            data-info="{{ $t->devise_source }} → {{ $t->devise_destination }}"
+                                                            title="Supprimer">
+                                                            <i class="fas fa-trash-alt"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                @empty
+                                                <tr><td colspan="6" class="text-center text-muted py-5">
+                                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i> Aucun taux enregistré.
+                                                </td></tr>
+                                                @endforelse
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>{{-- /tab-taux --}}
+
+            </div>{{-- /tab-content --}}
+        </div>
+    </div>
+
+</div>
 @endsection
 
-
-@section('css')
-    <style>
-        .app-table tbody tr.datatable-selected-row {
-            background: linear-gradient(90deg, #6366f1 0%, #a21caf 100%) !important;
-            color: #fff !important;
-            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
-            transition: background 0.3s, color 0.3s;
-        }
-
-        .app-table tbody tr:hover:not(.datatable-selected-row) {
-            background: linear-gradient(90deg, #06b6d4 0%, #3b82f6 100%) !important;
-            color: #fff !important;
-            cursor: pointer;
-            box-shadow: 0 1px 4px rgba(59, 130, 246, 0.10);
-            transition: background 0.3s, color 0.3s;
-        }
-    </style>
-@endsection
-
+@push('css')
+<style>
+    #devisesTable tbody tr:hover > td,
+    #tauxTable tbody tr:hover > td {
+        background-color: rgba(0, 123, 255, 0.13) !important;
+        color: #fff !important;
+    }
+</style>
+@endpush
 
 @push('js')
-    <script>
-        $(function () {
-            // 1. Initialisation de la table (déplacé ici pour être sûr que le DOM est prêt)
-            var $devisesTable = $('#devisesTable');
-            $devisesTable.addClass('app-table');
-            
-            $devisesTable.on('click', 'tbody tr', function () {
-                $devisesTable.find('tbody tr').removeClass('datatable-selected-row');
-                $(this).addClass('datatable-selected-row');
-            });
+<script>
+(function () {
+    'use strict';
+    $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } });
 
-            var $tauxTable = $('#tauxTable');
-            $tauxTable.addClass('app-table');
-            
-            $tauxTable.on('click', 'tbody tr', function () {
-                $tauxTable.find('tbody tr').removeClass('datatable-selected-row');
-                $(this).addClass('datatable-selected-row');
-            });
+    $(function () {
 
-            // 2. Soumission AJAX du formulaire devise
-            $('#deviseForm').on('submit', function (e) {
-                e.preventDefault();
-                var form = $(this);
-                var url = "{{ route('administration.devises-taux.storeDevise') }}";
-                var formData = form.serialize();
-                
-                $.post(url, formData)
-                    .done(function (response) {
-                        showSystemMessage('success', 'Devise ajoutée avec succès !');
-                        form[0].reset();
-                        setTimeout(function () { window.location.reload(); }, 1500);
-                    })
-                    .fail(function (xhr) {
-                        let msg = 'Erreur lors de l\'enregistrement de la devise.';
-                        if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            msg = '';
-                            $.each(xhr.responseJSON.errors, function (key, errors) {
-                                errors.forEach(function (error) {
-                                    msg += '<div>' + error + '</div>';
-                                });
-                            });
-                        }
-                        showSystemMessage('error', msg);
-                    });
-            });
-
-            // 3. Soumission AJAX du formulaire taux d'échange
-            $('#tauxForm').on('submit', function (e) {
-                e.preventDefault();
-                var form = $(this);
-                var url = "{{ route('administration.devises-taux.storeTaux') }}";
-                var formData = form.serialize();
-                
-                $.post(url, formData)
-                    .done(function (response) {
-                        showSystemMessage('success', 'Taux ajouté avec succès !');
-                        form[0].reset();
-                        setTimeout(function () { window.location.reload(); }, 1500);
-                    })
-                     .fail(function (xhr) {
-                        let msg = 'Erreur lors de l\'enregistrement du taux.';
-                        if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            msg = '';
-                            $.each(xhr.responseJSON.errors, function (key, errors) {
-                                errors.forEach(function (error) {
-                                    msg += '<div>' + error + '</div>';
-                                });
-                            });
-                        }
-                        showSystemMessage('error', msg);
-                    });
-            });
-
-            // 4. Suppression AJAX d'un taux d'échange
-            // Utilisation de @csrf pour le token de suppression
-            $('#devisesTauxTabsContent').on('click', '.delete-taux-btn', function (e) {
-                e.preventDefault();
-                var btn = $(this);
-                var tauxId = btn.data('id');
-                var deleteUrl = "{{ route('administration.devises-taux.destroyTaux', ['id' => 'TAUX_ID']) }}".replace('TAUX_ID', tauxId);
-                
-                showUniversalConfirm('Voulez-vous vraiment supprimer ce taux ?', function () {
-                    $.ajax({
-                        url: deleteUrl,
-                        type: 'DELETE',
-                        data: { _token: "{{ csrf_token() }}" }, // Plus fiable que d'aller chercher un input
-                        success: function (response) {
-                            if (typeof showSystemMessage === 'function') {
-                                showSystemMessage('success', response.message || 'Supprimé !');
-                            }
-                            setTimeout(function () { window.location.reload(); }, 1200);
-                        },
-                        error: function (xhr) { /* ... */ }
-                    });
-                });
-            });
-
-            // 5. Suppression AJAX d'une devise
-            $('#devisesTable').on('click', '.delete-devise-btn', function (e) {
-                e.preventDefault();
-                var codeIso = $(this).data('id');
-                var deleteUrl = "{{ route('administration.devises-taux.destroyDevise', ['code_iso' => 'DEV_CODE']) }}".replace('DEV_CODE', codeIso);
-                
-                showUniversalConfirm('Voulez-vous vraiment supprimer cette devise ?', function () {
-                    $.ajax({
-                        url: deleteUrl,
-                        type: 'DELETE',
-                        data: { _token: "{{ csrf_token() }}" },
-                        success: function (response) {
-                            if (typeof showSystemMessage === 'function') {
-                                showSystemMessage('success', 'Devise supprimée !');
-                            }
-                            setTimeout(function () { window.location.reload(); }, 1500);
-                        }
-                    });
-                });
+        $('#searchDevises').on('input', function () {
+            var q = $(this).val().toLowerCase();
+            $('#devisesTable tbody tr').each(function () {
+                $(this).toggle(q === '' || $(this).text().toLowerCase().indexOf(q) !== -1);
             });
         });
-    </script>
+
+        $('#searchTaux').on('input', function () {
+            var q = $(this).val().toLowerCase();
+            $('#tauxTable tbody tr').each(function () {
+                $(this).toggle(q === '' || $(this).text().toLowerCase().indexOf(q) !== -1);
+            });
+        });
+
+        $('#deviseForm').on('submit', function (e) {
+            e.preventDefault();
+            var $btn = $('#btnAddDevise').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Envoi…');
+            $.post('{{ route("administration.devises-taux.storeDevise") }}', $(this).serialize())
+                .done(function () {
+                    showSystemMessage('success', 'Devise ajoutée avec succès.');
+                    setTimeout(function () { location.reload(); }, 900);
+                })
+                .fail(function (xhr) {
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur.';
+                    showSystemMessage('error', msg);
+                    $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+                });
+        });
+
+        $('#tauxForm').on('submit', function (e) {
+            e.preventDefault();
+            var $btn = $('#btnAddTaux').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Envoi…');
+            $.post('{{ route("administration.devises-taux.storeTaux") }}', $(this).serialize())
+                .done(function () {
+                    showSystemMessage('success', 'Taux ajouté (et inverse si applicable).');
+                    setTimeout(function () { location.reload(); }, 900);
+                })
+                .fail(function (xhr) {
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur.';
+                    showSystemMessage('error', msg);
+                    $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter le taux');
+                });
+        });
+
+        $(document).on('click', '.btn-delete-devise', function () {
+            var id  = $(this).data('id');
+            var nom = $(this).data('nom');
+            var url = '{{ route("administration.devises-taux.destroyDevise", ["code_iso" => "__ID__"]) }}'.replace('__ID__', id);
+            showUniversalConfirm(
+                'Supprimer la devise <strong>' + nom + ' (' + id + ')</strong> ?<br><small class="text-danger">Les taux associés seront supprimés.</small>',
+                function () {
+                    $.post(url, { _method: 'DELETE' })
+                        .done(function () {
+                            showSystemMessage('success', 'Devise supprimée.');
+                            setTimeout(function () { location.reload(); }, 900);
+                        })
+                        .fail(function (xhr) {
+                            showSystemMessage('error', (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Suppression impossible.');
+                        });
+                }, 'Confirmer la suppression'
+            );
+        });
+
+        $(document).on('click', '.btn-delete-taux', function () {
+            var id   = $(this).data('id');
+            var info = $(this).data('info');
+            var url  = '{{ route("administration.devises-taux.destroyTaux", ["id" => "__ID__"]) }}'.replace('__ID__', id);
+            showUniversalConfirm(
+                'Supprimer le taux <strong>' + info + '</strong> ?',
+                function () {
+                    $.post(url, { _method: 'DELETE' })
+                        .done(function () {
+                            showSystemMessage('success', 'Taux supprimé.');
+                            setTimeout(function () { location.reload(); }, 900);
+                        })
+                        .fail(function (xhr) {
+                            showSystemMessage('error', (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Suppression impossible.');
+                        });
+                }, 'Confirmer la suppression'
+            );
+        });
+
+        var hash = window.location.hash;
+        if (hash) { $('#dtTabs a[href="' + hash + '"]').tab('show'); }
+
+    });
+}());
+</script>
 @endpush

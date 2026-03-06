@@ -23,5 +23,6 @@
 <link rel="stylesheet" href="{{ asset('plugins/datatables-buttons/css/buttons.bootstrap4.min.css') }}">
 
 @yield('css')
+@stack('css')
 
 
