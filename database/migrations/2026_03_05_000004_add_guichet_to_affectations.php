@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 /**
  * ============================================================
@@ -32,8 +32,7 @@ return new class extends Migration
             $table->foreign('guichet_id', 'fk_affectation_guichet')
                   ->references('id')
                   ->on('tb_caisses_guichets')
-                  ->onDelete('restrict')
-                  ->onUpdate('cascade');
+                  ->restrictOnDelete()->cascadeOnUpdate();
         });
     }
 

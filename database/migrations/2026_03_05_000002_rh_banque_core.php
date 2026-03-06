@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 /**
  * ============================================================
@@ -64,7 +64,7 @@ return new class extends Migration
 
             $table->foreign('service_id', 'tb_postes_service_id_foreign')
                   ->references('id')->on('tb_services')
-                  ->onDelete('restrict')->onUpdate('cascade');
+                  ->restrictOnDelete()->cascadeOnUpdate();
         });
 
         // A3. Agents — Table centrale référencée par toutes les entités métier.
@@ -104,7 +104,7 @@ return new class extends Migration
 
             $table->foreign('agent_matricule', 'fk_agent_matricule')
                   ->references('matricule')->on('tb_agents')
-                  ->onDelete('set null')->onUpdate('cascade');
+                  ->nullOnDelete()->cascadeOnUpdate();
         });
 
         // B2. Pivot Users ↔ Rôles (un user peut avoir plusieurs rôles)
@@ -117,11 +117,11 @@ return new class extends Migration
 
             $table->foreign('user_id', 'contrainte_user')
                   ->references('id')->on('users')
-                  ->onDelete('restrict')->onUpdate('cascade');
+                  ->restrictOnDelete()->cascadeOnUpdate();
 
             $table->foreign('role_code', 'contrainte_role')
                   ->references('code')->on('tb_roles')
-                  ->onDelete('restrict')->onUpdate('cascade');
+                  ->restrictOnDelete()->cascadeOnUpdate();
         });
 
         // ========================================================
@@ -140,7 +140,7 @@ return new class extends Migration
 
             $table->foreign('agent_commercial_matricule', 'tb_zones_ibfk_1')
                   ->references('matricule')->on('tb_agents')
-                  ->onDelete('restrict')->onUpdate('restrict');
+                  ->restrictOnDelete()->restrictOnUpdate();
         });
 
         // C2. Affectations des agents aux postes (historique complet)
@@ -156,11 +156,11 @@ return new class extends Migration
 
             $table->foreign('agent_matricule', 'tb_affectations_agent_matricule_foreign')
                   ->references('matricule')->on('tb_agents')
-                  ->onDelete('restrict')->onUpdate('cascade');
+                  ->restrictOnDelete()->cascadeOnUpdate();
 
             $table->foreign('poste_id', 'tb_affectations_poste_id_foreign')
                   ->references('id')->on('tb_postes')
-                  ->onDelete('restrict')->onUpdate('cascade');
+                  ->restrictOnDelete()->cascadeOnUpdate();
         });
 
         // C3. Portefeuilles des agents commerciaux
@@ -174,7 +174,7 @@ return new class extends Migration
 
             $table->foreign('agent_matricule', 'fk_port_agent')
                   ->references('matricule')->on('tb_agents')
-                  ->onDelete('restrict')->onUpdate('cascade');
+                  ->restrictOnDelete()->cascadeOnUpdate();
         });
 
         // ========================================================
@@ -206,11 +206,11 @@ return new class extends Migration
 
             $table->foreign('devise_source', 'fk_devise_src')
                   ->references('code_iso')->on('tb_devises')
-                  ->onDelete('restrict')->onUpdate('restrict');
+                  ->restrictOnDelete()->restrictOnUpdate();
 
             $table->foreign('devise_destination', 'fk_devise_dest')
                   ->references('code_iso')->on('tb_devises')
-                  ->onDelete('restrict')->onUpdate('restrict');
+                  ->restrictOnDelete()->restrictOnUpdate();
         });
 
         // ========================================================
@@ -254,7 +254,7 @@ return new class extends Migration
 
             $table->foreign('code_zone', 'tb_zones_ibfk_11')
                   ->references('code_zone')->on('tb_zones')
-                  ->onDelete('restrict')->onUpdate('restrict');
+                  ->restrictOnDelete()->restrictOnUpdate();
         });
 
         // E2. Comptes bancaires (un client peut avoir plusieurs comptes)
@@ -273,15 +273,15 @@ return new class extends Migration
 
             $table->foreign('devise', 'fk_compte_devise')
                   ->references('code_iso')->on('tb_devises')
-                  ->onDelete('restrict')->onUpdate('restrict');
+                  ->restrictOnDelete()->restrictOnUpdate();
 
             $table->foreign('portefeuille_id', 'fk_compte_portefeuille')
                   ->references('id')->on('tb_portefeuilles_agents')
-                  ->onDelete('restrict')->onUpdate('restrict');
+                  ->restrictOnDelete()->restrictOnUpdate();
 
             $table->foreign('client_matricule', 'tb_comptes_ibfk_112')
                   ->references('matricule')->on('tb_clients')
-                  ->onDelete('restrict')->onUpdate('restrict');
+                  ->restrictOnDelete()->restrictOnUpdate();
         });
 
         // E3. Transactions sur comptes (dépôts, retraits, virements)
@@ -296,11 +296,11 @@ return new class extends Migration
 
             $table->foreign('compte_code', 'tb_transactions_ibfk_1')
                   ->references('code_compte')->on('tb_comptes')
-                  ->onDelete('restrict')->onUpdate('restrict');
+                  ->restrictOnDelete()->restrictOnUpdate();
 
             $table->foreign('agent_matricule', 'tb_transactions_ibfk_2')
                   ->references('matricule')->on('tb_agents')
-                  ->onDelete('restrict')->onUpdate('restrict');
+                  ->restrictOnDelete()->restrictOnUpdate();
         });
     }
 
