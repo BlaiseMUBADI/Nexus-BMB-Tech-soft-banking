@@ -89,7 +89,7 @@ class GuichetController extends Controller
         $nbDevises = count($request->devises);
         return response()->json([
             'message' => "Guichet créé avec succès ({$nbDevises} devise(s) configurée(s))."
-        ], 201);
+        ], 200);
     }
 
     /**
