@@ -15,7 +15,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 		<nav class="mt-2">
 			<ul class="nav nav-pills nav-sidebar flex-column nav-child-indent" data-widget="treeview" role="menu">
 
-				{{-- Clients / Membres --}}
+				{{-- Clients / Membres — EBEN-PER15 --}}
+				@if(in_array('EBEN-PER15', $userPermCodes ?? []))
 				<li class="nav-item {{ request()->routeIs('clients.*') ? 'menu-open' : '' }}">
 					<a href="#" class="nav-link parent-link {{ request()->routeIs('clients.*') ? 'active' : '' }}">
 						<i class="nav-icon fas fa-users text-success"></i>
@@ -41,8 +42,10 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						</li>
 					</ul>
 				</li>
+				@endif
 
-				{{-- Le menu qui gère les comptes des clients --}}
+				{{-- Comptes clients — EBEN-PER18 --}}
+				@if(in_array('EBEN-PER18', $userPermCodes ?? []))
 				<li class="nav-item {{ request()->routeIs('comptes.*') ? 'menu-open' : '' }}">
 					<a href="#" class="nav-link parent-link {{ request()->routeIs('comptes.*') ? 'active' : '' }}">
 						<i class="nav-icon fas fa-university text-success"></i>
@@ -92,9 +95,10 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						</li>
 					</ul>
 				</li>
+				@endif
 
-
-                {{-- Le Menu qui gère la Caisse / Guichet --}}
+				{{-- Caisse / Guichet — EBEN-PER10 --}}
+				@if(in_array('EBEN-PER10', $userPermCodes ?? []))
                 <li class="nav-item {{ request()->is('caisse*') ? 'menu-open' : '' }}">
 					<a href="#" class="nav-link parent-link {{ request()->is('caisse*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-cash-register text-success"></i>
@@ -131,9 +135,10 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
                         </li>
                     </ul>
                 </li>
+				@endif
 
-               
-				{{-- Le Menu qui gère les Ressources Humaines --}}
+				{{-- Ressources Humaines — EBEN-PER6 --}}
+				@if(in_array('EBEN-PER6', $userPermCodes ?? []) || in_array('EBEN-PER7', $userPermCodes ?? []) || in_array('EBEN-PER8', $userPermCodes ?? []) || in_array('EBEN-PER9', $userPermCodes ?? []))
 				<li class="nav-item has-treeview {{ request()->is('rh*') ? 'menu-open' : '' }}">
 					<a href="#" class="nav-link parent-link {{ request()->is('rh*') ? 'active' : '' }}">
 						<i class="nav-icon fas fa-briefcase text-warning"></i>
@@ -150,6 +155,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								<p>Liste des agents</p>
 							</a>
 						</li>
+						@if(in_array('EBEN-PER7', $userPermCodes ?? []))
 						<li class="nav-item">
 							<a href="{{ route('agents.create') }}"
 								class="nav-link sub-link {{ request()->is('rh/agents/create') ? 'active' : '' }}">
@@ -157,6 +163,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								<p>Ajouter un agent</p>
 							</a>
 						</li>
+						@endif
+						@if(in_array('EBEN-PER9', $userPermCodes ?? []))
 						<li class="nav-item">
 							<a href="{{ route('affectations.index') }}"
 								class="nav-link sub-link {{ request()->is('rh/affectations*') ? 'active' : '' }}">
@@ -164,6 +172,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								<p>Affectations</p>
 							</a>
 						</li>
+						@endif
 						<li class="nav-item">
 							<a href="{{ route('services.index') }}"
 								class="nav-link sub-link {{ request()->is('rh/services*') ? 'active' : '' }}">
@@ -173,9 +182,11 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						</li>
 					</ul>
 				</li>
+				@endif
 
-
-				{{-- Administration --}}
+				{{-- Administration — EBEN-PER1/2/3/4/5/20/21 --}}
+				@php $hasAdminAccess = count(array_intersect(['EBEN-PER1','EBEN-PER2','EBEN-PER3','EBEN-PER4','EBEN-PER5','EBEN-PER20','EBEN-PER21'], $userPermCodes ?? [])) > 0; @endphp
+				@if($hasAdminAccess)
 				<li class="nav-item {{ request()->routeIs('administration.*') ? 'menu-open' : '' }}">
 					<a href="#"
 						class="nav-link parent-link {{ request()->routeIs('administration.*') ? 'active' : '' }}">
@@ -194,6 +205,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								<p>Liste des utilisateurs</p>
 							</a>
 						</li>
+						@if(in_array('EBEN-PER1', $userPermCodes ?? []))
 						<li class="nav-item">
 							<a href="{{ route('administration.utilisateurs.nouveau') }}"
 								class="nav-link sub-link {{ request()->is('administration/utilisateurs/nouveau') ? 'active' : '' }}">
@@ -201,6 +213,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								<p>Ajouter un utilisateur</p>
 							</a>
 						</li>
+						@endif
+						@if(in_array('EBEN-PER2', $userPermCodes ?? []) || in_array('EBEN-PER3', $userPermCodes ?? []))
 						<li class="nav-item">
 							<a href="{{ route('administration.roles_permissions') }}"
 								class="nav-link sub-link {{ request()->is('administration/roles_permissions') ? 'active' : '' }}">
@@ -208,6 +222,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								<p>Roles & Permissions</p>
 							</a>
 						</li>
+						@endif
+						@if(in_array('EBEN-PER1', $userPermCodes ?? []))
 						<li class="nav-item">
 							<a href="{{ route('administration.zones.index') }}"
 								class="nav-link sub-link {{ request()->is('administration/zones_portfeuille') ? 'active' : '' }}">
@@ -215,7 +231,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								<p>Zones/Portfeuille</p>
 							</a>
 						</li>
-
+						@endif
+						@if(in_array('EBEN-PER20', $userPermCodes ?? []) || in_array('EBEN-PER21', $userPermCodes ?? []))
 						<li class="nav-item">
 							<a href="{{ route('administration.devises-taux.index') }}"
 								class="nav-link sub-link {{ request()->is('administration/taux_devis') ? 'active' : '' }}">
@@ -223,12 +240,15 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								<p>Taux / Devis</p>
 							</a>
 						</li>
+						@endif
+						@if(in_array('EBEN-PER1', $userPermCodes ?? []))
 						<li class="nav-item">							<a href="{{ route('administration.guichets.index') }}"
 								class="nav-link sub-link {{ request()->is('administration/guichets*') ? 'active' : '' }}">
 								<i class="fas fa-cash-register nav-icon"></i>
 								<p>Guichets</p>
 							</a>
 						</li>
+						@endif
 						<li class="nav-item">							<a href="#" class="nav-link sub-link {{ request()->is('admin/logs') ? 'active' : '' }}">
 								<i class="fas fa-book nav-icon"></i>
 								<p>Journal d’activité</p>
@@ -242,6 +262,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						</li>
 					</ul>
 				</li>
+				@endif
 
 			</ul>
 		</nav>

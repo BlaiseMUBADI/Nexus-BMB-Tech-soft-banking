@@ -16,11 +16,16 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
 
-        // Injecter l'utilisateur connecté (typé) dans la navbar
-        View::composer('layouts.navbar', function (\Illuminate\View\View $view) {
+        // Injecter l'utilisateur connecté + ses permissions dans les layouts
+        View::composer(['layouts.navbar', 'layouts.sidebar'], function (\Illuminate\View\View $view) {
             /** @var User|null $authUser */
             $authUser = Auth::check() ? Auth::user() : null;
+
+            /** @var string[] $userPermCodes */
+            $userPermCodes = $authUser ? $authUser->getPermissionCodes() : [];
+
             $view->with('authUser', $authUser);
+            $view->with('userPermCodes', $userPermCodes);
         });
     }
 }

@@ -43,10 +43,9 @@ Route::get('/dashboard', function () {
 
 
 
-// Ressources Cleints
-Route::resource('clients', ClientController::class);
-// Route pour afficher la photo du client
-Route::get('/clients/photo/{filename}', [ClientController::class, 'photo'])->name('clients.photo');
-// Route pour afficher la photo d'un agent
-Route::get('/agents/photo/{filename}', [App\Http\Controllers\RH\AgentController::class, 'photo'])->name('agents.photo');
+// Photos (médias protégés — auth requis)
+Route::middleware('auth')->group(function () {
+    Route::get('/clients/photo/{filename}', [ClientController::class, 'photo'])->name('clients.photo');
+    Route::get('/agents/photo/{filename}',  [AgentController::class, 'photo'])->name('agents.photo');
+});
 
