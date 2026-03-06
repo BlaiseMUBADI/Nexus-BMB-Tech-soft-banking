@@ -130,28 +130,44 @@ class RolesPermissionsController extends Controller
 
     public function attachPermission(Request $request)
     {
-        $request->validate([
-            'role_code' => 'required|string|exists:tb_roles,code',
-            'permission_code' => 'required|string|exists:tb_permissions,code',
-        ]);
-        DB::table('tb_role_permission')->updateOrInsert(
-            ['role_code' => $request->role_code, 'permission_code' => $request->permission_code],
-            ['created_at' => now(), 'updated_at' => now()]
-        );
-        return response()->json(['success' => true]);
+        try {
+            $request->validate([
+                'role_code'       => 'required|string|exists:tb_roles,code',
+                'permission_code' => 'required|string|exists:tb_permissions,code',
+            ]);
+            DB::table('tb_role_permission')->updateOrInsert(
+                ['role_code' => $request->role_code, 'permission_code' => $request->permission_code],
+                ['created_at' => now(), 'updated_at' => now()]
+            );
+            return response()->json(['success' => true, 'message' => 'Permission attribuée.']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $first = array_key_first($e->errors());
+            return response()->json(['success' => false, 'message' => implode(' ', $e->errors()[$first])], 422);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('attachPermission: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Erreur serveur: ' . $e->getMessage()], 500);
+        }
     }
 
     public function detachPermission(Request $request)
     {
-        $request->validate([
-            'role_code' => 'required|string|exists:tb_roles,code',
-            'permission_code' => 'required|string|exists:tb_permissions,code',
-        ]);
-        DB::table('tb_role_permission')
-            ->where('role_code', $request->role_code)
-            ->where('permission_code', $request->permission_code)
-            ->delete();
-        return response()->json(['success' => true]);
+        try {
+            $request->validate([
+                'role_code'       => 'required|string|exists:tb_roles,code',
+                'permission_code' => 'required|string|exists:tb_permissions,code',
+            ]);
+            DB::table('tb_role_permission')
+                ->where('role_code', $request->role_code)
+                ->where('permission_code', $request->permission_code)
+                ->delete();
+            return response()->json(['success' => true, 'message' => 'Permission retirée.']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $first = array_key_first($e->errors());
+            return response()->json(['success' => false, 'message' => implode(' ', $e->errors()[$first])], 422);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('detachPermission: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Erreur serveur: ' . $e->getMessage()], 500);
+        }
     }
 
       // AJAX : liste des rôles et permissions d'un utilisateur

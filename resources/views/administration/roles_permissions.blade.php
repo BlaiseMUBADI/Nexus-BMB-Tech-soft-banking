@@ -497,9 +497,16 @@
                 .fail(function (xhr) {
                     // Annuler visuellement le changement
                     $cb.prop('checked', !checked);
-                    var msg = (xhr.responseJSON && xhr.responseJSON.message)
-                              ? xhr.responseJSON.message
-                              : (checked ? 'Impossible d\'attribuer la permission.' : 'Impossible de retirer la permission.');
+                    var msg;
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    } else if (xhr.status === 419) {
+                        msg = 'Session expirée. Veuillez recharger la page (F5).';
+                    } else if (xhr.status === 403) {
+                        msg = 'Accès refusé. Permission EBEN-PER5 requise.';
+                    } else {
+                        msg = 'Erreur HTTP ' + xhr.status + (xhr.responseText ? ' — ' + xhr.responseText.substring(0, 200) : '');
+                    }
                     showSystemMessage('error', msg);
                 })
                 .always(function () {
