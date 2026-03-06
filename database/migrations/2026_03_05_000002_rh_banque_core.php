@@ -302,6 +302,61 @@ return new class extends Migration
                   ->references('matricule')->on('tb_agents')
                   ->restrictOnDelete()->restrictOnUpdate();
         });
+
+        // ====================================================
+        // DONNÉES DE DÉMARRAGE — Services, Postes, Agents,
+        //                        Users, Devises, Affectations
+        // ====================================================
+        $now = now();
+
+        DB::table('tb_services')->insertOrIgnore([
+            ['id' => 1, 'nom' => 'Direction Générale', 'description' => 'Administration centrale du système',        'created_at' => $now, 'updated_at' => $now],
+            ['id' => 2, 'nom' => 'Caisse',             'description' => 'Gestion des guichets et opérations caisse', 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 3, 'nom' => 'Ressources Humaines', 'description' => 'Gestion du personnel et des affectations', 'created_at' => $now, 'updated_at' => $now],
+        ]);
+
+        DB::table('tb_postes')->insertOrIgnore([
+            ['id' => 1, 'service_id' => 1, 'nom' => 'Administrateur Système', 'description' => 'Poste réservé au compte administrateur', 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 2, 'service_id' => 2, 'nom' => 'Caissier Principal',     'description' => 'Gestion du guichet principal',            'created_at' => $now, 'updated_at' => $now],
+            ['id' => 3, 'service_id' => 3, 'nom' => 'Responsable RH',         'description' => 'Gestion des agents et des affectations',  'created_at' => $now, 'updated_at' => $now],
+        ]);
+
+        DB::table('tb_agents')->insertOrIgnore([
+            ['matricule' => 'AG-EBENKGA-26-00001', 'nom' => 'BMB',     'postnom' => 'ADMIN', 'prenom' => 'Système', 'sexe' => 'M', 'date_naissance' => null, 'telephone' => null,             'email' => 'bmb@bmb.cd',             'adresse' => null,       'photo' => null, 'date_embauche' => now()->toDateString(), 'statut' => 'actif', 'created_at' => $now, 'updated_at' => $now],
+            ['matricule' => 'AG-EBENKGA-26-00002', 'nom' => 'MULUMBA', 'postnom' => null,    'prenom' => 'Jean',    'sexe' => 'M', 'date_naissance' => '1990-06-15', 'telephone' => '+243810000002', 'email' => 'jean.caissier@bmb.cd', 'adresse' => 'Kinshasa', 'photo' => null, 'date_embauche' => now()->toDateString(), 'statut' => 'actif', 'created_at' => $now, 'updated_at' => $now],
+            ['matricule' => 'AG-EBENKGA-26-00003', 'nom' => 'KASONGO', 'postnom' => null,    'prenom' => 'Marie',   'sexe' => 'F', 'date_naissance' => '1992-03-20', 'telephone' => '+243810000003', 'email' => 'marie.rh@bmb.cd',      'adresse' => 'Kinshasa', 'photo' => null, 'date_embauche' => now()->toDateString(), 'statut' => 'actif', 'created_at' => $now, 'updated_at' => $now],
+        ]);
+
+        DB::table('tb_devises')->insertOrIgnore([
+            ['code_iso' => 'CDF', 'nom' => 'Franc Congolais',  'symbole' => 'Fc', 'est_reference' => 1, 'created_at' => $now, 'updated_at' => null],
+            ['code_iso' => 'USD', 'nom' => 'Dollar Américain', 'symbole' => '$',  'est_reference' => 0, 'created_at' => $now, 'updated_at' => null],
+            ['code_iso' => 'EUR', 'nom' => 'Euro',             'symbole' => '€',  'est_reference' => 0, 'created_at' => $now, 'updated_at' => null],
+        ]);
+
+        // Utilisateurs : mot de passe bcrypt cost=12
+        //   bmb@bmb.cd           → Bmb@2026
+        //   jean.caissier@bmb.cd → Caissier@2026
+        //   marie.rh@bmb.cd      → AgentRH@2026
+        DB::table('users')->insertOrIgnore([
+            ['agent_matricule' => 'AG-EBENKGA-26-00001', 'name' => 'bmb',           'email' => 'bmb@bmb.cd',           'email_verified_at' => $now, 'password' => '$2y$12$h2eVRVSTyES1nDSAzc91q.PGyeA8TvOdjWlEz5WXEo8OGop39HuTW', 'remember_token' => null, 'etat' => 'actif', 'created_at' => $now, 'updated_at' => $now],
+            ['agent_matricule' => 'AG-EBENKGA-26-00002', 'name' => 'jean_caissier', 'email' => 'jean.caissier@bmb.cd', 'email_verified_at' => $now, 'password' => '$2y$12$o/m3X.G8ImNrB8WgzrankOb5R8trQnBbSwK4vVzYXa7WHjy6AIIfG', 'remember_token' => null, 'etat' => 'actif', 'created_at' => $now, 'updated_at' => $now],
+            ['agent_matricule' => 'AG-EBENKGA-26-00003', 'name' => 'marie_rh',      'email' => 'marie.rh@bmb.cd',      'email_verified_at' => $now, 'password' => '$2y$12$j8T6Zy8w4q.zzZ1eNt/eeuak5l4H/PdUWwz7rmUNqNKJL7UQ7PR4m', 'remember_token' => null, 'etat' => 'actif', 'created_at' => $now, 'updated_at' => $now],
+        ]);
+
+        // Affectations initiales
+        DB::table('tb_affectations')->insertOrIgnore([
+            ['agent_matricule' => 'AG-EBENKGA-26-00001', 'poste_id' => 1, 'date_debut' => now()->toDateString(), 'date_fin' => null, 'Etat' => 'ACTIF', 'created_at' => $now, 'updated_at' => $now],
+            ['agent_matricule' => 'AG-EBENKGA-26-00002', 'poste_id' => 2, 'date_debut' => now()->toDateString(), 'date_fin' => null, 'Etat' => 'ACTIF', 'created_at' => $now, 'updated_at' => $now],
+            ['agent_matricule' => 'AG-EBENKGA-26-00003', 'poste_id' => 3, 'date_debut' => now()->toDateString(), 'date_fin' => null, 'Etat' => 'ACTIF', 'created_at' => $now, 'updated_at' => $now],
+        ]);
+
+        // Rôles → utilisateurs (id déterminés par l'ordre d'insertion)
+        $users = DB::table('users')->whereIn('email', ['bmb@bmb.cd', 'jean.caissier@bmb.cd', 'marie.rh@bmb.cd'])->get()->keyBy('email');
+        DB::table('tb_role_user')->insertOrIgnore([
+            ['user_id' => $users['bmb@bmb.cd']->id,           'role_code' => 'EBEN-ROL1', 'created_at' => $now, 'updated_at' => $now],
+            ['user_id' => $users['jean.caissier@bmb.cd']->id, 'role_code' => 'EBEN-ROL2', 'created_at' => $now, 'updated_at' => $now],
+            ['user_id' => $users['marie.rh@bmb.cd']->id,      'role_code' => 'EBEN-ROL4', 'created_at' => $now, 'updated_at' => $now],
+        ]);
     }
 
     // ------------------------------------------------------------

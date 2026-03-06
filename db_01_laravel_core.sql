@@ -240,6 +240,47 @@ INSERT IGNORE INTO `tb_role_permission` (`role_code`, `permission_code`, `create
 ('EBEN-ROL1', 'EBEN-PER20', NOW(), NOW()),
 ('EBEN-ROL1', 'EBEN-PER21', NOW(), NOW());
 
+-- Permissions du rôle CAISSIER (EBEN-ROL2)
+-- Accès caisse complète + consultation clients et comptes
+INSERT IGNORE INTO `tb_role_permission` (`role_code`, `permission_code`, `created_at`, `updated_at`) VALUES
+('EBEN-ROL2', 'EBEN-PER10', NOW(), NOW()),  -- Voir caisse
+('EBEN-ROL2', 'EBEN-PER11', NOW(), NOW()),  -- Ouvrir caisse
+('EBEN-ROL2', 'EBEN-PER12', NOW(), NOW()),  -- Fermer caisse
+('EBEN-ROL2', 'EBEN-PER13', NOW(), NOW()),  -- Mouvements caisse
+('EBEN-ROL2', 'EBEN-PER14', NOW(), NOW()),  -- Clôture caisse
+('EBEN-ROL2', 'EBEN-PER15', NOW(), NOW()),  -- Voir clients
+('EBEN-ROL2', 'EBEN-PER18', NOW(), NOW());  -- Voir comptes
+
+-- Permissions du rôle DIRECTEUR (EBEN-ROL3)
+-- Vision globale en lecture seule sur tous les modules
+INSERT IGNORE INTO `tb_role_permission` (`role_code`, `permission_code`, `created_at`, `updated_at`) VALUES
+('EBEN-ROL3', 'EBEN-PER1',  NOW(), NOW()),  -- Accès Administration
+('EBEN-ROL3', 'EBEN-PER2',  NOW(), NOW()),  -- Voir rôles
+('EBEN-ROL3', 'EBEN-PER4',  NOW(), NOW()),  -- Voir permissions
+('EBEN-ROL3', 'EBEN-PER6',  NOW(), NOW()),  -- Voir RH
+('EBEN-ROL3', 'EBEN-PER10', NOW(), NOW()),  -- Voir caisse
+('EBEN-ROL3', 'EBEN-PER15', NOW(), NOW()),  -- Voir clients
+('EBEN-ROL3', 'EBEN-PER18', NOW(), NOW()),  -- Voir comptes
+('EBEN-ROL3', 'EBEN-PER20', NOW(), NOW());  -- Voir devises
+
+-- Permissions du rôle AGENT RH (EBEN-ROL4)
+-- Gestion complète des agents, services, postes et affectations
+INSERT IGNORE INTO `tb_role_permission` (`role_code`, `permission_code`, `created_at`, `updated_at`) VALUES
+('EBEN-ROL4', 'EBEN-PER6',  NOW(), NOW()),  -- Voir RH
+('EBEN-ROL4', 'EBEN-PER7',  NOW(), NOW()),  -- Créer agent
+('EBEN-ROL4', 'EBEN-PER8',  NOW(), NOW()),  -- Modifier agent
+('EBEN-ROL4', 'EBEN-PER9',  NOW(), NOW());  -- Affectations
+
+-- Permissions du rôle SUPERVISEUR (EBEN-ROL5)
+-- Supervision transversale en lecture seule
+INSERT IGNORE INTO `tb_role_permission` (`role_code`, `permission_code`, `created_at`, `updated_at`) VALUES
+('EBEN-ROL5', 'EBEN-PER2',  NOW(), NOW()),  -- Voir rôles
+('EBEN-ROL5', 'EBEN-PER6',  NOW(), NOW()),  -- Voir RH
+('EBEN-ROL5', 'EBEN-PER10', NOW(), NOW()),  -- Voir caisse
+('EBEN-ROL5', 'EBEN-PER15', NOW(), NOW()),  -- Voir clients
+('EBEN-ROL5', 'EBEN-PER18', NOW(), NOW()),  -- Voir comptes
+('EBEN-ROL5', 'EBEN-PER20', NOW(), NOW());  -- Voir devises
+
 -- ==============================================================
 -- FIN DU FICHIER 1/3
 -- Prochain fichier : db_02_rh_banque_core.sql

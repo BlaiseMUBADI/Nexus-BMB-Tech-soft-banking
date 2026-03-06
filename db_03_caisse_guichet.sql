@@ -179,6 +179,27 @@ ALTER TABLE `tb_affectations`
     ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- ==============================================================
+-- DONNÉES DE DÉMARRAGE — FICHIER 3/3
+-- (Plan comptable, Guichets de test)
+-- ==============================================================
+
+-- Plan comptable de base (référentiel minimal DRC/OHADA)
+INSERT IGNORE INTO `tb_plan_comptable` (`numero_compte`, `libelle`, `type_compte`) VALUES
+('5701', 'Caisse CDF',                   'ACTIF'),
+('5702', 'Caisse USD',                   'ACTIF'),
+('5703', 'Caisse EUR',                   'ACTIF'),
+('2511', 'Dépôts à vue clients',         'PASSIF'),
+('2512', 'Dépôts à terme clients',       'PASSIF'),
+('7001', 'Intérêts et produits assimilés','PRODUIT'),
+('6001', 'Frais bancaires',              'CHARGE'),
+('1011', 'Capital social',               'PASSIF');
+
+-- Guichets de test
+INSERT IGNORE INTO `tb_caisses_guichets` (`code_guichet`, `intitule`, `statut_operationnel`, `created_at`) VALUES
+('G01', 'Guichet Principal CDF/USD', 'FERME', NOW()),
+('G02', 'Guichet Secondaire CDF',    'FERME', NOW());
+
+-- ==============================================================
 -- FIN DU FICHIER 3/3
 -- Base de données Nexus BMB complète.
 --

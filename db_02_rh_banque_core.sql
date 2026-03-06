@@ -334,28 +334,37 @@ CREATE TABLE `tb_transactions` (
 
 -- ==============================================================
 -- DONNÉES DE DÉMARRAGE — FICHIER 2/3
--- (Services, Postes, Agent admin, User admin, Rôle user, Devises)
+-- (Services, Postes, Agents, Users, Rôles, Devises)
 -- ==============================================================
 
--- 1. Service Direction Générale
+-- 1. Services de base
 INSERT IGNORE INTO `tb_services` (`id`, `nom`, `description`, `created_at`, `updated_at`) VALUES
-(1, 'Direction Générale', 'Administration centrale du système', NOW(), NOW());
+(1, 'Direction Générale', 'Administration centrale du système',        NOW(), NOW()),
+(2, 'Caisse',             'Gestion des guichets et opérations caisse', NOW(), NOW()),
+(3, 'Ressources Humaines','Gestion du personnel et des affectations',  NOW(), NOW());
 
--- 2. Poste Administrateur Système
+-- 2. Postes de base
 INSERT IGNORE INTO `tb_postes` (`id`, `service_id`, `nom`, `description`, `created_at`, `updated_at`) VALUES
-(1, 1, 'Administrateur Système', 'Poste réservé au compte administrateur du système', NOW(), NOW());
+(1, 1, 'Administrateur Système', 'Poste réservé au compte administrateur du système', NOW(), NOW()),
+(2, 2, 'Caissier Principal',     'Gestion du guichet principal',                       NOW(), NOW()),
+(3, 3, 'Responsable RH',         'Gestion des agents et des affectations',             NOW(), NOW());
 
--- 3. Agent admin
--- Matricule généré par Agent::boot() : AG-EBENKGA-YY-NNNNN (5 chiffres)
--- L'année 2026 → YY = 26, premier agent → 00001
+-- 3. Agents
+--    Matricules générés par Agent::boot() : AG-EBENKGA-YY-NNNNN
 INSERT IGNORE INTO `tb_agents`
     (`matricule`, `nom`, `postnom`, `prenom`, `sexe`, `date_naissance`,
      `telephone`, `email`, `adresse`, `photo`, `date_embauche`, `statut`,
      `created_at`, `updated_at`)
 VALUES
+    -- Agent admin système
     ('AG-EBENKGA-26-00001', 'BMB', 'ADMIN', 'Système', 'M', NULL,
-     NULL, 'bmb@bmb.cd', NULL, NULL, CURDATE(), 'actif',
-     NOW(), NOW());
+     NULL, 'bmb@bmb.cd', NULL, NULL, CURDATE(), 'actif', NOW(), NOW()),
+    -- Caissier test
+    ('AG-EBENKGA-26-00002', 'MULUMBA', NULL, 'Jean', 'M', '1990-06-15',
+     '+243810000002', 'jean.caissier@bmb.cd', 'Kinshasa', NULL, CURDATE(), 'actif', NOW(), NOW()),
+    -- Agent RH test
+    ('AG-EBENKGA-26-00003', 'KASONGO', NULL, 'Marie', 'F', '1992-03-20',
+     '+243810000003', 'marie.rh@bmb.cd', 'Kinshasa', NULL, CURDATE(), 'actif', NOW(), NOW());
 
 -- 4. Devises — CDF (référence), USD, EUR
 INSERT IGNORE INTO `tb_devises` (`code_iso`, `nom`, `symbole`, `est_reference`, `created_at`, `updated_at`) VALUES
@@ -363,21 +372,43 @@ INSERT IGNORE INTO `tb_devises` (`code_iso`, `nom`, `symbole`, `est_reference`, 
 ('USD', 'Dollar Américain', '$',  0, NOW(), NULL),
 ('EUR', 'Euro',             '€',  0, NOW(), NULL);
 
--- 5. Utilisateur admin (login: bmb / mot de passe: Bmb@2026)
--- Hash bcrypt généré avec cost=12 via password_hash PHP
+-- 5. Utilisateurs
+--    Mots de passe (bcrypt cost=12) :
+--      bmb@bmb.cd          → Bmb@2026
+--      jean.caissier@bmb.cd → Caissier@2026
+--      marie.rh@bmb.cd     → AgentRH@2026
 INSERT IGNORE INTO `users`
     (`agent_matricule`, `name`, `email`, `email_verified_at`, `password`,
      `remember_token`, `etat`, `created_at`, `updated_at`)
 VALUES
-    ('AG-EBENKGA-26-00001', 'bmb', 'bmb@bmb.cd', NOW(),
+    ('AG-EBENKGA-26-00001', 'bmb',         'bmb@bmb.cd',           NOW(),
      '$2y$12$h2eVRVSTyES1nDSAzc91q.PGyeA8TvOdjWlEz5WXEo8OGop39HuTW',
+     NULL, 'actif', NOW(), NOW()),
+    ('AG-EBENKGA-26-00002', 'jean_caissier', 'jean.caissier@bmb.cd', NOW(),
+     '$2y$12$o/m3X.G8ImNrB8WgzrankOb5R8trQnBbSwK4vVzYXa7WHjy6AIIfG',
+     NULL, 'actif', NOW(), NOW()),
+    ('AG-EBENKGA-26-00003', 'marie_rh',     'marie.rh@bmb.cd',      NOW(),
+     '$2y$12$j8T6Zy8w4q.zzZ1eNt/eeuak5l4H/PdUWwz7rmUNqNKJL7UQ7PR4m',
      NULL, 'actif', NOW(), NOW());
 
--- 6. Assignation rôle Administrateur (EBEN-ROL1) à l'utilisateur bmb
+-- 6. Affectations initiales
+INSERT IGNORE INTO `tb_affectations` (`agent_matricule`, `poste_id`, `guichet_id`, `date_debut`, `date_fin`, `Etat`, `created_at`, `updated_at`) VALUES
+('AG-EBENKGA-26-00001', 1, NULL, CURDATE(), NULL, 'ACTIF', NOW(), NOW()),
+('AG-EBENKGA-26-00002', 2, NULL, CURDATE(), NULL, 'ACTIF', NOW(), NOW()),
+('AG-EBENKGA-26-00003', 3, NULL, CURDATE(), NULL, 'ACTIF', NOW(), NOW());
+
+-- 7. Assignation des rôles aux utilisateurs
+--    bmb          → EBEN-ROL1 (Administrateur)
+--    jean_caissier → EBEN-ROL2 (Caissier)
+--    marie_rh     → EBEN-ROL4 (Agent RH)
 INSERT IGNORE INTO `tb_role_user` (`user_id`, `role_code`, `created_at`, `updated_at`)
-SELECT `id`, 'EBEN-ROL1', NOW(), NOW()
-FROM `users`
-WHERE `email` = 'bmb@bmb.cd';
+SELECT `id`, 'EBEN-ROL1', NOW(), NOW() FROM `users` WHERE `email` = 'bmb@bmb.cd';
+
+INSERT IGNORE INTO `tb_role_user` (`user_id`, `role_code`, `created_at`, `updated_at`)
+SELECT `id`, 'EBEN-ROL2', NOW(), NOW() FROM `users` WHERE `email` = 'jean.caissier@bmb.cd';
+
+INSERT IGNORE INTO `tb_role_user` (`user_id`, `role_code`, `created_at`, `updated_at`)
+SELECT `id`, 'EBEN-ROL4', NOW(), NOW() FROM `users` WHERE `email` = 'marie.rh@bmb.cd';
 
 -- ==============================================================
 -- FIN DU FICHIER 2/3

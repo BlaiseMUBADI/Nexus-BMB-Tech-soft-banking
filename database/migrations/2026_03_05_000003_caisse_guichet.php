@@ -202,6 +202,25 @@ return new class extends Migration
                   ->references('matricule')->on('tb_agents')
                   ->restrictOnDelete()->cascadeOnUpdate();
         });
+
+        // ====================================================
+        // DONNÉES DE DÉMARRAGE — Plan comptable, Guichets
+        // ====================================================
+        DB::table('tb_plan_comptable')->insertOrIgnore([
+            ['numero_compte' => '5701', 'libelle' => 'Caisse CDF',                    'type_compte' => 'ACTIF'],
+            ['numero_compte' => '5702', 'libelle' => 'Caisse USD',                    'type_compte' => 'ACTIF'],
+            ['numero_compte' => '5703', 'libelle' => 'Caisse EUR',                    'type_compte' => 'ACTIF'],
+            ['numero_compte' => '2511', 'libelle' => 'Dépôts à vue clients',          'type_compte' => 'PASSIF'],
+            ['numero_compte' => '2512', 'libelle' => 'Dépôts à terme clients',        'type_compte' => 'PASSIF'],
+            ['numero_compte' => '7001', 'libelle' => 'Intérêts et produits assimilés','type_compte' => 'PRODUIT'],
+            ['numero_compte' => '6001', 'libelle' => 'Frais bancaires',               'type_compte' => 'CHARGE'],
+            ['numero_compte' => '1011', 'libelle' => 'Capital social',                'type_compte' => 'PASSIF'],
+        ]);
+
+        DB::table('tb_caisses_guichets')->insertOrIgnore([
+            ['code_guichet' => 'G01', 'intitule' => 'Guichet Principal CDF/USD', 'statut_operationnel' => 'FERME', 'created_at' => now()],
+            ['code_guichet' => 'G02', 'intitule' => 'Guichet Secondaire CDF',    'statut_operationnel' => 'FERME', 'created_at' => now()],
+        ]);
     }
 
     // ------------------------------------------------------------
