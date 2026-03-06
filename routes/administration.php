@@ -60,9 +60,13 @@ Route::middleware('auth')->prefix('administration')->group(function () {
     });
 
     // ── Permissions : gestion (EBEN-PER5) ───────────────────────────────────
-    Route::middleware('permission:EBEN-PER5')->group(function () {
-        Route::post('/permissions',                       [RolesPermissionsController::class, 'storePermission'])->name('administration.permissions.store');
-    });
+    // ⚠  DÉSACTIVÉ : les permissions sont statiques (définies dans le code).
+    //    Seul un développeur peut en créer via une migration.
+    //    Route::middleware('permission:EBEN-PER5')->group(function () {
+    //        Route::post('/permissions', [RolesPermissionsController::class, 'storePermission'])->name('administration.permissions.store');
+    //    });
+    // Route de secours pour capturer les appels résiduels et retourner 403
+    Route::post('/permissions', fn() => abort(403, 'Les permissions sont gérées par le développeur.'))->name('administration.permissions.store');
 
     // ── Devises : consultation (EBEN-PER20) ─────────────────────────────────
     Route::middleware('permission:EBEN-PER20')->group(function () {

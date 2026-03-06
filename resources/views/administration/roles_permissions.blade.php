@@ -177,34 +177,20 @@
 
             {{-- ══════════════════════ ONGLET PERMISSIONS ══════════════════════ --}}
             <div class="tab-pane fade" id="tab-permissions">
-                <div class="row">
-                    {{-- Formulaire ajout permission --}}
-                    <div class="col-md-4">
-                        <div class="card card-success card-outline">
-                            <div class="card-header">
-                                <h3 class="card-title"><i class="fas fa-plus-circle mr-1"></i> Nouvelle permission</h3>
-                            </div>
-                            <div class="card-body">
-                                <form id="addPermissionForm">
-                                    @csrf
-                                    <div class="form-group">
-                                        <label><i class="fas fa-tag mr-1 text-success"></i> Nom <span class="text-danger">*</span></label>
-                                        <input type="text" name="nom" class="form-control form-control-sm" placeholder="ex : VOIR_CAISSE, VALIDER_TX…" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label><i class="fas fa-align-left mr-1 text-muted"></i> Description</label>
-                                        <textarea name="description" class="form-control form-control-sm" rows="2" placeholder="Description…"></textarea>
-                                    </div>
-                                    <button type="submit" class="btn btn-sm btn-success" id="btnAddPerm">
-                                        <i class="fas fa-plus-circle mr-1"></i> Ajouter la permission
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
+                {{-- ℹ️  Les permissions sont définies statiquement dans le code (routes/*.php).
+                     Seul un développeur peut en créer de nouvelles via une migration.
+                     L'admin peut uniquement les ATTRIBUER aux rôles (onglet Attribution). --}}
+                <div class="alert alert-info alert-sm d-flex align-items-center mb-3" role="alert">
+                    <i class="fas fa-info-circle fa-lg mr-2"></i>
+                    <div>
+                        <strong>Permissions système</strong> — Les permissions sont définies dans le code de l'application.
+                        Pour en ajouter de nouvelles, contactez le développeur.
+                        Vous pouvez uniquement les <strong>attribuer aux rôles</strong> via l'onglet <em>Attribution</em>.
                     </div>
-
-                    {{-- Tableau des permissions --}}
-                    <div class="col-md-8">
+                </div>
+                <div class="row">
+                    {{-- Tableau des permissions (pleine largeur) --}}
+                    <div class="col-md-12">
                         <div class="card card-success card-outline">
                             <div class="card-header d-flex align-items-center justify-content-between">
                                 <h3 class="card-title mb-0"><i class="fas fa-list mr-2"></i> Liste des permissions</h3>
@@ -431,21 +417,6 @@
                         showSystemMessage('error', 'Erreur : ' + (xhr.responseJSON?.message ?? 'suppression impossible.'));
                     });
             }, 'Confirmer la suppression');
-        });
-
-        // ── AJOUTER UNE PERMISSION ────────────────────────────────────────────
-        $('#addPermissionForm').on('submit', function (e) {
-            e.preventDefault();
-            var $btn = $('#btnAddPerm').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Envoi…');
-            $.post('{{ route("administration.permissions.store") }}', $(this).serialize())
-                .done(function () {
-                    showSystemMessage('success', 'Permission ajoutée avec succès.');
-                    setTimeout(function () { location.reload(); }, 900);
-                })
-                .fail(function (xhr) {
-                    showSystemMessage('error', 'Erreur : ' + (xhr.responseJSON?.message ?? 'impossible d\'ajouter la permission.'));
-                    $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter la permission');
-                });
         });
 
         // ── SELECT 2 ──────────────────────────────────────────────────────────
