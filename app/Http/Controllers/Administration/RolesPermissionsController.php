@@ -78,12 +78,52 @@ class RolesPermissionsController extends Controller
         return view('administration.partials.permissions_table', compact('permissions'))->render();
     }
 
+    /** Carte des modules : numéro → label/icon/couleur */
+    private static function moduleMap(): array
+    {
+        return [
+            1  => ['label' => 'Administration',    'icon' => 'fa-cog',              'color' => 'danger'],
+            2  => ['label' => 'RH',                'icon' => 'fa-users',            'color' => 'info'],
+            3  => ['label' => 'Caisse',            'icon' => 'fa-cash-register',    'color' => 'success'],
+            4  => ['label' => 'Clients',           'icon' => 'fa-user-friends',     'color' => 'primary'],
+            5  => ['label' => 'Comptes',           'icon' => 'fa-wallet',           'color' => 'warning'],
+            6  => ['label' => 'Devises',           'icon' => 'fa-coins',            'color' => 'secondary'],
+            7  => ['label' => 'Transactions',      'icon' => 'fa-exchange-alt',     'color' => 'info'],
+            8  => ['label' => 'Épargne',           'icon' => 'fa-piggy-bank',       'color' => 'success'],
+            9  => ['label' => 'Crédits',           'icon' => 'fa-hand-holding-usd', 'color' => 'warning'],
+            10 => ['label' => 'Rapports',          'icon' => 'fa-chart-bar',        'color' => 'primary'],
+            11 => ['label' => 'Comptabilité',      'icon' => 'fa-book',             'color' => 'info'],
+            12 => ['label' => 'Audit & Sécurité',  'icon' => 'fa-shield-alt',       'color' => 'danger'],
+        ];
+    }
+
+    /** Retourne le numéro de module d'après le code EBEN-PERxx */
+    private static function moduleNum(string $code): int
+    {
+        preg_match('/EBEN-PER(\d+)/', $code, $m);
+        $n = (int)($m[1] ?? 0);
+        if ($n <= 5)  return 1;
+        if ($n <= 9)  return 2;
+        if ($n <= 14) return 3;
+        if ($n <= 17) return 4;
+        if ($n <= 19) return 5;
+        if ($n <= 21) return 6;
+        if ($n <= 26) return 7;
+        if ($n <= 29) return 8;
+        if ($n <= 35) return 9;
+        if ($n <= 38) return 10;
+        if ($n <= 41) return 11;
+        return 12;
+    }
+
     public function rolePermissionsList($role_code)
     {
-        $role = \App\Models\Role::where('code', $role_code)->firstOrFail();
-        $allPermissions = \App\Models\Permission::orderBy('nom')->get();
-        $attached = DB::table('tb_role_permission')->where('role_code', $role_code)->pluck('permission_code')->toArray();
-        return view('administration.partials.role_permissions_list', compact('role', 'allPermissions', 'attached'))->render();
+        $role           = \App\Models\Role::where('code', $role_code)->firstOrFail();
+        $allPermissions = \App\Models\Permission::orderBy('code')->get();
+        $attached       = DB::table('tb_role_permission')->where('role_code', $role_code)->pluck('permission_code')->toArray();
+        $moduleMap      = self::moduleMap();
+        $grouped        = $allPermissions->groupBy(fn($p) => self::moduleNum($p->code));
+        return view('administration.partials.role_permissions_list', compact('role', 'allPermissions', 'attached', 'grouped', 'moduleMap'))->render();
     }
 
     public function attachPermission(Request $request)
@@ -92,10 +132,10 @@ class RolesPermissionsController extends Controller
             'role_code' => 'required|string|exists:tb_roles,code',
             'permission_code' => 'required|string|exists:tb_permissions,code',
         ]);
-        DB::table('tb_role_permission')->updateOrInsert([
-            'role_code' => $request->role_code,
-            'permission_code' => $request->permission_code
-        ], []);
+        DB::table('tb_role_permission')->updateOrInsert(
+            ['role_code' => $request->role_code, 'permission_code' => $request->permission_code],
+            ['created_at' => now(), 'updated_at' => now()]
+        );
         return response()->json(['success' => true]);
     }
 

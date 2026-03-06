@@ -450,26 +450,34 @@
 
         // ── ATTRIBUTION : cocher/décocher une permission ──────────────────────
         $(document).on('change', '#permissionsListContainer .perm-checkbox', function () {
+            var $cb      = $(this);
             var roleCode = $('#selectRole').val();
-            var permCode = $(this).data('perm-code');
-            var checked  = $(this).is(':checked');
+            var permCode = $cb.data('perm-code');
+            var moduleId = $cb.data('module-id');
+            var checked  = $cb.is(':checked');
             var url      = checked
                            ? '{{ route("administration.role-permissions.attach") }}'
                            : '{{ route("administration.role-permissions.detach") }}';
+            $cb.prop('disabled', true);
             $.post(url, { role_code: roleCode, permission_code: permCode })
                 .done(function () {
                     showSystemMessage('success', checked ? 'Permission attribuée.' : 'Permission retirée.');
+                    // Notifier le partial pour mettre à jour les compteurs
+                    document.dispatchEvent(new CustomEvent('perm:updated', { detail: { moduleId: moduleId } }));
                 })
-                .fail(function () {
-                    showSystemMessage('error', 'Erreur de mise à jour.');
+                .fail(function (xhr) {
+                    // Annuler visuellement le changement
+                    $cb.prop('checked', !checked);
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message)
+                              ? xhr.responseJSON.message
+                              : (checked ? 'Impossible d\'attribuer la permission.' : 'Impossible de retirer la permission.');
+                    showSystemMessage('error', msg);
+                })
+                .always(function () {
+                    $cb.prop('disabled', false);
                 });
         });
 
-        // ── ATTRIBUTION : désactiver tout ─────────────────────────────────────
-        $(document).on('change', '#disableAllPermissions', function () {
-            var uncheck = $(this).is(':checked');
-            $('#permissionsListContainer .perm-checkbox').prop('checked', !uncheck).trigger('change');
-        });
 
         // ── USERS/RÔLES : charger les rôles d'un utilisateur ──────────────────
         $('#selectUser').on('change', function () {
