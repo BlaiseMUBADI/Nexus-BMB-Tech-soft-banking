@@ -488,13 +488,36 @@
                            ? '{{ route("administration.role-permissions.attach") }}'
                            : '{{ route("administration.role-permissions.detach") }}';
             $cb.prop('disabled', true);
-            $.post(url, { role_code: roleCode, permission_code: permCode })
-                .done(function () {
-                    showSystemMessage('success', checked ? 'Permission attribuée.' : 'Permission retirée.');
-                    // Notifier le partial pour mettre à jour les compteurs
-                    document.dispatchEvent(new CustomEvent('perm:updated', { detail: { moduleId: moduleId } }));
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: { role_code: roleCode, permission_code: permCode },
+                dataType: 'json'
+            })
+                .done(function (data) {
+                    if (data && data.success === false) {
+                        $cb.prop('checked', !checked);
+                        showSystemMessage('error', data.message || 'Opération échouée.');
+                    } else {
+                        showSystemMessage('success', (data && data.message) ? data.message : (checked ? 'Permission attribuée.' : 'Permission retirée.'));
+                        // Notifier le partial pour mettre à jour les compteurs
+                        document.dispatchEvent(new CustomEvent('perm:updated', { detail: { moduleId: moduleId } }));
+                    }
                 })
-                .fail(function (xhr) {
+                .fail(function (xhr, textStatus) {
+                    // Cas "parseerror" avec HTTP 200 : la requête a réussi côté serveur
+                    // mais jQuery n'a pas pu parser le JSON (BOM ou caractère parasite)
+                    if (xhr.status === 200) {
+                        try {
+                            var raw = xhr.responseText.replace(/^\uFEFF/, '').trim();
+                            var d = JSON.parse(raw);
+                            if (d && d.success !== false) {
+                                showSystemMessage('success', (d.message) ? d.message : (checked ? 'Permission attribuée.' : 'Permission retirée.'));
+                                document.dispatchEvent(new CustomEvent('perm:updated', { detail: { moduleId: moduleId } }));
+                                return;
+                            }
+                        } catch(e) { /* NOOP */ }
+                    }
                     // Annuler visuellement le changement
                     $cb.prop('checked', !checked);
                     var msg;
@@ -505,7 +528,7 @@
                     } else if (xhr.status === 403) {
                         msg = 'Accès refusé. Permission EBEN-PER5 requise.';
                     } else {
-                        msg = 'Erreur HTTP ' + xhr.status + (xhr.responseText ? ' — ' + xhr.responseText.substring(0, 200) : '');
+                        msg = 'Erreur ' + xhr.status + (xhr.responseText ? ' — ' + xhr.responseText.replace(/^\uFEFF/, '').substring(0, 200) : '');
                     }
                     showSystemMessage('error', msg);
                 })
