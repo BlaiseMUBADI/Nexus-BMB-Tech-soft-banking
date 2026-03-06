@@ -177,60 +177,75 @@
 
             {{-- ══════════════════════ ONGLET PERMISSIONS ══════════════════════ --}}
             <div class="tab-pane fade" id="tab-permissions">
-                {{-- ℹ️  Les permissions sont définies statiquement dans le code (routes/*.php).
-                     Seul un développeur peut en créer de nouvelles via une migration.
-                     L'admin peut uniquement les ATTRIBUER aux rôles (onglet Attribution). --}}
                 <div class="alert alert-info alert-sm d-flex align-items-center mb-3" role="alert">
                     <i class="fas fa-info-circle fa-lg mr-2"></i>
                     <div>
                         <strong>Permissions système</strong> — Les permissions sont définies dans le code de l'application.
                         Pour en ajouter de nouvelles, contactez le développeur.
-                        Vous pouvez uniquement les <strong>attribuer aux rôles</strong> via l'onglet <em>Attribution</em>.
+                        Vous pouvez les <strong>attribuer aux rôles</strong> via l'onglet <em>Attribution</em>.
                     </div>
                 </div>
-                <div class="row">
-                    {{-- Tableau des permissions (pleine largeur) --}}
-                    <div class="col-md-12">
-                        <div class="card card-success card-outline">
-                            <div class="card-header d-flex align-items-center justify-content-between">
-                                <h3 class="card-title mb-0"><i class="fas fa-list mr-2"></i> Liste des permissions</h3>
-                                <span class="badge badge-success badge-pill">{{ $stats['total_permissions'] }}</span>
-                            </div>
+
+                {{-- Barre de recherche --}}
+                <div class="mb-3">
+                    <input type="text" id="searchPermissions"
+                           class="form-control form-control-sm"
+                           placeholder="🔍 Rechercher une permission (code, nom, module)…"
+                           style="max-width:380px">
+                </div>
+
+                <div id="permTabAccordion">
+                    @foreach($permissionsGrouped->sortKeys() as $moduleNum => $perms)
+                    @php
+                        $mod = $moduleMap[$moduleNum] ?? ['label' => 'Autre', 'icon' => 'fa-puzzle-piece', 'color' => 'secondary'];
+                        $cid = 'ptab_module_' . $moduleNum;
+                    @endphp
+                    <div class="card card-{{ $mod['color'] }} card-outline mb-1 perm-tab-card"
+                         data-search-scope="{{ strtolower($mod['label']) }}">
+                        <div class="card-header p-0">
+                            <a class="d-flex align-items-center justify-content-between p-2 text-reset text-decoration-none"
+                               data-toggle="collapse" href="#{{ $cid }}" role="button">
+                                <span>
+                                    <i class="fas {{ $mod['icon'] }} text-{{ $mod['color'] }} mr-2"></i>
+                                    <strong>{{ $mod['label'] }}</strong>
+                                </span>
+                                <span class="d-flex align-items-center">
+                                    <span class="badge badge-{{ $mod['color'] }} badge-pill mr-2">
+                                        {{ $perms->count() }} permission{{ $perms->count() > 1 ? 's' : '' }}
+                                    </span>
+                                    <i class="fas fa-chevron-down text-muted small"></i>
+                                </span>
+                            </a>
+                        </div>
+                        <div id="{{ $cid }}" class="collapse show">
                             <div class="card-body p-0">
-                                <div class="px-2 pt-2">
-                                    <input type="text" id="searchPermissions" class="form-control form-control-sm" placeholder="🔍 Rechercher une permission…">
-                                </div>
-                                <div class="table-responsive mt-1" style="max-height:420px;overflow-y:auto">
-                                    <table id="permissionsTable" class="table table-sm rbac-table mb-0">
-                                        <thead class="thead-dark">
-                                            <tr>
-                                                <th style="width:35px">#</th>
-                                                <th style="width:160px">Code</th>
-                                                <th>Nom</th>
-                                                <th>Description</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="permsTbody">
-                                            @forelse($permissions as $perm)
-                                            <tr>
-                                                <td class="text-muted">{{ $loop->iteration }}</td>
-                                                <td><code class="text-success">{{ $perm->code }}</code></td>
-                                                <td><strong>{{ $perm->nom }}</strong></td>
-                                                <td class="text-muted small">{{ $perm->description ?: '—' }}</td>
-                                            </tr>
-                                            @empty
-                                            <tr>
-                                                <td colspan="4" class="text-center text-muted py-4">
-                                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i> Aucune permission définie.
-                                                </td>
-                                            </tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <table class="table table-sm rbac-table mb-0">
+                                    <thead class="thead-dark">
+                                        <tr>
+                                            <th style="width:160px">Code</th>
+                                            <th style="width:220px">Nom</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($perms as $perm)
+                                        <tr class="perm-tab-row"
+                                            data-search="{{ strtolower($perm->code . ' ' . $perm->nom . ' ' . $mod['label']) }}">
+                                            <td><code class="text-{{ $mod['color'] }}">{{ $perm->code }}</code></td>
+                                            <td><strong>{{ $perm->nom }}</strong></td>
+                                            <td class="text-muted small">{{ $perm->description ?: '—' }}</td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
+                    @endforeach
+                </div>
+
+                <div id="permTabNoResult" class="text-center text-muted py-3 d-none">
+                    <i class="fas fa-search mr-1"></i> Aucune permission correspondante.
                 </div>
             </div>{{-- /tab-permissions --}}
 
@@ -382,12 +397,23 @@
             });
         });
 
-        // ── LIVE SEARCH : Permissions ────────────────────────────────────────
+        // ── LIVE SEARCH : Permissions (accordion) ────────────────────────────
         $('#searchPermissions').on('input', function () {
-            var q = $(this).val().toLowerCase();
-            $('#permsTbody tr').each(function () {
-                $(this).toggle($(this).text().toLowerCase().indexOf(q) > -1);
+            var q = $(this).val().toLowerCase().trim();
+            var totalVisible = 0;
+            $('#permTabAccordion .perm-tab-card').each(function () {
+                var $card = $(this);
+                var visInCard = 0;
+                $card.find('.perm-tab-row').each(function () {
+                    var match = !q || $(this).data('search').indexOf(q) > -1;
+                    $(this).toggle(match);
+                    if (match) visInCard++;
+                });
+                $card.toggle(visInCard > 0);
+                if (visInCard > 0) totalVisible++;
+                if (q && visInCard > 0) $('#' + $card.find('.collapse').attr('id')).collapse('show');
             });
+            $('#permTabNoResult').toggleClass('d-none', totalVisible > 0);
         });
 
         // ── AJOUTER UN RÔLE ──────────────────────────────────────────────────
