@@ -139,7 +139,6 @@
             </a>
         </li>
         <!-- User Dropdown -->
-        @php /** @var \App\Models\User|null $authUser */ $authUser = Auth::user(); @endphp
         <li class="nav-item dropdown">
             <a class="nav-link" data-toggle="dropdown" href="#" aria-expanded="false">
                 @if($authUser && $authUser->agent && $authUser->agent->photo)
