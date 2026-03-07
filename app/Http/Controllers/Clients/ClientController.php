@@ -37,7 +37,9 @@ class ClientController extends Controller
             'avec_photo' => $clients->filter(fn($c) => $c->photo)->count(),
         ];
 
-        return view('clients.liste', compact('clients', 'stats'));
+        $zones = \App\Models\Zone::orderBy('nom')->get();
+
+        return view('clients.liste', compact('clients', 'stats', 'zones'));
     }
 
                 
@@ -335,6 +337,79 @@ class ClientController extends Controller
         * Si l'image n'existe pas, elle retourne une erreur 404.
         */  
     
+    /* ─────────────────────────────────────────────────────────
+     *  IMPRESSION  —  Fiche individuelle client
+     * ───────────────────────────────────────────────────────── */
+    public function imprimerFiche(string $matricule)
+    {
+        $client = \App\Models\Client::with(['zone', 'comptes'])
+                    ->where('matricule', $matricule)
+                    ->firstOrFail();
+
+        // Photo base64
+        $photoBase64 = null;
+        if ($client->photo) {
+            $photoPath = base_path('images_projet/' . $client->photo);
+            if (file_exists($photoPath)) {
+                $mime = mime_content_type($photoPath);
+                $photoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($photoPath));
+            }
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.fiche', compact('client', 'photoBase64'))
+                  ->setPaper('a4', 'portrait');
+
+        return $pdf->stream('Fiche_' . $matricule . '.pdf');
+    }
+
+    /* ─────────────────────────────────────────────────────────
+     *  IMPRESSION  —  Liste filtrée de clients
+     * ───────────────────────────────────────────────────────── */
+    public function imprimerListe(\Illuminate\Http\Request $request)
+    {
+        $query = \App\Models\Client::with(['zone', 'comptes']);
+
+        // Filtres
+        if ($request->filled('code_zone')) {
+            $query->where('code_zone', $request->code_zone);
+        }
+        if ($request->filled('sexe') && in_array($request->sexe, ['M', 'F'])) {
+            $query->where('sexe', $request->sexe);
+        }
+        if ($request->filled('date_debut')) {
+            $query->whereDate('created_at', '>=', $request->date_debut);
+        }
+        if ($request->filled('date_fin')) {
+            $query->whereDate('created_at', '<=', $request->date_fin);
+        }
+        if ($request->filled('avec_photo') && $request->avec_photo !== 'tous') {
+            if ($request->avec_photo === 'oui') {
+                $query->whereNotNull('photo')->where('photo', '!=', '');
+            } else {
+                $query->where(function($q) { $q->whereNull('photo')->orWhere('photo', ''); });
+            }
+        }
+        if ($request->filled('avec_comptes') && $request->avec_comptes !== 'tous') {
+            if ($request->avec_comptes === 'oui') {
+                $query->has('comptes');
+            } else {
+                $query->doesntHave('comptes');
+            }
+        }
+        if ($request->filled('etat_civil') && $request->etat_civil !== 'tous') {
+            $query->where('etat_civil', $request->etat_civil);
+        }
+
+        $clients  = $query->orderBy('nom')->get();
+        $filtres  = $request->only(['code_zone','sexe','date_debut','date_fin','avec_photo','avec_comptes','etat_civil']);
+        $zone     = $request->filled('code_zone') ? \App\Models\Zone::find($request->code_zone) : null;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.liste', compact('clients', 'filtres', 'zone'))
+                  ->setPaper('a4', 'portrait');
+
+        return $pdf->stream('Liste_clients.pdf');
+    }
+
     public function photo($filename)
     {
         $path = base_path('images_projet/clients/' . $filename);

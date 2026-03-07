@@ -9,7 +9,12 @@ class UtilisateurController extends Controller
     // Affiche la liste des utilisateurs
     public function liste(Request $request)
     {
-        $users = \App\Models\User::with('agent')->get();
+        $users = \App\Models\User::with([
+            'agent',
+            'agent.affectations' => function ($q) {
+                $q->with('poste.service')->latest('date_debut');
+            },
+        ])->get();
         if ($request->ajax()) {
             return response()->json([
                 'users' => $users

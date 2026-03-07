@@ -663,11 +663,28 @@ $(document).ready(function () {
             dataType: 'json'
         })
         .done(function (response) {
-            $('#affectationModal').modal('hide');
-            showSystemMessage('success', (response && response.message) ? response.message : 'Affectation enregistrée avec succès !');
-            setTimeout(function () { location.reload(); }, 1200);
+            if (response && response.success) {
+                $('#affectationModal').modal('hide');
+                showSystemMessage('success', response.message || 'Affectation enregistrée avec succès !');
+                setTimeout(function () { location.reload(); }, 1200);
+            } else {
+                showSystemMessage('error', (response && response.message) ? response.message : 'Erreur.');
+            }
         })
         .fail(function (xhr) {
+            if (xhr.status === 200) {
+                try {
+                    var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                    if (d && d.success) {
+                        $('#affectationModal').modal('hide');
+                        showSystemMessage('success', d.message || 'Affectation enregistrée avec succès !');
+                        setTimeout(function () { location.reload(); }, 1200);
+                        return;
+                    }
+                    showSystemMessage('error', d.message || 'Erreur.');
+                    return;
+                } catch(e) { /* NOOP */ }
+            }
             var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Une erreur inattendue est survenue (' + xhr.status + ').';
             showSystemMessage('error', msg);
         })
@@ -740,30 +757,44 @@ $(document).on('click', '.btn-voir-affectation', function () {
     $('#voirModalBody').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i></div>');
     $('#voirModal').modal('show');
 
-    $.get('{{ route("affectations.show", ["affectation" => "__ID__"]) }}'.replace('__ID__', id))
-        .done(function (d) {
-            var etatColors = { ACTIF: 'success', SUSPENDU: 'warning', TERMINE: 'secondary' };
-            var html = `
-                <table class="table table-sm table-borderless mb-0">
-                    <tr><th style="width:40%">Matricule</th>
-                        <td><code class="text-primary">${d.agent_matricule}</code></td></tr>
-                    <tr><th>Agent</th><td>${d.agent_nom}</td></tr>
-                    <tr><th>Service</th><td>${d.service}</td></tr>
-                    <tr><th>Poste</th><td>${d.poste}</td></tr>
-                    <tr><th>Guichet</th>
-                        <td>${d.guichet ? '<span class="badge badge-info">' + d.guichet + ' — ' + (d.guichet_intitule||'') + '</span>' : '<span class="text-muted">—</span>'}</td></tr>
-                    <tr><th>Date début</th><td>${d.date_debut || '—'}</td></tr>
-                    <tr><th>Date fin</th><td>${d.date_fin || '<span class="text-muted">En cours</span>'}</td></tr>
-                    <tr><th>État</th>
-                        <td><span class="badge badge-${etatColors[d.etat]||'light'}">${d.etat}</span></td></tr>
-                </table>
-                ${!d.can_delete ? '<div class="callout callout-warning mt-3 mb-0 py-2"><small><i class="fas fa-lock mr-1"></i>' + d.delete_reason + '</small></div>' : ''}
-            `;
-            $('#voirModalBody').html(html);
-        })
-        .fail(function () {
-            $('#voirModalBody').html('<div class="text-center text-danger py-3">Erreur de chargement.</div>');
-        });
+    function renderVoirModal(d) {
+        var etatColors = { ACTIF: 'success', SUSPENDU: 'warning', TERMINE: 'secondary' };
+        var html = `
+            <table class="table table-sm table-borderless mb-0">
+                <tr><th style="width:40%">Matricule</th>
+                    <td><code class="text-primary">${d.agent_matricule}</code></td></tr>
+                <tr><th>Agent</th><td>${d.agent_nom}</td></tr>
+                <tr><th>Service</th><td>${d.service}</td></tr>
+                <tr><th>Poste</th><td>${d.poste}</td></tr>
+                <tr><th>Guichet</th>
+                    <td>${d.guichet ? '<span class="badge badge-info">' + d.guichet + ' — ' + (d.guichet_intitule||'') + '</span>' : '<span class="text-muted">—</span>'}</td></tr>
+                <tr><th>Date début</th><td>${d.date_debut || '—'}</td></tr>
+                <tr><th>Date fin</th><td>${d.date_fin || '<span class="text-muted">En cours</span>'}</td></tr>
+                <tr><th>État</th>
+                    <td><span class="badge badge-${etatColors[d.etat]||'light'}">${d.etat}</span></td></tr>
+            </table>
+            ${!d.can_delete ? '<div class="callout callout-warning mt-3 mb-0 py-2"><small><i class="fas fa-lock mr-1"></i>' + d.delete_reason + '</small></div>' : ''}
+        `;
+        $('#voirModalBody').html(html);
+    }
+
+    $.ajax({
+        url     : '{{ route("affectations.show", ["affectation" => "__ID__"]) }}'.replace('__ID__', id),
+        method  : 'GET',
+        dataType: 'json'
+    })
+    .done(function (d) {
+        renderVoirModal(d);
+    })
+    .fail(function (xhr) {
+        if (xhr.status === 200) {
+            try {
+                var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                if (d && d.agent_matricule) { renderVoirModal(d); return; }
+            } catch(e) { /* NOOP */ }
+        }
+        $('#voirModalBody').html('<div class="text-center text-danger py-3">Erreur de chargement.</div>');
+    });
 });
 
 // ── MODIFIER état ─────────────────────────────────────────────
@@ -806,11 +837,28 @@ $('#confirmEditEtatBtn').on('click', function () {
         dataType: 'json'
     })
     .done(function (r) {
-        $('#editEtatModal').modal('hide');
-        showSystemMessage('success', r.message || 'État modifié avec succès.');
-        setTimeout(function () { location.reload(); }, 1200);
+        if (r && r.success) {
+            $('#editEtatModal').modal('hide');
+            showSystemMessage('success', r.message || 'État modifié avec succès.');
+            setTimeout(function () { location.reload(); }, 1200);
+        } else {
+            showSystemMessage('error', (r && r.message) ? r.message : 'Erreur.');
+        }
     })
     .fail(function (xhr) {
+        if (xhr.status === 200) {
+            try {
+                var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                if (d && d.success) {
+                    $('#editEtatModal').modal('hide');
+                    showSystemMessage('success', d.message || 'État modifié avec succès.');
+                    setTimeout(function () { location.reload(); }, 1200);
+                    return;
+                }
+                showSystemMessage('error', d.message || 'Erreur.');
+                return;
+            } catch(e) { /* NOOP */ }
+        }
         var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Une erreur inattendue est survenue (' + xhr.status + ').';
         showSystemMessage('error', msg);
     })
@@ -844,10 +892,28 @@ $(document).on('click', '.btn-delete-affectation', function () {
                 dataType: 'json'
             })
             .done(function (r) {
-                showSystemMessage('success', r.message || 'Affectation supprimée avec succès.');
-                setTimeout(function () { location.reload(); }, 1200);
+                if (r && r.success) {
+                    showSystemMessage('success', r.message || 'Affectation supprimée avec succès.');
+                    setTimeout(function () { location.reload(); }, 1200);
+                } else {
+                    showSystemMessage('error', (r && r.message) ? r.message : 'Erreur.');
+                    $btn.prop('disabled', false);
+                }
             })
             .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) {
+                            showSystemMessage('success', d.message || 'Affectation supprimée avec succès.');
+                            setTimeout(function () { location.reload(); }, 1200);
+                            return;
+                        }
+                        showSystemMessage('error', d.message || 'Erreur.');
+                        $btn.prop('disabled', false);
+                        return;
+                    } catch(e) { /* NOOP */ }
+                }
                 var msg = (xhr.responseJSON && xhr.responseJSON.message)
                     ? xhr.responseJSON.message
                     : 'Suppression impossible (' + xhr.status + ').';

@@ -105,6 +105,11 @@
                         <span class="input-group-text"><i class="fas fa-search"></i></span>
                     </div>
                 </div>
+                <button type="button" class="btn btn-secondary btn-sm mr-2"
+                        data-toggle="modal" data-target="#modalImpressionComptes"
+                        title="Imprimer la liste">
+                    <i class="fas fa-print mr-1"></i> Imprimer
+                </button>
                 <a href="{{ route('comptes.create') }}" class="btn btn-primary btn-sm">
                     <i class="fas fa-plus-circle mr-1"></i> Ouvrir un compte
                 </a>
@@ -170,6 +175,10 @@
                                    class="btn btn-xs btn-warning mr-1" title="Modifier">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                <a href="{{ route('comptes.rib', $compte->code_compte) }}"
+                                   target="_blank" class="btn btn-xs btn-secondary mr-1" title="RIB PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
                                 <button type="button"
                                         class="btn btn-xs btn-danger btn-delete-compte"
                                         data-id="{{ $compte->code_compte }}"
@@ -194,18 +203,138 @@
 
 </div>
 
+{{-- ===== Modal Impression Liste Comptes ===== --}}
+<div class="modal fade" id="modalImpressionComptes" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white py-2">
+                <h5 class="modal-title"><i class="fas fa-print mr-2"></i>Paramètres d'impression — Comptes</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="formImpressionComptes" action="{{ route('comptes.liste.pdf') }}" method="GET" target="_blank">
+                <div class="modal-body">
+                    <div class="row">
+                        {{-- Type de compte --}}
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Type de compte</label>
+                                <select name="type" class="form-control form-control-sm">
+                                    <option value="tous">— Tous les types —</option>
+                                    <option value="COURANT">Compte Courant</option>
+                                    <option value="EPARGNE_LIBRE">Épargne Libre</option>
+                                    <option value="EPARGNE_BLOQUEE">Épargne Bloquée</option>
+                                    <option value="CAUTION_CREDIT">Caution Crédit</option>
+                                </select>
+                            </div>
+                        </div>
+                        {{-- Devise --}}
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Devise</label>
+                                <select name="devise" class="form-control form-control-sm">
+                                    <option value="tous">— Toutes les devises —</option>
+                                    @foreach($devises as $d)
+                                        <option value="{{ $d->code_iso }}">{{ $d->nom }} ({{ $d->code_iso }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        {{-- Zone du client --}}
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Zone du titulaire</label>
+                                <select name="code_zone" class="form-control form-control-sm">
+                                    <option value="">— Toutes les zones —</option>
+                                    @foreach($zones as $z)
+                                        <option value="{{ $z->code_zone }}">{{ $z->nom }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        {{-- État du solde --}}
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">État du solde réel</label>
+                                <select name="etat_solde" class="form-control form-control-sm">
+                                    <option value="tous">— Tous —</option>
+                                    <option value="positif">Solde positif (&gt; 0)</option>
+                                    <option value="nul">Solde nul (= 0)</option>
+                                    <option value="negatif">Solde négatif (&lt; 0)</option>
+                                </select>
+                            </div>
+                        </div>
+                        {{-- Plage de dates d'ouverture --}}
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Ouvert à partir du</label>
+                                <input type="date" name="date_debut" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Ouvert jusqu'au</label>
+                                <input type="date" name="date_fin" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                        {{-- Plage de solde --}}
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Solde réel minimum</label>
+                                <input type="number" name="solde_min" step="0.01" placeholder="ex: 0"
+                                       class="form-control form-control-sm">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Solde réel maximum</label>
+                                <input type="number" name="solde_max" step="0.01" placeholder="ex: 100000"
+                                       class="form-control form-control-sm">
+                            </div>
+                        </div>
+                        {{-- Portefeuille --}}
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label class="font-weight-bold small">Portefeuille (Agent commercial)</label>
+                                <select name="portefeuille_id" class="form-control form-control-sm">
+                                    <option value="tous">— Tous les portefeuilles —</option>
+                                    <option value="aucun">Sans portefeuille assigné</option>
+                                    @foreach($portefeuilles as $p)
+                                        <option value="{{ $p->id }}">
+                                            {{ $p->nom_portefeuille }}
+                                            @if($p->agent)
+                                                &mdash; {{ $p->agent->nom }} {{ $p->agent->prenom }}
+                                                ({{ $p->agent->matricule }})
+                                            @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info py-1 small mb-0">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Laissez vide pour ne pas filtrer. Le PDF s'ouvre en paysage dans un nouvel onglet.
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-file-pdf mr-1"></i> Générer le PDF
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {{-- ── Context menu (clic droit) ─────────────────────── --}}
 <div id="contextMenuCompte">
     <div class="ctx-header"><i class="fas fa-university mr-2"></i>Actions sur le compte</div>
     <div class="ctx-section">
         <ul>
-            <li><a href="#" class="ctx-item" id="ctxVoir"><i class="fas fa-eye"></i> Voir le compte</a></li>
-            <li><a href="#" class="ctx-item" id="ctxEdit"><i class="fas fa-edit"></i> Modifier</a></li>
-            <li><a href="#" class="ctx-item ctx-danger" id="ctxDelete"><i class="fas fa-trash-alt"></i> Supprimer</a></li>
-        </ul>
-        <div class="ctx-divider"></div>
-        <ul>
-            <li><a href="#" class="ctx-item"><i class="fas fa-file-alt"></i> Imprimer RIB / IBAN</a></li>
+            <li><a href="#" class="ctx-item" id="ctxRIB"><i class="fas fa-file-alt"></i> Imprimer RIB / IBAN</a></li>
             <li><a href="#" class="ctx-item"><i class="fas fa-file-contract"></i> Convention de compte</a></li>
             <li><a href="#" class="ctx-item"><i class="fas fa-certificate"></i> Certificat d'ouverture</a></li>
             <li><a href="#" class="ctx-item"><i class="fas fa-list-alt"></i> Relevé de compte</a></li>
@@ -225,11 +354,10 @@
 <script>
 (function () {
     'use strict';
-    $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } });
-
-    var showUrl   = "{{ route('comptes.show',   '__ID__') }}";
-    var editUrl   = "{{ route('comptes.edit',   '__ID__') }}";
-    var deleteUrl = "{{ route('comptes.destroy','__ID__') }}";
+    $.ajaxSetup({ headers: {
+        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+        'Accept'      : 'application/json'
+    } });
 
     $(function () {
 
@@ -256,18 +384,13 @@
             });
         });
 
-        $('#ctxVoir').on('click', function (e) {
-            e.preventDefault();
-            if (ctxCode) window.location.href = showUrl.replace('__ID__', ctxCode);
-        });
-        $('#ctxEdit').on('click', function (e) {
-            e.preventDefault();
-            if (ctxCode) window.location.href = editUrl.replace('__ID__', ctxCode);
-        });
-        $('#ctxDelete').on('click', function (e) {
+        /* ── Liens menu contextuel ───────────────────── */
+        var ribUrl = "{{ route('comptes.rib', ['code_compte' => '__ID__']) }}";
+
+        $('#ctxRIB').on('click', function (e) {
             e.preventDefault();
             $ctxMenu.hide();
-            if (ctxCode) triggerDelete(ctxCode, deleteUrl.replace('__ID__', ctxCode));
+            if (ctxCode) window.open(ribUrl.replace('__ID__', ctxCode), '_blank');
         });
 
         /* ── Bouton supprimer inline ─────────────────── */
@@ -279,15 +402,27 @@
             showUniversalConfirm(
                 'Voulez-vous vraiment supprimer le compte <strong>' + code + '</strong> ?',
                 function () {
-                    $.post(url, { _method: 'DELETE' })
+                    $.ajax({ url: url, type: 'POST', data: { _method: 'DELETE' }, dataType: 'json' })
                         .done(function (res) {
-                            showSystemMessage('success', res.message || 'Compte supprimé avec succès.');
-                            setTimeout(function () { window.location.reload(); }, 1200);
+                            if (res.success) {
+                                showSystemMessage('success', res.message || 'Compte supprimé avec succès.');
+                                setTimeout(function () { window.location.reload(); }, 1200);
+                            } else {
+                                showSystemMessage('error', res.message || 'Erreur.');
+                            }
                         })
                         .fail(function (xhr) {
-                            var msg = 'Erreur lors de la suppression.';
-                            if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                            showSystemMessage('error', msg);
+                            var parsed = null;
+                            if (!xhr.responseJSON && xhr.responseText) {
+                                try { parsed = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim()); } catch(e) {}
+                            }
+                            var json = xhr.responseJSON || parsed;
+                            if (json && json.success) {
+                                showSystemMessage('success', json.message || 'Compte supprimé.');
+                                setTimeout(function () { window.location.reload(); }, 1200);
+                                return;
+                            }
+                            showSystemMessage('error', (json && json.message) ? json.message : 'Erreur lors de la suppression.');
                         });
                 },
                 'Confirmation suppression'

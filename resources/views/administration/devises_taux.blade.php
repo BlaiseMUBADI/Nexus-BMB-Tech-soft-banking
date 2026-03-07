@@ -277,7 +277,10 @@
 <script>
 (function () {
     'use strict';
-    $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } });
+    $.ajaxSetup({ headers: {
+        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+        'Accept'      : 'application/json'
+    } });
 
     $(function () {
 
@@ -298,48 +301,116 @@
         $('#deviseForm').on('submit', function (e) {
             e.preventDefault();
             var $btn = $('#btnAddDevise').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Envoi…');
-            $.post('{{ route("administration.devises-taux.storeDevise") }}', $(this).serialize())
-                .done(function () {
-                    showSystemMessage('success', 'Devise ajoutée avec succès.');
+            $.ajax({
+                type    : 'POST',
+                url     : '{{ route("administration.devises-taux.storeDevise") }}',
+                data    : $(this).serialize(),
+                dataType: 'json'
+            })
+            .done(function (data) {
+                if (data.success) {
+                    showSystemMessage('success', data.message || 'Devise ajoutée avec succès.');
                     setTimeout(function () { location.reload(); }, 900);
-                })
-                .fail(function (xhr) {
-                    var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur.';
-                    showSystemMessage('error', msg);
+                } else {
+                    showSystemMessage('error', data.message || 'Erreur.');
                     $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
-                });
+                }
+            })
+            .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) {
+                            showSystemMessage('success', d.message || 'Devise ajoutée avec succès.');
+                            setTimeout(function () { location.reload(); }, 900);
+                            return;
+                        }
+                        showSystemMessage('error', d.message || 'Erreur.');
+                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+                        return;
+                    } catch(e) { /* NOOP */ }
+                }
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur.';
+                showSystemMessage('error', msg);
+                $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+            });
         });
 
         $('#tauxForm').on('submit', function (e) {
             e.preventDefault();
             var $btn = $('#btnAddTaux').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Envoi…');
-            $.post('{{ route("administration.devises-taux.storeTaux") }}', $(this).serialize())
-                .done(function () {
-                    showSystemMessage('success', 'Taux ajouté (et inverse si applicable).');
+            $.ajax({
+                type    : 'POST',
+                url     : '{{ route("administration.devises-taux.storeTaux") }}',
+                data    : $(this).serialize(),
+                dataType: 'json'
+            })
+            .done(function (data) {
+                if (data.success) {
+                    showSystemMessage('success', data.message || 'Taux ajouté (et inverse si applicable).');
                     setTimeout(function () { location.reload(); }, 900);
-                })
-                .fail(function (xhr) {
-                    var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur.';
-                    showSystemMessage('error', msg);
+                } else {
+                    showSystemMessage('error', data.message || 'Erreur.');
                     $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter le taux');
-                });
+                }
+            })
+            .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) {
+                            showSystemMessage('success', d.message || 'Taux ajouté (et inverse si applicable).');
+                            setTimeout(function () { location.reload(); }, 900);
+                            return;
+                        }
+                        showSystemMessage('error', d.message || 'Erreur.');
+                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter le taux');
+                        return;
+                    } catch(e) { /* NOOP */ }
+                }
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur.';
+                showSystemMessage('error', msg);
+                $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter le taux');
+            });
         });
 
         $(document).on('click', '.btn-delete-devise', function () {
             var id  = $(this).data('id');
             var nom = $(this).data('nom');
+            var $tr = $(this).closest('tr');
             var url = '{{ route("administration.devises-taux.destroyDevise", ["code_iso" => "__ID__"]) }}'.replace('__ID__', id);
             showUniversalConfirm(
                 'Supprimer la devise <strong>' + nom + ' (' + id + ')</strong> ?<br><small class="text-danger">Les taux associés seront supprimés.</small>',
                 function () {
-                    $.post(url, { _method: 'DELETE' })
-                        .done(function () {
-                            showSystemMessage('success', 'Devise supprimée.');
-                            setTimeout(function () { location.reload(); }, 900);
-                        })
-                        .fail(function (xhr) {
-                            showSystemMessage('error', (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Suppression impossible.');
-                        });
+                    $.ajax({
+                        type    : 'POST',
+                        url     : url,
+                        data    : { _method: 'DELETE' },
+                        dataType: 'json'
+                    })
+                    .done(function (data) {
+                        if (data.success) {
+                            showSystemMessage('success', data.message || 'Devise supprimée.');
+                            $tr.fadeOut(400, function () { $(this).remove(); });
+                        } else {
+                            showSystemMessage('error', data.message || 'Erreur.');
+                        }
+                    })
+                    .fail(function (xhr) {
+                        if (xhr.status === 200) {
+                            try {
+                                var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                                if (d && d.success) {
+                                    showSystemMessage('success', d.message || 'Devise supprimée.');
+                                    $tr.fadeOut(400, function () { $(this).remove(); });
+                                    return;
+                                }
+                                showSystemMessage('error', d.message || 'Erreur.');
+                                return;
+                            } catch(e) { /* NOOP */ }
+                        }
+                        showSystemMessage('error', (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Suppression impossible.');
+                    });
                 }, 'Confirmer la suppression'
             );
         });
@@ -347,18 +418,40 @@
         $(document).on('click', '.btn-delete-taux', function () {
             var id   = $(this).data('id');
             var info = $(this).data('info');
+            var $tr  = $(this).closest('tr');
             var url  = '{{ route("administration.devises-taux.destroyTaux", ["id" => "__ID__"]) }}'.replace('__ID__', id);
             showUniversalConfirm(
                 'Supprimer le taux <strong>' + info + '</strong> ?',
                 function () {
-                    $.post(url, { _method: 'DELETE' })
-                        .done(function () {
-                            showSystemMessage('success', 'Taux supprimé.');
-                            setTimeout(function () { location.reload(); }, 900);
-                        })
-                        .fail(function (xhr) {
-                            showSystemMessage('error', (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Suppression impossible.');
-                        });
+                    $.ajax({
+                        type    : 'POST',
+                        url     : url,
+                        data    : { _method: 'DELETE' },
+                        dataType: 'json'
+                    })
+                    .done(function (data) {
+                        if (data.success) {
+                            showSystemMessage('success', data.message || 'Taux supprimé.');
+                            $tr.fadeOut(400, function () { $(this).remove(); });
+                        } else {
+                            showSystemMessage('error', data.message || 'Erreur.');
+                        }
+                    })
+                    .fail(function (xhr) {
+                        if (xhr.status === 200) {
+                            try {
+                                var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                                if (d && d.success) {
+                                    showSystemMessage('success', d.message || 'Taux supprimé.');
+                                    $tr.fadeOut(400, function () { $(this).remove(); });
+                                    return;
+                                }
+                                showSystemMessage('error', d.message || 'Erreur.');
+                                return;
+                            } catch(e) { /* NOOP */ }
+                        }
+                        showSystemMessage('error', (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Suppression impossible.');
+                    });
                 }, 'Confirmer la suppression'
             );
         });

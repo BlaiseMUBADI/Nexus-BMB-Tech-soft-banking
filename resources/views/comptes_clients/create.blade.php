@@ -169,7 +169,10 @@
 <script>
 (function () {
     'use strict';
-    $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } });
+    $.ajaxSetup({ headers: {
+        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+        'Accept'      : 'application/json'
+    } });
 
     $(function () {
 
@@ -218,22 +221,40 @@
             var $btn = form.find('[type=submit]');
             $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Traitement…');
 
-            $.post("{{ route('comptes.store') }}", form.serialize())
+            $.ajax({ url: "{{ route('comptes.store') }}", type: 'POST', data: form.serialize(), dataType: 'json' })
                 .done(function (res) {
-                    form[0].reset();
-                    $('.select2').val(null).trigger('change');
-                    $('#portefeuille_group').hide();
-                    showSystemMessage('success', res.message || 'Compte ouvert avec succès !');
-                    $('#systemMessageModal').one('hidden.bs.modal', function () {
-                        window.location.reload();
-                    });
+                    if (res.success) {
+                        form[0].reset();
+                        $('.select2').val(null).trigger('change');
+                        $('#portefeuille_group').hide();
+                        showSystemMessage('success', res.message || 'Compte ouvert avec succès !');
+                        $('#systemMessageModal').one('hidden.bs.modal', function () {
+                            window.location.reload();
+                        });
+                    } else {
+                        showSystemMessage('error', res.message || 'Erreur.');
+                    }
                 })
                 .fail(function (xhr) {
+                    // BOM fallback : tenter de parser manuellement quelle que soit le code HTTP
+                    var parsed = null;
+                    if (!xhr.responseJSON && xhr.responseText) {
+                        try { parsed = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim()); } catch(e) {}
+                    }
+                    var json = xhr.responseJSON || parsed;
+
+                    if (xhr.status === 200 && json && json.success) {
+                        form[0].reset(); $('.select2').val(null).trigger('change'); $('#portefeuille_group').hide();
+                        showSystemMessage('success', json.message || 'Compte ouvert avec succès !');
+                        $('#systemMessageModal').one('hidden.bs.modal', function () { window.location.reload(); });
+                        return;
+                    }
+
                     var msg = "Erreur lors de l'ouverture du compte.";
-                    if (xhr.responseJSON && xhr.responseJSON.errors) {
-                        msg = Object.values(xhr.responseJSON.errors).flat().join('<br>');
-                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                        msg = xhr.responseJSON.message;
+                    if (json && json.errors) {
+                        msg = Object.values(json.errors).flat().join('<br>');
+                    } else if (json && json.message) {
+                        msg = json.message;
                     }
                     showSystemMessage('error', msg);
                 })
@@ -249,17 +270,29 @@
             showUniversalConfirm(
                 'Voulez-vous vraiment supprimer le compte <strong>' + code + '</strong> ?',
                 function () {
-                    $.post(url, { _method: 'DELETE' })
+                    $.ajax({ url: url, type: 'POST', data: { _method: 'DELETE' }, dataType: 'json' })
                         .done(function (res) {
-                            showSystemMessage('success', res.message || 'Compte supprimé avec succès.');
-                            $('#systemMessageModal').one('hidden.bs.modal', function () {
-                                window.location.reload();
-                            });
+                            if (res.success) {
+                                showSystemMessage('success', res.message || 'Compte supprimé avec succès.');
+                                $('#systemMessageModal').one('hidden.bs.modal', function () {
+                                    window.location.reload();
+                                });
+                            } else {
+                                showSystemMessage('error', res.message || 'Erreur.');
+                            }
                         })
                         .fail(function (xhr) {
-                            var msg = 'Erreur lors de la suppression.';
-                            if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                            showSystemMessage('error', msg);
+                            var parsed = null;
+                            if (!xhr.responseJSON && xhr.responseText) {
+                                try { parsed = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim()); } catch(e) {}
+                            }
+                            var json = xhr.responseJSON || parsed;
+                            if (json && json.success) {
+                                showSystemMessage('success', json.message || 'Compte supprimé.');
+                                $('#systemMessageModal').one('hidden.bs.modal', function () { window.location.reload(); });
+                                return;
+                            }
+                            showSystemMessage('error', (json && json.message) ? json.message : 'Erreur lors de la suppression.');
                         });
                 },
                 'Confirmation suppression'

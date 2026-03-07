@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Affectation;
 use App\Models\CaissesGuichet;
 
@@ -14,7 +15,8 @@ class CaisseController extends Controller
      */
     public function ouverture()
     {
-        $user = auth()->user();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
 
         // Trouver l'affectation active de l'agent connecté qui a un guichet
         $affectation = Affectation::with(['guichet.soldes.devise'])
@@ -35,7 +37,8 @@ class CaisseController extends Controller
      */
     public function changerStatut(Request $request, $id)
     {
-        $user    = auth()->user();
+        /** @var \App\Models\User $user */
+        $user    = Auth::user();
         $guichet = CaissesGuichet::findOrFail($id);
 
         // Vérifier que ce guichet appartient bien à l'agent connecté

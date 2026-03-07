@@ -42,12 +42,22 @@ class ZoneController extends Controller
             $commune = $request->input('commune_autre');
         }
 
-        Zone::create([
-            'nom' => $request->input('nom'),
-            'agent_commercial_matricule' => $request->input('agent_commercial_matricule'),
-            'commune' => $commune,
-        ]);
+        try {
+            Zone::create([
+                'nom' => $request->input('nom'),
+                'agent_commercial_matricule' => $request->input('agent_commercial_matricule'),
+                'commune' => $commune,
+            ]);
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+            }
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
 
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Zone ajoutée avec succès.']);
+        }
         return redirect()->route('administration.zones.index')->with('success', 'Zone ajoutée avec succès.');
     }
 
@@ -63,14 +73,15 @@ class ZoneController extends Controller
     {
         $zone = Zone::find($code_zone);
         if (!$zone) {
-            return response()->json(['message' => 'Zone introuvable.'], 404);
+            return response()->json(['success' => false, 'message' => 'Zone introuvable.'], 404);
         }
         try {
             $zone->delete();
-            return response()->json(['message' => 'Zone supprimée avec succès.']);
+            return response()->json(['success' => true, 'message' => 'Zone supprimée avec succès.']);
         } catch (\Illuminate\Database\QueryException $e) {
             Log::error('Erreur suppression zone : '.$e->getMessage());
             return response()->json([
+                'success' => false,
                 'message' => "Impossible de supprimer la zone car elle est liée à des clients. Veuillez d'abord supprimer ou réaffecter les clients de cette zone.",
             ], 409);
         }

@@ -177,7 +177,7 @@
     </div>
 
     {{-- ===== Tableau des comptes utilisateurs ===== --}}
-    <div class="row" id="userAccountsRow" style="display:none;">
+    <div class="row" id="userAccountsRow">
         <div class="col-12">
             <div class="card card-info card-outline">
                 <div class="card-header d-flex align-items-center justify-content-between">
@@ -215,7 +215,10 @@
     'use strict';
 
     $.ajaxSetup({
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            'Accept'      : 'application/json'
+        }
     });
 
     $(function () {
@@ -254,23 +257,38 @@
                         .replace('__MAT__', agentMatricule);
 
             $.ajax({
-                url: url,
-                type: 'GET',
-                dataType: 'json',
-                success: function (agent) {
-                    $('#agentMatricule').val(agent.matricule);
-                    $('#email').val(agent.email || '');
-                    $('#agentInfoNom').text(agent.nom + ' ' + (agent.postnom || '') + ' ' + (agent.prenom || ''));
-                    $('#agentInfoBadge').removeClass('d-none');
-                    $('#agentSelectAlert').hide();
-                    $('#userCreateForm').show();
-                    $('#userAccountsRow').show();
-                },
-                error: function () {
-                    $('#agentSelectAlert').show()
-                        .html('<i class="fas fa-exclamation-triangle mr-2"></i>Erreur lors du chargement de l\'agent.');
-                    $('#userCreateForm').hide();
+                url     : url,
+                type    : 'GET',
+                dataType: 'json'
+            })
+            .done(function (agent) {
+                $('#agentMatricule').val(agent.matricule);
+                $('#email').val(agent.email || '');
+                $('#agentInfoNom').text(agent.nom + ' ' + (agent.postnom || '') + ' ' + (agent.prenom || ''));
+                $('#agentInfoBadge').removeClass('d-none');
+                $('#agentSelectAlert').hide();
+                $('#userCreateForm').show();
+                $('#userAccountsRow').show();
+            })
+            .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.matricule) {
+                            $('#agentMatricule').val(d.matricule);
+                            $('#email').val(d.email || '');
+                            $('#agentInfoNom').text(d.nom + ' ' + (d.postnom || '') + ' ' + (d.prenom || ''));
+                            $('#agentInfoBadge').removeClass('d-none');
+                            $('#agentSelectAlert').hide();
+                            $('#userCreateForm').show();
+                            $('#userAccountsRow').show();
+                            return;
+                        }
+                    } catch(e) { /* NOOP */ }
                 }
+                $('#agentSelectAlert').show()
+                    .html('<i class="fas fa-exclamation-triangle mr-2"></i>Erreur lors du chargement de l\'agent.');
+                $('#userCreateForm').hide();
             });
         });
 
@@ -322,23 +340,43 @@
                 return;
             }
             $.ajax({
-                url: $(this).attr('action'),
-                type: 'POST',
-                data: $(this).serialize(),
-                dataType: 'json',
-                success: function (response) {
+                url     : $(this).attr('action'),
+                type    : 'POST',
+                data    : $(this).serialize(),
+                dataType: 'json'
+            })
+            .done(function (response) {
+                if (response.success) {
                     showSystemMessage('success', response.message || 'Utilisateur créé avec succès.');
                     $('#userCreateForm')[0].reset();
                     $('#passwordHelp, #passwordConfirmHelp').text('');
                     $('#systemMessageModal').one('hidden.bs.modal', function () {
                         $('#refreshUsersTable').trigger('click');
                     });
-                },
-                error: function (xhr) {
-                    var msg = 'Erreur lors de la création du compte.';
-                    if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                    showSystemMessage('error', msg);
+                } else {
+                    showSystemMessage('error', response.message || 'Erreur.');
                 }
+            })
+            .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) {
+                            showSystemMessage('success', d.message || 'Utilisateur créé avec succès.');
+                            $('#userCreateForm')[0].reset();
+                            $('#passwordHelp, #passwordConfirmHelp').text('');
+                            $('#systemMessageModal').one('hidden.bs.modal', function () {
+                                $('#refreshUsersTable').trigger('click');
+                            });
+                            return;
+                        }
+                        showSystemMessage('error', d.message || 'Erreur.');
+                        return;
+                    } catch(e) { /* NOOP */ }
+                }
+                var msg = 'Erreur lors de la création du compte.';
+                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                showSystemMessage('error', msg);
             });
         });
 

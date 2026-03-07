@@ -9,7 +9,8 @@
                         <th>Email</th>
                         <th>État</th>
                         <th>Agent</th>
-                        <th>Actions</th>
+                        <th>Service / Poste</th>
+                        <th></th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -21,77 +22,108 @@
 
 @push('js')
 <script>
+function renderUsersTable(users) {
+    let tbody = '';
+    users.forEach(function(user, idx) {
+        var aff     = (user.agent && user.agent.affectations && user.agent.affectations.length)
+                      ? user.agent.affectations[0] : null;
+        var serviceNom = (aff && aff.poste && aff.poste.service) ? aff.poste.service.nom : null;
+        var poste   = (aff && aff.poste) ? aff.poste.nom : null;
+        var serviceCell = serviceNom
+            ? '<span class="badge badge-info">' + serviceNom + '</span> / ' + (poste || '—')
+            : '<span class="text-muted">—</span>';
+        var agentNom = user.agent
+            ? '<strong>' + user.agent.nom + '</strong> <small class="text-muted">' + (user.agent.postnom || '') + ' ' + (user.agent.prenom || '') + '</small>'
+            : '—';
+        tbody += '<tr>'
+            + '<td>' + (idx+1) + '</td>'
+            + '<td>' + user.name + '</td>'
+            + '<td>' + (user.email || '') + '</td>'
+            + '<td><span class="badge badge-' + (user.etat === 'actif' ? 'success' : 'secondary') + '">' + user.etat + '</span></td>'
+            + '<td>' + agentNom + '</td>'
+            + '<td>' + serviceCell + '</td>'
+            + '<td>'
+            +   '<button class="btn btn-sm btn-info editUserBtn" data-id="' + user.id + '" title="Modifier"><i class="fas fa-edit"></i></button> '
+            +   '<button class="btn btn-sm btn-danger deleteUserBtn" data-id="' + user.id + '" title="Supprimer"><i class="fas fa-trash"></i></button>'
+            + '</td>'
+            + '</tr>';
+    });
+    $('#usersTable tbody').html(tbody);
+}
+
 function loadUsersTable() {
     $.ajax({
-        url: "{{ route('administration.utilisateurs.liste') }}",
-        type: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            let tbody = '';
-            data.users.forEach(function(user, idx) {
-                tbody += `<tr>
-                    <td>${idx+1}</td>
-                    <td>${user.name}</td>
-                    <td>${user.email || ''}</td>
-                    <td><span class="badge badge-${user.etat === 'actif' ? 'success' : 'secondary'}">${user.etat}</span></td>
-                    <td>${user.agent ? user.agent.nom + ' ' + user.agent.postnom : ''}</td>
-                    <td>
-                        <button class="btn btn-sm btn-info editUserBtn" data-id="${user.id}" title="Modifier"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-sm btn-danger deleteUserBtn" data-id="${user.id}"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>`;
-            });
-            $('#usersTable tbody').html(tbody);
-        },
-        error: function() {
-            $('#usersTable tbody').html('<tr><td colspan="6" class="text-center text-danger">Erreur de chargement des utilisateurs.</td></tr>');
+        url     : "{{ route('administration.utilisateurs.liste') }}",
+        type    : 'GET',
+        dataType: 'json'
+    })
+    .done(function (data) {
+        renderUsersTable(data.users || []);
+    })
+    .fail(function (xhr) {
+        if (xhr.status === 200) {
+            try {
+                var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                if (d && d.users) { renderUsersTable(d.users); return; }
+            } catch(e) { /* NOOP */ }
         }
+        $('#usersTable tbody').html('<tr><td colspan="7" class="text-center text-danger">Erreur de chargement des utilisateurs.</td></tr>');
     });
 }
+
 $(document).ready(function() {
     loadUsersTable();
     $('#refreshUsersTable').on('click', loadUsersTable);
 
-    // Suppression utilisateur
+    // ── Suppression utilisateur ───────────────────────────────────
     $(document).on('click', '.deleteUserBtn', function() {
         var userId = $(this).data('id');
         showUniversalConfirm('Voulez-vous vraiment supprimer cet utilisateur ?', function() {
             $.ajax({
-                url: '{{ route("administration.utilisateurs.destroy", ["id" => "__ID__"]) }}'.replace('__ID__', userId),
-                type: 'POST',
-                data: {
-                    _method: 'DELETE',
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(resp) {
+                url     : '{{ route("administration.utilisateurs.destroy", ["id" => "__ID__"]) }}'.replace('__ID__', userId),
+                type    : 'POST',
+                data    : { _method: 'DELETE' },
+                dataType: 'json'
+            })
+            .done(function (resp) {
+                if (resp.success) {
                     showSystemMessage('success', resp.message || 'Utilisateur supprimé.');
                     loadUsersTable();
-                },
-                error: function() {
-                    showSystemMessage('error', 'Erreur lors de la suppression.');
+                } else {
+                    showSystemMessage('error', resp.message || 'Erreur.');
                 }
+            })
+            .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) { showSystemMessage('success', d.message || 'Utilisateur supprimé.'); loadUsersTable(); return; }
+                        showSystemMessage('error', d.message || 'Erreur.'); return;
+                    } catch(e) { /* NOOP */ }
+                }
+                showSystemMessage('error', 'Erreur lors de la suppression.');
             });
         }, 'Confirmation de suppression');
     });
 
-    // Edition utilisateur (inline simple)
+    // ── Édition utilisateur (inline) ──────────────────────────────
     $(document).on('click', '.editUserBtn', function() {
-        var tr = $(this).closest('tr');
+        var tr     = $(this).closest('tr');
         var userId = $(this).data('id');
-        var name = tr.find('td:eq(1)').text();
-        var email = tr.find('td:eq(2)').text();
-        var etat = tr.find('span.badge').text();
-        // Remplace la ligne par un formulaire inline
+        var name   = tr.find('td:eq(1)').text();
+        var email  = tr.find('td:eq(2)').text();
+        var etat   = tr.find('span.badge').text().trim();
         tr.html(`
             <td></td>
-            <td><input type='text' class='form-control' value='${name}' id='editName'></td>
-            <td><input type='email' class='form-control' value='${email}' id='editEmail'></td>
+            <td><input type='text' class='form-control form-control-sm' value='${name}' id='editName'></td>
+            <td><input type='email' class='form-control form-control-sm' value='${email}' id='editEmail'></td>
             <td>
-                <select class='form-control' id='editEtat'>
-                    <option value='actif' ${etat.trim()==='actif'?'selected':''}>actif</option>
-                    <option value='inactif' ${etat.trim()==='inactif'?'selected':''}>inactif</option>
+                <select class='form-control form-control-sm' id='editEtat'>
+                    <option value='actif' ${etat==='actif'?'selected':''}>actif</option>
+                    <option value='inactif' ${etat==='inactif'?'selected':''}>inactif</option>
                 </select>
             </td>
+            <td></td>
             <td></td>
             <td>
                 <button class='btn btn-sm btn-success saveEditUserBtn' data-id='${userId}'><i class='fas fa-check'></i></button>
@@ -100,37 +132,44 @@ $(document).ready(function() {
         `);
     });
 
-    // Annuler édition
+    // ── Annuler édition ───────────────────────────────────────────
     $(document).on('click', '.cancelEditUserBtn', function() {
         loadUsersTable();
     });
 
-    // Sauvegarder édition
+    // ── Sauvegarder édition ───────────────────────────────────────
     $(document).on('click', '.saveEditUserBtn', function() {
-        var tr = $(this).closest('tr');
+        var tr     = $(this).closest('tr');
         var userId = $(this).data('id');
-        var login = tr.find('#editName').val();
-        var email = tr.find('#editEmail').val();
-        var etat = tr.find('#editEtat').val();
         $.ajax({
-            url: '{{ route("administration.utilisateurs.update", ["id" => "__ID__"]) }}'.replace('__ID__', userId),
-            type: 'POST',
-            data: {
+            url     : '{{ route("administration.utilisateurs.update", ["id" => "__ID__"]) }}'.replace('__ID__', userId),
+            type    : 'POST',
+            data    : {
                 _method: 'PUT',
-                _token: $('meta[name="csrf-token"]').attr('content'),
-                login: login,
-                email: email,
-                etat: etat
+                login  : tr.find('#editName').val(),
+                email  : tr.find('#editEmail').val(),
+                etat   : tr.find('#editEtat').val()
             },
-            success: function(resp) {
+            dataType: 'json'
+        })
+        .done(function (resp) {
+            if (resp.success) {
                 showSystemMessage('success', resp.message || 'Utilisateur modifié.');
                 loadUsersTable();
-            },
-            error: function(xhr) {
-                let msg = 'Erreur lors de la modification.';
-                if(xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                showSystemMessage('error', msg);
+            } else {
+                showSystemMessage('error', resp.message || 'Erreur.');
             }
+        })
+        .fail(function (xhr) {
+            if (xhr.status === 200) {
+                try {
+                    var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                    if (d && d.success) { showSystemMessage('success', d.message || 'Utilisateur modifié.'); loadUsersTable(); return; }
+                    showSystemMessage('error', d.message || 'Erreur.'); return;
+                } catch(e) { /* NOOP */ }
+            }
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur lors de la modification.';
+            showSystemMessage('error', msg);
         });
     });
 });

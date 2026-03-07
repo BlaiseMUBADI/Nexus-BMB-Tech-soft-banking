@@ -296,10 +296,26 @@ $(document).ready(function () {
                 dataType: 'json'
             })
             .done(function (response) {
-                showSystemMessage('success', response.message);
-                $tr.fadeOut(400, function () { $(this).remove(); });
+                if (response && response.success) {
+                    showSystemMessage('success', response.message);
+                    $tr.fadeOut(400, function () { $(this).remove(); });
+                } else {
+                    showSystemMessage('error', (response && response.message) ? response.message : 'Erreur.');
+                }
             })
             .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) {
+                            showSystemMessage('success', d.message);
+                            $tr.fadeOut(400, function () { $(this).remove(); });
+                            return;
+                        }
+                        showSystemMessage('error', d.message || 'Erreur.');
+                        return;
+                    } catch(e) { /* NOOP */ }
+                }
                 var msg = (xhr.responseJSON && xhr.responseJSON.message)
                     ? xhr.responseJSON.message
                     : 'Erreur lors de la suppression du service.';
@@ -321,10 +337,28 @@ $(document).ready(function () {
             dataType: 'json'
         })
             .done(function (response) {
-                showSystemMessage('success', (response && response.message) ? response.message : 'Service ajouté avec succès.');
-                setTimeout(function () { location.reload(); }, 1200);
+                if (response && response.success) {
+                    showSystemMessage('success', response.message || 'Service ajouté avec succès.');
+                    setTimeout(function () { location.reload(); }, 1200);
+                } else {
+                    showSystemMessage('error', (response && response.message) ? response.message : 'Erreur.');
+                    $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+                }
             })
             .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) {
+                            showSystemMessage('success', d.message || 'Service ajouté avec succès.');
+                            setTimeout(function () { location.reload(); }, 1200);
+                            return;
+                        }
+                        showSystemMessage('error', d.message || 'Erreur.');
+                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+                        return;
+                    } catch(e) { /* NOOP */ }
+                }
                 var msg = (xhr.responseJSON && xhr.responseJSON.message)
                     ? xhr.responseJSON.message
                     : 'Erreur lors de l\'ajout du service (' + xhr.status + ').';
@@ -346,10 +380,26 @@ $(document).ready(function () {
                 dataType: 'json'
             })
             .done(function (response) {
-                showSystemMessage('success', response.message);
-                $tr.fadeOut(400, function () { $(this).remove(); });
+                if (response && response.success) {
+                    showSystemMessage('success', response.message);
+                    $tr.fadeOut(400, function () { $(this).remove(); });
+                } else {
+                    showSystemMessage('error', (response && response.message) ? response.message : 'Erreur.');
+                }
             })
             .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) {
+                            showSystemMessage('success', d.message);
+                            $tr.fadeOut(400, function () { $(this).remove(); });
+                            return;
+                        }
+                        showSystemMessage('error', d.message || 'Erreur.');
+                        return;
+                    } catch(e) { /* NOOP */ }
+                }
                 var msg = (xhr.responseJSON && xhr.responseJSON.message)
                     ? xhr.responseJSON.message
                     : 'Erreur lors de la suppression du poste.';
@@ -373,11 +423,30 @@ $(document).ready(function () {
             dataType: 'json'
         })
             .done(function (response) {
-                showSystemMessage('success', (response && response.message) ? response.message : 'Poste ajouté avec succès.');
-                $.get('{{ route("postes.ajaxListe", ["service" => "__sID__"]) }}'.replace('__sID__', serviceId))
-                    .done(function (data) { $('#postesSection').html(data); });
+                if (response && response.success) {
+                    showSystemMessage('success', response.message || 'Poste ajouté avec succès.');
+                    $.get('{{ route("postes.ajaxListe", ["service" => "__sID__"]) }}'.replace('__sID__', serviceId))
+                        .done(function (data) { $('#postesSection').html(data); });
+                } else {
+                    showSystemMessage('error', (response && response.message) ? response.message : 'Erreur.');
+                    $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+                }
             })
             .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) {
+                            showSystemMessage('success', d.message || 'Poste ajouté avec succès.');
+                            $.get('{{ route("postes.ajaxListe", ["service" => "__sID__"]) }}'.replace('__sID__', serviceId))
+                                .done(function (data) { $('#postesSection').html(data); });
+                            return;
+                        }
+                        showSystemMessage('error', d.message || 'Erreur.');
+                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+                        return;
+                    } catch(e) { /* NOOP */ }
+                }
                 var msg = (xhr.responseJSON && xhr.responseJSON.message)
                     ? xhr.responseJSON.message
                     : 'Erreur lors de l\'ajout du poste (' + xhr.status + ').';

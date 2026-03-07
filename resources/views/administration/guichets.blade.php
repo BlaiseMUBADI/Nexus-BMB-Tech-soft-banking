@@ -436,24 +436,38 @@ $(document).ready(function () {
         $('#devises-error').addClass('d-none');
 
         showSystemMessage('info', 'Création en cours…');
-
         $.ajax({
+            type    : 'POST',
             url     : '{{ route("administration.guichets.store") }}',
-            method  : 'POST',
             data    : $(this).serialize(),
             dataType: 'json'
         })
-            .done(function (response) {
-                showSystemMessage('success', response.message || 'Guichet créé avec succès.');
+        .done(function (data) {
+            if (data.success) {
+                showSystemMessage('success', data.message);
                 $('#guichetForm')[0].reset();
                 setTimeout(function () { location.reload(); }, 1200);
-            })
-            .fail(function (xhr) {
-                var msg = (xhr.responseJSON && xhr.responseJSON.message)
-                    ? xhr.responseJSON.message
-                    : 'Erreur lors de la création (' + xhr.status + ').';
-                showSystemMessage('error', msg);
-            });
+            } else {
+                showSystemMessage('error', data.message || 'Erreur.');
+            }
+        })
+        .fail(function (xhr) {
+           if (xhr.status === 200) {
+                try {
+                    var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                    if (d && d.success) {
+                        showSystemMessage('success', d.message);
+                        $('#guichetForm')[0].reset();                        
+                        setTimeout(function () { location.reload(); }, 1200);
+                        return;
+                    }
+                    showSystemMessage('error', d.message || 'Erreur.');
+                    return;
+                } catch(e) { /* NOOP */ }
+            }
+            var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Erreur ' + xhr.status;
+            showSystemMessage('error', msg);
+        });
     });
 
     // Masquer l'erreur dès qu'on coche une devise
@@ -476,22 +490,42 @@ $(document).ready(function () {
             '<small class="text-danger">Uniquement si <strong>FERMÉ</strong> et tous les soldes sont à <strong>0</strong>.</small>',
             function () {
                 $btn.prop('disabled', true);
+                var deleteUrl = '{{ route("administration.guichets.destroy", ["id" => "__ID__"]) }}'.replace('__ID__', id);
+
                 $.ajax({
-                    url     : '{{ route("administration.guichets.destroy", ["id" => "__ID__"]) }}'.replace('__ID__', id),
-                    method  : 'POST',
+                    type    : 'POST',
+                    url     : deleteUrl,
                     data    : { _method: 'DELETE' },
                     dataType: 'json'
                 })
-                .done(function (response) {
-                    showSystemMessage('success', response.message || 'Guichet supprimé.');
-                    $('#row-guichet-' + id).fadeOut(400, function () { $(this).remove(); });
-                    var badge = $('.card-header .badge-info');
-                    badge.text(parseInt(badge.text()) - 1);
+                .done(function (data) {
+                    if (data.success) {
+                        showSystemMessage('success', data.message);
+                        $('#row-guichet-' + id).fadeOut(400, function () { $(this).remove(); });
+                        var badge = $('.card-header .badge-info');
+                        badge.text(parseInt(badge.text()) - 1);
+                    } else {
+                        showSystemMessage('error', data.message || 'Erreur.');
+                        $btn.prop('disabled', false);
+                    }
                 })
                 .fail(function (xhr) {
-                    var msg = (xhr.responseJSON && xhr.responseJSON.message)
-                        ? xhr.responseJSON.message
-                        : 'Erreur lors de la suppression (' + xhr.status + ').';
+                    if (xhr.status === 200) {
+                        try {
+                            var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                            if (d && d.success) {
+                                showSystemMessage('success', d.message);
+                                $('#row-guichet-' + id).fadeOut(400, function () { $(this).remove(); });
+                                var badge = $('.card-header .badge-info');
+                                badge.text(parseInt(badge.text()) - 1);
+                                return;
+                            }
+                            showSystemMessage('error', d.message || 'Erreur.');
+                            $btn.prop('disabled', false);
+                            return;
+                        } catch(e) { /* NOOP */ }
+                    }
+                    var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Erreur ' + xhr.status;
                     showSystemMessage('error', msg);
                     $btn.prop('disabled', false);
                 });

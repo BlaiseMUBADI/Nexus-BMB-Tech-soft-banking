@@ -200,7 +200,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					<ul class="nav nav-treeview custom-sub-menu">
 						<li class="nav-item">
 							<a href="{{ route('administration.utilisateurs.liste') }}"
-								class="nav-link sub-link {{ request()->is('administration/utilisateurs') ? 'active' : '' }}">
+							class="nav-link sub-link {{ request()->is('administration/utilisateurs*') ? 'active' : '' }}">
 								<i class="fas fa-list nav-icon"></i>
 								<p>Liste des utilisateurs</p>
 							</a>
@@ -217,7 +217,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						@if(in_array('EBEN-PER2', $userPermCodes ?? []) || in_array('EBEN-PER3', $userPermCodes ?? []))
 						<li class="nav-item">
 							<a href="{{ route('administration.roles_permissions') }}"
-								class="nav-link sub-link {{ request()->is('administration/roles_permissions') ? 'active' : '' }}">
+							class="nav-link sub-link {{ request()->is('administration/roles-permissions*') ? 'active' : '' }}">
 								<i class="fas fa-user-shield nav-icon"></i>
 								<p>Roles & Permissions</p>
 							</a>
@@ -226,7 +226,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						@if(in_array('EBEN-PER1', $userPermCodes ?? []))
 						<li class="nav-item">
 							<a href="{{ route('administration.zones.index') }}"
-								class="nav-link sub-link {{ request()->is('administration/zones_portfeuille') ? 'active' : '' }}">
+							class="nav-link sub-link {{ request()->is('administration/zones-portfeuille*') ? 'active' : '' }}">
 								<i class="fas fa-map-marker-alt nav-icon"></i>
 								<p>Zones/Portfeuille</p>
 							</a>
@@ -235,7 +235,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						@if(in_array('EBEN-PER20', $userPermCodes ?? []) || in_array('EBEN-PER21', $userPermCodes ?? []))
 						<li class="nav-item">
 							<a href="{{ route('administration.devises-taux.index') }}"
-								class="nav-link sub-link {{ request()->is('administration/taux_devis') ? 'active' : '' }}">
+							class="nav-link sub-link {{ request()->is('administration/devises-taux*') ? 'active' : '' }}">
 								<i class="fas fa-coins nav-icon"></i>
 								<p>Taux / Devis</p>
 							</a>

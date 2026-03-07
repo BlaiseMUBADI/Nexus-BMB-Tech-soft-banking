@@ -9,6 +9,7 @@ use App\Models\Compte;
 use App\Models\Client;
 use Illuminate\Support\Facades\Log;
 use App\Models\Devise;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 
 class CompteController extends Controller
@@ -41,11 +42,11 @@ class CompteController extends Controller
         if ($existe) {
             if ($request->ajax()) {
                 return response()->json([
+                    'success' => false,
                     'message' => 'Ce client possède déjà un compte de ce type et de cette devise.'
                 ], 422);
             }
             return redirect()->route('comptes.create')
-                ->with('success', null)
                 ->with('error', 'Ce client possède déjà un compte de ce type et de cette devise.');
         }
 
@@ -59,7 +60,7 @@ class CompteController extends Controller
         ]);
 
         if ($request->ajax()) {
-            return response()->json(['message' => 'Compte ouvert avec succès.']);
+            return response()->json(['success' => true, 'message' => 'Compte ouvert avec succès.']);
         }
         return redirect()->route('comptes.create')->with('success', 'Compte ouvert avec succès.');
     }
@@ -67,9 +68,13 @@ class CompteController extends Controller
     // Supprime un compte
     public function destroy($code_compte)
     {
-        $compte = Compte::findOrFail($code_compte);
-        $compte->delete();
-        return response()->json(['message' => 'Compte supprimé avec succès.']);
+        try {
+            $compte = Compte::findOrFail($code_compte);
+            $compte->delete();
+            return response()->json(['success' => true, 'message' => 'Compte supprimé avec succès.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erreur lors de la suppression : ' . $e->getMessage()], 500);
+        }
     }
 
     // Affiche la liste des comptes avec les relations client et portefeuille.agent
@@ -82,7 +87,10 @@ class CompteController extends Controller
             'epargne'        => $comptes->whereIn('type', ['EPARGNE_LIBRE', 'EPARGNE_BLOQUEE'])->count(),
             'caution_credit' => $comptes->where('type', 'CAUTION_CREDIT')->count(),
         ];
-        return view('comptes_clients.liste', compact('comptes', 'stats'));
+        $devises = Devise::orderBy('nom')->get();
+        $zones   = \App\Models\Zone::orderBy('nom')->get();
+        $portefeuilles = \App\Models\Portefeuille::with('agent')->orderBy('nom_portefeuille')->get();
+        return view('comptes_clients.liste', compact('comptes', 'stats', 'devises', 'zones', 'portefeuilles'));
     }
 
     public function show($code_compte)
@@ -94,7 +102,75 @@ class CompteController extends Controller
     public function edit($code_compte)
     {
         $compte = Compte::with(['client', 'portefeuille.agent'])->findOrFail($code_compte);
-        // Ajoute ici la logique d'édition si besoin
         return view('comptes_clients.edit', compact('compte'));
     }
-}
+
+    // ── Impression RIB ─────────────────────────────────────────────────────
+    public function imprimerRIB(string $code_compte)
+    {
+        $compte = Compte::with(['client'])->findOrFail($code_compte);
+        $client = $compte->client;
+        $devise = Devise::where('code_iso', $compte->devise)->first();
+
+        // Construction IBAN simplifié COOPEC EBEN
+        $iban = 'CD89 EBEN G001 ' . implode(' ', str_split(str_pad($code_compte, 16, '0', STR_PAD_LEFT), 4));
+
+        $pdf = Pdf::loadView('impressions.comptes.rib', compact('compte', 'client', 'devise', 'iban'))
+                  ->setPaper('a4', 'portrait');
+
+        return $pdf->stream('RIB_' . $code_compte . '.pdf');
+    }
+    // ── Impression liste filtrée ───────────────────────────────────────────────
+    public function imprimerListe(\Illuminate\Http\Request $request)
+    {
+        $query = Compte::with(['client.zone']);
+
+        if ($request->filled('type') && $request->type !== 'tous') {
+            $query->where('type', $request->type);
+        }
+        if ($request->filled('devise') && $request->devise !== 'tous') {
+            $query->where('devise', $request->devise);
+        }
+        if ($request->filled('date_debut')) {
+            $query->whereDate('created_at', '>=', $request->date_debut);
+        }
+        if ($request->filled('date_fin')) {
+            $query->whereDate('created_at', '<=', $request->date_fin);
+        }
+        if ($request->filled('solde_min')) {
+            $query->where('solde_reel', '>=', (float) $request->solde_min);
+        }
+        if ($request->filled('solde_max')) {
+            $query->where('solde_reel', '<=', (float) $request->solde_max);
+        }
+        if ($request->filled('etat_solde') && $request->etat_solde !== 'tous') {
+            if ($request->etat_solde === 'positif') {
+                $query->where('solde_reel', '>', 0);
+            } elseif ($request->etat_solde === 'negatif') {
+                $query->where('solde_reel', '<', 0);
+            } elseif ($request->etat_solde === 'nul') {
+                $query->where('solde_reel', '=', 0);
+            }
+        }
+        if ($request->filled('code_zone')) {
+            $query->whereHas('client', fn($q) => $q->where('code_zone', $request->code_zone));
+        }
+        if ($request->filled('portefeuille_id') && $request->portefeuille_id !== 'tous') {
+            if ($request->portefeuille_id === 'aucun') {
+                $query->whereNull('portefeuille_id');
+            } else {
+                $query->where('portefeuille_id', $request->portefeuille_id);
+            }
+        }
+
+        $comptes = $query->orderBy('type')->orderBy('code_compte')->get();
+        $filtres = $request->only(['type','devise','date_debut','date_fin','solde_min','solde_max','etat_solde','code_zone','portefeuille_id']);
+        $zone    = $request->filled('code_zone') ? \App\Models\Zone::find($request->code_zone) : null;
+        $portefeuille = ($request->filled('portefeuille_id') && $request->portefeuille_id !== 'tous' && $request->portefeuille_id !== 'aucun')
+                        ? \App\Models\Portefeuille::with('agent')->find($request->portefeuille_id) : null;
+
+        $pdf = Pdf::loadView('impressions.comptes.liste', compact('comptes', 'filtres', 'zone', 'portefeuille'))
+                  ->setPaper('a4', 'landscape');
+
+        return $pdf->stream('Liste_comptes.pdf');
+    }}

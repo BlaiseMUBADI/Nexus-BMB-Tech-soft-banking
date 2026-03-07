@@ -338,7 +338,10 @@
     'use strict';
 
     $.ajaxSetup({
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            'Accept'      : 'application/json'
+        }
     });
 
     $(function () {
@@ -379,31 +382,76 @@
         $('#zoneForm').on('submit', function (e) {
             e.preventDefault();
             var $btn = $('#btnAddZone').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Envoi…');
-            $.post('{{ route("administration.zones.store") }}', $(this).serialize())
-                .done(function () {
-                    showSystemMessage('success', 'Zone ajoutée avec succès.');
+            $.ajax({
+                type    : 'POST',
+                url     : '{{ route("administration.zones.store") }}',
+                data    : $(this).serialize(),
+                dataType: 'json'
+            })
+            .done(function (data) {
+                if (data.success) {
+                    showSystemMessage('success', data.message || 'Zone ajoutée avec succès.');
                     setTimeout(function () { location.reload(); }, 900);
-                })
-                .fail(function (xhr) {
-                    showSystemMessage('error', xhr.responseJSON?.message ?? 'Erreur lors de l\'ajout.');
+                } else {
+                    showSystemMessage('error', data.message || 'Erreur.');
                     $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter la zone');
-                });
+                }
+            })
+            .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) {
+                            showSystemMessage('success', d.message || 'Zone ajoutée avec succès.');
+                            setTimeout(function () { location.reload(); }, 900);
+                            return;
+                        }
+                        showSystemMessage('error', d.message || 'Erreur.');
+                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter la zone');
+                        return;
+                    } catch(e) { /* NOOP */ }
+                }
+                showSystemMessage('error', xhr.responseJSON?.message ?? 'Erreur lors de l\'ajout.');
+                $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter la zone');
+            });
         });
 
         // ── SUPPRIMER une zone ───────────────────────────────────────────────
         $(document).on('click', '.btn-delete-zone', function () {
             var id  = $(this).data('id');
             var nom = $(this).data('nom');
+            var $tr = $(this).closest('tr');
             var url = '{{ route("administration.zones.destroy", ["code_zone" => "__ID__"]) }}'.replace('__ID__', id);
             showUniversalConfirm('Supprimer la zone <strong>« ' + nom + ' »</strong> ?', function () {
-                $.post(url, { _method: 'DELETE' })
-                    .done(function () {
-                        showSystemMessage('success', 'Zone supprimée.');
-                        setTimeout(function () { location.reload(); }, 900);
-                    })
-                    .fail(function (xhr) {
-                        showSystemMessage('error', xhr.responseJSON?.message ?? 'Suppression impossible.');
-                    });
+                $.ajax({
+                    type    : 'POST',
+                    url     : url,
+                    data    : { _method: 'DELETE' },
+                    dataType: 'json'
+                })
+                .done(function (data) {
+                    if (data.success) {
+                        showSystemMessage('success', data.message || 'Zone supprimée.');
+                        $tr.fadeOut(400, function () { $(this).remove(); });
+                    } else {
+                        showSystemMessage('error', data.message || 'Erreur.');
+                    }
+                })
+                .fail(function (xhr) {
+                    if (xhr.status === 200) {
+                        try {
+                            var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                            if (d && d.success) {
+                                showSystemMessage('success', d.message || 'Zone supprimée.');
+                                $tr.fadeOut(400, function () { $(this).remove(); });
+                                return;
+                            }
+                            showSystemMessage('error', d.message || 'Erreur.');
+                            return;
+                        } catch(e) { /* NOOP */ }
+                    }
+                    showSystemMessage('error', xhr.responseJSON?.message ?? 'Suppression impossible.');
+                });
             }, 'Confirmation');
         });
 
@@ -411,31 +459,76 @@
         $('#portefeuilleFm').on('submit', function (e) {
             e.preventDefault();
             var $btn = $('#btnAddPortefeuille').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Envoi…');
-            $.post('{{ route("administration.portefeuilles.store") }}', $(this).serialize())
-                .done(function () {
-                    showSystemMessage('success', 'Portefeuille enregistré.');
+            $.ajax({
+                type    : 'POST',
+                url     : '{{ route("administration.portefeuilles.store") }}',
+                data    : $(this).serialize(),
+                dataType: 'json'
+            })
+            .done(function (data) {
+                if (data.success) {
+                    showSystemMessage('success', data.message || 'Portefeuille enregistré.');
                     setTimeout(function () { location.reload(); }, 900);
-                })
-                .fail(function (xhr) {
-                    showSystemMessage('error', xhr.responseJSON?.message ?? 'Erreur lors de l\'enregistrement.');
+                } else {
+                    showSystemMessage('error', data.message || 'Erreur.');
                     $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
-                });
+                }
+            })
+            .fail(function (xhr) {
+                if (xhr.status === 200) {
+                    try {
+                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                        if (d && d.success) {
+                            showSystemMessage('success', d.message || 'Portefeuille enregistré.');
+                            setTimeout(function () { location.reload(); }, 900);
+                            return;
+                        }
+                        showSystemMessage('error', d.message || 'Erreur.');
+                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+                        return;
+                    } catch(e) { /* NOOP */ }
+                }
+                showSystemMessage('error', xhr.responseJSON?.message ?? 'Erreur lors de l\'enregistrement.');
+                $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+            });
         });
 
         // ── SUPPRIMER un portefeuille ────────────────────────────────────────
         $(document).on('click', '.btn-delete-portefeuille', function () {
             var id  = $(this).data('id');
             var nom = $(this).data('nom');
+            var $tr = $(this).closest('tr');
             var url = '{{ route("administration.portefeuilles.destroy", ["id" => "__ID__"]) }}'.replace('__ID__', id);
             showUniversalConfirm('Supprimer le portefeuille <strong>« ' + nom + ' »</strong> ?', function () {
-                $.post(url, { _method: 'DELETE' })
-                    .done(function () {
-                        showSystemMessage('success', 'Portefeuille supprimé.');
-                        setTimeout(function () { location.reload(); }, 900);
-                    })
-                    .fail(function (xhr) {
-                        showSystemMessage('error', xhr.responseJSON?.message ?? 'Suppression impossible.');
-                    });
+                $.ajax({
+                    type    : 'POST',
+                    url     : url,
+                    data    : { _method: 'DELETE' },
+                    dataType: 'json'
+                })
+                .done(function (data) {
+                    if (data.success) {
+                        showSystemMessage('success', data.message || 'Portefeuille supprimé.');
+                        $tr.fadeOut(400, function () { $(this).remove(); });
+                    } else {
+                        showSystemMessage('error', data.message || 'Erreur.');
+                    }
+                })
+                .fail(function (xhr) {
+                    if (xhr.status === 200) {
+                        try {
+                            var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                            if (d && d.success) {
+                                showSystemMessage('success', d.message || 'Portefeuille supprimé.');
+                                $tr.fadeOut(400, function () { $(this).remove(); });
+                                return;
+                            }
+                            showSystemMessage('error', d.message || 'Erreur.');
+                            return;
+                        } catch(e) { /* NOOP */ }
+                    }
+                    showSystemMessage('error', xhr.responseJSON?.message ?? 'Suppression impossible.');
+                });
             }, 'Confirmation');
         });
 

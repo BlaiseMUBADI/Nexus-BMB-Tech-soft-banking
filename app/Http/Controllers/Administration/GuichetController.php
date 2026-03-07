@@ -20,18 +20,18 @@ class GuichetController extends Controller
     {
         // Liste complète des guichets avec leurs soldes multi-devises et l'agent actif
         $guichets = CaissesGuichet::with(['soldes', 'affectationActive'])
-                        ->orderBy('code_guichet')->get();
+            ->orderBy('code_guichet')->get();
 
         // Devises disponibles pour créer les soldes initiaux
-        $devises  = Devise::orderBy('code_iso')->get();
+        $devises = Devise::orderBy('code_iso')->get();
 
         // ── Statistiques pour le mini-dashboard ─────────────────────
 
         $stats = [
-            'total'        => $guichets->count(),
-            'ouverts'      => $guichets->where('statut_operationnel', 'OUVERT')->count(),
-            'fermes'       => $guichets->where('statut_operationnel', 'FERME')->count(),
-            'suspendus'    => $guichets->where('statut_operationnel', 'SUSPENDU')->count(),
+            'total' => $guichets->count(),
+            'ouverts' => $guichets->where('statut_operationnel', 'OUVERT')->count(),
+            'fermes' => $guichets->where('statut_operationnel', 'FERME')->count(),
+            'suspendus' => $guichets->where('statut_operationnel', 'SUSPENDU')->count(),
             'avec_titulaire' => $guichets->filter(fn($g) => $g->affectationActive !== null)->count(),
             'sans_titulaire' => $guichets->filter(fn($g) => $g->affectationActive === null)->count(),
         ];
@@ -67,29 +67,37 @@ class GuichetController extends Controller
             'devises.*.exists'    => 'Une devise sélectionnée est invalide.',
         ]);
 
-        DB::transaction(function () use ($request) {
-            // 1. Créer le guichet (table mère)
-            $guichet = CaissesGuichet::create([
-                'code_guichet'        => strtoupper(trim($request->code_guichet)),
-                'intitule'            => $request->intitule,
-                'statut_operationnel' => 'FERME',
-                'created_at'          => now(),
-            ]);
-
-            // 2. Créer une ligne de solde pour chaque devise sélectionnée
-            foreach ($request->devises as $deviseCode) {
-                CaissesGuichetSolde::create([
-                    'guichet_id'      => $guichet->id,
-                    'devise_code'     => $deviseCode,
-                    'solde_en_caisse' => 0.00,
+        try {
+            DB::transaction(function () use ($request) {
+                $guichet = CaissesGuichet::create([
+                    'code_guichet'        => strtoupper(trim($request->code_guichet)),
+                    'intitule'            => $request->intitule,
+                    'statut_operationnel' => 'FERME',
+                    'created_at'          => now(),
                 ]);
+                foreach ($request->devises as $deviseCode) {
+                    CaissesGuichetSolde::create([
+                        'guichet_id'      => $guichet->id,
+                        'devise_code'     => $deviseCode,
+                        'solde_en_caisse' => 0.00,
+                    ]);
+                }
+            });
+        } catch (\Exception $e) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
             }
-        });
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
 
         $nbDevises = count($request->devises);
-        return response()->json([
-            'message' => "Guichet créé avec succès ({$nbDevises} devise(s) configurée(s))."
-        ], 200);
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Guichet créé avec succès ({$nbDevises} devise(s) configurée(s)).",
+            ]);
+        }
+        return redirect()->route('administration.guichets.index')->with('success', 'Guichet créé avec succès.');
     }
 
     /**
@@ -110,17 +118,19 @@ class GuichetController extends Controller
 
         if ($exists) {
             return response()->json([
+                'success' => false,
                 'message' => 'Ce guichet gère déjà la devise ' . $request->devise_code . '.'
             ], 422);
         }
 
         CaissesGuichetSolde::create([
-            'guichet_id'      => $id,
-            'devise_code'     => $request->devise_code,
+            'guichet_id' => $id,
+            'devise_code' => $request->devise_code,
             'solde_en_caisse' => 0.00,
         ]);
 
         return response()->json([
+            'success' => true,
             'message' => 'Devise ' . $request->devise_code . ' ajoutée au guichet ' . $guichet->code_guichet . '.'
         ]);
     }
@@ -135,6 +145,7 @@ class GuichetController extends Controller
 
         if ($guichet->statut_operationnel !== 'FERME') {
             return response()->json([
+                'success' => false,
                 'message' => 'Impossible de supprimer un guichet ouvert ou suspendu. Fermez-le d\'abord.'
             ], 403);
         }
@@ -144,11 +155,21 @@ class GuichetController extends Controller
         if ($soldesNonNuls->count() > 0) {
             $details = $soldesNonNuls->map(fn($s) => $s->devise_code . ': ' . number_format($s->solde_en_caisse, 2))->join(', ');
             return response()->json([
+                'success' => false,
                 'message' => "Impossible de supprimer : des soldes non nuls existent ({$details}). Dégagez les fonds d'abord."
             ], 403);
         }
 
-        $guichet->delete(); // Les soldes sont supprimés en cascade
-        return response()->json(['message' => 'Guichet supprimé avec succès.']);
+        try {
+            DB::transaction(function () use ($guichet) {
+                // fk_solde_guichet et fk_affectation_guichet sont RESTRICT — suppression manuelle
+                $guichet->soldes()->delete();
+                \App\Models\Affectation::where('guichet_id', $guichet->id)->update(['guichet_id' => null]);
+                $guichet->delete();
+            });
+            return response()->json(['success' => true, 'message' => 'Guichet supprimé avec succès.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erreur lors de la suppression : ' . $e->getMessage()], 500);
+        }
     }
 }

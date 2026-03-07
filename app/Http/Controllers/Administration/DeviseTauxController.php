@@ -106,23 +106,34 @@ class DeviseTauxController extends Controller
     public function storeTaux(Request $request)
     {
         $request->validate([
-            'devise_source' => 'required|string|exists:tb_devises,code_iso',
+            'devise_source'      => 'required|string|exists:tb_devises,code_iso',
             'devise_destination' => 'required|string|exists:tb_devises,code_iso',
-            'taux' => 'required|numeric',
+            'taux'               => 'required|numeric',
         ]);
-        // Taux direct
-        TauxEchange::create([
-            'devise_source' => $request->devise_source,
-            'devise_destination' => $request->devise_destination,
-            'taux' => $request->taux,
-        ]);
-        // Taux inverse (si taux > 0 et devises différentes)
-        if ($request->taux > 0 && $request->devise_source !== $request->devise_destination) {
+
+        try {
             TauxEchange::create([
-                'devise_source' => $request->devise_destination,
-                'devise_destination' => $request->devise_source,
-                'taux' => round(1 / $request->taux, 4),
+                'devise_source'      => $request->devise_source,
+                'devise_destination' => $request->devise_destination,
+                'taux'               => $request->taux,
             ]);
+            if ($request->taux > 0 && $request->devise_source !== $request->devise_destination) {
+                TauxEchange::create([
+                    'devise_source'      => $request->devise_destination,
+                    'devise_destination' => $request->devise_source,
+                    'taux'               => round(1 / $request->taux, 4),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Erreur ajout taux', ['error' => $e->getMessage()]);
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+            }
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Taux ajouté (et inverse si applicable) !']);
         }
         return redirect()->route('administration.devises_taux.index')->with('success', 'Taux ajouté (et inverse si applicable) !');
     }

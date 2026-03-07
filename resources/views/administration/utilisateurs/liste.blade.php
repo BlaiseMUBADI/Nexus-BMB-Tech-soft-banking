@@ -72,12 +72,14 @@
                                     <th>Agent</th>
                                     <th>Login</th>
                                     <th>Email</th>
+                                    <th>Service / Poste</th>
                                     <th class="text-center" style="width:90px">État</th>
                                     <th class="text-center" style="width:110px">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($users as $i => $user)
+                                @php $affActive = $user->agent?->affectations->first(); @endphp
                                 <tr id="row-user-{{ $user->id }}">
                                     <td class="text-muted">{{ $i + 1 }}</td>
                                     <td>
@@ -90,6 +92,14 @@
                                     </td>
                                     <td>{{ $user->name }}</td>
                                     <td>{{ $user->email }}</td>
+                                    <td>
+                                        @if($affActive && $affActive->poste)
+                                            <span class="badge badge-info">{{ $affActive->poste->service?->nom ?? '—' }}</span>
+                                            / {{ $affActive->poste->nom }}
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
+                                    </td>
                                     <td class="text-center">
                                         @if($user->etat === 'actif')
                                             <span class="badge badge-success">Actif</span>
@@ -117,7 +127,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-5">
+                                    <td colspan="7" class="text-center text-muted py-5">
                                         <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                                         Aucun utilisateur enregistré.
                                     </td>
@@ -147,7 +157,10 @@
 <script>
 (function () {
     'use strict';
-    $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') } });
+    $.ajaxSetup({ headers: {
+        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+        'Accept'      : 'application/json'
+    } });
 
     $(function () {
 
@@ -168,12 +181,28 @@
                 'Supprimer l\'utilisateur <strong>' + nom + '</strong> ?'
                 + '<br><small class="text-danger">Cette action est <u>irréversible</u>.</small>',
                 function () {
-                    $.ajax({ url: url, type: 'POST', data: { _method: 'DELETE' } })
+                    $.ajax({ url: url, type: 'POST', data: { _method: 'DELETE' }, dataType: 'json' })
                         .done(function (resp) {
-                            showSystemMessage('success', resp.message || 'Utilisateur supprimé.');
-                            $('#row-user-' + id).fadeOut(400, function () { $(this).remove(); });
+                            if (resp.success) {
+                                showSystemMessage('success', resp.message || 'Utilisateur supprimé.');
+                                $('#row-user-' + id).fadeOut(400, function () { $(this).remove(); });
+                            } else {
+                                showSystemMessage('error', resp.message || 'Erreur.');
+                            }
                         })
                         .fail(function (xhr) {
+                            if (xhr.status === 200) {
+                                try {
+                                    var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
+                                    if (d && d.success) {
+                                        showSystemMessage('success', d.message || 'Utilisateur supprimé.');
+                                        $('#row-user-' + id).fadeOut(400, function () { $(this).remove(); });
+                                        return;
+                                    }
+                                    showSystemMessage('error', d.message || 'Erreur.');
+                                    return;
+                                } catch(e) { /* NOOP */ }
+                            }
                             showSystemMessage('error',
                                 (xhr.responseJSON && xhr.responseJSON.message)
                                     ? xhr.responseJSON.message : 'Erreur lors de la suppression.');

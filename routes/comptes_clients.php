@@ -39,4 +39,17 @@ Route::middleware('auth')->prefix('comptes-clients')->group(function () {
         Route::post('comptes',                 [CompteController::class, 'store'])->name('comptes.store');
         Route::delete('comptes/{code_compte}', [CompteController::class, 'destroy'])->name('comptes.destroy');
     });
+
+    // ── Impressions comptes (EBEN-PER18) ─────────────────────────────────
+    Route::middleware('permission:EBEN-PER18')->group(function () {
+        Route::get('comptes/{code_compte}/rib', [CompteController::class, 'imprimerRIB'])->name('comptes.rib');
+        Route::get('comptes-liste-pdf',         [CompteController::class, 'imprimerListe'])->name('comptes.liste.pdf');
+    });
+
+    // ── Impressions clients (EBEN-PER15) ─────────────────────────────────
+    Route::middleware('permission:EBEN-PER15')->group(function () {
+        Route::get('clients/{matricule}/fiche-pdf', [ClientController::class, 'imprimerFiche'])->name('clients.fiche.pdf');
+        Route::get('clients-liste-pdf',             [ClientController::class, 'imprimerListe'])->name('clients.liste.pdf');
+    });
+
 });

@@ -55,7 +55,11 @@ class Client extends Model
      */
     public function zone()
     {
-        // On s'assure que la relation utilise bien code_zone
         return $this->belongsTo(Zone::class, 'code_zone', 'code_zone');
+    }
+
+    public function comptes()
+    {
+        return $this->hasMany(\App\Models\Compte::class, 'client_matricule', 'matricule');
     }
 }

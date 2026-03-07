@@ -27,12 +27,12 @@ class PortefeuilleController extends Controller
             $portefeuille->delete();
 
             return response()->json([
-                'status' => 'success',
+                'success' => true,
                 'message' => 'Le portefeuille a été supprimé avec succès.'
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'status' => 'error',
+                'success' => false,
                 'message' => 'Impossible de supprimer ce portefeuille car il est lié à d\'autres données.'
             ], 422);
         }

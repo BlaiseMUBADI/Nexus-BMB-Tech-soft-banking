@@ -37,13 +37,19 @@ class AffectationController extends Controller
             'guichet_id'      => 'nullable|exists:tb_caisses_guichets,id',
         ]);
 
-        $data = $request->only('agent_matricule', 'poste_id', 'guichet_id', 'date_debut', 'date_fin');
-        $data['Etat'] = 'ACTIF';
+        try {
+            $data = $request->only('agent_matricule', 'poste_id', 'guichet_id', 'date_debut', 'date_fin');
+            $data['Etat'] = 'ACTIF';
+            Affectation::create($data);
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+            }
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
 
-        Affectation::create($data);
-
-        if ($request->expectsJson() || $request->ajax()) {
-            return response()->json(['message' => 'Affectation enregistrée avec succès.']);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Affectation enregistrée avec succès.']);
         }
         return redirect()->route('affectations.index')->with('success', 'Affectation enregistrée !');
     }
@@ -88,12 +94,18 @@ class AffectationController extends Controller
         if ($request->etat === 'TERMINE' && $request->date_fin) {
             $affectation->date_fin = $request->date_fin;
         }
-        $affectation->save();
+
+        try {
+            $affectation->save();
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+        }
 
         return response()->json([
-            'message' => 'État mis à jour : ' . $request->etat,
-            'etat'    => $affectation->Etat,
-            'date_fin'=> $affectation->date_fin,
+            'success'  => true,
+            'message'  => 'État mis à jour : ' . $request->etat,
+            'etat'     => $affectation->Etat,
+            'date_fin' => $affectation->date_fin,
         ]);
     }
 
@@ -104,13 +116,18 @@ class AffectationController extends Controller
     {
         if (!$this->canDelete($affectation)) {
             return response()->json([
+                'success' => false,
                 'message' => $this->deleteBlockReason($affectation),
             ], 422);
         }
 
-        $affectation->delete();
+        try {
+            $affectation->delete();
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+        }
 
-        return response()->json(['message' => 'Affectation supprimée avec succès.']);
+        return response()->json(['success' => true, 'message' => 'Affectation supprimée avec succès.']);
     }
 
     // ── Helpers privés ──────────────────────────────────────────────
