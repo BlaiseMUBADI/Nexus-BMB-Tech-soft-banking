@@ -11,6 +11,9 @@ use App\Http\Controllers\Clients\ClientController;
 // Administration user management routes
 require_once __DIR__.'/administration.php';
 
+// Trésorerie & Coffre Central
+require_once __DIR__.'/tresorerie.php';
+
 // Ressources Humaines routes
 require_once __DIR__.'/rh.php';
 

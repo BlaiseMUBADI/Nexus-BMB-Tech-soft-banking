@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\CaissesGuichet;
 use App\Models\CaissesGuichetSolde;
+use App\Models\MouvementInterCaisse;
 use App\Models\Devise;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class GuichetController extends Controller
@@ -18,31 +20,37 @@ class GuichetController extends Controller
      */
     public function index()
     {
-        // Liste complète des guichets avec leurs soldes multi-devises et l'agent actif
-        $guichets = CaissesGuichet::with(['soldes', 'affectationActive'])
+        // Liste des guichets opérationnels (FIXE + MOBILE — pas le coffre)
+        $guichets = CaissesGuichet::operationnels()
+            ->with(['soldes', 'affectationActive'])
             ->orderBy('code_guichet')->get();
+
+        // Coffre-fort central
+        $coffre = CaissesGuichet::central()
+            ->with('soldes.devise')
+            ->first();
 
         // Devises disponibles pour créer les soldes initiaux
         $devises = Devise::orderBy('code_iso')->get();
 
-        // ── Statistiques pour le mini-dashboard ─────────────────────
-
+        // ── Stats mini-dashboard (guichets opérationnels uniquement) ─────
         $stats = [
-            'total' => $guichets->count(),
-            'ouverts' => $guichets->where('statut_operationnel', 'OUVERT')->count(),
-            'fermes' => $guichets->where('statut_operationnel', 'FERME')->count(),
-            'suspendus' => $guichets->where('statut_operationnel', 'SUSPENDU')->count(),
+            'total'          => $guichets->count(),
+            'ouverts'        => $guichets->where('statut_operationnel', 'OUVERT')->count(),
+            'fermes'         => $guichets->where('statut_operationnel', 'FERME')->count(),
+            'suspendus'      => $guichets->where('statut_operationnel', 'SUSPENDU')->count(),
             'avec_titulaire' => $guichets->filter(fn($g) => $g->affectationActive !== null)->count(),
             'sans_titulaire' => $guichets->filter(fn($g) => $g->affectationActive === null)->count(),
         ];
 
-        // Soldes totaux par devise (somme tous guichets confondus)
+        // Soldes totaux par devise (tous guichets opérationnels confondus)
         $soldesParDevise = CaissesGuichetSolde::select('devise_code', DB::raw('SUM(solde_en_caisse) as total'))
+            ->when($coffre, fn($q) => $q->where('guichet_id', '!=', $coffre->id))
             ->groupBy('devise_code')
             ->with('devise')
             ->get();
 
-        return view('administration.guichets', compact('guichets', 'devises', 'stats', 'soldesParDevise'));
+        return view('administration.guichets', compact('guichets', 'devises', 'stats', 'soldesParDevise', 'coffre'));
     }
 
     /**
@@ -57,14 +65,16 @@ class GuichetController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'code_guichet' => 'required|string|max:20|unique:tb_caisses_guichets,code_guichet',
-            'intitule'     => 'required|string|max:100',
-            'devises'      => 'required|array|min:1',
-            'devises.*'    => 'exists:tb_devises,code_iso',
+            'code_guichet'  => 'required|string|max:20|unique:tb_caisses_guichets,code_guichet',
+            'intitule'      => 'required|string|max:100',
+            'type_guichet'  => 'required|in:FIXE,MOBILE',
+            'devises'       => 'required|array|min:1',
+            'devises.*'     => 'exists:tb_devises,code_iso',
         ], [
-            'code_guichet.unique' => 'Ce code guichet est déjà utilisé.',
-            'devises.required'    => 'Sélectionnez au moins une devise pour ce guichet.',
-            'devises.*.exists'    => 'Une devise sélectionnée est invalide.',
+            'code_guichet.unique'  => 'Ce code guichet est déjà utilisé.',
+            'type_guichet.in'      => 'Type de guichet invalide (FIXE ou MOBILE uniquement).',
+            'devises.required'     => 'Sélectionnez au moins une devise pour ce guichet.',
+            'devises.*.exists'     => 'Une devise sélectionnée est invalide.',
         ]);
 
         try {
@@ -72,8 +82,8 @@ class GuichetController extends Controller
                 $guichet = CaissesGuichet::create([
                     'code_guichet'        => strtoupper(trim($request->code_guichet)),
                     'intitule'            => $request->intitule,
+                    'type_guichet'        => $request->type_guichet,
                     'statut_operationnel' => 'FERME',
-                    'created_at'          => now(),
                 ]);
                 foreach ($request->devises as $deviseCode) {
                     CaissesGuichetSolde::create([
@@ -172,4 +182,6 @@ class GuichetController extends Controller
             return response()->json(['success' => false, 'message' => 'Erreur lors de la suppression : ' . $e->getMessage()], 500);
         }
     }
+
+    
 }

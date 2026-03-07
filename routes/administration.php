@@ -33,6 +33,9 @@ Route::middleware('auth')->prefix('administration')->group(function () {
         Route::post('/guichets',                          [GuichetController::class, 'store'])->name('administration.guichets.store');
         Route::delete('/guichets/{id}',                   [GuichetController::class, 'destroy'])->name('administration.guichets.destroy');
         Route::post('/guichets/{id}/devise',              [GuichetController::class, 'addDevise'])->name('administration.guichets.addDevise');
+        Route::post('/guichets/alimenter',                [GuichetController::class, 'alimenter'])->name('administration.guichets.alimenter');
+        Route::get('/guichets/alimentations',             [GuichetController::class, 'historiqueAlimentations'])->name('administration.guichets.alimentations');
+        Route::get('/guichets/coffre-balances',           [GuichetController::class, 'coffreBalances'])->name('administration.guichets.coffreBalances');
     });
 
     // ── Rôles : consultation (EBEN-PER2) ────────────────────────────────────

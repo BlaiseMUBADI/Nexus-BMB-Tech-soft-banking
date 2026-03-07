@@ -5,7 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ config('app.name', 'NBTB') }}@hasSection('title') | @yield('title')@endif</title>
-<link rel="icon" type="image/png" href="{{ asset('dist/img/icon_vrailogoeben.png') }}" sizes="38x38">
+<link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=2">
+<link rel="icon" type="image/png" sizes="38x38" href="{{ asset('dist/img/icon_vrailogoeben.png') }}?v=2">
+<meta name="theme-color" content="#1a7a4a">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <!-- Google Font: Source Sans Pro -->
@@ -22,7 +24,6 @@
 <link rel="stylesheet" href="{{ asset('plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
 <link rel="stylesheet" href="{{ asset('plugins/datatables-buttons/css/buttons.bootstrap4.min.css') }}">
 
-@yield('css')
 @stack('css')
 
 

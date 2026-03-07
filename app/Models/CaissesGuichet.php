@@ -18,14 +18,28 @@ class CaissesGuichet extends Model
 {
     protected $table      = 'tb_caisses_guichets';
     protected $primaryKey = 'id';
-    public $timestamps    = false;
+    public $timestamps    = true;
 
     protected $fillable = [
         'code_guichet',
+        'type_guichet',
         'intitule',
         'statut_operationnel',
-        'created_at',
     ];
+
+    // ── Scopes utiles ────────────────────────────────────────────
+
+    /** Guichets opérationnels (pas le coffre central) */
+    public function scopeOperationnels($query)
+    {
+        return $query->where('type_guichet', '!=', 'CENTRAL');
+    }
+
+    /** Uniquement le coffre central */
+    public function scopeCentral($query)
+    {
+        return $query->where('type_guichet', 'CENTRAL');
+    }
 
     // ── Relations ────────────────────────────────────────────────
 
