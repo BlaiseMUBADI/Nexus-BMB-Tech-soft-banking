@@ -310,26 +310,41 @@ CREATE TABLE `tb_comptes` (
     ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- E3. Transactions sur comptes (dépôts, retraits, virements)
+-- E3. Transactions sur comptes et opérations guichet
 -- Dépend de : tb_comptes, tb_agents
+-- Note : compte_code est nullable (opérations espèces sans compte client)
+--        guichet_id FK ajoutée par db_03 (tb_caisses_guichets défini plus tard)
 CREATE TABLE `tb_transactions` (
   `id`              bigint unsigned NOT NULL AUTO_INCREMENT,
-  `compte_code`     varchar(64)  COLLATE utf8mb4_unicode_ci NOT NULL,
-  `agent_matricule` varchar(50)  COLLATE utf8mb4_unicode_ci NOT NULL,
-  `type`            enum('DEPOT','RETRAIT','VIREMENT','REMBOURSEMENT')
+  `compte_code`     varchar(64)   COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `agent_matricule` varchar(50)   COLLATE utf8mb4_unicode_ci NOT NULL,
+  `guichet_id`      bigint unsigned DEFAULT NULL             COMMENT 'Guichet ayant effectué l''opération',
+  `devise_code`     char(3)       COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Devise de la transaction (CDF, USD, EUR…)',
+  `devise_dest`     char(3)       COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `montant_dest`    decimal(18,2) DEFAULT NULL,
+  `taux_change`     decimal(14,6) DEFAULT NULL,
+  `observations`    text          COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `statut`          enum('CONFIRME','ANNULE') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CONFIRME',
+  `date_operation`  timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `type`            enum('DEPOT','RETRAIT','VIREMENT','REMBOURSEMENT','CHANGE','PAIEMENT')
                     COLLATE utf8mb4_unicode_ci NOT NULL,
   `montant`         decimal(18,2) NOT NULL,
-  `reference`       varchar(50)  COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reference`       varchar(50)   COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at`      timestamp     NULL DEFAULT NULL,
+  `updated_at`      timestamp     NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `reference` (`reference`),
-  KEY `compte_code`     (`compte_code`),
-  KEY `agent_matricule` (`agent_matricule`),
+  UNIQUE KEY `tb_transactions_reference_unique` (`reference`),
+  KEY `tb_transactions_ibfk_1`   (`compte_code`),
+  KEY `tb_transactions_ibfk_2`   (`agent_matricule`),
+  KEY `idx_trans_guichet_date`   (`guichet_id`, `date_operation`),
+  KEY `idx_trans_statut`         (`statut`),
   CONSTRAINT `tb_transactions_ibfk_1`
     FOREIGN KEY (`compte_code`)     REFERENCES `tb_comptes` (`code_compte`)
     ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `tb_transactions_ibfk_2`
     FOREIGN KEY (`agent_matricule`) REFERENCES `tb_agents`  (`matricule`)
     ON DELETE RESTRICT ON UPDATE RESTRICT
+  -- CONSTRAINT tb_transactions_guichet_fk FK ajoutée dans db_03_caisse_guichet.sql
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==============================================================
