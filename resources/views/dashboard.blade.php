@@ -1,5 +1,4 @@
-﻿
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('page_title', 'Accueil')
 @section('breadcrumb_parent', 'Accueil')
@@ -9,9 +8,9 @@
 <section class="content">
 <div class="container-fluid">
 
-    {{-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-         HERO â€” Logo + Titre
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
+    {{-- ================================================================
+         HERO -- Logo + Titre
+    ================================================================ --}}
     <div class="row justify-content-center mt-4 mb-3">
         <div class="col-12 text-center">
             <img src="{{ asset('dist/img/vrailogoeben_redimensionner 1 .png') }}"
@@ -21,38 +20,45 @@
                 Coopec EBEN
             </h2>
             <p class="text-muted mb-0" style="font-size:.95rem;">
-                SystÃ¨me de Gestion Bancaire et Financier â€” <em>Nexus BMB Tech Soft Banking</em>
+                Syst&egrave;me de Gestion Bancaire et Financier &mdash; <em>Nexus BMB Tech Soft Banking</em>
             </p>
             <hr class="mt-3 mb-4" style="max-width:500px; border-color:rgba(255,255,255,.12);">
         </div>
     </div>
 
-    {{-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    {{-- ================================================================
          MESSAGE DE BIENVENUE
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
+    ================================================================ --}}
+    @php
+        $agent      = Auth::user()->agent;
+        $nomComplet = $agent
+            ? trim(collect([$agent->prenom, $agent->nom, $agent->postnom])->filter()->implode(' '))
+            : Auth::user()->name;
+    @endphp
+
     <div class="row justify-content-center mb-4">
         <div class="col-lg-8 col-md-10">
             <div class="card card-outline card-primary elevation-2">
                 <div class="card-body text-center py-4">
                     <i class="fas fa-hand-holding-heart fa-2x text-primary mb-3"></i>
                     <h4 class="font-weight-bold mb-1">
-                        Bienvenue, {{ Auth::user()->name }} !
+                        Bienvenue, {{ $nomComplet }} !
                     </h4>
                     <p class="text-muted mb-2" style="font-size:.95rem;">
-                        Vous Ãªtes connectÃ©(e) en tant que
+                        Vous &ecirc;tes connect&eacute;(e) en tant que
                         <strong>{{ Auth::user()->roles->pluck('intitule')->join(', ') ?: 'Utilisateur' }}</strong>.
                     </p>
                     <p class="mb-0" style="font-size:.88rem; opacity:.7;">
-                        {{ now()->isoFormat('dddd D MMMM YYYY') }} â€” {{ now()->format('H:i') }}
+                        {{ now()->isoFormat('dddd D MMMM YYYY') }} &mdash; {{ now()->format('H:i') }}
                     </p>
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-         MODULES ACCESSIBLES (accÃ¨s rapide selon permissions)
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
+    {{-- ================================================================
+         MODULES ACCESSIBLES (acces rapide selon permissions)
+    ================================================================ --}}
     @php
         $modules = [
             [
@@ -60,7 +66,7 @@
                 'route' => 'clients.index',
                 'icon'  => 'fas fa-users',
                 'color' => 'info',
-                'label' => 'Clients & Membres',
+                'label' => 'Clients &amp; Membres',
                 'desc'  => 'Gestion des membres et dossiers clients',
             ],
             [
@@ -76,8 +82,8 @@
                 'route' => 'caisses.operations.index',
                 'icon'  => 'fas fa-cash-register',
                 'color' => 'warning',
-                'label' => 'Caisse & Guichet',
-                'desc'  => 'OpÃ©rations de caisse et transactions',
+                'label' => 'Caisse &amp; Guichet',
+                'desc'  => 'Op&eacute;rations de caisse et transactions',
             ],
             [
                 'perm'  => 'EBEN-PER6',
@@ -92,7 +98,7 @@
                 'route' => 'tresorerie.coffre',
                 'icon'  => 'fas fa-vault',
                 'color' => 'secondary',
-                'label' => 'TrÃ©sorerie & Coffre',
+                'label' => 'Tr&eacute;sorerie &amp; Coffre',
                 'desc'  => 'Mouvements inter-caisses et coffre central',
             ],
             [
@@ -101,7 +107,7 @@
                 'icon'  => 'fas fa-user-cog',
                 'color' => 'dark',
                 'label' => 'Administration',
-                'desc'  => 'Utilisateurs, rÃ´les et permissions',
+                'desc'  => 'Utilisateurs, r&ocirc;les et permissions',
             ],
         ];
         $userPerms = $userPermCodes ?? [];
@@ -112,15 +118,14 @@
             @if(in_array($mod['perm'], $userPerms))
             <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
                 <a href="{{ route($mod['route']) }}" class="text-decoration-none">
-                    <div class="card card-outline card-{{ $mod['color'] }} elevation-2 h-100
-                                text-center accueil-module-card">
+                    <div class="card card-outline card-{{ $mod['color'] }} elevation-2 h-100 text-center accueil-module-card">
                         <div class="card-body py-4">
                             <i class="{{ $mod['icon'] }} fa-2x text-{{ $mod['color'] }} mb-3"></i>
                             <h5 class="font-weight-bold mb-1" style="font-size:.97rem;">
-                                {{ $mod['label'] }}
+                                {!! $mod['label'] !!}
                             </h5>
                             <p class="text-muted mb-0" style="font-size:.82rem; line-height:1.4;">
-                                {{ $mod['desc'] }}
+                                {!! $mod['desc'] !!}
                             </p>
                         </div>
                     </div>
@@ -130,21 +135,20 @@
         @endforeach
     </div>
 
-    {{-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    {{-- ================================================================
          PIED DE PAGE DISCRET
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
+    ================================================================ --}}
     <div class="row mt-2 mb-4">
         <div class="col-12 text-center">
             <small class="text-muted" style="font-size:.78rem; opacity:.55;">
-                &copy; {{ date('Y') }} Coopec EBEN â€“ Nexus BMB Tech Soft Banking.
-                Tous droits rÃ©servÃ©s.
+                &copy; {{ date('Y') }} Coopec EBEN &mdash; Nexus BMB Tech Soft Banking.
+                Tous droits r&eacute;serv&eacute;s.
             </small>
         </div>
     </div>
 
 </div>
 </section>
-
 @endsection
 
 @push('css')
