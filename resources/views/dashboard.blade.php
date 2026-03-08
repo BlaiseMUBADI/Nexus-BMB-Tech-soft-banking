@@ -34,6 +34,10 @@
         $nomComplet = $agent
             ? trim(collect([$agent->prenom, $agent->nom, $agent->postnom])->filter()->implode(' '))
             : Auth::user()->name;
+
+        $roleCodes  = Auth::user()->getRoleCodes();
+        $rolesLabel = \App\Models\Role::whereIn('code', $roleCodes)
+                        ->pluck('nom')->join(', ') ?: 'Utilisateur';
     @endphp
 
     <div class="row justify-content-center mb-4">
@@ -46,7 +50,7 @@
                     </h4>
                     <p class="text-muted mb-2" style="font-size:.95rem;">
                         Vous &ecirc;tes connect&eacute;(e) en tant que
-                        <strong>{{ Auth::user()->roles->pluck('intitule')->join(', ') ?: 'Utilisateur' }}</strong>.
+                        <strong>{{ $rolesLabel }}</strong>.
                     </p>
                     <p class="mb-0" style="font-size:.88rem; opacity:.7;">
                         {{ now()->isoFormat('dddd D MMMM YYYY') }} &mdash; {{ now()->format('H:i') }}
