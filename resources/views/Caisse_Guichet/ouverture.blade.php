@@ -113,11 +113,9 @@
                         <input type="text" class="form-control" id="demandeMotif"
                                placeholder="Raison de la demande…" maxlength="255">
                     </div>
-                    <div id="demandeErreur" class="alert alert-danger py-2 d-none"></div>
                     <button class="btn btn-primary btn-block" id="btnEnvoyerDemande">
                         <i class="fas fa-paper-plane mr-1"></i> Envoyer la demande
                     </button>
-                    <div class="alert alert-success py-2 mt-2 d-none" id="demandeSuccess"></div>
                 </div>
             </div>
         </div>
@@ -420,6 +418,29 @@
     }
     .table-arrete .denom-subtotal { font-size: .95rem; min-width: 100px; }
     .table-arrete .denom-row.table-active td { background: rgba(255,193,7,.10) !important; }
+    /* ── Saisie directe montant physique ──────────────────────────────── */
+    .arrete-montant-direct-row {
+        background: rgba(23, 162, 184, .08);
+        border-bottom: 1px solid rgba(23, 162, 184, .25);
+    }
+    .arrete-montant-direct-row .montant-direct {
+        background: rgba(255,255,255,.07);
+        border-color: rgba(23, 162, 184, .40);
+        color: #e9ecef;
+        font-weight: 600;
+    }
+    .arrete-montant-direct-row .montant-direct:focus {
+        background: rgba(23, 162, 184, .15);
+        border-color: #17a2b8;
+        color: #fff;
+        box-shadow: 0 0 0 2px rgba(23, 162, 184, .35);
+    }
+    .arrete-montant-direct-row small {
+        display: block;
+        margin-top: .25rem;
+        color: rgba(255,255,255,.5) !important;
+        font-size: .80rem;
+    }
     /* ── Ligne Total physique ──────────────────── */
     .arrete-total-row td {
         background: rgba(52, 152, 219, .25) !important;
@@ -548,6 +569,26 @@ $(document).ready(function () {
         recalculerArrete();
     });
 
+    // ── Saisie directe du montant physique ───────────────────────────────
+    $(document).on('input change', '#arreteBody .montant-direct', function () {
+        /* Si le champ direct est renseigné, effacer les coupures du même bloc */
+        var $bloc = $(this).closest('.arrete-devise-bloc');
+        if ($.trim($(this).val()) !== '') {
+            $bloc.find('.denom-qty').val(0);
+        }
+        recalculerArrete();
+    });
+
+    // ── Bouton Pré-remplir : copie le solde système → champ direct ───────
+    $(document).on('click', '#arreteBody .btn-prefill-direct', function () {
+        var $bloc  = $(this).closest('.arrete-devise-bloc');
+        var solde  = parseFloat($(this).data('solde')) || 0;
+        $bloc.find('.montant-direct').val(solde.toFixed(2));
+        /* Vider les coupures puisqu'on utilise la saisie directe */
+        $bloc.find('.denom-qty').val(0);
+        recalculerArrete();
+    });
+
     /** Construit le corps HTML du modal à partir des données JSON de /initier */
     function buildArreteBody(data) {
         var html = '<div class="p-3">';
@@ -565,6 +606,27 @@ $(document).ready(function () {
             html += '<div class="arrete-devise-header d-flex justify-content-between align-items-center px-3 py-2">'
                  + '<strong><i class="fas fa-money-bill-wave mr-1"></i> ' + s.devise_code + ' — ' + s.devise_nom + '</strong>'
                  + '<span class="text-muted">Solde système : <strong class="text-light">' + s.solde_fmt + '</strong></span>'
+                 + '</div>';
+            /* ── Saisie directe du montant physique (alternative au billetage) ── */
+            html += '<div class="arrete-montant-direct-row px-3 pt-2 pb-1">'
+                 + '<div class="input-group input-group-sm">'
+                 + '<div class="input-group-prepend">'
+                 + '<span class="input-group-text"><i class="fas fa-coins mr-1"></i> Montant physique</span>'
+                 + '</div>'
+                 + '<input type="number" class="form-control montant-direct" min="0" step="0.01"'
+                 + ' placeholder="Saisir le total compte — si vous ne décomposez pas en coupures"'
+                 + ' data-devise="' + s.devise_code + '">'
+                 + '<div class="input-group-append">'
+                 + '<span class="input-group-text">' + s.devise_code + '</span>'
+                 + '<button type="button" class="btn btn-outline-info btn-sm btn-prefill-direct"'
+                 + ' data-solde="' + s.solde_comptable + '"'
+                 + ' title="Copier le solde système comme montant physique">'
+                 + '<i class="fas fa-magic mr-1"></i>Pré-remplir</button>'
+                 + '</div>'
+                 + '</div>'
+                 + '<small class="text-muted"><i class="fas fa-info-circle mr-1"></i>'
+                 + 'Remplissez ce champ <strong>OU</strong> décomposez en coupures ci-dessous. '
+                 + 'Cliquez <em>Pré-remplir</em> pour confirmer les montants système sans billetage.</small>'
                  + '</div>';
             html += '<table class="table table-sm table-bordered mb-0 table-arrete">'
                  + '<thead class="thead-dark"><tr>'
@@ -605,7 +667,6 @@ $(document).ready(function () {
              + '</div>'
              + '</div>';
 
-        html += '<div id="arreteErreur" class="alert alert-danger d-none mt-3 mb-0"></div>';
         html += '</div>';
         return html;
     }
@@ -614,26 +675,40 @@ $(document).ready(function () {
     function recalculerArrete() {
         var aUnEcart = false;
         $('#arreteBody .arrete-devise-bloc').each(function() {
-            var $bloc     = $(this);
-            var comptable = parseFloat($bloc.data('solde-comptable')) || 0;
-            var totalPhy  = 0;
-            var devise    = $bloc.data('devise');
+            var $bloc      = $(this);
+            var comptable  = parseFloat($bloc.data('solde-comptable')) || 0;
+            var totalPhy   = 0;
+            var devise     = $bloc.data('devise');
 
-            $bloc.find('.denom-row').each(function() {
-                var $row  = $(this);
-                var denom = parseFloat($row.find('.denom-qty').data('denom')) || 0;
-                var qty   = parseInt($row.find('.denom-qty').val()) || 0;
-                var sub   = denom * qty;
-                totalPhy += sub;
-                var $sub = $row.find('.denom-subtotal');
-                if (sub > 0) {
-                    $sub.html('<strong>' + fmtArrete(sub) + '</strong>').removeClass('text-muted');
-                    $row.addClass('table-active');
-                } else {
-                    $sub.text('0,00').addClass('text-muted');
-                    $row.removeClass('table-active');
-                }
-            });
+            /* Saisie directe prioritaire sur billetage coupure par coupure */
+            var directRaw  = $.trim($bloc.find('.montant-direct').val());
+            var directVal  = parseFloat(directRaw);
+            var usesDirect = (directRaw !== '' && !isNaN(directVal));
+
+            if (usesDirect) {
+                totalPhy = directVal;
+                /* Effacer les sous-totaux des coupures (non utilisées) */
+                $bloc.find('.denom-row').each(function() {
+                    $(this).find('.denom-subtotal').text('0,00').addClass('text-muted');
+                    $(this).removeClass('table-active');
+                });
+            } else {
+                $bloc.find('.denom-row').each(function() {
+                    var $row  = $(this);
+                    var denom = parseFloat($row.find('.denom-qty').data('denom')) || 0;
+                    var qty   = parseInt($row.find('.denom-qty').val()) || 0;
+                    var sub   = denom * qty;
+                    totalPhy += sub;
+                    var $sub = $row.find('.denom-subtotal');
+                    if (sub > 0) {
+                        $sub.html('<strong>' + fmtArrete(sub) + '</strong>').removeClass('text-muted');
+                        $row.addClass('table-active');
+                    } else {
+                        $sub.text('0,00').addClass('text-muted');
+                        $row.removeClass('table-active');
+                    }
+                });
+            }
 
             var ecart      = totalPhy - comptable;
             var $ecartCell = $bloc.find('.arrete-ecart-val');
@@ -690,23 +765,17 @@ $(document).ready(function () {
             headers : { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
         }).done(function(data) {
             if (!data.success) {
-                $('#arreteBody').html('<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle mr-1"></i> ' + (data.message || 'Erreur') + '</div>');
+                $('#modalArreteCaisse').modal('hide');
+                showSystemMessage('error', data.message || 'Impossible d\'ouvrir l\'arrêté de caisse.');
                 return;
             }
             $('#arreteBody').html(buildArreteBody(data));
             recalculerArrete();
         }).fail(function(xhr) {
-            var msg = 'Impossible de charger les soldes.';
-            if (xhr.status === 200) {
-                try {
-                    var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                    if (d.success) { $('#arreteBody').html(buildArreteBody(d)); recalculerArrete(); return; }
-                    msg = d.message || msg;
-                } catch(e) { /* noop */ }
-            } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                msg = xhr.responseJSON.message;
-            }
-            $('#arreteBody').html('<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle mr-1"></i> ' + msg + '</div>');
+            var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Impossible de charger les soldes.';
+            $('#modalArreteCaisse').modal('hide');
+            showSystemMessage('error', msg);
+            logFrontendError(msg, 'Chargement soldes arrêté caisse', xhr.status);
         });
     }
 
@@ -723,21 +792,29 @@ $(document).ready(function () {
             var devise     = $bloc.data('devise');
             var physique   = 0;
             var detail     = {};
-            $bloc.find('.denom-row').each(function () {
-                var $r  = $(this);
-                var den = parseFloat($r.find('.denom-qty').data('denom')) || 0;
-                var qty = parseInt($r.find('.denom-qty').val()) || 0;
-                physique += den * qty;
-                if (qty > 0) detail[den] = qty;
-            });
+
+            /* Utiliser la saisie directe si elle a été renseignée */
+            var directRaw = $.trim($bloc.find('.montant-direct').val());
+            var directVal = parseFloat(directRaw);
+            if (directRaw !== '' && !isNaN(directVal)) {
+                physique = directVal;
+                /* Pas de détail de billetage en saisie directe */
+            } else {
+                $bloc.find('.denom-row').each(function () {
+                    var $r  = $(this);
+                    var den = parseFloat($r.find('.denom-qty').data('denom')) || 0;
+                    var qty = parseInt($r.find('.denom-qty').val()) || 0;
+                    physique += den * qty;
+                    if (qty > 0) detail[den] = qty;
+                });
+            }
+
             billetage.push({ devise_code: devise, solde_physique: physique, detail: detail });
         });
 
         if (!billetage.length) { billetageOk = false; }
 
         var motif = $.trim($('#champMotifEcart').val() || '');
-        var $errDiv = $('#arreteErreur');
-        $errDiv.addClass('d-none').html('');
 
         $btn.prop('disabled', true)
             .html('<i class="fas fa-spinner fa-spin mr-1"></i> Soumission en cours…');
@@ -757,38 +834,16 @@ $(document).ready(function () {
                 // Recharger la page après 1.5s pour afficher EN_VERIFICATION
                 setTimeout(function () { location.reload(); }, 1500);
             } else {
-                $errDiv.removeClass('d-none').html('<i class="fas fa-exclamation-triangle mr-1"></i>' + (r.message || 'Erreur inconnue.'));
+                showSystemMessage('error', r.message || 'Erreur inconnue.');
                 $btn.prop('disabled', false)
                     .html('<i class="fas fa-lock mr-1"></i> Confirmer la clôture');
             }
         })
         .fail(function (xhr) {
-            var msg = '';
-            if (xhr.status === 200) {
-                try {
-                    var r = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                    if (r.success) {
-                        $('#modalArreteCaisse').modal('hide');
-                        showSystemMessage('success', r.message || 'Billetage soumis.');
-                        setTimeout(function () { location.reload(); }, 1500);
-                        return;
-                    }
-                    msg = r.message || 'Erreur.';
-                } catch(e) { msg = 'Réponse invalide du serveur.'; }
-            } else if (xhr.status === 422 && xhr.responseJSON) {
-                if (xhr.responseJSON.errors) {
-                    var errs = [];
-                    $.each(xhr.responseJSON.errors, function (k, v) { errs.push(v[0]); });
-                    msg = errs.join(' | ');
-                } else {
-                    msg = xhr.responseJSON.message || 'Données invalides.';
-                }
-            } else {
-                msg = 'Erreur ' + xhr.status + ' — ' + ((xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : xhr.statusText);
-            }
-            $errDiv.removeClass('d-none').html('<i class="fas fa-exclamation-triangle mr-1"></i>' + msg);
-            $btn.prop('disabled', false)
-                .html('<i class="fas fa-lock mr-1"></i> Confirmer la clôture');
+            var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Une erreur est survenue.';
+            showSystemMessage('error', msg);
+            $btn.prop('disabled', false).html('<i class="fas fa-lock mr-1"></i> Confirmer la clôture');
+            logFrontendError(msg, 'Confirmation arrêté caisse', xhr.status);
         });
     });
 
@@ -825,24 +880,8 @@ $(document).ready(function () {
                     setTimeout(function () { location.reload(); }, 1200);
                 })
                 .fail(function (xhr) {
-                    if (xhr.status === 200) {
-                        try {
-                            var res = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                            if (res && res.success) {
-                                showSystemMessage('success', res.message || 'Statut mis à jour.');
-                                setTimeout(function () { location.reload(); }, 1200);
-                                return;
-                            }
-                            showSystemMessage('error', res.message || 'Erreur.');
-                            $btn.prop('disabled', false);
-                            return;
-                        } catch(e) { /* NOOP */ }
-                    }
                     $btn.prop('disabled', false);
-                    var msg = (xhr.responseJSON && xhr.responseJSON.message)
-                        ? xhr.responseJSON.message
-                        : 'Erreur ' + xhr.status + ' lors du changement de statut.';
-                    showSystemMessage('error', msg);
+                    handleAjaxFail(xhr, 'Changement statut guichet');
                 });
             },
             info.opts
@@ -886,42 +925,9 @@ $(document).ready(function () {
                 );
             });
         }).fail(function(xhr) {
-            if (xhr.status === 200) {
-                try {
-                    var data = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                    /* JSON parsé manuellement — rendre le tableau normalement */
-                    var tbody = $('#tbodyMesDemandes');
-                    tbody.empty();
-                    if (!data.length) {
-                        tbody.html('<tr><td colspan="5" class="text-center py-3 text-muted"><i class="fas fa-inbox mr-1"></i> Aucune demande.</td></tr>');
-                        return;
-                    }
-                    $.each(data, function(i, d) {
-                        var motif = d.motif
-                            ? (d.motif.length > 35 ? d.motif.substring(0,35) + '…' : d.motif)
-                            : '<span class="text-muted">—</span>';
-                        tbody.append(
-                            '<tr>'
-                            + '<td><small class="text-monospace">' + (d.reference || '—') + '</small></td>'
-                            + '<td><strong>' + d.montant_fmt + '</strong></td>'
-                            + '<td><small>' + motif + '</small></td>'
-                            + '<td><small>' + (d.date || '—') + '</small></td>'
-                            + '<td><span class="badge ' + (statutClasses[d.statut] || 'badge-secondary') + '">'
-                            + (statutLabels[d.statut] || d.statut) + '</span></td>'
-                            + '</tr>'
-                        );
-                    });
-                    return;
-                } catch(e) {
-                    var detail = 'HTTP 200 non-JSON : ' + xhr.responseText.substring(0, 300);
-                    $('#tbodyMesDemandes').html('<tr><td colspan="5" class="text-danger py-2 small"><i class="fas fa-exclamation-triangle mr-1"></i> ' + detail + '</td></tr>');
-                    return;
-                }
-            }
-            var detail = 'HTTP ' + xhr.status + ' ' + xhr.statusText;
-            if (xhr.responseJSON && xhr.responseJSON.message) detail += ' — ' + xhr.responseJSON.message;
-            else if (xhr.responseText) detail += ' — ' + xhr.responseText.substring(0, 300);
-            $('#tbodyMesDemandes').html('<tr><td colspan="5" class="text-danger py-2 small"><i class="fas fa-exclamation-triangle mr-1"></i> ' + detail + '</td></tr>');
+            var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Erreur de chargement.';
+            logFrontendError(msg, 'Chargement demandes appro', xhr.status);
+            $('#tbodyMesDemandes').html('<tr><td colspan="5" class="text-center text-danger py-2"><i class="fas fa-exclamation-triangle mr-1"></i> ' + msg + '</td></tr>');
         });
     }
 
@@ -930,11 +936,8 @@ $(document).ready(function () {
         var montant = $('#demandeMontant').val();
         var motif   = $('#demandeMotif').val();
 
-        $('#demandeErreur').addClass('d-none').text('');
-        $('#demandeSuccess').addClass('d-none').text('');
-
         if (!devise || !montant || parseFloat(montant) <= 0) {
-            $('#demandeErreur').removeClass('d-none').text('Veuillez sélectionner une devise et saisir un montant valide.');
+            showSystemMessage('error', 'Veuillez sélectionner une devise et saisir un montant valide.');
             return;
         }
 
@@ -950,51 +953,17 @@ $(document).ready(function () {
         })
             .done(function(r) {
                 if (r.success) {
-                    $('#demandeSuccess').removeClass('d-none')
-                        .html('<i class="fas fa-check-circle mr-1"></i>' + r.message);
+                    showSystemMessage('success', r.message || 'Demande envoyée.');
                     $('#demandeDevise').val('');
                     $('#demandeMontant').val('');
                     $('#demandeMotif').val('');
                     chargerMesDemandes();
                 } else {
-                    $('#demandeErreur').removeClass('d-none')
-                        .html('<i class="fas fa-exclamation-triangle mr-1"></i>' + (r.message || 'Erreur inconnue.'));
+                    showSystemMessage('error', r.message || 'Erreur inconnue.');
                 }
             })
             .fail(function(xhr) {
-                var msg = '';
-                if (xhr.status === 200) {
-                    /* HTTP 200 mais jQuery n'a pas parsé le JSON (ex: BOM) */
-                    try {
-                        var cleaned = xhr.responseText.replace(/^\uFEFF/, '').trim();
-                        var r = JSON.parse(cleaned);
-                        if (r.success) {
-                            $('#demandeSuccess').removeClass('d-none')
-                                .html('<i class="fas fa-check-circle mr-1"></i>' + r.message);
-                            $('#demandeDevise').val(''); $('#demandeMontant').val(''); $('#demandeMotif').val('');
-                            chargerMesDemandes();
-                            return;
-                        }
-                        msg = r.message || 'Erreur.';
-                    } catch(e) {
-                        msg = 'HTTP 200 réponse non-JSON : ' + xhr.responseText.substring(0, 300);
-                    }
-                } else if (xhr.status === 422) {
-                    /* Erreurs de validation Laravel */
-                    if (xhr.responseJSON && xhr.responseJSON.errors) {
-                        var errs = [];
-                        $.each(xhr.responseJSON.errors, function(k, v) { errs.push(v[0]); });
-                        msg = errs.join(' | ');
-                    } else {
-                        msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Données invalides.';
-                    }
-                } else {
-                    msg = 'HTTP ' + xhr.status + ' ' + xhr.statusText;
-                    if (xhr.responseJSON && xhr.responseJSON.message) msg += ' — ' + xhr.responseJSON.message;
-                    else if (xhr.responseText) msg += ' — ' + xhr.responseText.substring(0, 300);
-                }
-                $('#demandeErreur').removeClass('d-none')
-                    .html('<i class="fas fa-exclamation-triangle mr-1"></i>' + msg);
+                handleAjaxFail(xhr, 'Envoi demande approvisionnement');
             })
             .always(function() {
                 btn.prop('disabled', false).html('<i class="fas fa-paper-plane mr-1"></i> Envoyer la demande');

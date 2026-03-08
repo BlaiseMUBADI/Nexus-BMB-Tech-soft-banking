@@ -248,7 +248,7 @@
         </div>
     </div>
 </div>
-{{-- Modal Rejet Clôture --}}
+{{-- Modal Rejet Clôture (global guichet) --}}
 <div class="modal fade" id="modalRejetCloture" tabindex="-1">
     <div class="modal-dialog modal-sm">
         <div class="modal-content">
@@ -270,6 +270,37 @@
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
                 <button type="button" class="btn btn-danger" id="btnConfirmRejetCloture">
                     <i class="fas fa-times mr-1"></i>Rejeter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Rejet LIGNE (par devise) --}}
+<div class="modal fade" id="modalRejetLigne" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white py-2">
+                <h6 class="modal-title mb-0"><i class="fas fa-times-circle mr-1"></i> Rejeter la devise</h6>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="rejetLigneClotureId">
+                <p class="small mb-2">
+                    Rejet de la devise <strong id="rejetLigneDevise"></strong> du guichet <strong id="rejetLigneGuichet"></strong>.<br>
+                    <span class="text-warning"><i class="fas fa-exclamation-triangle mr-1"></i>Toutes les devises en attente seront rejetées et le guichet remis en <span class="badge badge-success">OUVERT</span>.</span>
+                </p>
+                <div class="form-group mb-2">
+                    <label class="font-weight-bold">Motif du rejet <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="rejetLigneObs" rows="3"
+                              placeholder="Ex : Écart non justifié, recomptez les billets…" maxlength="500"></textarea>
+                    <small class="text-danger d-none" id="rejetLigneErreur">Ce champ est obligatoire.</small>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmRejetLigne">
+                    <i class="fas fa-times mr-1"></i>Confirmer le rejet
                 </button>
             </div>
         </div>
@@ -349,6 +380,7 @@ $(document).ready(function () {
     var urlApprouver  = '{{ url("tresorerie/coffre/demandes") }}';
     var urlClotures       = '{{ route("tresorerie.coffre.clotures") }}';
     var urlClotureAction  = '{{ url("tresorerie/coffre/clotures") }}';
+    var urlLigneAction    = '{{ url("tresorerie/coffre/clotures/ligne") }}';
     var urlStats          = '{{ route("tresorerie.coffre.stats") }}';
     var filtreActif   = '';
     var toutesLesDemandes = [];
@@ -382,18 +414,13 @@ $(document).ready(function () {
                   + '<small class="text-muted">' + g.intitule + '</small><br>'
                   + '<small><i class="fas fa-user mr-1"></i>' + g.agent_nom + ' <span class="text-muted">(' + (g.agent_matric || '') + ')</span></small>'
                   + '</div>'
-                  + '<div>'
-                  + '<button class="btn btn-sm btn-success mr-1 btn-approuver-cloture" data-id="' + g.guichet_id + '" data-code="' + g.code_guichet + '">'
-                  + '<i class="fas fa-check-circle mr-1"></i> Valider</button>'
-                  + '<button class="btn btn-sm btn-danger btn-rejeter-cloture" data-id="' + g.guichet_id + '" data-code="' + g.code_guichet + '">'
-                  + '<i class="fas fa-times-circle mr-1"></i> Rejeter</button>'
-                  + '</div>'
+                  + '<span class="badge badge-warning badge-pill py-1 px-2"><i class="fas fa-clock mr-1"></i>En vérification</span>'
                   + '</div>';
 
             // Tableau des devises
             html += '<table class="table table-sm table-bordered mb-0" style="font-size:.85rem">'
                   + '<thead class="thead-dark"><tr>'
-                  + '<th>Devise</th><th>Système</th><th>Physique (agent)</th><th>Écart</th>'
+                  + '<th>Devise</th><th>Système</th><th>Physique (agent)</th><th>Écart</th><th>Actions</th>'
                   + '</tr></thead><tbody>';
 
             $.each(g.montants, function (j, m) {
@@ -404,15 +431,30 @@ $(document).ready(function () {
                     ? '<i class="fas fa-check text-success"></i>'
                     : '<i class="fas fa-exclamation-triangle"></i>';
 
+                var ligneBtns;
+                if (!m.statut_validation || m.statut_validation === 'EN_ATTENTE') {
+                    ligneBtns = '<button class="btn btn-xs btn-success btn-valider-ligne" '
+                              + 'data-id="' + m.cloture_id + '" data-devise="' + m.devise_code + '" data-guichet="' + g.code_guichet + '">'
+                              + '<i class="fas fa-check mr-1"></i>Valider</button> '
+                              + '<button class="btn btn-xs btn-danger btn-rejeter-ligne" '
+                              + 'data-id="' + m.cloture_id + '" data-devise="' + m.devise_code + '" data-guichet="' + g.code_guichet + '">'
+                              + '<i class="fas fa-times mr-1"></i>Rejeter</button>';
+                } else if (m.statut_validation === 'VALIDE') {
+                    ligneBtns = '<span class="badge badge-success"><i class="fas fa-check mr-1"></i>Validé</span>';
+                } else {
+                    ligneBtns = '<span class="badge badge-danger"><i class="fas fa-times mr-1"></i>Rejeté</span>';
+                }
+
                 html += '<tr>'
                       + '<td><strong>' + m.devise_code + '</strong><br><small class="text-muted">' + (m.date || '') + '</small></td>'
                       + '<td class="text-right">' + m.solde_comptable + '</td>'
                       + '<td class="text-right font-weight-bold">' + m.solde_physique + '</td>'
                       + '<td class="text-right ' + ecartClass + '">' + ecartIcon + '&nbsp;' + m.ecart + '</td>'
+                      + '<td class="text-center" style="white-space:nowrap">' + ligneBtns + '</td>'
                       + '</tr>';
 
                 if (m.motif_ecart) {
-                    html += '<tr class="table-warning"><td colspan="4" class="small py-1"><i class="fas fa-comment mr-1"></i><em>' + $('<div>').text(m.motif_ecart).html() + '</em></td></tr>';
+                    html += '<tr class="table-warning"><td colspan="5" class="small py-1"><i class="fas fa-comment mr-1"></i><em>' + $('<div>').text(m.motif_ecart).html() + '</em></td></tr>';
                 }
             });
 
@@ -440,15 +482,10 @@ $(document).ready(function () {
             }
             renderClotures(data);
         }).fail(function(xhr) {
-            if (xhr.status === 200) {
-                try {
-                    var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                    renderClotures(d); return;
-                } catch(e) {}
-            }
+            handleAjaxFail(xhr, 'Chargement clôtures en vérification');
             $('#cloturePanelBody').html(
                 '<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle mr-1"></i>'
-                + 'Erreur ' + xhr.status + ' lors du chargement des clôtures.</div>'
+                + 'Erreur lors du chargement des clôtures. Actualisez la page.</div>'
             );
         });
     }
@@ -470,9 +507,8 @@ $(document).ready(function () {
                     data    : { observations: '' },
                     dataType: 'json'
                 }).done(function(r) {
-                    if (r.success) {
-                        toastr.success(r.message);
-                        // Fermer proprement tout modal ouvert avant de rafraîchir
+                    if (r && r.success) {
+                        showSystemMessage('success', r.message);
                         var $openModal = $('.modal.show');
                         if ($openModal.length) {
                             $openModal.one('hidden.bs.modal', function () {
@@ -488,13 +524,12 @@ $(document).ready(function () {
                             rafraichirStats();
                         }
                     } else {
-                        toastr.error(r.message || 'Erreur.');
+                        showSystemMessage('error', (r && r.message) ? r.message : 'Erreur.');
                         btn.prop('disabled', false).html('<i class="fas fa-check-circle mr-1"></i> Valider');
                     }
                 }).fail(function(xhr) {
-                    var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Erreur ' + xhr.status;
-                    toastr.error(msg);
                     btn.prop('disabled', false).html('<i class="fas fa-check-circle mr-1"></i> Valider');
+                    handleAjaxFail(xhr, 'Approbation clôture guichet');
                 });
             },
             {
@@ -534,9 +569,9 @@ $(document).ready(function () {
             dataType: 'json'
         }).done(function(r) {
             if (r.success) {
-                toastr.warning(r.message || 'Clôture rejetée.');
+                showSystemMessage('warning', r.message || 'Clôture rejetée.');
             } else {
-                toastr.error(r.message || 'Erreur.');
+                showSystemMessage('error', r.message || 'Erreur.');
             }
             // Attendre la fin de l'animation Bootstrap avant de rafraîchir
             $('#modalRejetCloture').one('hidden.bs.modal', function () {
@@ -545,10 +580,92 @@ $(document).ready(function () {
                 rafraichirClotures();
             }).modal('hide');
         }).fail(function(xhr) {
-            var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Erreur.';
-            toastr.error(msg);
+            handleAjaxFail(xhr, 'Rejet clôture guichet');
         }).always(function() {
             $('#btnConfirmRejetCloture').prop('disabled', false);
+        });
+    });
+
+    // ── Valider UNE ligne (1 devise) ───────────────────────────
+    $(document).on('click', '.btn-valider-ligne', function () {
+        var id     = $(this).data('id');
+        var devise = $(this).data('devise');
+        var guichet= $(this).data('guichet');
+        var btn    = $(this);
+
+        showUniversalConfirm(
+            'Valider la devise <strong>' + devise + '</strong> du guichet <strong>' + guichet + '</strong> ?'
+            + '<br><small class="text-info">Le montant physique sera transféré au coffre pour cette devise.</small>',
+            function () {
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+                $.ajax({
+                    url     : urlLigneAction + '/' + id + '/approuver',
+                    method  : 'POST',
+                    data    : { observations: '' },
+                    dataType: 'json'
+                }).done(function(r) {
+                    if (r && r.success) {
+                        showSystemMessage('success', r.message);
+                        rafraichirClotures();
+                        rafraichirBalances();
+                        rafraichirStats();
+                    } else {
+                        showSystemMessage('error', (r && r.message) ? r.message : 'Erreur.');
+                        btn.prop('disabled', false).html('<i class="fas fa-check mr-1"></i>Valider');
+                    }
+                }).fail(function(xhr) {
+                    btn.prop('disabled', false).html('<i class="fas fa-check mr-1"></i>Valider');
+                    handleAjaxFail(xhr, 'Validation ligne devise clôture');
+                });
+            },
+            {
+                title      : 'Valider la devise',
+                btnLabel   : 'Confirmer',
+                btnClass   : 'btn-success',
+                icon       : 'fas fa-check-circle',
+                bodyIcon   : 'fas fa-check-circle fa-3x text-success',
+                headerClass: 'bg-success text-white',
+                showWarning: false,
+            }
+        );
+    });
+
+    // ── Rejeter UNE ligne (1 devise) — ouvre modal ──────────────
+    $(document).on('click', '.btn-rejeter-ligne', function () {
+        $('#rejetLigneClotureId').val($(this).data('id'));
+        $('#rejetLigneDevise').text($(this).data('devise'));
+        $('#rejetLigneGuichet').text($(this).data('guichet'));
+        $('#rejetLigneObs').val('');
+        $('#rejetLigneErreur').addClass('d-none');
+        $('#modalRejetLigne').modal('show');
+    });
+
+    $('#btnConfirmRejetLigne').on('click', function () {
+        var obs = $('#rejetLigneObs').val().trim();
+        if (!obs) { $('#rejetLigneErreur').removeClass('d-none'); return; }
+        var id = $('#rejetLigneClotureId').val();
+        $(this).prop('disabled', true);
+
+        $.ajax({
+            url     : urlLigneAction + '/' + id + '/rejeter',
+            method  : 'POST',
+            data    : { observations: obs },
+            dataType: 'json'
+        }).done(function(r) {
+            if (r.success) {
+                showSystemMessage('warning', r.message || 'Ligne rejetée.');
+            } else {
+                showSystemMessage('error', r.message || 'Erreur.');
+            }
+            $('#modalRejetLigne').one('hidden.bs.modal', function () {
+                $('body').removeClass('modal-open');
+                $('.modal-backdrop').remove();
+                rafraichirClotures();
+            }).modal('hide');
+        }).fail(function(xhr) {
+            handleAjaxFail(xhr, 'Rejet ligne devise clôture');
+        }).always(function() {
+            $('#btnConfirmRejetLigne').prop('disabled', false);
         });
     });
 
@@ -712,39 +829,12 @@ $(document).ready(function () {
             renderDemandes(data);
         })
         .fail(function(xhr) {
-            var detail = '';
-
-            // Cas 200 avec body non-JSON (BOM ou contenu HTML)
-            if (xhr.status === 200) {
-                try {
-                    var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                    toutesLesDemandes = d;
-                    renderDemandes(d);
-                    return;
-                } catch(e) { /* pas du JSON */ }
-                detail = 'HTTP 200 mais réponse non-JSON :<br><code style="white-space:pre-wrap;font-size:.75rem">'
-                       + $('<div>').text((xhr.responseText || '').substring(0, 600)).html() + '</code>';
-            } else {
-                // Erreur HTTP réelle (403, 404, 500…)
-                var msg = '';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    msg = xhr.responseJSON.message;
-                } else if (xhr.responseJSON && xhr.responseJSON.error) {
-                    msg = xhr.responseJSON.error;
-                } else {
-                    msg = (xhr.responseText || '').substring(0, 600);
-                }
-                detail = 'HTTP <strong>' + xhr.status + ' ' + (xhr.statusText || '') + '</strong><br>'
-                       + '<code style="white-space:pre-wrap;font-size:.75rem">'
-                       + $('<div>').text(msg).html() + '</code>';
-            }
-
+            handleAjaxFail(xhr, 'Chargement demandes approvisionnement');
             $('#tbodyDemandes').html(
-                '<tr><td colspan="9" class="py-2 px-3">'
-                + '<div class="alert alert-danger mb-0 py-2 small">'
-                + '<i class="fas fa-exclamation-triangle mr-1"></i>'
-                + '<strong>Erreur lors du chargement des demandes</strong><br>' + detail
-                + '</div></td></tr>'
+                '<tr><td colspan="9" class="text-center py-4 text-muted">'
+                + '<i class="fas fa-exclamation-triangle mr-1 text-danger"></i>'
+                + ' Erreur lors du chargement. Actualisez la page.'
+                + '</td></tr>'
             );
         });
     }
@@ -770,16 +860,15 @@ $(document).ready(function () {
             dataType: 'json'
         }).done(function(r) {
             if (r.success) {
-                toastr.success(r.message);
+                showSystemMessage('success', r.message);
                 rafraichirDemandes();
                 rafraichirBalances();
                 rafraichirStats();
             } else {
-                toastr.error(r.message || 'Erreur lors de l\'approbation.');
+                showSystemMessage('error', r.message || 'Erreur lors de l\'approbation.');
             }
         }).fail(function(xhr) {
-            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur ' + xhr.status;
-            toastr.error(msg);
+            handleAjaxFail(xhr, 'Approbation demande approvisionnement');
         }).always(function() {
             // Réinitialiser le bouton dans tous les cas
             btn.prop('disabled', false).html('<i class="fas fa-check"></i>');
@@ -804,13 +893,12 @@ $(document).ready(function () {
         $('#btnConfirmRejet').prop('disabled', true);
 
         $.post(urlApprouver + '/' + id + '/rejeter', { observations: obs }).done(function(r) {
-            toastr.warning(r.message);
+            showSystemMessage('warning', r.message);
             $('#modalRejet').modal('hide');
             rafraichirDemandes();
             rafraichirStats();
         }).fail(function(xhr) {
-            var msg = xhr.responseJSON ? xhr.responseJSON.message : 'Erreur.';
-            toastr.error(msg);
+            handleAjaxFail(xhr, 'Rejet demande approvisionnement');
         }).always(function() {
             $('#btnConfirmRejet').prop('disabled', false);
         });

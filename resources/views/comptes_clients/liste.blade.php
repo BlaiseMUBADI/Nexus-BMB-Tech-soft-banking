@@ -412,17 +412,7 @@
                             }
                         })
                         .fail(function (xhr) {
-                            var parsed = null;
-                            if (!xhr.responseJSON && xhr.responseText) {
-                                try { parsed = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim()); } catch(e) {}
-                            }
-                            var json = xhr.responseJSON || parsed;
-                            if (json && json.success) {
-                                showSystemMessage('success', json.message || 'Compte supprimé.');
-                                setTimeout(function () { window.location.reload(); }, 1200);
-                                return;
-                            }
-                            showSystemMessage('error', (json && json.message) ? json.message : 'Erreur lors de la suppression.');
+                            handleAjaxFail(xhr, 'Suppression compte');
                         });
                 },
                 'Confirmation suppression'

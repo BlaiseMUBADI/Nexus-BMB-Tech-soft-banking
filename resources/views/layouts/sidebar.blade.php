@@ -112,6 +112,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							</p>
 						</a>
 						<ul class="nav nav-treeview custom-sub-menu">
+							{{-- 1. Ouverture / Fermeture --}}
 							<li class="nav-item">
 								<a href="{{ route('caisses.ouverture') }}"
 									class="nav-link sub-link {{ request()->is('caisses/ouverture*') ? 'active' : '' }}">
@@ -119,25 +120,40 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>Ouverture / Fermeture</p>
 								</a>
 							</li>
+
+							{{-- 2. Opérations de Caisse --}}
 							<li class="nav-item">
-								<a href="#"
-									class="nav-link sub-link {{ request()->is('caisse/operations*') ? 'active' : '' }}">
+								<a href="{{ route('caisses.operations.index') }}"
+									class="nav-link sub-link {{ request()->is('caisses/operations') ? 'active' : '' }}">
 									<i class="fas fa-exchange-alt nav-icon"></i>
 									<p>Opérations</p>
 								</a>
 							</li>
+
+							{{-- 3. Journal des Opérations --}}
 							<li class="nav-item">
-								<a href="#"
-									class="nav-link sub-link {{ request()->is('caisse/transferts*') ? 'active' : '' }}">
-									<i class="fas fa-truck-loading nav-icon"></i>
-									<p>Mouvements de fonds</p>
+								<a href="{{ route('caisses.journal.page') }}"
+									class="nav-link sub-link {{ request()->is('caisses/operations/journal') ? 'active' : '' }}">
+									<i class="fas fa-book-open nav-icon"></i>
+									<p>Jrnl des Opérations</p>
 								</a>
 							</li>
+
+							{{-- 4. Rapport de Fin de Journée (guichets FIXE / bureau) --}}
 							<li class="nav-item">
-								<a href="#"
-									class="nav-link sub-link {{ request()->is('caisse/comptabilite*') ? 'active' : '' }}">
-									<i class="fas fa-list-alt nav-icon"></i>
-									<p>Jrnl des Opérations</p>
+								<a href="{{ route('caisses.rapport.fin.journee') }}"
+									class="nav-link sub-link {{ request()->is('caisses/operations/rapport') ? 'active' : '' }}">
+									<i class="fas fa-chart-bar nav-icon text-info"></i>
+									<p>Rapport Journalier</p>
+								</a>
+							</li>
+
+							{{-- 5. Gestion Mobile Départ / Retour (guichets MOBILE) --}}
+							<li class="nav-item">
+								<a href="{{ route('caisses.mobile.index') }}"
+									class="nav-link sub-link {{ request()->is('caisses/mobile*') ? 'active' : '' }}">
+									<i class="fas fa-mobile-alt nav-icon text-warning"></i>
+									<p>Gestion Mobile</p>
 								</a>
 							</li>
 						</ul>

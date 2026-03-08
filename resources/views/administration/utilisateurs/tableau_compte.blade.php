@@ -61,12 +61,7 @@ function loadUsersTable() {
         renderUsersTable(data.users || []);
     })
     .fail(function (xhr) {
-        if (xhr.status === 200) {
-            try {
-                var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                if (d && d.users) { renderUsersTable(d.users); return; }
-            } catch(e) { /* NOOP */ }
-        }
+        handleAjaxFail(xhr, 'Chargement utilisateurs');
         $('#usersTable tbody').html('<tr><td colspan="7" class="text-center text-danger">Erreur de chargement des utilisateurs.</td></tr>');
     });
 }
@@ -94,14 +89,7 @@ $(document).ready(function() {
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) { showSystemMessage('success', d.message || 'Utilisateur supprimé.'); loadUsersTable(); return; }
-                        showSystemMessage('error', d.message || 'Erreur.'); return;
-                    } catch(e) { /* NOOP */ }
-                }
-                showSystemMessage('error', 'Erreur lors de la suppression.');
+                handleAjaxFail(xhr, 'Suppression utilisateur');
             });
         }, 'Confirmation de suppression');
     });
@@ -161,15 +149,7 @@ $(document).ready(function() {
             }
         })
         .fail(function (xhr) {
-            if (xhr.status === 200) {
-                try {
-                    var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                    if (d && d.success) { showSystemMessage('success', d.message || 'Utilisateur modifié.'); loadUsersTable(); return; }
-                    showSystemMessage('error', d.message || 'Erreur.'); return;
-                } catch(e) { /* NOOP */ }
-            }
-            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur lors de la modification.';
-            showSystemMessage('error', msg);
+            handleAjaxFail(xhr, 'Modification utilisateur');
         });
     });
 });

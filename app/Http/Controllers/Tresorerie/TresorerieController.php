@@ -499,10 +499,18 @@ class TresorerieController extends Controller
             ->orderBy('updated_at')
             ->get()
             ->map(function ($g) {
+                // Toutes les lignes de clôture (EN_ATTENTE + déjà traitées)
+                // pour affichage complet dans la carte superviseur
                 $clotures   = ClotureCaisse::where('guichet_id', $g->id)
-                    ->where('statut_validation', ClotureCaisse::VALIDATION_EN_ATTENTE)
+                    ->whereIn('statut_validation', [
+                        ClotureCaisse::VALIDATION_EN_ATTENTE,
+                        ClotureCaisse::VALIDATION_VALIDE,
+                        ClotureCaisse::VALIDATION_REJETE,
+                    ])
                     ->orderBy('date_cloture')
                     ->get();
+
+                $pendingCount = $clotures->where('statut_validation', ClotureCaisse::VALIDATION_EN_ATTENTE)->count();
 
                 $agentActif = $g->affectations->first();
                 $agentNom   = $agentActif && $agentActif->agent
@@ -510,27 +518,29 @@ class TresorerieController extends Controller
                     : ($clotures->first()?->agent_cloturant ?? 'Inconnu');
 
                 $montants = $clotures->map(fn($c) => [
-                    'cloture_id'     => $c->id,
-                    'devise_code'    => $c->devise_code,
-                    'solde_physique' => number_format($c->solde_physique, 2, ',', ' ') . ' ' . $c->devise_code,
-                    'solde_comptable'=> number_format($c->solde_comptable, 2, ',', ' ') . ' ' . $c->devise_code,
-                    'ecart'          => number_format($c->ecart_caisse, 2, ',', ' ') . ' ' . $c->devise_code,
-                    'statut_ecart'   => $c->statut_ecart,
-                    'motif_ecart'    => $c->motif_ecart,
-                    'date'           => $c->date_cloture?->format('d/m/Y H:i'),
+                    'cloture_id'       => $c->id,
+                    'devise_code'      => $c->devise_code,
+                    'solde_physique'   => number_format($c->solde_physique, 2, ',', ' ') . ' ' . $c->devise_code,
+                    'solde_comptable'  => number_format($c->solde_comptable, 2, ',', ' ') . ' ' . $c->devise_code,
+                    'ecart'            => number_format($c->ecart_caisse, 2, ',', ' ') . ' ' . $c->devise_code,
+                    'statut_ecart'     => $c->statut_ecart,
+                    'statut_validation'=> $c->statut_validation,
+                    'motif_ecart'      => $c->motif_ecart,
+                    'date'             => $c->date_cloture?->format('d/m/Y H:i'),
                 ]);
 
                 return [
-                    'guichet_id'   => $g->id,
-                    'code_guichet' => $g->code_guichet,
-                    'intitule'     => $g->intitule,
-                    'agent_nom'    => $agentNom,
-                    'agent_matric' => $agentActif?->agent_matricule ?? $clotures->first()?->agent_cloturant,
-                    'montants'     => $montants,
-                    'nb_lignes'    => $clotures->count(),
+                    'guichet_id'    => $g->id,
+                    'code_guichet'  => $g->code_guichet,
+                    'intitule'      => $g->intitule,
+                    'agent_nom'     => $agentNom,
+                    'agent_matric'  => $agentActif?->agent_matricule ?? $clotures->first()?->agent_cloturant,
+                    'montants'      => $montants,
+                    'nb_lignes'     => $clotures->count(),
+                    'pending_count' => $pendingCount,
                 ];
             })
-            ->filter(fn($g) => $g['nb_lignes'] > 0)
+            ->filter(fn($g) => $g['pending_count'] > 0)
             ->values();
 
         return response()->json($guichets);
@@ -664,6 +674,141 @@ class TresorerieController extends Controller
         return response()->json([
             'success' => true,
             'message' => "Clôture rejetée. Guichet " . $guichet->code_guichet . " remis en OUVERT pour correction.",
+        ]);
+    }
+
+    /**
+     * Valider UNE ligne de clôture (1 devise).
+     * Si toutes les devises du guichet sont validées → guichet FERME.
+     */
+    public function approuverLigneCloture(Request $request, $clotureId)
+    {
+        $request->validate(['observations' => 'nullable|string|max:500']);
+
+        /** @var \App\Models\User $user */
+        $user    = Auth::user();
+        $cloture = ClotureCaisse::findOrFail($clotureId);
+
+        if ($cloture->statut_validation !== ClotureCaisse::VALIDATION_EN_ATTENTE) {
+            return response()->json(['success' => false, 'message' => 'Cette ligne a déjà été traitée.'], 422);
+        }
+
+        $guichet = CaissesGuichet::with('soldes')->findOrFail($cloture->guichet_id);
+        $coffre  = CaissesGuichet::central()->firstOrFail();
+
+        try {
+            DB::transaction(function () use ($cloture, $guichet, $coffre, $user, $request) {
+                $reference = 'DEG-' . now()->format('Ymd-His') . '-' . $guichet->code_guichet . '-' . $cloture->devise_code;
+
+                // 1. Valider la ligne
+                $cloture->update([
+                    'statut_validation'        => ClotureCaisse::VALIDATION_VALIDE,
+                    'validateur_matricule'      => $user->agent_matricule,
+                    'date_validation'           => now(),
+                    'observations_superviseur'  => $request->observations,
+                ]);
+
+                // 2. Dégagement de la devise concernée
+                MouvementInterCaisse::create([
+                    'guichet_source_id'    => $guichet->id,
+                    'guichet_dest_id'      => $coffre->id,
+                    'agent_initiateur'     => $user->agent_matricule,
+                    'type_flux'            => 'DEGAGEMENT',
+                    'montant'              => $cloture->solde_physique,
+                    'devise_code'          => $cloture->devise_code,
+                    'reference_bordereau'  => $reference,
+                    'date_mouvement'       => now(),
+                    'statut'               => 'CONFIRME',
+                    'observations'         => 'Dégagement ' . $cloture->devise_code . ' — clôture ' . $guichet->code_guichet,
+                    'validateur_matricule'  => $user->agent_matricule,
+                ]);
+
+                // 3. Guichet solde → 0 pour cette devise
+                $soldeSrc = $guichet->soldes->where('devise_code', $cloture->devise_code)->first();
+                if ($soldeSrc) {
+                    $soldeSrc->solde_en_caisse = 0;
+                    $soldeSrc->save();
+                }
+
+                // 4. Coffre += montant physique pour cette devise
+                $soldeDst = CaissesGuichetSolde::firstOrCreate(
+                    ['guichet_id' => $coffre->id, 'devise_code' => $cloture->devise_code],
+                    ['solde_en_caisse' => 0]
+                );
+                $soldeDst->increment('solde_en_caisse', (float) $cloture->solde_physique);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+        }
+
+        // Après la transaction : vérifier s'il reste des devises EN_ATTENTE
+        $pendingCount = ClotureCaisse::where('guichet_id', $guichet->id)
+            ->where('statut_validation', ClotureCaisse::VALIDATION_EN_ATTENTE)
+            ->count();
+
+        $guichetFerme = false;
+        if ($pendingCount === 0) {
+            $guichet->statut_operationnel = 'FERME';
+            $guichet->save();
+            $guichetFerme = true;
+            $message = 'Devise ' . $cloture->devise_code . ' validée. Toutes les devises traitées — Guichet ' . $guichet->code_guichet . ' fermé.';
+        } else {
+            $message = 'Devise ' . $cloture->devise_code . ' validée. ' . $pendingCount . ' devise(s) restante(s) à valider.';
+        }
+
+        return response()->json([
+            'success'       => true,
+            'message'       => $message,
+            'guichet_ferme' => $guichetFerme,
+            'pending_count' => $pendingCount,
+        ]);
+    }
+
+    /**
+     * Rejeter UNE ligne de clôture (1 devise).
+     * Le guichet repasse immédiatement en OUVERT pour correction.
+     */
+    public function rejeterLigneCloture(Request $request, $clotureId)
+    {
+        $request->validate([
+            'observations' => 'required|string|max:500',
+        ], [
+            'observations.required' => 'Le motif du rejet est obligatoire.',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user    = Auth::user();
+        $cloture = ClotureCaisse::findOrFail($clotureId);
+
+        if ($cloture->statut_validation !== ClotureCaisse::VALIDATION_EN_ATTENTE) {
+            return response()->json(['success' => false, 'message' => 'Cette ligne a déjà été traitée.'], 422);
+        }
+
+        $guichet = CaissesGuichet::findOrFail($cloture->guichet_id);
+
+        try {
+            DB::transaction(function () use ($cloture, $guichet, $user, $request) {
+                // Rejeter TOUTES les lignes EN_ATTENTE de ce guichet
+                ClotureCaisse::where('guichet_id', $guichet->id)
+                    ->where('statut_validation', ClotureCaisse::VALIDATION_EN_ATTENTE)
+                    ->update([
+                        'statut_validation'        => ClotureCaisse::VALIDATION_REJETE,
+                        'validateur_matricule'      => $user->agent_matricule,
+                        'date_validation'           => now(),
+                        'observations_superviseur'  => '[Rejet ' . $cloture->devise_code . '] ' . $request->observations,
+                    ]);
+
+                // Guichet → OUVERT pour correction
+                $guichet->statut_operationnel = 'OUVERT';
+                $guichet->save();
+            });
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Devise ' . $cloture->devise_code . ' rejetée. Guichet ' . $guichet->code_guichet . ' remis en OUVERT pour correction.',
         ]);
     }
 

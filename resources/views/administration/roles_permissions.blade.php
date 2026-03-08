@@ -426,7 +426,7 @@
                     setTimeout(function () { location.reload(); }, 900);
                 })
                 .fail(function (xhr) {
-                    showSystemMessage('error', 'Erreur : ' + (xhr.responseJSON?.message ?? 'impossible d\'ajouter le rôle.'));
+                    handleAjaxFail(xhr, 'Ajout rôle');
                     $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter le rôle');
                 });
         });
@@ -443,7 +443,7 @@
                         setTimeout(function () { location.reload(); }, 900);
                     })
                     .fail(function (xhr) {
-                        showSystemMessage('error', 'Erreur : ' + (xhr.responseJSON?.message ?? 'suppression impossible.'));
+                        handleAjaxFail(xhr, 'Suppression rôle');
                     });
             }, 'Confirmer la suppression');
         });
@@ -472,7 +472,8 @@
                 .done(function (html) {
                     $('#permissionsListContainer').html(html);
                 })
-                .fail(function () {
+                .fail(function (xhr) {
+                    handleAjaxFail(xhr, 'Chargement permissions du rôle');
                     $('#permissionsListContainer').html('<div class="alert alert-danger">Erreur de chargement.</div>');
                 });
         });
@@ -504,33 +505,9 @@
                         document.dispatchEvent(new CustomEvent('perm:updated', { detail: { moduleId: moduleId } }));
                     }
                 })
-                .fail(function (xhr, textStatus) {
-                    // Cas "parseerror" avec HTTP 200 : la requête a réussi côté serveur
-                    // mais jQuery n'a pas pu parser le JSON (BOM ou caractère parasite)
-                    if (xhr.status === 200) {
-                        try {
-                            var raw = xhr.responseText.replace(/^\uFEFF/, '').trim();
-                            var d = JSON.parse(raw);
-                            if (d && d.success !== false) {
-                                showSystemMessage('success', (d.message) ? d.message : (checked ? 'Permission attribuée.' : 'Permission retirée.'));
-                                document.dispatchEvent(new CustomEvent('perm:updated', { detail: { moduleId: moduleId } }));
-                                return;
-                            }
-                        } catch(e) { /* NOOP */ }
-                    }
-                    // Annuler visuellement le changement
+                .fail(function (xhr) {
                     $cb.prop('checked', !checked);
-                    var msg;
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        msg = xhr.responseJSON.message;
-                    } else if (xhr.status === 419) {
-                        msg = 'Session expirée. Veuillez recharger la page (F5).';
-                    } else if (xhr.status === 403) {
-                        msg = 'Accès refusé. Permission EBEN-PER5 requise.';
-                    } else {
-                        msg = 'Erreur ' + xhr.status + (xhr.responseText ? ' — ' + xhr.responseText.replace(/^\uFEFF/, '').substring(0, 200) : '');
-                    }
-                    showSystemMessage('error', msg);
+                    handleAjaxFail(xhr, 'Attribution permission');
                 })
                 .always(function () {
                     $cb.prop('disabled', false);
@@ -552,7 +529,8 @@
                 .done(function (html) {
                     $('#rolesListContainer').html(html);
                 })
-                .fail(function () {
+                .fail(function (xhr) {
+                    handleAjaxFail(xhr, 'Chargement rôles utilisateur');
                     $('#rolesListContainer').html('<div class="alert alert-danger">Erreur de chargement.</div>');
                 });
         });
@@ -572,8 +550,8 @@
                         $('#rolesListContainer').html(html);
                     });
                 })
-                .fail(function () {
-                    showSystemMessage('error', 'Erreur de mise à jour.');
+                .fail(function (xhr) {
+                    handleAjaxFail(xhr, 'Attribution rôle utilisateur');
                 });
         });
 

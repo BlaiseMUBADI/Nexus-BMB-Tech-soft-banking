@@ -21,10 +21,13 @@ Route::middleware(['auth', 'permission:EBEN-PER44'])->prefix('tresorerie')->grou
     Route::post('/coffre/demandes/{id}/rejeter',  [TresorerieController::class, 'rejeterDemande'])->name('tresorerie.coffre.demandes.rejeter');
     Route::get('/coffre/demandes/count',          [TresorerieController::class, 'demandesCount'])->name('tresorerie.coffre.demandes.count');
     // ── Clôtures guichets (double contrôle) ───────────────────────────
-    Route::get('/coffre/clotures',                       [TresorerieController::class, 'cloturesEnVerification'])->name('tresorerie.coffre.clotures');
-    Route::get('/coffre/clotures/count',                 [TresorerieController::class, 'cloturesCount'])->name('tresorerie.coffre.clotures.count');
-    Route::post('/coffre/clotures/{guichetId}/approuver',[TresorerieController::class, 'approuverCloture'])->name('tresorerie.coffre.clotures.approuver');
-    Route::post('/coffre/clotures/{guichetId}/rejeter',  [TresorerieController::class, 'rejeterCloture'])->name('tresorerie.coffre.clotures.rejeter');
+    Route::get('/coffre/clotures',                            [TresorerieController::class, 'cloturesEnVerification'])->name('tresorerie.coffre.clotures');
+    Route::get('/coffre/clotures/count',                      [TresorerieController::class, 'cloturesCount'])->name('tresorerie.coffre.clotures.count');
+    Route::post('/coffre/clotures/{guichetId}/approuver',     [TresorerieController::class, 'approuverCloture'])->name('tresorerie.coffre.clotures.approuver');
+    Route::post('/coffre/clotures/{guichetId}/rejeter',       [TresorerieController::class, 'rejeterCloture'])->name('tresorerie.coffre.clotures.rejeter');
+    // ── Validation ligne par ligne (par devise) ───────────────────────
+    Route::post('/coffre/clotures/ligne/{clotureId}/approuver',[TresorerieController::class, 'approuverLigneCloture'])->name('tresorerie.coffre.clotures.ligne.approuver');
+    Route::post('/coffre/clotures/ligne/{clotureId}/rejeter',  [TresorerieController::class, 'rejeterLigneCloture'])->name('tresorerie.coffre.clotures.ligne.rejeter');
 });
 
 // ── Routes Guichetier (EBEN-PER10) ─────────────────────────────────────────────

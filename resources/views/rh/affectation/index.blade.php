@@ -672,21 +672,7 @@ $(document).ready(function () {
             }
         })
         .fail(function (xhr) {
-            if (xhr.status === 200) {
-                try {
-                    var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                    if (d && d.success) {
-                        $('#affectationModal').modal('hide');
-                        showSystemMessage('success', d.message || 'Affectation enregistrée avec succès !');
-                        setTimeout(function () { location.reload(); }, 1200);
-                        return;
-                    }
-                    showSystemMessage('error', d.message || 'Erreur.');
-                    return;
-                } catch(e) { /* NOOP */ }
-            }
-            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Une erreur inattendue est survenue (' + xhr.status + ').';
-            showSystemMessage('error', msg);
+            handleAjaxFail(xhr, 'Enregistrement affectation');
         })
         .always(function () {
             $btn.prop('disabled', false).html('<i class="fas fa-check mr-1"></i> Valider l\'affectation');
@@ -787,13 +773,8 @@ $(document).on('click', '.btn-voir-affectation', function () {
         renderVoirModal(d);
     })
     .fail(function (xhr) {
-        if (xhr.status === 200) {
-            try {
-                var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                if (d && d.agent_matricule) { renderVoirModal(d); return; }
-            } catch(e) { /* NOOP */ }
-        }
-        $('#voirModalBody').html('<div class="text-center text-danger py-3">Erreur de chargement.</div>');
+        handleAjaxFail(xhr, 'Chargement détails affectation');
+        $('#voirModalBody').html('<div class="text-center text-danger py-3"><i class="fas fa-exclamation-triangle mr-1"></i>Erreur de chargement.</div>');
     });
 });
 
@@ -846,21 +827,7 @@ $('#confirmEditEtatBtn').on('click', function () {
         }
     })
     .fail(function (xhr) {
-        if (xhr.status === 200) {
-            try {
-                var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                if (d && d.success) {
-                    $('#editEtatModal').modal('hide');
-                    showSystemMessage('success', d.message || 'État modifié avec succès.');
-                    setTimeout(function () { location.reload(); }, 1200);
-                    return;
-                }
-                showSystemMessage('error', d.message || 'Erreur.');
-                return;
-            } catch(e) { /* NOOP */ }
-        }
-        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Une erreur inattendue est survenue (' + xhr.status + ').';
-        showSystemMessage('error', msg);
+        handleAjaxFail(xhr, 'Modification état affectation');
     })
     .always(function () {
         $btn.prop('disabled', false).html('<i class="fas fa-save mr-1"></i> Enregistrer');
@@ -901,23 +868,7 @@ $(document).on('click', '.btn-delete-affectation', function () {
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) {
-                            showSystemMessage('success', d.message || 'Affectation supprimée avec succès.');
-                            setTimeout(function () { location.reload(); }, 1200);
-                            return;
-                        }
-                        showSystemMessage('error', d.message || 'Erreur.');
-                        $btn.prop('disabled', false);
-                        return;
-                    } catch(e) { /* NOOP */ }
-                }
-                var msg = (xhr.responseJSON && xhr.responseJSON.message)
-                    ? xhr.responseJSON.message
-                    : 'Suppression impossible (' + xhr.status + ').';
-                showSystemMessage('error', msg);
+                handleAjaxFail(xhr, 'Suppression affectation');
                 $btn.prop('disabled', false);
             });
         }

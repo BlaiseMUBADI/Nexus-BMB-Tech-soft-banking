@@ -50,5 +50,16 @@ Route::get('/dashboard', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/clients/photo/{filename}', [ClientController::class, 'photo'])->name('clients.photo');
     Route::get('/agents/photo/{filename}',  [AgentController::class, 'photo'])->name('agents.photo');
+
+    // Journal des erreurs JavaScript → storage/logs/laravel.log
+    Route::post('/log/frontend-error', function (\Illuminate\Http\Request $req) {
+        \Illuminate\Support\Facades\Log::warning('[Frontend JS] ' . ($req->input('message', '?')), [
+            'context'     => $req->input('context'),
+            'http_status' => $req->input('status'),
+            'user_id'     => \Illuminate\Support\Facades\Auth::id(),
+            'ip'          => $req->ip(),
+        ]);
+        return response()->json(['ok' => true]);
+    })->name('log.frontend.error');
 });
 

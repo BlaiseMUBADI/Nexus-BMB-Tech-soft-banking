@@ -271,21 +271,7 @@
                 $('#userAccountsRow').show();
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.matricule) {
-                            $('#agentMatricule').val(d.matricule);
-                            $('#email').val(d.email || '');
-                            $('#agentInfoNom').text(d.nom + ' ' + (d.postnom || '') + ' ' + (d.prenom || ''));
-                            $('#agentInfoBadge').removeClass('d-none');
-                            $('#agentSelectAlert').hide();
-                            $('#userCreateForm').show();
-                            $('#userAccountsRow').show();
-                            return;
-                        }
-                    } catch(e) { /* NOOP */ }
-                }
+                handleAjaxFail(xhr, 'Chargement agent');
                 $('#agentSelectAlert').show()
                     .html('<i class="fas fa-exclamation-triangle mr-2"></i>Erreur lors du chargement de l\'agent.');
                 $('#userCreateForm').hide();
@@ -358,25 +344,7 @@
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) {
-                            showSystemMessage('success', d.message || 'Utilisateur créé avec succès.');
-                            $('#userCreateForm')[0].reset();
-                            $('#passwordHelp, #passwordConfirmHelp').text('');
-                            $('#systemMessageModal').one('hidden.bs.modal', function () {
-                                $('#refreshUsersTable').trigger('click');
-                            });
-                            return;
-                        }
-                        showSystemMessage('error', d.message || 'Erreur.');
-                        return;
-                    } catch(e) { /* NOOP */ }
-                }
-                var msg = 'Erreur lors de la création du compte.';
-                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                showSystemMessage('error', msg);
+                handleAjaxFail(xhr, 'Création utilisateur');
             });
         });
 

@@ -278,8 +278,9 @@ $(document).ready(function () {
 
         $.get('{{ route("postes.ajaxListe", ["service" => "__sID__"]) }}'.replace('__sID__', serviceId))
             .done(function (data) { $('#postesSection').html(data); })
-            .fail(function () {
-                $('#postesSection').html('<div class="p-3 text-danger">Erreur lors du chargement des postes.</div>');
+            .fail(function (xhr) {
+                handleAjaxFail(xhr, 'Chargement postes du service');
+                $('#postesSection').html('<div class="p-3 text-danger"><i class="fas fa-exclamation-triangle mr-1"></i>Erreur lors du chargement des postes.</div>');
             });
     });
 
@@ -304,22 +305,7 @@ $(document).ready(function () {
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) {
-                            showSystemMessage('success', d.message);
-                            $tr.fadeOut(400, function () { $(this).remove(); });
-                            return;
-                        }
-                        showSystemMessage('error', d.message || 'Erreur.');
-                        return;
-                    } catch(e) { /* NOOP */ }
-                }
-                var msg = (xhr.responseJSON && xhr.responseJSON.message)
-                    ? xhr.responseJSON.message
-                    : 'Erreur lors de la suppression du service.';
-                showSystemMessage('error', msg);
+                handleAjaxFail(xhr, 'Suppression service');
             });
         }, 'Confirmation de suppression');
     });
@@ -346,24 +332,8 @@ $(document).ready(function () {
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) {
-                            showSystemMessage('success', d.message || 'Service ajouté avec succès.');
-                            setTimeout(function () { location.reload(); }, 1200);
-                            return;
-                        }
-                        showSystemMessage('error', d.message || 'Erreur.');
-                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
-                        return;
-                    } catch(e) { /* NOOP */ }
-                }
-                var msg = (xhr.responseJSON && xhr.responseJSON.message)
-                    ? xhr.responseJSON.message
-                    : 'Erreur lors de l\'ajout du service (' + xhr.status + ').';
-                showSystemMessage('error', msg);
                 $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+                handleAjaxFail(xhr, 'Ajout service');
             });
     });
 
@@ -388,22 +358,7 @@ $(document).ready(function () {
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) {
-                            showSystemMessage('success', d.message);
-                            $tr.fadeOut(400, function () { $(this).remove(); });
-                            return;
-                        }
-                        showSystemMessage('error', d.message || 'Erreur.');
-                        return;
-                    } catch(e) { /* NOOP */ }
-                }
-                var msg = (xhr.responseJSON && xhr.responseJSON.message)
-                    ? xhr.responseJSON.message
-                    : 'Erreur lors de la suppression du poste.';
-                showSystemMessage('error', msg);
+                handleAjaxFail(xhr, 'Suppression poste');
             });
         }, 'Confirmation de suppression');
     });
@@ -433,25 +388,8 @@ $(document).ready(function () {
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) {
-                            showSystemMessage('success', d.message || 'Poste ajouté avec succès.');
-                            $.get('{{ route("postes.ajaxListe", ["service" => "__sID__"]) }}'.replace('__sID__', serviceId))
-                                .done(function (data) { $('#postesSection').html(data); });
-                            return;
-                        }
-                        showSystemMessage('error', d.message || 'Erreur.');
-                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
-                        return;
-                    } catch(e) { /* NOOP */ }
-                }
-                var msg = (xhr.responseJSON && xhr.responseJSON.message)
-                    ? xhr.responseJSON.message
-                    : 'Erreur lors de l\'ajout du poste (' + xhr.status + ').';
-                showSystemMessage('error', msg);
                 $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
+                handleAjaxFail(xhr, 'Ajout poste');
             });
     });
 

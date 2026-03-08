@@ -504,16 +504,7 @@ $(document).ready(function () {
             }
         })
         .fail(function (xhr) {
-            var msg = 'Erreur ' + xhr.status;
-            if (xhr.responseJSON) {
-                if (xhr.responseJSON.errors) {
-                    // Erreurs de validation Laravel (422)
-                    msg = Object.values(xhr.responseJSON.errors).flat().join('<br>');
-                } else if (xhr.responseJSON.message) {
-                    msg = xhr.responseJSON.message;
-                }
-            }
-            showSystemMessage('error', msg);
+            handleAjaxFail(xhr, 'Ajout guichet');
             $btn.prop('disabled', false);
         });
     });
@@ -558,15 +549,7 @@ $(document).ready(function () {
                     }
                 })
                 .fail(function (xhr) {
-                    var msg = 'Erreur ' + xhr.status;
-                    if (xhr.responseJSON) {
-                        if (xhr.responseJSON.errors) {
-                            msg = Object.values(xhr.responseJSON.errors).flat().join('<br>');
-                        } else if (xhr.responseJSON.message) {
-                            msg = xhr.responseJSON.message;
-                        }
-                    }
-                    showSystemMessage('error', msg);
+                    handleAjaxFail(xhr, 'Suppression guichet');
                     $btn.prop('disabled', false);
                 });
             },

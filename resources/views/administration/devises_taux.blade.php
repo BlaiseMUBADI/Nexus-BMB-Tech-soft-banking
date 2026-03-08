@@ -317,21 +317,7 @@
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) {
-                            showSystemMessage('success', d.message || 'Devise ajoutée avec succès.');
-                            setTimeout(function () { location.reload(); }, 900);
-                            return;
-                        }
-                        showSystemMessage('error', d.message || 'Erreur.');
-                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
-                        return;
-                    } catch(e) { /* NOOP */ }
-                }
-                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur.';
-                showSystemMessage('error', msg);
+                handleAjaxFail(xhr, 'Ajout devise');
                 $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
             });
         });
@@ -355,21 +341,7 @@
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) {
-                            showSystemMessage('success', d.message || 'Taux ajouté (et inverse si applicable).');
-                            setTimeout(function () { location.reload(); }, 900);
-                            return;
-                        }
-                        showSystemMessage('error', d.message || 'Erreur.');
-                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter le taux');
-                        return;
-                    } catch(e) { /* NOOP */ }
-                }
-                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Erreur.';
-                showSystemMessage('error', msg);
+                handleAjaxFail(xhr, 'Ajout taux');
                 $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter le taux');
             });
         });
@@ -397,19 +369,7 @@
                         }
                     })
                     .fail(function (xhr) {
-                        if (xhr.status === 200) {
-                            try {
-                                var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                                if (d && d.success) {
-                                    showSystemMessage('success', d.message || 'Devise supprimée.');
-                                    $tr.fadeOut(400, function () { $(this).remove(); });
-                                    return;
-                                }
-                                showSystemMessage('error', d.message || 'Erreur.');
-                                return;
-                            } catch(e) { /* NOOP */ }
-                        }
-                        showSystemMessage('error', (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Suppression impossible.');
+                        handleAjaxFail(xhr, 'Suppression devise');
                     });
                 }, 'Confirmer la suppression'
             );
@@ -438,19 +398,7 @@
                         }
                     })
                     .fail(function (xhr) {
-                        if (xhr.status === 200) {
-                            try {
-                                var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                                if (d && d.success) {
-                                    showSystemMessage('success', d.message || 'Taux supprimé.');
-                                    $tr.fadeOut(400, function () { $(this).remove(); });
-                                    return;
-                                }
-                                showSystemMessage('error', d.message || 'Erreur.');
-                                return;
-                            } catch(e) { /* NOOP */ }
-                        }
-                        showSystemMessage('error', (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Suppression impossible.');
+                        handleAjaxFail(xhr, 'Suppression taux');
                     });
                 }, 'Confirmer la suppression'
             );

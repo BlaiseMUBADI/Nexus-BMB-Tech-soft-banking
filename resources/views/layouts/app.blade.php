@@ -192,6 +192,24 @@
 
     <script>
         /*
+         * ================================================================
+         * FIX GLOBAL — BOM UTF-8 + jQuery/Laravel JSON parsing
+         * ================================================================
+         * Laravel retourne parfois HTTP 200 avec un BOM (\uFEFF) ou des
+         * espaces avant le JSON → jQuery échoue à parser → route vers .fail()
+         * même si la réponse est un succès. Ce converter nettoie
+         * automatiquement toutes les réponses JSON de l'application.
+         * ================================================================
+         */
+        $.ajaxSetup({
+            converters: {
+                'text json': function (data) {
+                    return JSON.parse(data.replace(/^\uFEFF/, '').trim());
+                }
+            }
+        });
+
+        /*
         * Gestion de l'inactivité : déconnexion après 2 minutes d'inactivité (POST)
         */
         let inactivityTimeout;
@@ -296,6 +314,57 @@
         window.showAppModal = showSystemMessage;
 
         /**
+         * ================================================================
+         * GESTIONNAIRES D'ERREURS AJAX — disponibles sur toutes les pages
+         * ================================================================
+         */
+
+        /**
+         * Envoie silencieusement une erreur dans storage/logs/laravel.log
+         * Sans afficher de modal — idéal pour le polling et les tableaux.
+         *
+         * @param {string} msg    - Message d'erreur
+         * @param {string} ctx    - Contexte de l'action (ex: 'Chargement demandes')
+         * @param {number} status - Code HTTP (ex: 500)
+         */
+        function logFrontendError(msg, ctx, status) {
+            $.post('{{ route("log.frontend.error") }}', {
+                message : msg,
+                context : ctx    || '',
+                status  : status || 0
+            }).fail(function() { /* silencieux */ });
+        }
+        window.logFrontendError = logFrontendError;
+
+        /**
+         * Gestionnaire global des erreurs AJAX.
+         * - Affiche showSystemMessage('error', message)
+         * - Envoie l'erreur dans les logs Laravel
+         *
+         * Usage : .fail(function(xhr) { handleAjaxFail(xhr, 'Contexte'); })
+         *
+         * @param {jqXHR}  xhr - L'objet XHR du .fail()
+         * @param {string} ctx - Description de l'action qui a échoué
+         */
+        function handleAjaxFail(xhr, ctx) {
+            var msg = 'Une erreur est survenue.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                msg = xhr.responseJSON.message;
+            } else if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                msg = Object.values(xhr.responseJSON.errors).flat().join(' ');
+            } else if (xhr.status === 401 || xhr.status === 403) {
+                msg = 'Accès non autorisé (code ' + xhr.status + ').';
+            } else if (xhr.status === 419) {
+                msg = 'Session expirée. Rechargez la page.';
+            } else if (xhr.status === 0) {
+                msg = 'Connexion perdue. Vérifiez votre réseau.';
+            }
+            showSystemMessage('error', msg);
+            logFrontendError(msg, ctx || '', xhr.status);
+        }
+        window.handleAjaxFail = handleAjaxFail;
+
+        /**
          * Affiche un modal de confirmation universel
          *
          * @param {string}   message   - Question/description de l'action
@@ -371,6 +440,17 @@
 
             $('#universalConfirmModal').modal('show');
         }
+    </script>
+    <!-- Toastr (notifications) -->
+    <script src="{{ asset('plugins/toastr/toastr.min.js') }}"></script>
+    <script>
+        toastr.options = {
+            closeButton    : true,
+            progressBar    : true,
+            positionClass  : 'toast-top-right',
+            timeOut        : 4000,
+            extendedTimeOut: 1500,
+        };
     </script>
     @stack('js')
 </body>

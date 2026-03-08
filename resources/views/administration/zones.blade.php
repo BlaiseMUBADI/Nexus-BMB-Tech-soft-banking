@@ -398,20 +398,7 @@
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) {
-                            showSystemMessage('success', d.message || 'Zone ajoutée avec succès.');
-                            setTimeout(function () { location.reload(); }, 900);
-                            return;
-                        }
-                        showSystemMessage('error', d.message || 'Erreur.');
-                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter la zone');
-                        return;
-                    } catch(e) { /* NOOP */ }
-                }
-                showSystemMessage('error', xhr.responseJSON?.message ?? 'Erreur lors de l\'ajout.');
+                handleAjaxFail(xhr, 'Ajout zone');
                 $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter la zone');
             });
         });
@@ -438,19 +425,7 @@
                     }
                 })
                 .fail(function (xhr) {
-                    if (xhr.status === 200) {
-                        try {
-                            var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                            if (d && d.success) {
-                                showSystemMessage('success', d.message || 'Zone supprimée.');
-                                $tr.fadeOut(400, function () { $(this).remove(); });
-                                return;
-                            }
-                            showSystemMessage('error', d.message || 'Erreur.');
-                            return;
-                        } catch(e) { /* NOOP */ }
-                    }
-                    showSystemMessage('error', xhr.responseJSON?.message ?? 'Suppression impossible.');
+                    handleAjaxFail(xhr, 'Suppression zone');
                 });
             }, 'Confirmation');
         });
@@ -475,20 +450,7 @@
                 }
             })
             .fail(function (xhr) {
-                if (xhr.status === 200) {
-                    try {
-                        var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                        if (d && d.success) {
-                            showSystemMessage('success', d.message || 'Portefeuille enregistré.');
-                            setTimeout(function () { location.reload(); }, 900);
-                            return;
-                        }
-                        showSystemMessage('error', d.message || 'Erreur.');
-                        $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
-                        return;
-                    } catch(e) { /* NOOP */ }
-                }
-                showSystemMessage('error', xhr.responseJSON?.message ?? 'Erreur lors de l\'enregistrement.');
+                handleAjaxFail(xhr, 'Ajout portefeuille');
                 $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i> Ajouter');
             });
         });
@@ -515,19 +477,7 @@
                     }
                 })
                 .fail(function (xhr) {
-                    if (xhr.status === 200) {
-                        try {
-                            var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                            if (d && d.success) {
-                                showSystemMessage('success', d.message || 'Portefeuille supprimé.');
-                                $tr.fadeOut(400, function () { $(this).remove(); });
-                                return;
-                            }
-                            showSystemMessage('error', d.message || 'Erreur.');
-                            return;
-                        } catch(e) { /* NOOP */ }
-                    }
-                    showSystemMessage('error', xhr.responseJSON?.message ?? 'Suppression impossible.');
+                    handleAjaxFail(xhr, 'Suppression portefeuille');
                 });
             }, 'Confirmation');
         });

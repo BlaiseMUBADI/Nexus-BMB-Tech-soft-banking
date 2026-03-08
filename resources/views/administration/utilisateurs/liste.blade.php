@@ -191,21 +191,7 @@
                             }
                         })
                         .fail(function (xhr) {
-                            if (xhr.status === 200) {
-                                try {
-                                    var d = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim());
-                                    if (d && d.success) {
-                                        showSystemMessage('success', d.message || 'Utilisateur supprimé.');
-                                        $('#row-user-' + id).fadeOut(400, function () { $(this).remove(); });
-                                        return;
-                                    }
-                                    showSystemMessage('error', d.message || 'Erreur.');
-                                    return;
-                                } catch(e) { /* NOOP */ }
-                            }
-                            showSystemMessage('error',
-                                (xhr.responseJSON && xhr.responseJSON.message)
-                                    ? xhr.responseJSON.message : 'Erreur lors de la suppression.');
+                            handleAjaxFail(xhr, 'Suppression utilisateur');
                         });
                 },
                 'Confirmer la suppression'

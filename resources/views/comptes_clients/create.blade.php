@@ -236,27 +236,7 @@
                     }
                 })
                 .fail(function (xhr) {
-                    // BOM fallback : tenter de parser manuellement quelle que soit le code HTTP
-                    var parsed = null;
-                    if (!xhr.responseJSON && xhr.responseText) {
-                        try { parsed = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim()); } catch(e) {}
-                    }
-                    var json = xhr.responseJSON || parsed;
-
-                    if (xhr.status === 200 && json && json.success) {
-                        form[0].reset(); $('.select2').val(null).trigger('change'); $('#portefeuille_group').hide();
-                        showSystemMessage('success', json.message || 'Compte ouvert avec succès !');
-                        $('#systemMessageModal').one('hidden.bs.modal', function () { window.location.reload(); });
-                        return;
-                    }
-
-                    var msg = "Erreur lors de l'ouverture du compte.";
-                    if (json && json.errors) {
-                        msg = Object.values(json.errors).flat().join('<br>');
-                    } else if (json && json.message) {
-                        msg = json.message;
-                    }
-                    showSystemMessage('error', msg);
+                    handleAjaxFail(xhr, 'Ouverture compte');
                 })
                 .always(function () {
                     $btn.prop('disabled', false).html('<i class="fas fa-plus-circle mr-1"></i>Ouvrir le compte');
@@ -282,17 +262,7 @@
                             }
                         })
                         .fail(function (xhr) {
-                            var parsed = null;
-                            if (!xhr.responseJSON && xhr.responseText) {
-                                try { parsed = JSON.parse(xhr.responseText.replace(/^\uFEFF/, '').trim()); } catch(e) {}
-                            }
-                            var json = xhr.responseJSON || parsed;
-                            if (json && json.success) {
-                                showSystemMessage('success', json.message || 'Compte supprimé.');
-                                $('#systemMessageModal').one('hidden.bs.modal', function () { window.location.reload(); });
-                                return;
-                            }
-                            showSystemMessage('error', (json && json.message) ? json.message : 'Erreur lors de la suppression.');
+                            handleAjaxFail(xhr, 'Suppression compte');
                         });
                 },
                 'Confirmation suppression'
