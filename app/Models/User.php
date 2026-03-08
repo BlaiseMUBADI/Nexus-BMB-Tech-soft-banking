@@ -7,6 +7,14 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * @property int                        $id
+ * @property string                     $name
+ * @property string                     $email
+ * @property string|null                $agent_matricule
+ * @property string|null                $etat
+ * @property \App\Models\Agent|null     $agent
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
