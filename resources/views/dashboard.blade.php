@@ -30,12 +30,14 @@
          MESSAGE DE BIENVENUE
     ================================================================ --}}
     @php
-        $agent      = Auth::user()->agent;
+        /** @var \App\Models\User $authUser */
+        $authUser   = Auth::user();
+        $agent      = $authUser->agent;
         $nomComplet = $agent
             ? trim(collect([$agent->prenom, $agent->nom, $agent->postnom])->filter()->implode(' '))
-            : Auth::user()->name;
+            : $authUser->name;
 
-        $roleCodes  = Auth::user()->getRoleCodes();
+        $roleCodes  = $authUser->getRoleCodes();
         $rolesLabel = \App\Models\Role::whereIn('code', $roleCodes)
                         ->pluck('nom')->join(', ') ?: 'Utilisateur';
     @endphp
