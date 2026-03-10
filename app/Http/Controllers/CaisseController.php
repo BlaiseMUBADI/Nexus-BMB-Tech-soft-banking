@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\Affectation;
-use App\Models\CaissesGuichet;
-use App\Models\ClotureCaisse;
-use App\Models\MouvementInterCaisse;
+use App\Models\RH\Affectation;
+use App\Models\Caisse\CaissesGuichet;
+use App\Models\Caisse\ClotureCaisse;
+use App\Models\Caisse\MouvementInterCaisse;
 
 class CaisseController extends Controller
 {
@@ -237,7 +237,7 @@ class CaisseController extends Controller
         }
 
         // Récupérer le guichet avec ses soldes courants
-        $guichet = \App\Models\CaissesGuichet::with('soldes.devise')
+        $guichet = \App\Models\Caisse\CaissesGuichet::with('soldes.devise')
             ->find($affectation->guichet_id);
 
         if (!$guichet) {

@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\RH;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Caisse\CaissesGuichet;
 
 /**
  * Affectation
@@ -18,7 +19,7 @@ class Affectation extends Model
     protected $fillable = [
         'agent_matricule',
         'poste_id',
-        'guichet_id',   // nullable — guichet de caisse titulaire
+        'guichet_id',
         'date_debut',
         'date_fin',
         'Etat',

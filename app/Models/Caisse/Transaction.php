@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Caisse;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Clients\Compte;
+use App\Models\Tresorerie\Devise;
 
 /**
  * Transaction
@@ -17,9 +19,6 @@ use Illuminate\Database\Eloquent\Model;
  *  REMBOURSEMENT— le guichet rembourse le client (solde ↓)
  *  CHANGE       — échange de devises (devise_code ↑, devise_dest ↓)
  *  PAIEMENT     — le client paie un service en espèces (solde ↑)
- *
- * Pour les opérations liées à un compte bancaire          → compte_code renseigné
- * Pour les opérations en espèces sans compte (ex: change) → compte_code NULL
  */
 class Transaction extends Model
 {
@@ -96,39 +95,5 @@ class Transaction extends Model
             self::PAIEMENT      => 'Paiement',
             default             => $type,
         };
-    }
-
-    /** Classe Bootstrap badge pour un type */
-    public static function typeBadgeClass(string $type): string
-    {
-        return match($type) {
-            self::DEPOT         => 'badge-success',
-            self::RETRAIT       => 'badge-danger',
-            self::VIREMENT      => 'badge-secondary',
-            self::REMBOURSEMENT => 'badge-warning text-dark',
-            self::CHANGE        => 'badge-info',
-            self::PAIEMENT      => 'badge-primary',
-            default             => 'badge-secondary',
-        };
-    }
-
-    /** Icône FontAwesome pour un type */
-    public static function typeIcon(string $type): string
-    {
-        return match($type) {
-            self::DEPOT         => 'fa-arrow-down text-success',
-            self::RETRAIT       => 'fa-arrow-up text-danger',
-            self::VIREMENT      => 'fa-random text-secondary',
-            self::REMBOURSEMENT => 'fa-undo text-warning',
-            self::CHANGE        => 'fa-exchange-alt text-info',
-            self::PAIEMENT      => 'fa-file-invoice-dollar text-primary',
-            default             => 'fa-circle',
-        };
-    }
-
-    /** Vrai si ce type augmente le solde en caisse du guichet */
-    public static function augmenteSolde(string $type): bool
-    {
-        return in_array($type, [self::DEPOT, self::PAIEMENT]);
     }
 }

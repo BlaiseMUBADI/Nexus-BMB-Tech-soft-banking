@@ -4,12 +4,12 @@ namespace App\Http\Controllers\RH;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Affectation;
-use App\Models\Agent;
-use App\Models\Poste;
-use App\Models\CaissesGuichet;
-use App\Models\CaissesGuichetSolde;
-use App\Models\Portefeuille;
+use App\Models\RH\Affectation;
+use App\Models\RH\Agent;
+use App\Models\RH\Poste;
+use App\Models\Caisse\CaissesGuichet;
+use App\Models\Caisse\CaissesGuichetSolde;
+use App\Models\Tresorerie\Portefeuille;
 
 class AffectationController extends Controller
 {

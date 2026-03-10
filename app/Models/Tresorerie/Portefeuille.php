@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Tresorerie;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\RH\Agent;
 
 class Portefeuille extends Model
 {
@@ -19,6 +20,6 @@ class Portefeuille extends Model
     // Relations
     public function agent()
     {
-        return $this->belongsTo(\App\Models\Agent::class, 'agent_matricule', 'matricule');
+        return $this->belongsTo(Agent::class, 'agent_matricule', 'matricule');
     }
 }

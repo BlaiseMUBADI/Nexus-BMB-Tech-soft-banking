@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Clients;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Zone;
 
 class Client extends Model
 {
@@ -10,9 +11,6 @@ class Client extends Model
     protected $primaryKey = 'matricule';
     public $incrementing = false;
     protected $keyType = 'string';
-
-    // SUPPRIME LE BLOC $casts ICI s'il contient 'zone'
-    // Aucun cast inutile ici, la relation zone() suffit
 
     protected $fillable = [
         'matricule', 'nom', 'postnom', 'prenom', 'email', 'telephone',
@@ -23,7 +21,6 @@ class Client extends Model
         'statut_entreprise', 'nombre_annees_experience', 'revenu_mensuel',
         'revenu_mensuel_devise', 'others_details_activite',
     ];
-
 
     /**
      * Génération automatique du matricule lors de la création
@@ -50,9 +47,6 @@ class Client extends Model
         });
     }
 
-    /**
-     * Relation avec la zone
-     */
     public function zone()
     {
         return $this->belongsTo(Zone::class, 'code_zone', 'code_zone');
@@ -60,6 +54,6 @@ class Client extends Model
 
     public function comptes()
     {
-        return $this->hasMany(\App\Models\Compte::class, 'client_matricule', 'matricule');
+        return $this->hasMany(Compte::class, 'client_matricule', 'matricule');
     }
 }

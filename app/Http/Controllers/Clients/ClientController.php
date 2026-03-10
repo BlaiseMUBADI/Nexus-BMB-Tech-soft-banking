@@ -15,7 +15,7 @@ class ClientController extends Controller
     public function index()
     {
         // On ajoute with(['zone']) pour charger la relation
-        $query = \App\Models\Client::with(['zone']); 
+        $query = \App\Models\Clients\Client::with(['zone']); 
 
         // Si une recherche est effectuée, filtrer les clients
         if (request()->has('search') && request('search')) {
@@ -160,7 +160,7 @@ class ClientController extends Controller
         }
 
 
-    $client = \App\Models\Client::create($validated);
+    $client = \App\Models\Clients\Client::create($validated);
     return redirect()->route('clients.create')->with('success', 'Client ajouté avec succès. Matricule : ' . $client->matricule);
     }
 
@@ -170,7 +170,7 @@ class ClientController extends Controller
     public function show(string $id)
     {
         // On suppose que $id est le matricule du client
-        $client = \App\Models\Client::where('matricule', $id)->firstOrFail();
+        $client = \App\Models\Clients\Client::where('matricule', $id)->firstOrFail();
         return view('clients.show', compact('client'));
     }
 
@@ -180,7 +180,7 @@ class ClientController extends Controller
      
     public function edit(string $id)
     {
-        $client = \App\Models\Client::where('matricule', $id)->firstOrFail();
+        $client = \App\Models\Clients\Client::where('matricule', $id)->firstOrFail();
         $zones = \App\Models\Zone::orderBy('nom')->get();
         return view('clients.edit', compact('client', 'zones'));
     }
@@ -190,7 +190,7 @@ class ClientController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $client = \App\Models\Client::where('matricule', $id)->firstOrFail();
+        $client = \App\Models\Clients\Client::where('matricule', $id)->firstOrFail();
         try {
             $validated = $request->validate([
                 'nom' => 'required|string|max:255',
@@ -301,7 +301,7 @@ class ClientController extends Controller
      */
     public function destroy(string $id)
     {
-        $client = \App\Models\Client::where('matricule', $id)->firstOrFail();
+        $client = \App\Models\Clients\Client::where('matricule', $id)->firstOrFail();
         // Supprimer la photo si elle existe
         if ($client->photo && file_exists(base_path('images_projet/' . $client->photo))) {
             @unlink(base_path('images_projet/' . $client->photo));
@@ -320,7 +320,7 @@ class ClientController extends Controller
      */
     public function serveImage(string $id)
     {
-        $client = \App\Models\Client::findOrFail($id);
+        $client = \App\Models\Clients\Client::findOrFail($id);
         if ($client->photo) {
             $path = storage_path('app/public/clients/' . $client->photo);
             if (file_exists($path)) {
@@ -342,7 +342,7 @@ class ClientController extends Controller
      * ───────────────────────────────────────────────────────── */
     public function imprimerFiche(string $matricule)
     {
-        $client = \App\Models\Client::with(['zone', 'comptes'])
+        $client = \App\Models\Clients\Client::with(['zone', 'comptes'])
                     ->where('matricule', $matricule)
                     ->firstOrFail();
 
@@ -367,7 +367,7 @@ class ClientController extends Controller
      * ───────────────────────────────────────────────────────── */
     public function imprimerListe(\Illuminate\Http\Request $request)
     {
-        $query = \App\Models\Client::with(['zone', 'comptes']);
+        $query = \App\Models\Clients\Client::with(['zone', 'comptes']);
 
         // Filtres
         if ($request->filled('code_zone')) {

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Agent;
+use App\Models\RH\Agent;
 
 class AgentController extends Controller
 {
@@ -31,7 +31,7 @@ class AgentController extends Controller
 
     public function index()
     {
-        $agents = \App\Models\Agent::orderByDesc('created_at')->get();
+        $agents = \App\Models\RH\Agent::orderByDesc('created_at')->get();
         return view('rh.agents.liste', compact('agents'));
     }
 
@@ -70,25 +70,25 @@ class AgentController extends Controller
             $validated['photo'] = 'agents/' . $imageName;
         }
 
-        $agent = \App\Models\Agent::create($validated);
+        $agent = \App\Models\RH\Agent::create($validated);
         return redirect()->route('agents.create')->with('success', 'Agent ajouté avec succès. Matricule : ' . $agent->matricule);
     }
 
     public function show($matricule)
     {
-        $agent = \App\Models\Agent::where('matricule', $matricule)->firstOrFail();
+        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->firstOrFail();
         return view('rh.agents.show', compact('agent'));
     }
 
     public function edit($matricule)
     {
-        $agent = \App\Models\Agent::where('matricule', $matricule)->firstOrFail();
+        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->firstOrFail();
         return view('rh.agents.edit', compact('agent'));
     }
 
     public function update(Request $request, $matricule)
     {
-        $agent = \App\Models\Agent::where('matricule', $matricule)->firstOrFail();
+        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->firstOrFail();
         $validated = $request->validate([
             'nom' => 'required|string|max:191',
             'postnom' => 'nullable|string|max:191',
@@ -120,7 +120,7 @@ class AgentController extends Controller
 
     public function destroy($matricule)
     {
-        $agent = \App\Models\Agent::where('matricule', $matricule)->firstOrFail();
+        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->firstOrFail();
         // Supprimer la photo si elle existe
         if ($agent->photo && file_exists(base_path('images_projet/' . $agent->photo))) {
             @unlink(base_path('images_projet/' . $agent->photo));

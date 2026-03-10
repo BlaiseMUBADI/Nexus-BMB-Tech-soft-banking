@@ -5,9 +5,9 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use App\Models\Agent;
-use App\Models\Role;
-use App\Models\Permission;
+use App\Models\RH\Agent;
+use App\Models\RH\Role;
+use App\Models\RH\Permission;
 use App\Models\User;
 
 /**

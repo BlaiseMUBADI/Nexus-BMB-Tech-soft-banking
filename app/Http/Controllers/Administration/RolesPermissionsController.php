@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Administration;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Role;
+use App\Models\RH\Role;
 use Illuminate\Support\Facades\DB;
 // Ajoutez le modèle Permission si besoin
 // use App\Models\Permission;
@@ -13,7 +13,7 @@ class RolesPermissionsController extends Controller
 {
     public function showPermission($code)
     {
-        $permission = \App\Models\Permission::where('code', $code)->firstOrFail();
+        $permission = \App\Models\RH\Permission::where('code', $code)->firstOrFail();
         return view('administration.permission_show', compact('permission'));
     }
 
@@ -30,7 +30,7 @@ class RolesPermissionsController extends Controller
             }
             throw $e;
         }
-        $permission = \App\Models\Permission::create($request->only('nom', 'description'));
+        $permission = \App\Models\RH\Permission::create($request->only('nom', 'description'));
         if ($request->ajax()) {
             return response()->json(['success' => true, 'permission' => $permission]);
         }
@@ -40,7 +40,7 @@ class RolesPermissionsController extends Controller
     public function index()
     {
         $roles       = Role::withCount('permissions')->orderBy('created_at', 'desc')->get();
-        $permissions = \App\Models\Permission::orderBy('code')->get();
+        $permissions = \App\Models\RH\Permission::orderBy('code')->get();
         $users       = \App\Models\User::with('agent')->orderBy('name')->get();
         $moduleMap   = self::moduleMap();
         $permissionsGrouped = $permissions->groupBy(fn($p) => self::moduleNum($p->code));
@@ -70,13 +70,13 @@ class RolesPermissionsController extends Controller
 
     public function rolesTable()
     {
-        $roles = \App\Models\Role::orderBy('created_at', 'desc')->get();
+        $roles = \App\Models\RH\Role::orderBy('created_at', 'desc')->get();
         return view('administration.partials.roles_table', compact('roles'))->render();
     }
 
     public function permissionsTable()
     {
-        $permissions = \App\Models\Permission::orderBy('created_at', 'desc')->get();
+        $permissions = \App\Models\RH\Permission::orderBy('created_at', 'desc')->get();
         return view('administration.partials.permissions_table', compact('permissions'))->render();
     }
 
@@ -120,8 +120,8 @@ class RolesPermissionsController extends Controller
 
     public function rolePermissionsList($role_code)
     {
-        $role           = \App\Models\Role::where('code', $role_code)->firstOrFail();
-        $allPermissions = \App\Models\Permission::orderBy('code')->get();
+        $role           = \App\Models\RH\Role::where('code', $role_code)->firstOrFail();
+        $allPermissions = \App\Models\RH\Permission::orderBy('code')->get();
         $attached       = DB::table('tb_role_permission')->where('role_code', $role_code)->pluck('permission_code')->toArray();
         $moduleMap      = self::moduleMap();
         $grouped        = $allPermissions->groupBy(fn($p) => self::moduleNum($p->code));
@@ -174,8 +174,8 @@ class RolesPermissionsController extends Controller
     public function userRolesPermissionsList($user_id)
     {
         $user = \App\Models\User::with('agent')->findOrFail($user_id);
-        $roles = \App\Models\Role::orderBy('nom')->get();
-        $permissions = \App\Models\Permission::orderBy('nom')->get();
+        $roles = \App\Models\RH\Role::orderBy('nom')->get();
+        $permissions = \App\Models\RH\Permission::orderBy('nom')->get();
         // Rôles attribués à l'utilisateur
         $userRoles = DB::table('tb_role_user')->where('user_id', $user_id)->pluck('role_code');
         // Permissions héritées via les rôles

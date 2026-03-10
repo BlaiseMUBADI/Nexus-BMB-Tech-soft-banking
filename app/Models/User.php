@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
+use App\Models\RH\Agent;
 
 /**
  * @property int                        $id
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\DB;
  * @property string                     $email
  * @property string|null                $agent_matricule
  * @property string|null                $etat
- * @property \App\Models\Agent|null     $agent
+ * @property \App\Models\RH\Agent|null  $agent
  */
 class User extends Authenticatable
 {

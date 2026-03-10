@@ -1,5 +1,6 @@
 <?php
-namespace App\Models;
+
+namespace App\Models\Tresorerie;
 
 use Illuminate\Database\Eloquent\Model;
 

@@ -3,8 +3,8 @@ namespace App\Http\Controllers\Administration;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Devise;
-use App\Models\TauxEchange;
+use App\Models\Tresorerie\Devise;
+use App\Models\Tresorerie\TauxEchange;
 
 use Illuminate\Support\Facades\Log;
 

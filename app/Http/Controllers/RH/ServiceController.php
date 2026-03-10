@@ -5,8 +5,8 @@ namespace App\Http\Controllers\RH;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Service;
-use App\Models\Poste;
+use App\Models\RH\Service;
+use App\Models\RH\Poste;
 use Illuminate\Support\Facades\Log;
 
 class ServiceController extends Controller
@@ -16,7 +16,7 @@ class ServiceController extends Controller
      */
     public function postesAjax($id)
     {
-        $service = \App\Models\Service::findOrFail($id);
+        $service = \App\Models\RH\Service::findOrFail($id);
         $postes = $service->postes;
         return view('rh.services.postes_table', compact('postes', 'service'));
     }
@@ -26,7 +26,7 @@ class ServiceController extends Controller
             'nom' => 'required|string|max:191',
             'description' => 'nullable|string',
         ]);
-        $service = \App\Models\Service::create($validated);
+        $service = \App\Models\RH\Service::create($validated);
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
@@ -59,7 +59,7 @@ class ServiceController extends Controller
      */
     public function destroy($id)
     {
-        $service = \App\Models\Service::find($id);
+        $service = \App\Models\RH\Service::find($id);
         if (!$service) {
             return response()->json(['success' => false, 'message' => 'Service introuvable.'], 404);
         }
@@ -76,7 +76,7 @@ class ServiceController extends Controller
      */
     public function ajaxDestroy($service_id)
     {
-        $service = \App\Models\Service::find($service_id);
+        $service = \App\Models\RH\Service::find($service_id);
         if (!$service) {
             return response()->json(['success' => false, 'message' => 'Service introuvable.'], 404);
         }

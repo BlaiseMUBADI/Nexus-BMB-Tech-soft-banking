@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Clients;
 
 use Illuminate\Database\Eloquent\Model;
-
+use App\Models\Tresorerie\Portefeuille;
 
 class Compte extends Model
 {
@@ -22,7 +22,6 @@ class Compte extends Model
         'devise',
         'portefeuille_id',
     ];
-           
 
     // Relation avec le client
     public function client()
@@ -32,7 +31,7 @@ class Compte extends Model
 
     public function portefeuille()
     {
-        return $this->belongsTo(\App\Models\Portefeuille::class, 'portefeuille_id', 'id');
+        return $this->belongsTo(Portefeuille::class, 'portefeuille_id', 'id');
     }
 
     public static function boot()

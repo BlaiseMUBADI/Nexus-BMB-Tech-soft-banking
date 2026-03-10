@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Caisse;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\RH\Affectation;
 
 /**
  * Modèle CaissesGuichet
@@ -46,7 +47,6 @@ class CaissesGuichet extends Model
     /**
      * Soldes multi-devises du guichet.
      * Un solde par devise gérée (CDF, USD, EUR…)
-     * Utilisation : $guichet->soldes (collection)
      */
     public function soldes()
     {
@@ -54,15 +54,6 @@ class CaissesGuichet extends Model
                     ->with('devise');
     }
 
-    /**
-     * Affectation active de l'agent sur ce guichet.
-     * Retourne la dernière affectation dont Etat = 'ACTIF'
-     * pointant vers un poste lié à ce guichet_id.
-     *
-     * Note : la liaison agent ↔ guichet passe par le poste
-     * dans tb_affectations. Si ton projet stocke directement
-     * le guichet_id dans les affectations, adapte la FK ici.
-     */
     public function affectations()
     {
         return $this->hasMany(Affectation::class, 'guichet_id', 'id');

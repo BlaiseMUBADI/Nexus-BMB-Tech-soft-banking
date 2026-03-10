@@ -26,7 +26,7 @@ class UtilisateurController extends Controller
     // Affiche le formulaire de création d'un utilisateur
     public function nouveau()
     {
-        $agents = \App\Models\Agent::orderByDesc('created_at')->get();
+        $agents = \App\Models\RH\Agent::orderByDesc('created_at')->get();
         return view('administration.utilisateurs.create', compact('agents'));
     }
 
@@ -55,7 +55,7 @@ class UtilisateurController extends Controller
     // Retourne les infos d'un agent en JSON pour AJAX
     public function agentInfo($matricule)
     {
-        $agent = \App\Models\Agent::with(['poste.service'])->where('matricule', $matricule)->first();
+        $agent = \App\Models\RH\Agent::with(['poste.service'])->where('matricule', $matricule)->first();
         if (!$agent) {
             return response()->json(['error' => 'Agent non trouvé'], 404);
         }
@@ -97,7 +97,7 @@ class UtilisateurController extends Controller
     public function edit($id)
     {
         $user = \App\Models\User::with('agent')->findOrFail($id);
-        $agents = \App\Models\Agent::orderByDesc('created_at')->get();
+        $agents = \App\Models\RH\Agent::orderByDesc('created_at')->get();
         return view('administration.utilisateurs.edit', compact('user', 'agents'));
     }
 }

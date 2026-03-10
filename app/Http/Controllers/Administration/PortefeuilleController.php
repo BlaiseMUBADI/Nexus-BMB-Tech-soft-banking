@@ -3,7 +3,7 @@ namespace App\Http\Controllers\Administration;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Portefeuille;
+use App\Models\Tresorerie\Portefeuille;
 
 class PortefeuilleController extends Controller
 {

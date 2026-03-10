@@ -32,7 +32,7 @@ class ProfileController extends Controller
 
         // Affectations de l'agent avec poste + service
         $affectations = $agent
-            ? \App\Models\Affectation::where('agent_matricule', $agent->matricule)
+            ? \App\Models\RH\Affectation::where('agent_matricule', $agent->matricule)
                 ->with(['poste.service'])
                 ->orderByDesc('date_debut')
                 ->get()
@@ -52,8 +52,8 @@ class ProfileController extends Controller
             ->whereIn('role_code', $userRoles)
             ->pluck('permission_code');
 
-        $roles       = \App\Models\Role::orderBy('nom')->get();
-        $permissions = \App\Models\Permission::orderBy('nom')->get();
+        $roles       = \App\Models\RH\Role::orderBy('nom')->get();
+        $permissions = \App\Models\RH\Permission::orderBy('nom')->get();
 
         return view('profile.edit', compact(
             'user', 'agent', 'affectations',

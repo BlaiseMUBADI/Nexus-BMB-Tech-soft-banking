@@ -1,5 +1,6 @@
 <?php
-namespace App\Models;
+
+namespace App\Models\RH;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +17,7 @@ class Role extends Model
     public function permissions()
     {
         return $this->belongsToMany(
-            \App\Models\Permission::class,
+            Permission::class,
             'tb_role_permission',
             'role_code',
             'permission_code',

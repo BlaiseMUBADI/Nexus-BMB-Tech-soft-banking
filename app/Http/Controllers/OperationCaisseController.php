@@ -5,12 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\Affectation;
-use App\Models\Compte;
-use App\Models\CaissesGuichet;
-use App\Models\CaissesGuichetSolde;
-use App\Models\MouvementInterCaisse;
-use App\Models\Transaction;
+use App\Models\RH\Affectation;
+use App\Models\Clients\Compte;
+use App\Models\Caisse\CaissesGuichet;
+use App\Models\Caisse\CaissesGuichetSolde;
+use App\Models\Caisse\MouvementInterCaisse;
+use App\Models\Caisse\Transaction;
 
 /**
  * OperationCaisseController
@@ -71,7 +71,7 @@ class OperationCaisseController extends Controller
                 ->get();
         }
 
-        $comptes = \App\Models\Compte::with('client')
+        $comptes = \App\Models\Clients\Clients\Compte::with('client')
             ->orderBy('devise')
             ->orderBy('code_compte')
             ->get();
@@ -828,8 +828,8 @@ class OperationCaisseController extends Controller
             ->firstOrFail();
 
         // Vérifier qu'il n'existe pas déjà une demande EN_ATTENTE pour cette opération
-        $existante = \App\Models\DemandeModification::where('transaction_id', $id)
-            ->where('statut', \App\Models\DemandeModification::EN_ATTENTE)
+        $existante = \App\Models\Caisse\DemandeModification::where('transaction_id', $id)
+            ->where('statut', \App\Models\Caisse\DemandeModification::EN_ATTENTE)
             ->first();
 
         if ($existante) {
@@ -842,13 +842,13 @@ class OperationCaisseController extends Controller
         // Info client pour l'audit
         $clientNom = null;
         if ($op->compte_code) {
-            $compte = \App\Models\Compte::with('client')->where('code_compte', $op->compte_code)->first();
+            $compte = \App\Models\Clients\Clients\Compte::with('client')->where('code_compte', $op->compte_code)->first();
             if ($compte && $compte->client) {
                 $clientNom = trim(($compte->client->nom ?? '') . ' ' . ($compte->client->postnom ?? '') . ' ' . ($compte->client->prenom ?? ''));
             }
         }
 
-        \App\Models\DemandeModification::create([
+        \App\Models\Caisse\DemandeModification::create([
             'transaction_id'         => $op->id,
             'reference_operation'    => $op->reference,
             'guichet_id'             => $guichet->id,
@@ -863,7 +863,7 @@ class OperationCaisseController extends Controller
             'motif'                  => $request->motif,
             'nouveau_montant'        => $request->type_demande === 'MODIFICATION' ? $request->nouveau_montant : null,
             'nouvelles_observations' => $request->nouvelles_observations,
-            'statut'                 => \App\Models\DemandeModification::EN_ATTENTE,
+            'statut'                 => \App\Models\Caisse\DemandeModification::EN_ATTENTE,
         ]);
 
         return response()->json([
@@ -879,7 +879,7 @@ class OperationCaisseController extends Controller
     public function demandesModificationCount()
     {
         return response()->json([
-            'count' => \App\Models\DemandeModification::where('statut', \App\Models\DemandeModification::EN_ATTENTE)->count(),
+            'count' => \App\Models\Caisse\DemandeModification::where('statut', \App\Models\Caisse\DemandeModification::EN_ATTENTE)->count(),
         ]);
     }
 
@@ -898,7 +898,7 @@ class OperationCaisseController extends Controller
      */
     public function demandesModificationJson(\Illuminate\Http\Request $request)
     {
-        $query = \App\Models\DemandeModification::with(['agentDemandeur', 'guichet', 'superviseur'])
+        $query = \App\Models\Caisse\DemandeModification::with(['agentDemandeur', 'guichet', 'superviseur'])
             ->orderByRaw("FIELD(statut, 'EN_ATTENTE', 'APPROUVEE', 'REJETEE')")
             ->orderByDesc('created_at');
 
@@ -950,14 +950,14 @@ class OperationCaisseController extends Controller
 
         /** @var \App\Models\User $user */
         $user    = Auth::user();
-        $demande = \App\Models\DemandeModification::where('statut', \App\Models\DemandeModification::EN_ATTENTE)
+        $demande = \App\Models\Caisse\DemandeModification::where('statut', \App\Models\Caisse\DemandeModification::EN_ATTENTE)
             ->findOrFail($id);
 
         $op = Transaction::with(['guichet'])->findOrFail($demande->transaction_id);
 
         try {
             DB::transaction(function () use ($demande, $op, $user, $request) {
-                if ($demande->type_demande === \App\Models\DemandeModification::SUPPRESSION) {
+                if ($demande->type_demande === \App\Models\Caisse\DemandeModification::SUPPRESSION) {
                     // ── Exécuter la suppression (annulation) ──────────────
                     $montant = (float) $op->montant;
                     $devise  = $op->devise_code;
@@ -1053,7 +1053,7 @@ class OperationCaisseController extends Controller
 
                 // Marquer la demande comme approuvée
                 $demande->update([
-                    'statut'                  => \App\Models\DemandeModification::APPROUVEE,
+                    'statut'                  => \App\Models\Caisse\DemandeModification::APPROUVEE,
                     'superviseur_matricule'   => $user->agent_matricule,
                     'commentaire_superviseur' => $request->commentaire,
                     'traitee_le'              => now(),
@@ -1085,11 +1085,11 @@ class OperationCaisseController extends Controller
 
         /** @var \App\Models\User $user */
         $user    = Auth::user();
-        $demande = \App\Models\DemandeModification::where('statut', \App\Models\DemandeModification::EN_ATTENTE)
+        $demande = \App\Models\Caisse\DemandeModification::where('statut', \App\Models\Caisse\DemandeModification::EN_ATTENTE)
             ->findOrFail($id);
 
         $demande->update([
-            'statut'                  => \App\Models\DemandeModification::REJETEE,
+            'statut'                  => \App\Models\Caisse\DemandeModification::REJETEE,
             'superviseur_matricule'   => $user->agent_matricule,
             'commentaire_superviseur' => $request->commentaire,
             'traitee_le'              => now(),

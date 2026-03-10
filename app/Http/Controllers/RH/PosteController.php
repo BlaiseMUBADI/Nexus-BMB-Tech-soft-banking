@@ -4,8 +4,8 @@ namespace App\Http\Controllers\RH;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Poste;
-use App\Models\Service;
+use App\Models\RH\Poste;
+use App\Models\RH\Service;
 use Illuminate\Support\Facades\Log;
 
 class PosteController extends Controller

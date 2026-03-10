@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Administration;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\CaissesGuichet;
-use App\Models\CaissesGuichetSolde;
-use App\Models\MouvementInterCaisse;
-use App\Models\Devise;
+use App\Models\Caisse\CaissesGuichet;
+use App\Models\Caisse\CaissesGuichetSolde;
+use App\Models\Caisse\MouvementInterCaisse;
+use App\Models\Tresorerie\Devise;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -174,7 +174,7 @@ class GuichetController extends Controller
             DB::transaction(function () use ($guichet) {
                 // fk_solde_guichet et fk_affectation_guichet sont RESTRICT — suppression manuelle
                 $guichet->soldes()->delete();
-                \App\Models\Affectation::where('guichet_id', $guichet->id)->update(['guichet_id' => null]);
+                \App\Models\RH\Affectation::where('guichet_id', $guichet->id)->update(['guichet_id' => null]);
                 $guichet->delete();
             });
             return response()->json(['success' => true, 'message' => 'Guichet supprimé avec succès.']);

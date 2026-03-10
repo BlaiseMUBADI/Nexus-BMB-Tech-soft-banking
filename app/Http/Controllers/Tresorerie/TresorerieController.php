@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Tresorerie;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\CaissesGuichet;
-use App\Models\CaissesGuichetSolde;
-use App\Models\ClotureCaisse;
-use App\Models\MouvementInterCaisse;
-use App\Models\Devise;
+use App\Models\Caisse\CaissesGuichet;
+use App\Models\Caisse\CaissesGuichetSolde;
+use App\Models\Caisse\ClotureCaisse;
+use App\Models\Caisse\MouvementInterCaisse;
+use App\Models\Tresorerie\Devise;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -580,7 +580,7 @@ class TresorerieController extends Controller
                 $reference = 'DEG-' . now()->format('Ymd-His') . '-' . $guichet->code_guichet;
 
                 foreach ($clotures as $cloture) {
-                    /** @var \App\Models\ClotureCaisse $cloture */
+                    /** @var \App\Models\Caisse\ClotureCaisse $cloture */
                     // 1. Valider la ligne
                     $cloture->update([
                         'statut_validation'       => ClotureCaisse::VALIDATION_VALIDE,
@@ -832,7 +832,7 @@ class TresorerieController extends Controller
     {
         $guichetsMobiles = CaissesGuichet::where('type_guichet', 'MOBILE')->pluck('id')->toArray();
 
-        $query = \App\Models\Transaction::whereIn('guichet_id', $guichetsMobiles)
+        $query = \App\Models\Caisse\Transaction::whereIn('guichet_id', $guichetsMobiles)
             ->where('statut', 'CONFIRME')
             ->with(['guichet', 'compte.client']);
 
@@ -861,7 +861,7 @@ class TresorerieController extends Controller
             $zone = \App\Models\Zone::where('code_zone', $request->code_zone)->first();
             if ($zone && $zone->agent_commercial_matricule) {
                 // Trouver les guichets MOBILES affectés à cet agent
-                $guichetsZone = \App\Models\Affectation::where('agent_matricule', $zone->agent_commercial_matricule)
+                $guichetsZone = \App\Models\RH\Affectation::where('agent_matricule', $zone->agent_commercial_matricule)
                     ->whereNotNull('guichet_id')
                     ->pluck('guichet_id');
                 if ($guichetsZone->isNotEmpty()) {
@@ -877,7 +877,7 @@ class TresorerieController extends Controller
 
         // ── Calcul apports par agent ────────────────────────────────
         $parAgent = $transactions->groupBy('agent_matricule')->map(function ($items, $matricule) {
-            $agent = \App\Models\Agent::find($matricule);
+            $agent = \App\Models\RH\Agent::find($matricule);
             $parDevise = $items->groupBy('devise_code')->map(function ($devItems, $devise) {
                 $depots   = $devItems->whereIn('type', ['DEPOT', 'PAIEMENT'])->sum('montant');
                 $retraits = $devItems->whereIn('type', ['RETRAIT', 'REMBOURSEMENT'])->sum('montant');
@@ -900,13 +900,13 @@ class TresorerieController extends Controller
         })->values();
 
         // ── Données pour filtres de la vue ──────────────────────────
-        $agents = \App\Models\Agent::whereIn('matricule',
-            \App\Models\Affectation::whereIn('guichet_id', $guichetsMobiles)
+        $agents = \App\Models\RH\Agent::whereIn('matricule',
+            \App\Models\RH\Affectation::whereIn('guichet_id', $guichetsMobiles)
                 ->pluck('agent_matricule')
         )->orderBy('nom')->get();
 
         $zones   = \App\Models\Zone::orderBy('nom')->get();
-        $devises = \App\Models\Devise::orderBy('code_iso')->get();
+        $devises = \App\Models\Tresorerie\Devise::orderBy('code_iso')->get();
 
         return view('tresorerie.agents_mobiles', compact(
             'parAgent', 'transactions', 'agents', 'zones', 'devises'
@@ -920,7 +920,7 @@ class TresorerieController extends Controller
     {
         $guichetsMobiles = CaissesGuichet::where('type_guichet', 'MOBILE')->pluck('id')->toArray();
 
-        $query = \App\Models\Transaction::whereIn('guichet_id', $guichetsMobiles)
+        $query = \App\Models\Caisse\Transaction::whereIn('guichet_id', $guichetsMobiles)
             ->where('statut', 'CONFIRME')
             ->with(['guichet', 'compte.client']);
 
@@ -945,7 +945,7 @@ class TresorerieController extends Controller
         if ($request->filled('code_zone')) {
             $zone = \App\Models\Zone::where('code_zone', $request->code_zone)->first();
             if ($zone && $zone->agent_commercial_matricule) {
-                $guichetsZone = \App\Models\Affectation::where('agent_matricule', $zone->agent_commercial_matricule)
+                $guichetsZone = \App\Models\RH\Affectation::where('agent_matricule', $zone->agent_commercial_matricule)
                     ->whereNotNull('guichet_id')->pluck('guichet_id');
                 $guichetsZone->isNotEmpty()
                     ? $query->whereIn('guichet_id', $guichetsZone)
@@ -956,7 +956,7 @@ class TresorerieController extends Controller
         $transactions = $query->orderBy('agent_matricule')->orderBy('date_operation')->get();
 
         $parAgent = $transactions->groupBy('agent_matricule')->map(function ($items, $matricule) {
-            $agent = \App\Models\Agent::find($matricule);
+            $agent = \App\Models\RH\Agent::find($matricule);
             $parDevise = $items->groupBy('devise_code')->map(function ($devItems, $devise) {
                 return [
                     'devise'        => $devise,

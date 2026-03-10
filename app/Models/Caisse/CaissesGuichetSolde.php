@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Caisse;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Tresorerie\Devise;
 
 /**
  * Modèle CaissesGuichetSolde

@@ -5,10 +5,10 @@ namespace App\Http\Controllers\ComptesClients;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Compte;
-use App\Models\Client;
+use App\Models\Clients\Compte;
+use App\Models\Clients\Client;
 use Illuminate\Support\Facades\Log;
-use App\Models\Devise;
+use App\Models\Tresorerie\Devise;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 
@@ -19,8 +19,8 @@ class CompteController extends Controller
     {
         $clients = Client::orderBy('nom')->get();
         $comptes = Compte::with(['client', 'portefeuille.agent'])->orderByDesc('created_at')->get();
-        $portefeuilles = \App\Models\Portefeuille::with('agent')->orderBy('nom_portefeuille')->get();
-        $devises = \App\Models\Devise::orderBy('nom')->get();
+        $portefeuilles = \App\Models\Tresorerie\Portefeuille::with('agent')->orderBy('nom_portefeuille')->get();
+        $devises = \App\Models\Tresorerie\Devise::orderBy('nom')->get();
         return view('comptes_clients.create', compact('clients', 'comptes', 'portefeuilles', 'devises'));
     }
 
@@ -91,7 +91,7 @@ class CompteController extends Controller
         ];
         $devises = Devise::orderBy('nom')->get();
         $zones   = \App\Models\Zone::orderBy('nom')->get();
-        $portefeuilles = \App\Models\Portefeuille::with('agent')->orderBy('nom_portefeuille')->get();
+        $portefeuilles = \App\Models\Tresorerie\Portefeuille::with('agent')->orderBy('nom_portefeuille')->get();
         return view('comptes_clients.liste', compact('comptes', 'stats', 'devises', 'zones', 'portefeuilles'));
     }
 
@@ -137,7 +137,7 @@ class CompteController extends Controller
             ? \Carbon\Carbon::parse($request->date_fin)->endOfDay()
             : now()->endOfDay();
 
-        $transactions = \App\Models\Transaction::where('compte_code', $code_compte)
+        $transactions = \App\Models\Caisse\Transaction::where('compte_code', $code_compte)
             ->whereBetween('date_operation', [$dateDebut, $dateFin])
             ->where('statut', 'CONFIRME')
             ->orderBy('date_operation')
@@ -215,7 +215,7 @@ class CompteController extends Controller
         $filtres = $request->only(['type','devise','date_debut','date_fin','solde_min','solde_max','etat_solde','code_zone','portefeuille_id']);
         $zone    = $request->filled('code_zone') ? \App\Models\Zone::find($request->code_zone) : null;
         $portefeuille = ($request->filled('portefeuille_id') && $request->portefeuille_id !== 'tous' && $request->portefeuille_id !== 'aucun')
-                        ? \App\Models\Portefeuille::with('agent')->find($request->portefeuille_id) : null;
+                        ? \App\Models\Tresorerie\Portefeuille::with('agent')->find($request->portefeuille_id) : null;
 
         $pdf = Pdf::loadView('impressions.comptes.liste', compact('comptes', 'filtres', 'zone', 'portefeuille'))
                   ->setPaper('a4', 'landscape');
@@ -229,7 +229,7 @@ class CompteController extends Controller
         $compte = Compte::with(['client'])->findOrFail($code_compte);
         $devise = Devise::where('code_iso', $compte->devise)->first();
 
-        $query = \App\Models\Transaction::where('compte_code', $code_compte)
+        $query = \App\Models\Caisse\Transaction::where('compte_code', $code_compte)
             ->with(['guichet']);
 
         if ($request->filled('date_debut')) {

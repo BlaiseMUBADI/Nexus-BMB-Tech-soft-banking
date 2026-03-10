@@ -1,20 +1,15 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Caisse;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Tresorerie\Devise;
 
 /**
  * Modèle ClotureCaisse — Arrêté de caisse guichet
  * ------------------------------------------------
  * Enregistre l'arrêté de caisse effectué en fin de journée ou de shift.
  * Une ligne = clôture d'UN guichet dans UNE devise.
- *
- * Workflow :
- *   1. L'agent saisit son billetage physique (coupures × quantités)
- *   2. Le système compare solde_physique vs solde_comptable
- *   3. Si écart ≠ 0 → motif_ecart obligatoire
- *   4. Enregistrement + passage du guichet en statut FERME
  *
  * Table : tb_cloture_caisse
  */
@@ -29,18 +24,17 @@ class ClotureCaisse extends Model
     protected $fillable = [
         'guichet_id',
         'devise_code',
-        'solde_comptable',         // Solde système (db)
-        'solde_physique',          // Solde compté physiquement
-        'ecart_caisse',            // solde_physique - solde_comptable
-        'detail_billetage',        // JSON { "50000": 3, "10000": 5, ... }
-        'motif_ecart',             // Justification si écart ≠ 0
-        'statut_ecart',            // EQUILIBRE | EXCEDENT | DEFICIT
-        'agent_cloturant',         // Matricule de l'agent
-        // ── Validation superviseur ─────────────────────────
-        'statut_validation',       // EN_ATTENTE | VALIDE | REJETE
-        'validateur_matricule',    // Matricule du superviseur
-        'date_validation',         // Timestamp validation
-        'observations_superviseur',// Commentaire superviseur
+        'solde_comptable',
+        'solde_physique',
+        'ecart_caisse',
+        'detail_billetage',
+        'motif_ecart',
+        'statut_ecart',
+        'agent_cloturant',
+        'statut_validation',
+        'validateur_matricule',
+        'date_validation',
+        'observations_superviseur',
     ];
 
     protected $casts = [

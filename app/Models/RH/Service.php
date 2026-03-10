@@ -1,23 +1,23 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\RH;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Poste extends Model
+class Service extends Model
 {
-    protected $table = 'tb_postes';
     use HasFactory;
 
+    protected $table = 'tb_services';
+
     protected $fillable = [
-        'service_id',
         'nom',
         'description',
     ];
 
-    public function service()
+    public function postes()
     {
-        return $this->belongsTo(Service::class);
+        return $this->hasMany(Poste::class, 'service_id');
     }
 }

@@ -14,8 +14,8 @@ class ZoneController extends Controller
     public function index()
     {
         $zones         = Zone::with('agent')->orderBy('created_at', 'desc')->get();
-        $agents        = \App\Models\Agent::orderBy('nom')->get();
-        $portefeuilles = \App\Models\Portefeuille::with('agent')->orderBy('created_at', 'desc')->get();
+        $agents        = \App\Models\RH\Agent::orderBy('nom')->get();
+        $portefeuilles = \App\Models\Tresorerie\Portefeuille::with('agent')->orderBy('created_at', 'desc')->get();
 
         $stats = [
             'total_zones'         => $zones->count(),

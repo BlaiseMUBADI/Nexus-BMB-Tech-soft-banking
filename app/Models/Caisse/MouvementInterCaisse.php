@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Caisse;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\RH\Agent;
 
 /**
  * MouvementInterCaisse
@@ -13,11 +14,6 @@ use Illuminate\Database\Eloquent\Model;
  *   ALIMENTATION  → coffre (source=null) vers un guichet
  *   DEGAGEMENT    → guichet vers coffre (dest=null)
  *   TRANSFERT     → guichet vers guichet
- *
- * Cycle double-validation :
- *   EN_ATTENTE → VALIDE (superviseur) → CONFIRME (agent)
- *   ou ANNULE à n'importe quelle étape.
- *   Si le superviseur alimente directement depuis l'admin : CONFIRME d'emblée.
  */
 class MouvementInterCaisse extends Model
 {

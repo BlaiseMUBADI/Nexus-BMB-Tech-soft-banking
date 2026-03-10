@@ -1,5 +1,6 @@
 <?php
-namespace App\Models;
+
+namespace App\Models\Tresorerie;
 
 use Illuminate\Database\Eloquent\Model;
 
@@ -9,5 +10,4 @@ class TauxEchange extends Model
     protected $fillable = [
         'devise_source', 'devise_destination', 'taux', 'date_application'
     ];
-    
 }
