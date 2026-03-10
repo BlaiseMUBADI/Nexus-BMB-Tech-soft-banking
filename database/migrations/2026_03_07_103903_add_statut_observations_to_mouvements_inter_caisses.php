@@ -19,12 +19,18 @@ return new class extends Migration
 
             // Observations / notes
             $table->string('observations', 255)->nullable()->after('validateur_matricule');
+
+            // FK : le validateur est un agent (RESTRICT/RESTRICT — pas de cascade)
+            $table->foreign('validateur_matricule', 'tb_mouvements_inter_caisses_ibfk_1')
+                  ->references('matricule')->on('tb_agents')
+                  ->restrictOnDelete()->restrictOnUpdate();
         });
     }
 
     public function down(): void
     {
         Schema::table('tb_mouvements_inter_caisses', function (Blueprint $table) {
+            $table->dropForeign('tb_mouvements_inter_caisses_ibfk_1');
             $table->dropColumn(['statut', 'validateur_matricule', 'observations']);
         });
     }

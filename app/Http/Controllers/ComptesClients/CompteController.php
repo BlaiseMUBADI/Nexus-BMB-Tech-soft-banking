@@ -29,9 +29,9 @@ class CompteController extends Controller
     {
         $validated = $request->validate([
             'client_matricule' => 'required|exists:tb_clients,matricule',
-            'type' => 'required|in:COURANT,EPARGNE_LIBRE,EPARGNE_BLOQUEE,CAUTION_CREDIT',
+            'type' => 'required|in:CC,RMB,GTC,DAT,EAV',
             'devise' => 'required|exists:tb_devises,code_iso',
-            'portefeuille_id' => $request->type === 'CAUTION_CREDIT' ? 'required|exists:tb_portefeuilles_agents,id' : 'nullable',
+            'portefeuille_id' => $request->type === 'GTC' ? 'required|exists:tb_portefeuilles_agents,id' : 'nullable',
         ]);
 
         // Vérifier si le client a déjà un compte de ce type et de cette devise
@@ -83,9 +83,11 @@ class CompteController extends Controller
         $comptes = Compte::with(['client', 'portefeuille.agent'])->orderByDesc('created_at')->get();
         $stats = [
             'total'          => $comptes->count(),
-            'courant'        => $comptes->where('type', 'COURANT')->count(),
-            'epargne'        => $comptes->whereIn('type', ['EPARGNE_LIBRE', 'EPARGNE_BLOQUEE'])->count(),
-            'caution_credit' => $comptes->where('type', 'CAUTION_CREDIT')->count(),
+            'courant'        => $comptes->where('type', 'CC')->count(),
+            'remboursement'  => $comptes->where('type', 'RMB')->count(),
+            'caution'        => $comptes->where('type', 'GTC')->count(),
+            'depot_terme'    => $comptes->where('type', 'DAT')->count(),
+            'epargne_vie'    => $comptes->where('type', 'EAV')->count(),
         ];
         $devises = Devise::orderBy('nom')->get();
         $zones   = \App\Models\Zone::orderBy('nom')->get();

@@ -42,6 +42,11 @@ return new class extends Migration
                   ->nullable()
                   ->after('date_validation')
                   ->comment('Commentaire du superviseur lors de la validation');
+
+            // FK : le validateur est un agent (RESTRICT/RESTRICT — pas de cascade)
+            $table->foreign('validateur_matricule', 'tb_cloture_caisse_ibfk_1')
+                  ->references('matricule')->on('tb_agents')
+                  ->restrictOnDelete()->restrictOnUpdate();
         });
     }
 
@@ -54,6 +59,7 @@ return new class extends Migration
         ");
 
         Schema::table('tb_cloture_caisse', function (Blueprint $table) {
+            $table->dropForeign('tb_cloture_caisse_ibfk_1');
             $table->dropColumn([
                 'statut_validation',
                 'validateur_matricule',

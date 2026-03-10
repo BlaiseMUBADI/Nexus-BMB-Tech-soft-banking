@@ -67,10 +67,11 @@
                     <td>
                         @php
                             $types = [
-                                'COURANT'         => 'Compte Courant',
-                                'EPARGNE_LIBRE'   => 'Épargne Libre',
-                                'EPARGNE_BLOQUEE' => 'Épargne Bloquée',
-                                'CAUTION_CREDIT'  => 'Caution Crédit',
+                                'CC'  => 'Compte Courant',
+                                'RMB' => 'Remboursement',
+                                'GTC' => 'Caution',
+                                'DAT' => 'Dépôt à Terme',
+                                'EAV' => 'Épargne & Vie',
                             ];
                         @endphp
                         {{ $types[$compte->type] ?? $compte->type }}

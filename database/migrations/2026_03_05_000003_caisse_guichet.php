@@ -111,7 +111,7 @@ return new class extends Migration
 
             $table->foreign('guichet_id', 'fk_solde_guichet')
                   ->references('id')->on('tb_caisses_guichets')
-                  ->restrictOnDelete()->restrictOnUpdate();
+                  ->restrictOnDelete()->cascadeOnUpdate();
 
             $table->foreign('devise_code', 'fk_solde_devise')
                   ->references('code_iso')->on('tb_devises')

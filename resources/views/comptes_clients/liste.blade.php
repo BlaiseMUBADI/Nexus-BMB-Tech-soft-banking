@@ -54,9 +54,9 @@
 @section('content')
 <div class="container-fluid">
 
-    {{-- ── Mini-dashboard ──────────────────────────────── --}}
+    {{-- ── Mini-dashboard (6 info-box : Total + 5 types) ── --}}
     <div class="row mb-3">
-        <div class="col-md-3 col-sm-6">
+        <div class="col-lg-2 col-md-4 col-sm-6">
             <div class="info-box shadow-sm mb-2">
                 <span class="info-box-icon bg-primary elevation-1"><i class="fas fa-university"></i></span>
                 <div class="info-box-content">
@@ -65,30 +65,48 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3 col-sm-6">
+        <div class="col-lg-2 col-md-4 col-sm-6">
             <div class="info-box shadow-sm mb-2">
                 <span class="info-box-icon bg-info elevation-1"><i class="fas fa-exchange-alt"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text">Courant</span>
+                    <span class="info-box-text">Courant (CC)</span>
                     <span class="info-box-number">{{ $stats['courant'] }}</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 col-sm-6">
+        <div class="col-lg-2 col-md-4 col-sm-6">
             <div class="info-box shadow-sm mb-2">
-                <span class="info-box-icon bg-success elevation-1"><i class="fas fa-piggy-bank"></i></span>
+                <span class="info-box-icon bg-secondary elevation-1"><i class="fas fa-undo-alt"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text">Épargne</span>
-                    <span class="info-box-number">{{ $stats['epargne'] }}</span>
+                    <span class="info-box-text">Rembours. (RMB)</span>
+                    <span class="info-box-number">{{ $stats['remboursement'] }}</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 col-sm-6">
+        <div class="col-lg-2 col-md-4 col-sm-6">
             <div class="info-box shadow-sm mb-2">
-                <span class="info-box-icon bg-warning elevation-1"><i class="fas fa-hand-holding-usd"></i></span>
+                <span class="info-box-icon bg-primary elevation-1"><i class="fas fa-shield-alt"></i></span>
                 <div class="info-box-content">
-                    <span class="info-box-text">Caution / Crédit</span>
-                    <span class="info-box-number">{{ $stats['caution_credit'] }}</span>
+                    <span class="info-box-text">Caution (GTC)</span>
+                    <span class="info-box-number">{{ $stats['caution'] }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="info-box shadow-sm mb-2">
+                <span class="info-box-icon bg-warning elevation-1"><i class="fas fa-clock"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Dépôt Terme (DAT)</span>
+                    <span class="info-box-number">{{ $stats['depot_terme'] }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="info-box shadow-sm mb-2">
+                <span class="info-box-icon bg-success elevation-1"><i class="fas fa-piggy-bank"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">Épargne (EAV)</span>
+                    <span class="info-box-number">{{ $stats['epargne_vie'] }}</span>
                 </div>
             </div>
         </div>
@@ -146,14 +164,17 @@
                             </td>
                             <td>
                                 @php
-                                    $typeBadge = [
-                                        'COURANT'         => 'badge-info',
-                                        'EPARGNE_LIBRE'   => 'badge-success',
-                                        'EPARGNE_BLOQUEE' => 'badge-warning',
-                                        'CAUTION_CREDIT'  => 'badge-primary',
-                                    ][$compte->type] ?? 'badge-secondary';
+                                    $typeLabels = [
+                                        'CC'  => ['label' => 'Compte Courant',   'badge' => 'badge-info'],
+                                        'RMB' => ['label' => 'Remboursement',     'badge' => 'badge-secondary'],
+                                        'GTC' => ['label' => 'Caution',           'badge' => 'badge-primary'],
+                                        'DAT' => ['label' => 'Dépôt à Terme',     'badge' => 'badge-warning'],
+                                        'EAV' => ['label' => 'Épargne & Vie',     'badge' => 'badge-success'],
+                                    ];
+                                    $typeBadge = $typeLabels[$compte->type]['badge'] ?? 'badge-secondary';
+                                    $typeLabel = $typeLabels[$compte->type]['label'] ?? $compte->type;
                                 @endphp
-                                <span class="badge {{ $typeBadge }}">{{ $compte->type }}</span>
+                                <span class="badge {{ $typeBadge }}">{{ $compte->type }} - {{ $typeLabel }}</span>
                             </td>
                             <td class="text-right">{{ number_format($compte->solde_reel, 2, ',', ' ') }}</td>
                             <td><span class="badge badge-secondary">{{ $compte->devise }}</span></td>
@@ -222,10 +243,11 @@
                                 <label class="font-weight-bold small">Type de compte</label>
                                 <select name="type" class="form-control form-control-sm">
                                     <option value="tous">— Tous les types —</option>
-                                    <option value="COURANT">Compte Courant</option>
-                                    <option value="EPARGNE_LIBRE">Épargne Libre</option>
-                                    <option value="EPARGNE_BLOQUEE">Épargne Bloquée</option>
-                                    <option value="CAUTION_CREDIT">Caution Crédit</option>
+                                    <option value="CC">Compte Courant (CC)</option>
+                                    <option value="RMB">Remboursement (RMB)</option>
+                                    <option value="GTC">Caution (GTC)</option>
+                                    <option value="DAT">Dépôt à Terme (DAT)</option>
+                                    <option value="EAV">Épargne & Vie (EAV)</option>
                                 </select>
                             </div>
                         </div>

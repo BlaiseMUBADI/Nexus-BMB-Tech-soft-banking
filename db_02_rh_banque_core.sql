@@ -288,8 +288,9 @@ CREATE TABLE `tb_comptes` (
   `code_compte`       varchar(64)  COLLATE utf8mb4_unicode_ci NOT NULL,
   `client_matricule`  varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `devise`            varchar(3)   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `type`              enum('COURANT','EPARGNE_LIBRE','EPARGNE_BLOQUEE','CAUTION_CREDIT')
-                      CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type`              enum('CC','RMB','GTC','DAT','EAV')
+                      CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
+                      COMMENT 'CC=Compte Courant, RMB=Remboursement, GTC=Caution, DAT=Dépôt à Terme, EAV=Épargne & Vie',
   `portefeuille_id`   bigint unsigned DEFAULT NULL,        -- Agent commercial rattaché
   `solde_reel`        decimal(18,2)  DEFAULT '0.00',
   `solde_bloque`      decimal(18,2)  DEFAULT '0.00',

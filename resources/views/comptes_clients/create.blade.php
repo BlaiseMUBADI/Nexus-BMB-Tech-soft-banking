@@ -37,10 +37,11 @@
                             <label for="type">Type de compte</label>
                             <select name="type" id="type" class="form-control select2" required>
                                 <option value="">-- Sélectionner le type --</option>
-                                <option value="COURANT">Courant</option>
-                                <option value="EPARGNE_LIBRE">Épargne libre</option>
-                                <option value="EPARGNE_BLOQUEE">Épargne bloquée</option>
-                                <option value="CAUTION_CREDIT">Caution crédit</option>
+                                <option value="CC">Compte Courant</option>
+                                <option value="RMB">Compte Remboursement</option>
+                                <option value="GTC">Compte Caution</option>
+                                <option value="DAT">Dépôt à Terme</option>
+                                <option value="EAV">Épargne & Vie</option>
                             </select>
                         </div>
                         <div class="form-group" id="portefeuille_group" style="display:none">
@@ -57,7 +58,7 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <small class="text-muted">Obligatoire pour les comptes de type Caution Crédit.</small>
+                            <small class="text-muted">Obligatoire pour les comptes de type Caution (GTC).</small>
                         </div>
                         <div class="form-group">
                             <label for="devise">Devise</label>
@@ -120,14 +121,17 @@
                                         </td>
                                         <td>
                                             @php
-                                                $typeBadge = [
-                                                    'COURANT'         => 'badge-info',
-                                                    'EPARGNE_LIBRE'   => 'badge-success',
-                                                    'EPARGNE_BLOQUEE' => 'badge-warning',
-                                                    'CAUTION_CREDIT'  => 'badge-primary',
-                                                ][$compte->type] ?? 'badge-secondary';
+                                                $typeLabels = [
+                                                    'CC'  => ['label' => 'Compte Courant',        'badge' => 'badge-info'],
+                                                    'RMB' => ['label' => 'Remboursement',          'badge' => 'badge-secondary'],
+                                                    'GTC' => ['label' => 'Caution',                'badge' => 'badge-primary'],
+                                                    'DAT' => ['label' => 'Dépôt à Terme',          'badge' => 'badge-warning'],
+                                                    'EAV' => ['label' => 'Épargne & Vie',          'badge' => 'badge-success'],
+                                                ];
+                                                $typeBadge = $typeLabels[$compte->type]['badge'] ?? 'badge-secondary';
+                                                $typeLabel = $typeLabels[$compte->type]['label'] ?? $compte->type;
                                             @endphp
-                                            <span class="badge {{ $typeBadge }}">{{ $compte->type }}</span>
+                                            <span class="badge {{ $typeBadge }}">{{ $compte->type }} - {{ $typeLabel }}</span>
                                         </td>
                                         <td class="text-right">{{ number_format($compte->solde_reel, 2, ',', ' ') }}</td>
                                         <td><span class="badge badge-secondary">{{ $compte->devise }}</span></td>
@@ -188,7 +192,7 @@
 
         /* ── Afficher / masquer portefeuille ─────────── */
         $('#type').on('change', function () {
-            if ($(this).val() === 'CAUTION_CREDIT') {
+            if ($(this).val() === 'GTC') {
                 $('#portefeuille_group').fadeIn(300, function () {
                     // Init Select2 the first time the group becomes visible
                     if (!$('#portefeuille_id').data('select2')) {
