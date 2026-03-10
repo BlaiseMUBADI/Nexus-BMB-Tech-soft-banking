@@ -57,7 +57,7 @@ class LoginRequest extends FormRequest
         }
 
         // Vérifier que le compte utilisateur est actif
-        if (($user->etat ?? 'ACTIF') !== 'ACTIF') {
+        if (strtoupper($user->etat ?? 'ACTIF') !== 'ACTIF') {
             \Illuminate\Support\Facades\RateLimiter::hit($this->throttleKey());
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'login' => 'Votre compte est désactivé. Veuillez contacter l\'administrateur système.',
