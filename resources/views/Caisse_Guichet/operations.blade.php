@@ -107,7 +107,12 @@
                                 <option value="{{ $cpt->code_compte }}"
                                         data-devise="{{ $cpt->devise }}"
                                         data-solde="{{ number_format($cpt->solde_reel ?? 0, 2, '.', '') }}"
-                                        data-client="{{ optional($cpt->client)->nom }} {{ optional($cpt->client)->postnom }}">
+                                        data-client="{{ optional($cpt->client)->nom }} {{ optional($cpt->client)->postnom }}"
+                                        data-prenom="{{ optional($cpt->client)->prenom }}"
+                                        data-matricule="{{ optional($cpt->client)->matricule }}"
+                                        data-telephone="{{ optional($cpt->client)->telephone }}"
+                                        data-sexe="{{ optional($cpt->client)->sexe }}"
+                                        data-photo="{{ optional($cpt->client)->photo ? basename(optional($cpt->client)->photo) : '' }}">
                                     [{{ $cpt->devise }}] {{ optional($cpt->client)->nom }} {{ optional($cpt->client)->postnom }} — {{ $cpt->code_compte }}
                                 </option>
                                 @endforeach
@@ -248,7 +253,22 @@
                                                 data-id="{{ $op->id }}" title="Annuler">
                                             <i class="fas fa-times"></i>
                                         </button>
+                                        <button class="btn btn-xs btn-outline-warning btn-demande-modif"
+                                                data-id="{{ $op->id }}"
+                                                data-ref="{{ $op->reference }}"
+                                                data-montant="{{ $op->montant }}"
+                                                data-type="{{ $op->type }}"
+                                                data-devise="{{ $op->devise_code }}"
+                                                title="Demander modification / suppression">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
                                         @endif
+                                        <a href="{{ route('caisses.operations.bordereau', ['id' => $op->id]) }}"
+                                           target="_blank"
+                                           class="btn btn-xs btn-outline-info ml-1"
+                                           title="Imprimer le bordereau PDF">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
                                     </td>
                                 </tr>
                                 @empty
@@ -270,6 +290,138 @@
     @endif
 
 </div>
+
+{{-- ══════════════════════════════════════════════════════════════
+     MODAL — Vérification identité client avant opération
+     ══════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modalIdentiteClient" tabindex="-1" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content shadow-lg" style="border-radius:14px; overflow:hidden;">
+            <div class="modal-header py-2" style="background:linear-gradient(90deg,#2563eb 0%,#1d4ed8 100%);">
+                <h6 class="modal-title text-white mb-0">
+                    <i class="fas fa-user-shield mr-2"></i>Vérification d'identité du client
+                </h6>
+            </div>
+            <div class="modal-body p-0">
+                {{-- Bandeau alerte --}}
+                <div class="alert alert-warning mb-0 py-2 px-3 small rounded-0">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Confirmez que la personne se présentant correspond bien au titulaire ci-dessous.
+                </div>
+                <div class="p-3">
+                    <div class="d-flex align-items-center">
+                        {{-- Photo du client --}}
+                        <div class="mr-3 flex-shrink-0">
+                            <img id="photoIdentiteClient"
+                                 src="{{ asset('images_projet/default_user.png') }}"
+                                 alt="Photo client"
+                                 style="width:110px;height:130px;object-fit:cover;border-radius:10px;
+                                        border:3px solid #3b82f6;background:#e2e8f0;">
+                        </div>
+                        {{-- Infos client --}}
+                        <div class="flex-grow-1">
+                            <div class="mb-1">
+                                <span class="badge badge-primary badge-pill px-2 py-1" id="badgeSexeClient" style="font-size:.78rem;">—</span>
+                            </div>
+                            <h5 class="mb-1 font-weight-bold text-dark" id="nomCompletIdentite">—</h5>
+                            <div class="text-muted small mb-2" id="prenomIdentite">—</div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-borderless mb-0" style="font-size:.87rem;">
+                                    <tr>
+                                        <td class="py-0 text-muted pl-0" style="width:110px;"><i class="fas fa-id-badge mr-1 text-primary"></i>Matricule</td>
+                                        <td class="py-0 font-weight-bold" id="matriculeIdentite">—</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-0 text-muted pl-0"><i class="fas fa-university mr-1 text-primary"></i>Compte</td>
+                                        <td class="py-0"><code id="compteIdentite">—</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-0 text-muted pl-0"><i class="fas fa-phone mr-1 text-primary"></i>Téléphone</td>
+                                        <td class="py-0" id="telephoneIdentite">—</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-3 pb-2">
+                    <div class="alert alert-info py-1 mb-0 small">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Solde disponible&nbsp;: <strong id="soldeIdentite">—</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer py-2 justify-content-between" style="border-top:1px solid #e2e8f0;">
+                <button type="button" class="btn btn-danger btn-sm" id="btnNonIdentite">
+                    <i class="fas fa-times mr-1"></i> Non, ce n'est pas cette personne
+                </button>
+                <button type="button" class="btn btn-success btn-sm" id="btnOuiIdentite">
+                    <i class="fas fa-check mr-1"></i> Oui, identité confirmée
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════
+     MODAL — Demande de modification / suppression d'opération
+     ══════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modalDemandeModif" tabindex="-1" data-backdrop="static">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content shadow-lg" style="border-radius:14px; overflow:hidden;">
+            <div class="modal-header py-2 bg-warning">
+                <h6 class="modal-title font-weight-bold mb-0">
+                    <i class="fas fa-edit mr-2"></i>Demande de modification / suppression
+                </h6>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2 small mb-3">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Votre demande sera transmise au superviseur pour approbation.
+                    Opération : <strong id="demandeRef">—</strong>
+                    &bull; Type : <strong id="demandeType">—</strong>
+                    &bull; Montant original : <strong id="demandeAncienMontant">—</strong>
+                </div>
+                <div class="form-group mb-2">
+                    <label class="small font-weight-bold">Type de demande <span class="text-danger">*</span></label>
+                    <select id="selTypeDemande" class="form-control form-control-sm">
+                        <option value="MODIFICATION">Modification du montant</option>
+                        <option value="SUPPRESSION">Suppression (annulation)</option>
+                    </select>
+                </div>
+                <div id="blocNouveauMontant" class="form-group mb-2">
+                    <label class="small font-weight-bold">Nouveau montant <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" id="inpNouveauMontant" class="form-control" step="0.01" min="0.01"
+                               placeholder="0.00">
+                        <div class="input-group-append">
+                            <span class="input-group-text" id="demandeDevise">—</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="blocNouvObservations" class="form-group mb-2">
+                    <label class="small font-weight-bold">Nouvelles observations</label>
+                    <textarea id="inpNouvObservations" class="form-control form-control-sm" rows="2"
+                              placeholder="(optionnel)" maxlength="500"></textarea>
+                </div>
+                <div class="form-group mb-0">
+                    <label class="small font-weight-bold">Motif de la demande <span class="text-danger">*</span></label>
+                    <textarea id="inpMotifDemande" class="form-control form-control-sm" rows="2"
+                              placeholder="Décrivez clairement la raison de votre demande (obligatoire)..."
+                              maxlength="500"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-sm btn-warning font-weight-bold" id="btnSoumettreDemandeModif">
+                    <i class="fas fa-paper-plane mr-1"></i>Soumettre la demande
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 
@@ -300,7 +452,10 @@ $(document).ready(function () {
     var urlStore         = '{{ route("caisses.operations.store") }}';
     var urlJournal        = '{{ route("caisses.journal.data") }}';
     var urlAnnuler        = '{{ route("caisses.operations.annuler", ["id" => "__ID__"]) }}';
+    var urlDemandeModif  = '{{ route("caisses.operations.demande.modification", ["id" => "__ID__"]) }}';
+    var urlBordereau     = '{{ route("caisses.operations.bordereau", ["id" => "__ID__"]) }}';
     var urlSearchCompte   = '{{ route("caisses.operations.comptes.search") }}';
+    var urlClientPhoto    = '{{ url("/clients/photo") }}';
 
     // ── Select2 — Recherche compte client (chargé côté serveur) ──
     $('#selCompte').select2({
@@ -312,18 +467,76 @@ $(document).ready(function () {
         language      : { noResults: function () { return 'Aucun compte trouvé.'; } }
     });
 
+    var _pendingCompteCode  = null;  // Code en attente de confirmation
+    var _pendingDevise      = null;
+
     $('#selCompte').on('select2:select', function () {
-        var $opt = $(this).find('option:selected');
-        $('#selectedCompteCode').val($opt.val());
-        $('#selDevise').val($opt.data('devise')).prop('disabled', true);
+        var $opt     = $(this).find('option:selected');
+        var code     = $opt.val();
+        var devise   = $opt.data('devise');
+        var solde    = $opt.data('solde');
+        var nomCl    = $.trim($opt.data('client'));
+        var prenom   = $.trim($opt.data('prenom'));
+        var matric   = $opt.data('matricule');
+        var tel      = $opt.data('telephone') || '—';
+        var sexe     = $opt.data('sexe') || '';
+        var photo    = $opt.data('photo') || '';
+
+        _pendingCompteCode = code;
+        _pendingDevise     = devise;
+
+        // Remplir le modal d'identité
+        $('#nomCompletIdentite').text(nomCl || '—');
+        $('#prenomIdentite').text(prenom || '—');
+        $('#matriculeIdentite').text(matric || '—');
+        $('#compteIdentite').text(code);
+        $('#telephoneIdentite').text(tel);
+        $('#soldeIdentite').text(parseFloat(solde).toLocaleString('fr-FR', {minimumFractionDigits:2}) + ' ' + devise);
+
+        var badgeSexe = sexe === 'F' ? '<i class="fas fa-female mr-1"></i>Femme' : '<i class="fas fa-male mr-1"></i>Homme';
+        var badgeClass = sexe === 'F' ? 'badge-pink' : 'badge-primary';
+        $('#badgeSexeClient').removeClass('badge-primary badge-pink badge-secondary')
+            .addClass(sexe === 'F' ? 'badge-danger' : 'badge-primary').html(badgeSexe);
+
+        if (photo) {
+            $('#photoIdentiteClient').attr('src', urlClientPhoto + '/' + encodeURIComponent(photo));
+        } else {
+            $('#photoIdentiteClient').attr('src', '{{ asset("vendor/adminlte/dist/img/user2-160x160.jpg") }}');
+        }
+
+        $('#modalIdentiteClient').modal('show');
+    });
+
+    // Confirmation identité — OUI
+    $('#btnOuiIdentite').on('click', function () {
+        if (_pendingCompteCode) {
+            $('#selectedCompteCode').val(_pendingCompteCode);
+            $('#selDevise').val(_pendingDevise).prop('disabled', true);
+        }
+        $('#modalIdentiteClient').modal('hide');
+    });
+
+    // Confirmation identité — NON
+    $('#btnNonIdentite').on('click', function () {
+        _pendingCompteCode = null;
+        _pendingDevise = null;
+        $('#selectedCompteCode').val('');
+        $('#selCompte').val(null).trigger('change');
+        $('#selDevise').prop('disabled', false);
+        $('#modalIdentiteClient').modal('hide');
+        showSystemMessage('warning', 'Opération annulée — identité non confirmée.');
     });
 
     $('#selCompte').on('select2:unselect select2:clear', function () {
+        _pendingCompteCode = null;
+        _pendingDevise = null;
         $('#selectedCompteCode').val('');
         $('#selDevise').prop('disabled', false);
     });
 
     function clearCompteSelection() {
+        _pendingCompteCode = null;
+        _pendingDevise = null;
         $('#selectedCompteCode').val('');
         $('#selCompte').val(null).trigger('change');
         $('#selDevise').prop('disabled', false);
@@ -402,6 +615,10 @@ $(document).ready(function () {
         })
         .done(function (r) {
             showSystemMessage('success', r.message || 'Opération enregistrée.');
+            // Ouvrir automatiquement le bordereau dans un nouvel onglet
+            if (r.bordereau_url) {
+                setTimeout(function () { window.open(r.bordereau_url, '_blank'); }, 400);
+            }
             setTimeout(function () { location.reload(); }, 1000);
         })
         .fail(function (xhr) {
@@ -448,7 +665,10 @@ $(document).ready(function () {
                 var montantExtra = op.montant_dest_fmt
                     ? '<br><small class="text-info">→ ' + op.montant_dest_fmt + '</small>' : '';
                 var annulerBtn = op.statut === 'CONFIRME'
-                    ? '<button class="btn btn-xs btn-outline-danger btn-annuler" data-id="' + op.id + '" title="Annuler"><i class="fas fa-times"></i></button>' : '';
+                    ? '<button class="btn btn-xs btn-outline-danger btn-annuler" data-id="' + op.id + '" title="Annuler"><i class="fas fa-times"></i></button>'
+                    + '<button class="btn btn-xs btn-outline-warning btn-demande-modif ml-1" data-id="' + op.id + '" data-ref="' + op.reference + '" data-montant="' + op.montant + '" data-type="' + op.type + '" data-devise="' + (op.devise_code || '') + '" title="Demander modification/suppression"><i class="fas fa-edit"></i></button>'
+                    : '';
+                var bordereauBtn = '<a href="' + urlBordereau.replace('__ID__', op.id) + '" target="_blank" class="btn btn-xs btn-outline-info ml-1" title="Bordereau PDF"><i class="fas fa-file-invoice"></i></a>';
                 var statutBadge = op.statut === 'ANNULE'
                     ? '<span class="badge badge-secondary">Annulée</span>'
                     : '<span class="badge badge-success">Confirmé</span>';
@@ -463,7 +683,7 @@ $(document).ready(function () {
                     + '<td class="font-weight-bold">' + op.montant_fmt + montantExtra + '</td>'
                     + '<td><small>' + (op.date ? op.date.substr(11,5) : '') + '</small></td>'
                     + '<td>' + statutBadge + '</td>'
-                    + '<td>' + annulerBtn + '</td>'
+                    + '<td>' + annulerBtn + bordereauBtn + '</td>'
                     + '</tr>'
                 );
             });
@@ -472,6 +692,67 @@ $(document).ready(function () {
 
     $('#btnRefreshOps').on('click', chargerOpsJour);
     setInterval(chargerOpsJour, 45000);
+
+    // ── Demander modification / suppression ──────────────────────
+    var _demandeOpId = null;
+    $(document).on('click', '.btn-demande-modif', function () {
+        _demandeOpId = $(this).data('id');
+        $('#demandeRef').text($(this).data('ref') || '—');
+        $('#demandeType').text($(this).data('type') || '—');
+        var montant = $(this).data('montant');
+        var devise  = $(this).data('devise') || '';
+        $('#demandeAncienMontant').text(parseFloat(montant).toLocaleString('fr-FR', {minimumFractionDigits: 2}) + ' ' + devise);
+        $('#demandeDevise').text(devise);
+        $('#inpNouveauMontant').val('');
+        $('#inpNouvObservations').val('');
+        $('#inpMotifDemande').val('');
+        $('#selTypeDemande').val('MODIFICATION').trigger('change');
+        $('#modalDemandeModif').modal('show');
+    });
+
+    $('#selTypeDemande').on('change', function () {
+        if ($(this).val() === 'SUPPRESSION') {
+            $('#blocNouveauMontant').addClass('d-none');
+        } else {
+            $('#blocNouveauMontant').removeClass('d-none');
+        }
+    });
+
+    $('#btnSoumettreDemandeModif').on('click', function () {
+        var typeDemande   = $('#selTypeDemande').val();
+        var motif         = $.trim($('#inpMotifDemande').val());
+        var nouveauMontant = $('#inpNouveauMontant').val();
+        var nouvObs       = $.trim($('#inpNouvObservations').val());
+
+        if (!motif) {
+            alert('Le motif de la demande est obligatoire.');
+            $('#inpMotifDemande').focus();
+            return;
+        }
+        if (typeDemande === 'MODIFICATION' && (!nouveauMontant || parseFloat(nouveauMontant) <= 0)) {
+            alert('Veuillez saisir le nouveau montant.');
+            $('#inpNouveauMontant').focus();
+            return;
+        }
+
+        var url = urlDemandeModif.replace('__ID__', _demandeOpId);
+        var payload = { type_demande: typeDemande, motif: motif };
+        if (typeDemande === 'MODIFICATION') payload.nouveau_montant = nouveauMontant;
+        if (nouvObs) payload.nouvelles_observations = nouvObs;
+
+        $('#btnSoumettreDemandeModif').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Envoi...');
+        $.post(url, payload)
+        .done(function (r) {
+            $('#modalDemandeModif').modal('hide');
+            showSystemMessage('success', r.message || 'Demande envoyée au superviseur.');
+        })
+        .fail(function (xhr) {
+            handleAjaxFail(xhr, 'Demande modification opération');
+        })
+        .always(function () {
+            $('#btnSoumettreDemandeModif').prop('disabled', false).html('<i class="fas fa-paper-plane mr-1"></i>Soumettre la demande');
+        });
+    });
 
     // ── Annuler une opération ─────────────────────────────────────
     $(document).on('click', '.btn-annuler', function () {

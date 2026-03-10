@@ -122,6 +122,52 @@ class CompteController extends Controller
 
         return $pdf->stream('RIB_' . $code_compte . '.pdf');
     }
+    // ── Relevé bancaire ───────────────────────────────────────────────────
+    public function releveCompte(\Illuminate\Http\Request $request, string $code_compte)
+    {
+        $compte  = Compte::with(['client'])->findOrFail($code_compte);
+        $client  = $compte->client;
+        $devise  = Devise::where('code_iso', $compte->devise)->first();
+
+        $dateDebut = $request->filled('date_debut')
+            ? \Carbon\Carbon::parse($request->date_debut)->startOfDay()
+            : now()->startOfMonth();
+
+        $dateFin = $request->filled('date_fin')
+            ? \Carbon\Carbon::parse($request->date_fin)->endOfDay()
+            : now()->endOfDay();
+
+        $transactions = \App\Models\Transaction::where('compte_code', $code_compte)
+            ->whereBetween('date_operation', [$dateDebut, $dateFin])
+            ->where('statut', 'CONFIRME')
+            ->orderBy('date_operation')
+            ->get();
+
+        // Solde d'ouverture = solde actuel − somme des mouvements dans la période
+        $soldeActuel = (float) $compte->solde_reel;
+        $mouvement = $transactions->sum(function ($t) {
+            return $t->type === 'DEPOT' ? (float)$t->montant : -((float)$t->montant);
+        });
+        $soldeOuverture = $soldeActuel - $mouvement;
+
+        // Photo client en base64 pour PDF
+        $photoBase64 = null;
+        if ($client && $client->photo) {
+            $photoPath = base_path('images_projet/' . $client->photo);
+            if (file_exists($photoPath)) {
+                $mime = mime_content_type($photoPath);
+                $photoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($photoPath));
+            }
+        }
+
+        $pdf = Pdf::loadView('impressions.comptes.releve', compact(
+            'compte', 'client', 'devise', 'transactions',
+            'soldeOuverture', 'soldeActuel', 'dateDebut', 'dateFin', 'photoBase64'
+        ))->setPaper('a4', 'portrait');
+
+        return $pdf->stream('Releve_' . $code_compte . '_' . $dateDebut->format('Ymd') . '_' . $dateFin->format('Ymd') . '.pdf');
+    }
+
     // ── Impression liste filtrée ───────────────────────────────────────────────
     public function imprimerListe(\Illuminate\Http\Request $request)
     {
@@ -175,4 +221,32 @@ class CompteController extends Controller
                   ->setPaper('a4', 'landscape');
 
         return $pdf->stream('Liste_comptes.pdf');
-    }}
+    }
+
+    // ── Historique des mouvements d'un compte ────────────────────────────────
+    public function historiqueCompte(\Illuminate\Http\Request $request, string $code_compte)
+    {
+        $compte = Compte::with(['client'])->findOrFail($code_compte);
+        $devise = Devise::where('code_iso', $compte->devise)->first();
+
+        $query = \App\Models\Transaction::where('compte_code', $code_compte)
+            ->with(['guichet']);
+
+        if ($request->filled('date_debut')) {
+            $query->whereDate('date_operation', '>=', $request->date_debut);
+        }
+        if ($request->filled('date_fin')) {
+            $query->whereDate('date_operation', '<=', $request->date_fin);
+        }
+        if ($request->filled('type') && $request->type !== 'tous') {
+            $query->where('type', $request->type);
+        }
+        if ($request->filled('statut') && $request->statut !== 'tous') {
+            $query->where('statut', $request->statut);
+        }
+
+        $transactions = $query->orderByDesc('date_operation')->paginate(30)->withQueryString();
+
+        return view('comptes_clients.historique', compact('compte', 'devise', 'transactions'));
+    }
+}

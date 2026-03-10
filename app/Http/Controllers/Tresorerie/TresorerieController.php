@@ -820,4 +820,167 @@ class TresorerieController extends Controller
         $count = CaissesGuichet::where('statut_operationnel', 'EN_VERIFICATION')->count();
         return response()->json(['count' => $count]);
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    // RAPPORT — APPORTS AGENTS MOBILES (GUICHET MOBILE)
+    // ══════════════════════════════════════════════════════════════════
+
+    /**
+     * Vue rapport des apports des agents commerciaux (guichets MOBILE).
+     */
+    public function agentsMobiles(Request $request)
+    {
+        $guichetsMobiles = CaissesGuichet::where('type_guichet', 'MOBILE')->pluck('id')->toArray();
+
+        $query = \App\Models\Transaction::whereIn('guichet_id', $guichetsMobiles)
+            ->where('statut', 'CONFIRME')
+            ->with(['guichet', 'compte.client']);
+
+        // ── Filtres ────────────────────────────────────────────────
+        if ($request->filled('date_debut')) {
+            $query->whereDate('date_operation', '>=', $request->date_debut);
+        }
+        if ($request->filled('date_fin')) {
+            $query->whereDate('date_operation', '<=', $request->date_fin);
+        }
+        if ($request->filled('agent_matricule')) {
+            $query->where('agent_matricule', $request->agent_matricule);
+        }
+        if ($request->filled('type_compte') && $request->type_compte !== 'tous') {
+            $query->whereHas('compte', fn($q) => $q->where('type', $request->type_compte));
+        }
+        if ($request->filled('devise_code') && $request->devise_code !== 'tous') {
+            $query->where('devise_code', $request->devise_code);
+        }
+        if ($request->filled('type_operation') && $request->type_operation !== 'tous') {
+            $query->where('type', $request->type_operation);
+        }
+
+        // ── Filtrer par zone (via la zone dont l'agent commercial correspond) ──
+        if ($request->filled('code_zone')) {
+            $zone = \App\Models\Zone::where('code_zone', $request->code_zone)->first();
+            if ($zone && $zone->agent_commercial_matricule) {
+                // Trouver les guichets MOBILES affectés à cet agent
+                $guichetsZone = \App\Models\Affectation::where('agent_matricule', $zone->agent_commercial_matricule)
+                    ->whereNotNull('guichet_id')
+                    ->pluck('guichet_id');
+                if ($guichetsZone->isNotEmpty()) {
+                    $query->whereIn('guichet_id', $guichetsZone);
+                } else {
+                    // Zone sans guichet affecté = aucun résultat
+                    $query->whereRaw('1=0');
+                }
+            }
+        }
+
+        $transactions = $query->orderBy('date_operation')->get();
+
+        // ── Calcul apports par agent ────────────────────────────────
+        $parAgent = $transactions->groupBy('agent_matricule')->map(function ($items, $matricule) {
+            $agent = \App\Models\Agent::find($matricule);
+            $parDevise = $items->groupBy('devise_code')->map(function ($devItems, $devise) {
+                $depots   = $devItems->whereIn('type', ['DEPOT', 'PAIEMENT'])->sum('montant');
+                $retraits = $devItems->whereIn('type', ['RETRAIT', 'REMBOURSEMENT'])->sum('montant');
+                return [
+                    'devise'         => $devise,
+                    'total_entrees'  => (float) $depots,
+                    'total_sorties'  => (float) $retraits,
+                    'net'            => (float) ($depots - $retraits),
+                    'nb_operations'  => $devItems->count(),
+                ];
+            })->values();
+
+            return [
+                'matricule'     => $matricule,
+                'nom_complet'   => $agent ? trim(($agent->prenom ?? '') . ' ' . ($agent->nom ?? '') . ' ' . ($agent->postnom ?? '')) : $matricule,
+                'guichet'       => $items->first()?->guichet?->intitule ?? '—',
+                'nb_operations' => $items->count(),
+                'par_devise'    => $parDevise,
+            ];
+        })->values();
+
+        // ── Données pour filtres de la vue ──────────────────────────
+        $agents = \App\Models\Agent::whereIn('matricule',
+            \App\Models\Affectation::whereIn('guichet_id', $guichetsMobiles)
+                ->pluck('agent_matricule')
+        )->orderBy('nom')->get();
+
+        $zones   = \App\Models\Zone::orderBy('nom')->get();
+        $devises = \App\Models\Devise::orderBy('code_iso')->get();
+
+        return view('tresorerie.agents_mobiles', compact(
+            'parAgent', 'transactions', 'agents', 'zones', 'devises'
+        ));
+    }
+
+    /**
+     * Impression PDF du rapport agents mobiles.
+     */
+    public function agentsMobilesPdf(Request $request)
+    {
+        $guichetsMobiles = CaissesGuichet::where('type_guichet', 'MOBILE')->pluck('id')->toArray();
+
+        $query = \App\Models\Transaction::whereIn('guichet_id', $guichetsMobiles)
+            ->where('statut', 'CONFIRME')
+            ->with(['guichet', 'compte.client']);
+
+        if ($request->filled('date_debut')) {
+            $query->whereDate('date_operation', '>=', $request->date_debut);
+        }
+        if ($request->filled('date_fin')) {
+            $query->whereDate('date_operation', '<=', $request->date_fin);
+        }
+        if ($request->filled('agent_matricule')) {
+            $query->where('agent_matricule', $request->agent_matricule);
+        }
+        if ($request->filled('type_compte') && $request->type_compte !== 'tous') {
+            $query->whereHas('compte', fn($q) => $q->where('type', $request->type_compte));
+        }
+        if ($request->filled('devise_code') && $request->devise_code !== 'tous') {
+            $query->where('devise_code', $request->devise_code);
+        }
+        if ($request->filled('type_operation') && $request->type_operation !== 'tous') {
+            $query->where('type', $request->type_operation);
+        }
+        if ($request->filled('code_zone')) {
+            $zone = \App\Models\Zone::where('code_zone', $request->code_zone)->first();
+            if ($zone && $zone->agent_commercial_matricule) {
+                $guichetsZone = \App\Models\Affectation::where('agent_matricule', $zone->agent_commercial_matricule)
+                    ->whereNotNull('guichet_id')->pluck('guichet_id');
+                $guichetsZone->isNotEmpty()
+                    ? $query->whereIn('guichet_id', $guichetsZone)
+                    : $query->whereRaw('1=0');
+            }
+        }
+
+        $transactions = $query->orderBy('agent_matricule')->orderBy('date_operation')->get();
+
+        $parAgent = $transactions->groupBy('agent_matricule')->map(function ($items, $matricule) {
+            $agent = \App\Models\Agent::find($matricule);
+            $parDevise = $items->groupBy('devise_code')->map(function ($devItems, $devise) {
+                return [
+                    'devise'        => $devise,
+                    'total_entrees' => (float) $devItems->whereIn('type', ['DEPOT', 'PAIEMENT'])->sum('montant'),
+                    'total_sorties' => (float) $devItems->whereIn('type', ['RETRAIT', 'REMBOURSEMENT'])->sum('montant'),
+                    'nb_operations' => $devItems->count(),
+                ];
+            })->values();
+
+            return [
+                'matricule'     => $matricule,
+                'nom_complet'   => $agent ? trim(($agent->prenom ?? '') . ' ' . ($agent->nom ?? '') . ' ' . ($agent->postnom ?? '')) : $matricule,
+                'guichet'       => $items->first()?->guichet?->intitule ?? '—',
+                'nb_operations' => $items->count(),
+                'par_devise'    => $parDevise,
+            ];
+        })->values();
+
+        $filtres = $request->only(['date_debut','date_fin','agent_matricule','type_compte','devise_code','type_operation','code_zone']);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.tresorerie.agents_mobiles',
+            compact('parAgent', 'transactions', 'filtres')
+        )->setPaper('a4', 'portrait');
+
+        return $pdf->stream('Rapport_Agents_Mobiles_' . now()->format('Ymd_His') . '.pdf');
+    }
 }

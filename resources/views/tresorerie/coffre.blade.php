@@ -62,6 +62,15 @@
     </div>
 
     {{-- ══════════════════════════════════ STATISTIQUES JOURNÉE ══════════════════════════ --}}
+    <div class="row mb-3">
+        <div class="col-12">
+            <a href="{{ route('tresorerie.agents.mobiles') }}" class="btn btn-sm btn-outline-primary mb-3">
+                <i class="fas fa-mobile-alt mr-1"></i>Rapport Agents Mobiles
+            </a>
+        </div>
+    </div>
+
+    {{-- ══════════════════════════════════ STATISTIQUES JOURNÉE ══════════════════════════ --}}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card card-outline card-secondary shadow elevation-2">

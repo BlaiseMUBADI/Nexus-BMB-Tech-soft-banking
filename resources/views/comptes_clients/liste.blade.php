@@ -359,7 +359,8 @@
             <li><a href="#" class="ctx-item" id="ctxRIB"><i class="fas fa-file-alt"></i> Imprimer RIB / IBAN</a></li>
             <li><a href="#" class="ctx-item"><i class="fas fa-file-contract"></i> Convention de compte</a></li>
             <li><a href="#" class="ctx-item"><i class="fas fa-certificate"></i> Certificat d'ouverture</a></li>
-            <li><a href="#" class="ctx-item"><i class="fas fa-list-alt"></i> Relevé de compte</a></li>
+            <li><a href="#" class="ctx-item" id="ctxReleve"><i class="fas fa-list-alt text-success"></i> Relevé bancaire</a></li>
+            <li><a href="#" class="ctx-item" id="ctxHistorique"><i class="fas fa-history text-primary"></i> Historique des mouvements</a></li>
             <li><a href="#" class="ctx-item"><i class="fas fa-receipt"></i> Avis d'opération</a></li>
             <li><a href="#" class="ctx-item"><i class="fas fa-chart-line"></i> Échelle d'intérêts</a></li>
             <li><a href="#" class="ctx-item"><i class="fas fa-table"></i> Tableau d'amortissement</a></li>
@@ -370,6 +371,45 @@
         </ul>
     </div>
 </div>
+
+{{-- ══════════════════════════════════════════════════════════════
+     MODAL — Paramètres relevé bancaire
+     ══════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modalReleve" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content shadow" style="border-radius:12px;overflow:hidden;">
+            <div class="modal-header py-2" style="background:linear-gradient(90deg,#059669 0%,#047857 100%);">
+                <h6 class="modal-title text-white mb-0">
+                    <i class="fas fa-list-alt mr-2"></i>Relevé bancaire
+                </h6>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">
+                    <i class="fas fa-university mr-1 text-success"></i>
+                    Compte&nbsp;: <strong id="releveCompteCode">—</strong>
+                </p>
+                <div class="form-group mb-2">
+                    <label class="small font-weight-bold">Période du</label>
+                    <input type="date" id="releveDebut" class="form-control form-control-sm"
+                           value="{{ now()->startOfMonth()->toDateString() }}">
+                </div>
+                <div class="form-group mb-0">
+                    <label class="small font-weight-bold">Au</label>
+                    <input type="date" id="releveFin" class="form-control form-control-sm"
+                           value="{{ now()->toDateString() }}">
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-sm btn-success" id="btnGenererReleve">
+                    <i class="fas fa-file-pdf mr-1"></i>Générer PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('js')
@@ -407,12 +447,43 @@
         });
 
         /* ── Liens menu contextuel ───────────────────── */
-        var ribUrl = "{{ route('comptes.rib', ['code_compte' => '__ID__']) }}";
+        var ribUrl        = "{{ route('comptes.rib', ['code_compte' => '__ID__']) }}";
+        var releveUrl     = "{{ route('comptes.releve.pdf', ['code_compte' => '__ID__']) }}";
+        var historiqueUrl = "{{ route('comptes.historique', ['code_compte' => '__ID__']) }}";
 
         $('#ctxRIB').on('click', function (e) {
             e.preventDefault();
             $ctxMenu.hide();
             if (ctxCode) window.open(ribUrl.replace('__ID__', ctxCode), '_blank');
+        });
+
+        $('#ctxReleve').on('click', function (e) {
+            e.preventDefault();
+            $ctxMenu.hide();
+            if (ctxCode) {
+                $('#releveCompteCode').text(ctxCode);
+                $('#modalReleve').modal('show');
+            }
+        });
+
+        $('#ctxHistorique').on('click', function (e) {
+            e.preventDefault();
+            $ctxMenu.hide();
+            if (ctxCode) window.location.href = historiqueUrl.replace('__ID__', ctxCode);
+        });
+        $('#btnGenererReleve').on('click', function () {
+            var debut = $('#releveDebut').val();
+            var fin   = $('#releveFin').val();
+            if (!ctxCode) return;
+            if (!debut || !fin) {
+                alert('Veuillez sélectionner une période.');
+                return;
+            }
+            var url = releveUrl.replace('__ID__', ctxCode)
+                    + '?date_debut=' + encodeURIComponent(debut)
+                    + '&date_fin='   + encodeURIComponent(fin);
+            window.open(url, '_blank');
+            $('#modalReleve').modal('hide');
         });
 
         /* ── Bouton supprimer inline ─────────────────── */

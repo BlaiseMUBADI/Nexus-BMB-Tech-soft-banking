@@ -42,8 +42,10 @@ Route::middleware('auth')->prefix('comptes-clients')->group(function () {
 
     // ── Impressions comptes (EBEN-PER18) ─────────────────────────────────
     Route::middleware('permission:EBEN-PER18')->group(function () {
-        Route::get('comptes/{code_compte}/rib', [CompteController::class, 'imprimerRIB'])->name('comptes.rib');
-        Route::get('comptes-liste-pdf',         [CompteController::class, 'imprimerListe'])->name('comptes.liste.pdf');
+        Route::get('comptes/{code_compte}/rib',        [CompteController::class, 'imprimerRIB'])->name('comptes.rib');
+        Route::get('comptes-liste-pdf',                [CompteController::class, 'imprimerListe'])->name('comptes.liste.pdf');
+        Route::get('comptes/{code_compte}/releve-pdf', [CompteController::class, 'releveCompte'])->name('comptes.releve.pdf');
+        Route::get('comptes/{code_compte}/historique', [CompteController::class, 'historiqueCompte'])->name('comptes.historique');
     });
 
     // ── Impressions clients (EBEN-PER15) ─────────────────────────────────

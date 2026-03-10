@@ -28,6 +28,10 @@ Route::middleware(['auth', 'permission:EBEN-PER44'])->prefix('tresorerie')->grou
     // ── Validation ligne par ligne (par devise) ───────────────────────
     Route::post('/coffre/clotures/ligne/{clotureId}/approuver',[TresorerieController::class, 'approuverLigneCloture'])->name('tresorerie.coffre.clotures.ligne.approuver');
     Route::post('/coffre/clotures/ligne/{clotureId}/rejeter',  [TresorerieController::class, 'rejeterLigneCloture'])->name('tresorerie.coffre.clotures.ligne.rejeter');
+
+    // ── Rapport Agents Mobiles ────────────────────────────────────────
+    Route::get('/agents-mobiles',     [TresorerieController::class, 'agentsMobiles'])->name('tresorerie.agents.mobiles');
+    Route::get('/agents-mobiles-pdf', [TresorerieController::class, 'agentsMobilesPdf'])->name('tresorerie.agents.mobiles.pdf');
 });
 
 // ── Routes Guichetier (EBEN-PER10) ─────────────────────────────────────────────

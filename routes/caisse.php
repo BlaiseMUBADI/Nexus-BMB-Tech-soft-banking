@@ -33,6 +33,7 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
         // ── Saisie des opérations (EBEN-PER11) ───────────────────────────
         Route::post('operations',             [OperationCaisseController::class, 'store'])->name('operations.store');
         Route::post('operations/{id}/annuler',[OperationCaisseController::class, 'annuler'])->name('operations.annuler');
+        Route::get('operations/{id}/bordereau',[OperationCaisseController::class, 'bordereau'])->name('operations.bordereau');
 
         // ── Mobile : dotation et reversement ────────────────────────────
         Route::post('mobile/depart', [OperationCaisseController::class, 'mobileDepart'])->name('mobile.depart');
@@ -43,5 +44,19 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
     Route::middleware('permission:EBEN-PER10')->group(function () {
         Route::post('demande-appro',    [CaisseController::class, 'demanderApprovisionnement'])->name('demande.appro');
         Route::get('mes-demandes',      [CaisseController::class, 'mesDemandes'])->name('mes.demandes');
+    });
+
+    // ── Workflow modification/suppression — Guichetier (EBEN-PER11) ─────────
+    Route::middleware('permission:EBEN-PER11')->group(function () {
+        Route::post('operations/{id}/demande', [OperationCaisseController::class, 'demanderModification'])->name('operations.demande.modification');
+    });
+
+    // ── Workflow modification/suppression — Superviseur (EBEN-PER44 ou EBEN-PER5) ──
+    Route::middleware('permission:EBEN-PER44')->group(function () {
+        Route::get('demandes-modification',            [OperationCaisseController::class, 'demandesModificationPage'])->name('demandes.modification.page');
+        Route::get('demandes-modification/data',       [OperationCaisseController::class, 'demandesModificationJson'])->name('demandes.modification.data');
+        Route::get('demandes-modification/count',      [OperationCaisseController::class, 'demandesModificationCount'])->name('demandes.modification.count');
+        Route::post('demandes-modification/{id}/approuver', [OperationCaisseController::class, 'approuverModification'])->name('demandes.modification.approuver');
+        Route::post('demandes-modification/{id}/rejeter',   [OperationCaisseController::class, 'rejeterModification'])->name('demandes.modification.rejeter');
     });
 });

@@ -295,11 +295,18 @@ class OperationCaisseController extends Controller
         $typeLabel = Transaction::typeLabel($type);
         $msg = "{$typeLabel} de " . number_format($montant, 2, ',', ' ') . " {$devise} enregistré. Réf : {$reference}";
 
+        // Retrouver l'id de la transaction fraîchement créée pour le bordereau
+        $transaction = Transaction::where('reference', $reference)->latest('id')->first();
+        $bordereauUrl = $transaction
+            ? route('caisses.operations.bordereau', ['id' => $transaction->id])
+            : null;
+
         return response()->json([
-            'success'   => true,
-            'reference' => $reference,
-            'soldes'    => $soldesMaj,
-            'message'   => $msg,
+            'success'        => true,
+            'reference'      => $reference,
+            'soldes'         => $soldesMaj,
+            'message'        => $msg,
+            'bordereau_url'  => $bordereauUrl,
         ]);
     }
 
@@ -784,5 +791,355 @@ class OperationCaisseController extends Controller
             'message' => 'Reversement déclaré. Le trésorier confirmera la réception. '
                        . 'Références : ' . implode(', ', $refs),
         ]);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  WORKFLOW MODIFICATION/SUPPRESSION AVEC APPROBATION SUPERVISEUR
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Guichetier soumet une demande de modification ou suppression d'une opération.
+     * POST /caisses/operations/{id}/demande
+     */
+    public function demanderModification(\Illuminate\Http\Request $request, $id)
+    {
+        $request->validate([
+            'type_demande'         => 'required|in:MODIFICATION,SUPPRESSION',
+            'motif'                => 'required|string|min:5|max:500',
+            'nouveau_montant'      => 'required_if:type_demande,MODIFICATION|nullable|numeric|min:0.01',
+            'nouvelles_observations' => 'nullable|string|max:500',
+        ], [
+            'motif.required'            => 'Le motif de la demande est obligatoire.',
+            'motif.min'                 => 'Le motif doit comporter au moins 5 caractères.',
+            'nouveau_montant.required_if'=> 'Le nouveau montant est requis pour une modification.',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user    = Auth::user();
+        $guichet = $this->getGuichetAgent();
+
+        if (!$guichet) {
+            return response()->json(['success' => false, 'message' => 'Aucun guichet affecté.'], 422);
+        }
+
+        $op = Transaction::where('id', $id)
+            ->where('guichet_id', $guichet->id)
+            ->where('statut', Transaction::CONFIRME)
+            ->firstOrFail();
+
+        // Vérifier qu'il n'existe pas déjà une demande EN_ATTENTE pour cette opération
+        $existante = \App\Models\DemandeModification::where('transaction_id', $id)
+            ->where('statut', \App\Models\DemandeModification::EN_ATTENTE)
+            ->first();
+
+        if ($existante) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Une demande est déjà en attente pour cette opération (#' . $existante->id . ').',
+            ], 422);
+        }
+
+        // Info client pour l'audit
+        $clientNom = null;
+        if ($op->compte_code) {
+            $compte = \App\Models\Compte::with('client')->where('code_compte', $op->compte_code)->first();
+            if ($compte && $compte->client) {
+                $clientNom = trim(($compte->client->nom ?? '') . ' ' . ($compte->client->postnom ?? '') . ' ' . ($compte->client->prenom ?? ''));
+            }
+        }
+
+        \App\Models\DemandeModification::create([
+            'transaction_id'         => $op->id,
+            'reference_operation'    => $op->reference,
+            'guichet_id'             => $guichet->id,
+            'compte_code'            => $op->compte_code,
+            'client_nom'             => $clientNom,
+            'type_operation'         => $op->type,
+            'devise_code'            => $op->devise_code,
+            'ancien_montant'         => $op->montant,
+            'anciennes_observations' => $op->observations,
+            'type_demande'           => $request->type_demande,
+            'agent_matricule'        => $user->agent_matricule,
+            'motif'                  => $request->motif,
+            'nouveau_montant'        => $request->type_demande === 'MODIFICATION' ? $request->nouveau_montant : null,
+            'nouvelles_observations' => $request->nouvelles_observations,
+            'statut'                 => \App\Models\DemandeModification::EN_ATTENTE,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Demande soumise au superviseur. Vous serez informé de la décision.',
+        ]);
+    }
+
+    /**
+     * Nombre de demandes EN_ATTENTE (badge sidebar superviseur).
+     * GET /caisses/demandes-modification/count
+     */
+    public function demandesModificationCount()
+    {
+        return response()->json([
+            'count' => \App\Models\DemandeModification::where('statut', \App\Models\DemandeModification::EN_ATTENTE)->count(),
+        ]);
+    }
+
+    /**
+     * Vue superviseur — liste des demandes de modification/suppression.
+     * GET /caisses/demandes-modification
+     */
+    public function demandesModificationPage()
+    {
+        return view('Caisse_Guichet.demandes_modification');
+    }
+
+    /**
+     * JSON des demandes (filtrable par statut).
+     * GET /caisses/demandes-modification/data
+     */
+    public function demandesModificationJson(\Illuminate\Http\Request $request)
+    {
+        $query = \App\Models\DemandeModification::with(['agentDemandeur', 'guichet', 'superviseur'])
+            ->orderByRaw("FIELD(statut, 'EN_ATTENTE', 'APPROUVEE', 'REJETEE')")
+            ->orderByDesc('created_at');
+
+        if ($request->filled('statut') && $request->statut !== 'tous') {
+            $query->where('statut', $request->statut);
+        }
+
+        $demandes = $query->limit(200)->get()->map(function ($d) {
+            $agent = $d->agentDemandeur;
+            $sup   = $d->superviseur;
+            return [
+                'id'                    => $d->id,
+                'transaction_id'        => $d->transaction_id,
+                'reference_operation'   => $d->reference_operation,
+                'guichet'               => $d->guichet?->intitule ?? '—',
+                'compte_code'           => $d->compte_code,
+                'client_nom'            => $d->client_nom,
+                'type_operation'        => $d->type_operation,
+                'devise_code'           => $d->devise_code,
+                'ancien_montant'        => number_format((float)$d->ancien_montant, 2, ',', ' ') . ' ' . $d->devise_code,
+                'nouveau_montant'       => $d->nouveau_montant
+                    ? number_format((float)$d->nouveau_montant, 2, ',', ' ') . ' ' . $d->devise_code
+                    : null,
+                'type_demande'          => $d->type_demande,
+                'motif'                 => $d->motif,
+                'nouvelles_observations'=> $d->nouvelles_observations,
+                'agent_matricule'       => $d->agent_matricule,
+                'agent_nom'             => $agent ? trim(($agent->prenom ?? '') . ' ' . ($agent->nom ?? '')) : $d->agent_matricule,
+                'statut'                => $d->statut,
+                'superviseur_nom'       => $sup ? trim(($sup->prenom ?? '') . ' ' . ($sup->nom ?? '')) : null,
+                'commentaire_superviseur' => $d->commentaire_superviseur,
+                'demandee_le'           => $d->created_at?->format('d/m/Y H:i'),
+                'traitee_le'            => $d->traitee_le?->format('d/m/Y H:i'),
+            ];
+        });
+
+        return response()->json($demandes);
+    }
+
+    /**
+     * Superviseur approuve une demande — exécute la modification ou suppression.
+     * POST /caisses/demandes-modification/{id}/approuver
+     */
+    public function approuverModification(\Illuminate\Http\Request $request, $id)
+    {
+        $request->validate([
+            'commentaire' => 'nullable|string|max:500',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user    = Auth::user();
+        $demande = \App\Models\DemandeModification::where('statut', \App\Models\DemandeModification::EN_ATTENTE)
+            ->findOrFail($id);
+
+        $op = Transaction::with(['guichet'])->findOrFail($demande->transaction_id);
+
+        try {
+            DB::transaction(function () use ($demande, $op, $user, $request) {
+                if ($demande->type_demande === \App\Models\DemandeModification::SUPPRESSION) {
+                    // ── Exécuter la suppression (annulation) ──────────────
+                    $montant = (float) $op->montant;
+                    $devise  = $op->devise_code;
+
+                    $op->statut = Transaction::ANNULE;
+                    $op->observations = ($op->observations ? $op->observations . ' | ' : '')
+                        . 'ANNULÉ sur demande superviseur — Motif : ' . $demande->motif;
+                    $op->save();
+
+                    // Inverser les soldes
+                    switch ($op->type) {
+                        case Transaction::DEPOT:
+                            CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                                ->where('devise_code', $devise)
+                                ->decrement('solde_en_caisse', $montant);
+                            if ($op->compte_code) {
+                                Compte::where('code_compte', $op->compte_code)->decrement('solde_reel', $montant);
+                            }
+                            break;
+                        case Transaction::RETRAIT:
+                            CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                                ->where('devise_code', $devise)
+                                ->increment('solde_en_caisse', $montant);
+                            if ($op->compte_code) {
+                                Compte::where('code_compte', $op->compte_code)->increment('solde_reel', $montant);
+                            }
+                            break;
+                        case Transaction::PAIEMENT:
+                            CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                                ->where('devise_code', $devise)
+                                ->decrement('solde_en_caisse', $montant);
+                            break;
+                        case Transaction::REMBOURSEMENT:
+                            CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                                ->where('devise_code', $devise)
+                                ->increment('solde_en_caisse', $montant);
+                            break;
+                        case Transaction::CHANGE:
+                            CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                                ->where('devise_code', $devise)
+                                ->decrement('solde_en_caisse', $montant);
+                            if ($op->devise_dest && $op->montant_dest) {
+                                CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                                    ->where('devise_code', $op->devise_dest)
+                                    ->increment('solde_en_caisse', (float) $op->montant_dest);
+                            }
+                            break;
+                    }
+                } else {
+                    // ── Exécuter la modification ───────────────────────────
+                    $ancienMontant  = (float) $op->montant;
+                    $nouveauMontant = (float) $demande->nouveau_montant;
+                    $diff           = $nouveauMontant - $ancienMontant;
+                    $devise         = $op->devise_code;
+
+                    $op->montant      = $nouveauMontant;
+                    $op->observations = ($demande->nouvelles_observations ?? $op->observations);
+                    $op->observations .= ' | Modifié par superviseur — Motif : ' . $demande->motif;
+                    $op->save();
+
+                    // Ajuster les soldes de la différence
+                    if ($diff != 0) {
+                        switch ($op->type) {
+                            case Transaction::DEPOT:
+                                CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                                    ->where('devise_code', $devise)
+                                    ->increment('solde_en_caisse', $diff);
+                                if ($op->compte_code) {
+                                    Compte::where('code_compte', $op->compte_code)->increment('solde_reel', $diff);
+                                }
+                                break;
+                            case Transaction::RETRAIT:
+                                CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                                    ->where('devise_code', $devise)
+                                    ->decrement('solde_en_caisse', $diff);
+                                if ($op->compte_code) {
+                                    Compte::where('code_compte', $op->compte_code)->decrement('solde_reel', $diff);
+                                }
+                                break;
+                            case Transaction::PAIEMENT:
+                                CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                                    ->where('devise_code', $devise)
+                                    ->increment('solde_en_caisse', $diff);
+                                break;
+                            case Transaction::REMBOURSEMENT:
+                                CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                                    ->where('devise_code', $devise)
+                                    ->decrement('solde_en_caisse', $diff);
+                                break;
+                        }
+                    }
+                }
+
+                // Marquer la demande comme approuvée
+                $demande->update([
+                    'statut'                  => \App\Models\DemandeModification::APPROUVEE,
+                    'superviseur_matricule'   => $user->agent_matricule,
+                    'commentaire_superviseur' => $request->commentaire,
+                    'traitee_le'              => now(),
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+        }
+
+        $action = $demande->type_demande === 'SUPPRESSION' ? 'annulée' : 'modifiée';
+        return response()->json([
+            'success' => true,
+            'message' => "Demande #{$id} approuvée. Opération {$demande->reference_operation} {$action}.",
+        ]);
+    }
+
+    /**
+     * Superviseur rejette une demande (aucun changement sur la transaction).
+     * POST /caisses/demandes-modification/{id}/rejeter
+     */
+    public function rejeterModification(\Illuminate\Http\Request $request, $id)
+    {
+        $request->validate([
+            'commentaire' => 'required|string|min:5|max:500',
+        ], [
+            'commentaire.required' => 'Veuillez indiquer le motif du rejet.',
+            'commentaire.min'      => 'Le motif doit comporter au moins 5 caractères.',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user    = Auth::user();
+        $demande = \App\Models\DemandeModification::where('statut', \App\Models\DemandeModification::EN_ATTENTE)
+            ->findOrFail($id);
+
+        $demande->update([
+            'statut'                  => \App\Models\DemandeModification::REJETEE,
+            'superviseur_matricule'   => $user->agent_matricule,
+            'commentaire_superviseur' => $request->commentaire,
+            'traitee_le'              => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Demande #{$id} rejetée.",
+        ]);
+    }
+
+    /**
+     * Génère et retourne le bordereau PDF d'une opération.
+     * GET /caisses/operations/{id}/bordereau
+     */
+    public function bordereau($id)
+    {
+        $op = Transaction::with(['guichet', 'compte.client', 'devise'])->findOrFail($id);
+
+        $guichet = $op->guichet;
+        $compte  = $op->compte;
+        $client  = $compte?->client;
+
+        // Agent caissier
+        $agentUser = \App\Models\User::with('agent')->where('agent_matricule', $op->agent_matricule)->first();
+        $agentNom  = null;
+        if ($agentUser?->agent) {
+            $a = $agentUser->agent;
+            $agentNom = trim(($a->prenom ?? '') . ' ' . ($a->nom ?? ''));
+        } elseif ($agentUser) {
+            $agentNom = $agentUser->name ?? $op->agent_matricule;
+        } else {
+            $agentNom = $op->agent_matricule;
+        }
+
+        // Photo client en base64 pour DomPDF
+        $photoBase64 = null;
+        if ($client && $client->photo) {
+            $photoPath = storage_path('app/public/' . ltrim($client->photo, '/'));
+            if (file_exists($photoPath)) {
+                $mime = mime_content_type($photoPath);
+                $photoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($photoPath));
+            }
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.caisse.bordereau', compact(
+            'op', 'guichet', 'compte', 'client', 'agentNom', 'photoBase64'
+        ));
+        $pdf->setPaper([0, 0, 595.28, 420], 'landscape'); // A5 landscape (half A4)
+
+        return $pdf->stream('bordereau-' . $op->reference . '.pdf');
     }
 }
