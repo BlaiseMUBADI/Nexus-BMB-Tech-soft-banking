@@ -1136,6 +1136,28 @@ class OperationCaisseController extends Controller
             $agentNom = $op->agent_matricule;
         }
 
+        // Utilisateur qui lance l'impression (traçabilité)
+        /** @var \App\Models\User|null $printedByUser */
+        $printedByUser   = Auth::user();
+        $imprimeParNom   = 'Utilisateur inconnu';
+        $imprimeParProfil = null;
+
+        if ($printedByUser) {
+            $printedByUser->loadMissing('agent');
+
+            if ($printedByUser->agent) {
+                $ap = $printedByUser->agent;
+                $imprimeParNom = trim(($ap->prenom ?? '') . ' ' . ($ap->nom ?? ''));
+            }
+
+            if (empty($imprimeParNom)) {
+                $imprimeParNom = $printedByUser->name ?? $printedByUser->agent_matricule ?? 'Utilisateur inconnu';
+            }
+
+            $roles = (array) $printedByUser->getRoleCodes();
+            $imprimeParProfil = $roles[0] ?? null;
+        }
+
         // Photo client en base64 pour DomPDF
         $photoBase64 = null;
         if ($client && $client->photo) {
@@ -1147,7 +1169,7 @@ class OperationCaisseController extends Controller
         }
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.caisse.bordereau', compact(
-            'op', 'guichet', 'compte', 'client', 'agentNom', 'photoBase64'
+            'op', 'guichet', 'compte', 'client', 'agentNom', 'photoBase64', 'imprimeParNom', 'imprimeParProfil'
         ));
         $pdf->setPaper([0, 0, 595.28, 420], 'landscape'); // A5 landscape (half A4)
 

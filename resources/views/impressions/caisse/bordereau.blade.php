@@ -23,6 +23,12 @@
 
     $estAnnule   = $op->statut === 'ANNULE';
     $montantFmt  = number_format((float)$op->montant, 2, ',', ' ') . ' ' . $op->devise_code;
+    $clientNomSignature = trim(
+        strtoupper($client->nom ?? '') . ' ' .
+        strtoupper($client->postnom ?? '') . ' ' .
+        ucfirst(strtolower($client->prenom ?? ''))
+    );
+    $clientNomSignature = $clientNomSignature !== '' ? $clientNomSignature : 'Client';
 @endphp
 
 @section('contenu')
@@ -170,10 +176,9 @@
                     @endphp
                     <div style="font-size:8.5px; color:#555;">
                         {{ $types[$compte->type ?? ''] ?? ($compte->type ?? '') }}
-                        — Solde après : <strong style="color:{{ $typeColors['bg'] }};">
-                            {{ number_format((float)$compte->solde_reel, 2, ',', ' ') }}
-                            {{ $compte->devise ?? $op->devise_code }}
-                        </strong>
+                        @if($compte->code_compte)
+                            — N° compte : <strong>{{ $compte->code_compte }}</strong>
+                        @endif
                     </div>
                 </div>
                 @endif
@@ -201,15 +206,31 @@
                 </div>
             </div>
 
-            {{-- Case signature --}}
-            <div style="border:1px solid #ccc; border-radius:4px; padding:6px 10px; text-align:center;
-                        margin-bottom:6px; font-size:8.5px; color:#777; height:44px;">
-                Signature du client
+            {{-- Cases signatures --}}
+            <div style="display:table; width:100%; margin-bottom:6px;">
+                <div style="display:table-cell; width:50%; padding-right:4px; vertical-align:top;">
+                    <div style="border:1px solid #ccc; border-radius:4px; padding:6px 8px; text-align:center;
+                                font-size:8.2px; color:#666; height:48px;">
+                        Signature du caissier
+                        <div style="margin-top:16px; font-size:7.5px; color:#444; font-weight:bold;">
+                            {{ $agentNom }}
+                        </div>
+                    </div>
+                </div>
+                <div style="display:table-cell; width:50%; padding-left:4px; vertical-align:top;">
+                    <div style="border:1px solid #ccc; border-radius:4px; padding:6px 8px; text-align:center;
+                                font-size:8.2px; color:#666; height:48px;">
+                        Signature du client
+                        <div style="margin-top:16px; font-size:7.5px; color:#444; font-weight:bold;">
+                            {{ $clientNomSignature }}
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {{-- QRCode textuel (simple) --}}
+            {{-- Référence --}}
             <div style="font-size:7.5px; color:#aaa; text-align:center;">
-                Réf : {{ $op->reference }} &bull; {{ now()->format('d/m/Y') }}
+                Réf : {{ $op->reference }} &bull; {{ now()->format('d/m/Y H:i') }}
             </div>
         </div>
     </div>
@@ -262,6 +283,29 @@
             <div style="font-weight:bold;">{{ $guichet?->intitule ?? '—' }}</div>
             @endif
             <div style="margin-top:3px; color:#666;">Caissier : <strong>{{ $agentNom }}</strong></div>
+        </div>
+    </div>
+
+    <div style="padding:0 14px 8px 14px; background:#fafafa;">
+        <div style="display:table; width:100%;">
+            <div style="display:table-cell; width:50%; padding-right:4px; vertical-align:top;">
+                <div style="border:1px solid #ccc; border-radius:4px; padding:5px 8px; text-align:center;
+                            font-size:8px; color:#666; height:44px;">
+                    Signature du caissier
+                    <div style="margin-top:14px; font-size:7.2px; color:#444; font-weight:bold;">
+                        {{ $agentNom }}
+                    </div>
+                </div>
+            </div>
+            <div style="display:table-cell; width:50%; padding-left:4px; vertical-align:top;">
+                <div style="border:1px solid #ccc; border-radius:4px; padding:5px 8px; text-align:center;
+                            font-size:8px; color:#666; height:44px;">
+                    Signature du client
+                    <div style="margin-top:14px; font-size:7.2px; color:#444; font-weight:bold;">
+                        {{ $clientNomSignature }}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

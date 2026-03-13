@@ -181,6 +181,30 @@
 
     {{-- ── En-tête banque ── --}}
     @php
+        /** @var \App\Models\User|null $printedByUser */
+        $printedByUser = auth()->user();
+
+        $imprimeParNom = $imprimeParNom ?? null;
+        $imprimeParProfil = $imprimeParProfil ?? null;
+
+        if (empty($imprimeParNom) && $printedByUser) {
+            $printedByUser->loadMissing('agent');
+
+            if ($printedByUser->agent) {
+                $a = $printedByUser->agent;
+                $imprimeParNom = trim(($a->prenom ?? '') . ' ' . ($a->nom ?? ''));
+            }
+
+            if (empty($imprimeParNom)) {
+                $imprimeParNom = $printedByUser->name ?? $printedByUser->agent_matricule ?? null;
+            }
+        }
+
+        if (empty($imprimeParProfil) && $printedByUser && method_exists($printedByUser, 'getRoleCodes')) {
+            $roles = (array) $printedByUser->getRoleCodes();
+            $imprimeParProfil = $roles[0] ?? null;
+        }
+
         $logoPath = public_path('dist/img/vrailogoeben-removebg-preview.png');
         $logoBase64 = file_exists($logoPath)
             ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
@@ -205,6 +229,12 @@
             <div class="doc-date">
                 Édité le {{ \Carbon\Carbon::now()->format('d/m/Y') }}<br>
                 à {{ \Carbon\Carbon::now()->format('H:i') }}
+                @if(!empty($imprimeParNom))
+                    <br>Imprimé par : {{ $imprimeParNom }}
+                    @if(!empty($imprimeParProfil))
+                        <br>Profil : {{ $imprimeParProfil }}
+                    @endif
+                @endif
             </div>
         </div>
     </div>
