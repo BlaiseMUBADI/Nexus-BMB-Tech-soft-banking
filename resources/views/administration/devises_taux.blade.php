@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('page_title', 'Devises & Taux de change')
 @section('breadcrumb_parent', 'Administration')

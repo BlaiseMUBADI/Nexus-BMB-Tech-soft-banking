@@ -96,4 +96,32 @@ class Transaction extends Model
             default             => $type,
         };
     }
+
+    /** Icône FontAwesome associée à un type de transaction */
+    public static function typeIcon(string $type): string
+    {
+        return match($type) {
+            self::DEPOT         => 'fa-arrow-down',
+            self::RETRAIT       => 'fa-arrow-up',
+            self::VIREMENT      => 'fa-exchange-alt',
+            self::REMBOURSEMENT => 'fa-undo',
+            self::CHANGE        => 'fa-sync-alt',
+            self::PAIEMENT      => 'fa-money-bill-wave',
+            default             => 'fa-circle',
+        };
+    }
+
+    /** Classe CSS badge associée à un type de transaction */
+    public static function typeBadgeClass(string $type): string
+    {
+        return match($type) {
+            self::DEPOT         => 'badge-success',
+            self::RETRAIT       => 'badge-danger',
+            self::VIREMENT      => 'badge-info',
+            self::REMBOURSEMENT => 'badge-warning',
+            self::CHANGE        => 'badge-primary',
+            self::PAIEMENT      => 'badge-secondary',
+            default             => 'badge-light',
+        };
+    }
 }

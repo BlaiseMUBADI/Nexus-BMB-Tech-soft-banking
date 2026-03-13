@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\RH\Role;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 // Ajoutez le modèle Permission si besoin
 // use App\Models\Permission;
 
@@ -13,7 +14,11 @@ class RolesPermissionsController extends Controller
 {
     public function showPermission($code)
     {
-        $permission = \App\Models\RH\Permission::where('code', $code)->firstOrFail();
+        $permission = \App\Models\RH\Permission::where('code', $code)->first();
+        if (!$permission) {
+            Log::warning('[Admin] Permission introuvable', ['code' => $code, 'ip' => request()->ip()]);
+            abort(404, 'Permission introuvable : ' . $code);
+        }
         return view('administration.permission_show', compact('permission'));
     }
 
@@ -120,7 +125,11 @@ class RolesPermissionsController extends Controller
 
     public function rolePermissionsList($role_code)
     {
-        $role           = \App\Models\RH\Role::where('code', $role_code)->firstOrFail();
+        $role           = \App\Models\RH\Role::where('code', $role_code)->first();
+        if (!$role) {
+            Log::warning('[Admin] Rôle introuvable', ['role_code' => $role_code, 'ip' => request()->ip()]);
+            abort(404, 'Rôle introuvable : ' . $role_code);
+        }
         $allPermissions = \App\Models\RH\Permission::orderBy('code')->get();
         $attached       = DB::table('tb_role_permission')->where('role_code', $role_code)->pluck('permission_code')->toArray();
         $moduleMap      = self::moduleMap();

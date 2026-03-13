@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('page_title', 'Affectations des agents')
 @section('breadcrumb_parent', 'Ressources Humaines')

@@ -1,155 +1,163 @@
 @extends('layouts.app')
 
-@section('page_title', 'Apports Agents Mobiles')
+@section('page_title', 'Rapport Agents Terrain')
 @section('breadcrumb_parent', 'Trésorerie')
-@section('breadcrumb', 'Rapport Agents Mobiles')
-
-@push('css')
-<style>
-    .agent-card         { border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; margin-bottom:16px; }
-    .agent-card-header  { background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%); color:#fff; padding:10px 16px; }
-    .devise-row         { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
-    .devise-chip        { background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px; padding:6px 12px; font-size:.87em; }
-    .filter-card        { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 18px; margin-bottom:18px; }
-    .stat-block         { background:#fff; border-radius:10px; border:1px solid #e5e7eb; padding:14px; text-align:center; }
-    .text-entree        { color:#059669; font-weight:700; }
-    .text-sortie        { color:#dc2626; font-weight:700; }
-</style>
-@endpush
+@section('breadcrumb', 'Agents Terrain')
 
 @section('content')
 <div class="container-fluid">
 
-    {{-- ── Barre de filtres ──────────────────────────────────────────── --}}
+    
     <form method="GET" action="{{ route('tresorerie.agents.mobiles') }}" id="formFiltre">
-        <div class="filter-card">
-            <div class="row g-2 align-items-end">
-                <div class="col-sm-2 col-6">
-                    <label class="small font-weight-bold mb-1">Du</label>
-                    <input type="date" name="date_debut" class="form-control form-control-sm"
-                           value="{{ request('date_debut', now()->startOfMonth()->toDateString()) }}">
-                </div>
-                <div class="col-sm-2 col-6">
-                    <label class="small font-weight-bold mb-1">Au</label>
-                    <input type="date" name="date_fin" class="form-control form-control-sm"
-                           value="{{ request('date_fin', now()->toDateString()) }}">
-                </div>
-                <div class="col-sm-2 col-6">
-                    <label class="small font-weight-bold mb-1">Agent</label>
-                    <select name="agent_matricule" class="form-control form-control-sm">
-                        <option value="">Tous les agents</option>
-                        @foreach($agents as $ag)
-                            <option value="{{ $ag->matricule }}" @selected(request('agent_matricule') === $ag->matricule)>
-                                {{ $ag->prenom }} {{ $ag->nom }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-sm-2 col-6">
-                    <label class="small font-weight-bold mb-1">Zone</label>
-                    <select name="code_zone" class="form-control form-control-sm">
-                        <option value="">Toutes les zones</option>
-                        @foreach($zones as $z)
-                            <option value="{{ $z->code_zone }}" @selected(request('code_zone') === $z->code_zone)>
-                                {{ $z->nom }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-sm-2 col-6">
-                    <label class="small font-weight-bold mb-1">Type compte</label>
-                    <select name="type_compte" class="form-control form-control-sm">
-                        <option value="tous" @selected(request('type_compte','tous')==='tous')>Tous</option>
-                        @foreach(['CC','RMB','GTC','DAT','EAV'] as $t)
-                            <option value="{{ $t }}" @selected(request('type_compte') === $t)>{{ $t }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-sm-2 col-6">
-                    <label class="small font-weight-bold mb-1">Type opération</label>
-                    <select name="type_operation" class="form-control form-control-sm">
-                        <option value="tous" @selected(request('type_operation','tous')==='tous')>Tous</option>
-                        @foreach(['DEPOT','RETRAIT','VIREMENT','CHANGE','PAIEMENT','REMBOURSEMENT'] as $t)
-                            <option value="{{ $t }}" @selected(request('type_operation') === $t)>{{ $t }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-sm-2 col-6">
-                    <label class="small font-weight-bold mb-1">Devise</label>
-                    <select name="devise_code" class="form-control form-control-sm">
-                        <option value="tous" @selected(request('devise_code','tous')==='tous')>Toutes</option>
-                        @foreach($devises as $d)
-                            <option value="{{ $d->code_iso }}" @selected(request('devise_code') === $d->code_iso)>
-                                {{ $d->code_iso }} — {{ $d->nom }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-sm-2 col-12 d-flex" style="gap:6px;">
-                    <button type="submit" class="btn btn-sm btn-primary flex-fill">
-                        <i class="fas fa-filter mr-1"></i>Filtrer
+        <div class="card card-warning card-outline shadow elevation-2 mb-3">
+            <div class="card-header d-flex align-items-center justify-content-between py-2">
+                <h5 class="mb-0">
+                    <i class="fas fa-filter mr-2 text-warning"></i>
+                    <strong>Filtres</strong>
+                </h5>
+                <div class="d-flex" style="gap:6px;">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="fas fa-search mr-1"></i>Filtrer
                     </button>
                     <a href="{{ route('tresorerie.agents.mobiles') }}" class="btn btn-sm btn-outline-secondary">
                         <i class="fas fa-times"></i>
                     </a>
-                </div>
-                <div class="col-sm-2 col-12">
-                    <button type="button" id="btnImprimer" class="btn btn-sm btn-danger w-100">
-                        <i class="fas fa-file-pdf mr-1"></i>Imprimer PDF
+                    <button type="button" id="btnImprimer" class="btn btn-sm btn-danger">
+                        <i class="fas fa-file-pdf mr-1"></i>PDF
                     </button>
+                </div>
+            </div>
+            <div class="card-body py-3">
+                <div class="row">
+                    <div class="col-md-2 col-sm-4 col-6 mb-2">
+                        <label class="small font-weight-bold mb-1">Du</label>
+                        <input type="date" name="date_debut" class="form-control form-control-sm"
+                               value="{{ request('date_debut', now()->startOfMonth()->toDateString()) }}">
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-2">
+                        <label class="small font-weight-bold mb-1">Au</label>
+                        <input type="date" name="date_fin" class="form-control form-control-sm"
+                               value="{{ request('date_fin', now()->toDateString()) }}">
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-2">
+                        <label class="small font-weight-bold mb-1">Agent</label>
+                        <select name="agent_matricule" class="form-control form-control-sm">
+                            <option value="">Tous les agents</option>
+                            @foreach($agents as $ag)
+                                <option value="{{ $ag->matricule }}" @selected(request('agent_matricule') === $ag->matricule)>
+                                    {{ $ag->prenom }} {{ $ag->nom }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-2">
+                        <label class="small font-weight-bold mb-1">Zone</label>
+                        <select name="code_zone" class="form-control form-control-sm">
+                            <option value="">Toutes les zones</option>
+                            @foreach($zones as $z)
+                                <option value="{{ $z->code_zone }}" @selected(request('code_zone') === $z->code_zone)>
+                                    {{ $z->nom }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-2">
+                        <label class="small font-weight-bold mb-1">Type compte</label>
+                        <select name="type_compte" class="form-control form-control-sm">
+                            <option value="tous" @selected(request('type_compte','tous')==='tous')>Tous</option>
+                            @foreach(['CC','RMB','GTC','DAT','EAV'] as $tc)
+                                <option value="{{ $tc }}" @selected(request('type_compte') === $tc)>{{ $tc }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-2">
+                        <label class="small font-weight-bold mb-1">Type opération</label>
+                        <select name="type_operation" class="form-control form-control-sm">
+                            <option value="tous" @selected(request('type_operation','tous')==='tous')>Tous</option>
+                            @foreach(['DEPOT','RETRAIT','VIREMENT','CHANGE','PAIEMENT','REMBOURSEMENT'] as $to)
+                                <option value="{{ $to }}" @selected(request('type_operation') === $to)>{{ $to }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-2">
+                        <label class="small font-weight-bold mb-1">Devise</label>
+                        <select name="devise_code" class="form-control form-control-sm">
+                            <option value="tous" @selected(request('devise_code','tous')==='tous')>Toutes</option>
+                            @foreach($devises as $d)
+                                <option value="{{ $d->code_iso }}" @selected(request('devise_code') === $d->code_iso)>
+                                    {{ $d->code_iso }} — {{ $d->nom }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
     </form>
 
-    {{-- ── Statistiques globales ───────────────────────────────────────── --}}
-    @php
+   
+   @php
         $totalOps      = $transactions->count();
         $totalEntrees  = $transactions->whereIn('type', ['DEPOT','PAIEMENT'])->sum('montant');
         $totalSorties  = $transactions->whereIn('type', ['RETRAIT','REMBOURSEMENT'])->sum('montant');
         $nbAgents      = $parAgent->count();
     @endphp
     <div class="row mb-3">
-        <div class="col-sm-3 col-6 mb-2">
-            <div class="stat-block">
-                <div class="text-muted small">Agents actifs</div>
-                <div class="h4 font-weight-bold text-primary mb-0">{{ $nbAgents }}</div>
+        <div class="col-lg-3 col-sm-6 col-12 mb-2">
+            <div class="small-box bg-info shadow elevation-2">
+                <div class="inner">
+                    <h4>{{ $nbAgents }}</h4>
+                    <p>Agents actifs</p>
+                </div>
+                <div class="icon"><i class="fas fa-users"></i></div>
             </div>
         </div>
-        <div class="col-sm-3 col-6 mb-2">
-            <div class="stat-block">
-                <div class="text-muted small">Total opérations</div>
-                <div class="h4 font-weight-bold mb-0">{{ $totalOps }}</div>
+        <div class="col-lg-3 col-sm-6 col-12 mb-2">
+            <div class="small-box bg-primary shadow elevation-2">
+                <div class="inner">
+                    <h4>{{ $totalOps }}</h4>
+                    <p>Total opérations</p>
+                </div>
+                <div class="icon"><i class="fas fa-exchange-alt"></i></div>
             </div>
         </div>
-        <div class="col-sm-3 col-6 mb-2">
-            <div class="stat-block">
-                <div class="text-muted small">Total entrées</div>
-                <div class="h5 font-weight-bold text-entree mb-0">{{ number_format($totalEntrees, 2, ',', ' ') }}</div>
+        <div class="col-lg-3 col-sm-6 col-12 mb-2">
+            <div class="small-box bg-success shadow elevation-2">
+                <div class="inner">
+                    <h4>{{ number_format($totalEntrees, 2, ',', ' ') }}</h4>
+                    <p>Total entrées</p>
+                </div>
+                <div class="icon"><i class="fas fa-arrow-down"></i></div>
             </div>
         </div>
-        <div class="col-sm-3 col-6 mb-2">
-            <div class="stat-block">
-                <div class="text-muted small">Total sorties</div>
-                <div class="h5 font-weight-bold text-sortie mb-0">{{ number_format($totalSorties, 2, ',', ' ') }}</div>
+        <div class="col-lg-3 col-sm-6 col-12 mb-2">
+            <div class="small-box bg-danger shadow elevation-2">
+                <div class="inner">
+                    <h4>{{ number_format($totalSorties, 2, ',', ' ') }}</h4>
+                    <p>Total sorties</p>
+                </div>
+                <div class="icon"><i class="fas fa-arrow-up"></i></div>
             </div>
         </div>
     </div>
 
-    {{-- ── Tableau récapitulatif par agent ──────────────────────────────── --}}
+    
     @if($parAgent->isEmpty())
-        <div class="alert alert-info"><i class="fas fa-info-circle mr-2"></i>Aucune opération trouvée pour les critères sélectionnés.</div>
+        <div class="alert alert-info shadow elevation-1">
+            <i class="fas fa-info-circle mr-2"></i>Aucune opération trouvée pour les critères sélectionnés.
+        </div>
     @else
-    <div class="card shadow-sm mb-4">
-        <div class="card-header py-2" style="background:#1e293b;">
-            <span class="font-weight-bold text-white">
-                <i class="fas fa-users mr-2"></i>Récapitulatif par agent
-            </span>
+    <div class="card card-outline card-primary shadow elevation-2 mb-3">
+        <div class="card-header d-flex align-items-center justify-content-between py-2">
+            <h5 class="mb-0">
+                <i class="fas fa-users mr-2 text-primary"></i>
+                <strong>Récapitulatif par agent</strong>
+            </h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0" style="font-size:.91em;">
-                    <thead style="background:#f1f5f9;">
+                <table class="table table-sm table-striped table-hover mb-0" style="font-size:.91em;">
+                    <thead class="thead-light">
                         <tr class="text-uppercase text-muted" style="font-size:.78em;">
                             <th class="pl-3">Agent</th>
                             <th>Matricule</th>
@@ -158,7 +166,7 @@
                             <th>Devise</th>
                             <th class="text-right">Entrées</th>
                             <th class="text-right">Sorties</th>
-                            <th class="text-right">Net</th>
+                            <th class="text-right pr-3">Net</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -180,9 +188,9 @@
                                 </td>
                                 @endif
                                 <td><span class="badge badge-light border">{{ $d['devise'] }}</span></td>
-                                <td class="text-right text-entree text-nowrap">{{ number_format($d['total_entrees'], 2, ',', ' ') }}</td>
-                                <td class="text-right text-sortie text-nowrap">{{ number_format($d['total_sorties'], 2, ',', ' ') }}</td>
-                                <td class="text-right font-weight-bold text-nowrap {{ $d['net'] >= 0 ? 'text-entree' : 'text-sortie' }}">
+                                <td class="text-right text-success text-nowrap font-weight-bold">{{ number_format($d['total_entrees'], 2, ',', ' ') }}</td>
+                                <td class="text-right text-danger text-nowrap font-weight-bold">{{ number_format($d['total_sorties'], 2, ',', ' ') }}</td>
+                                <td class="text-right font-weight-bold text-nowrap pr-3 {{ ($d['net'] ?? ($d['total_entrees'] - $d['total_sorties'])) >= 0 ? 'text-success' : 'text-danger' }}">
                                     {{ number_format($d['net'] ?? ($d['total_entrees'] - $d['total_sorties']), 2, ',', ' ') }}
                                 </td>
                             </tr>
@@ -194,18 +202,19 @@
         </div>
     </div>
 
-    {{-- ── Détail des opérations ─────────────────────────────────────── --}}
-    <div class="card shadow-sm">
-        <div class="card-header py-2" style="background:#1e293b;">
-            <span class="font-weight-bold text-white">
-                <i class="fas fa-list mr-2"></i>Détail des opérations
-                <span class="badge badge-light ml-1">{{ $transactions->count() }}</span>
-            </span>
+    
+    <div class="card card-outline card-secondary shadow elevation-2">
+        <div class="card-header d-flex align-items-center justify-content-between py-2">
+            <h5 class="mb-0">
+                <i class="fas fa-list mr-2 text-secondary"></i>
+                <strong>Détail des opérations</strong>
+                <span class="badge badge-primary ml-2">{{ $transactions->count() }}</span>
+            </h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0" style="font-size:.89em;">
-                    <thead style="background:#f1f5f9;">
+                <table class="table table-sm table-striped table-hover mb-0" style="font-size:.89em;">
+                    <thead class="thead-light">
                         <tr class="text-uppercase text-muted" style="font-size:.77em;">
                             <th class="pl-3">Date</th>
                             <th>Référence</th>
@@ -216,7 +225,7 @@
                             <th>Type cpt</th>
                             <th>Client</th>
                             <th class="text-right">Montant</th>
-                            <th>Devise</th>
+                            <th class="pr-3">Devise</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -229,7 +238,9 @@
                             <td class="small">{{ $t->agent_matricule ?? '—' }}</td>
                             <td class="small">{{ $t->guichet?->intitule ?? '—' }}</td>
                             <td>
-                                <span class="badge badge-secondary" style="font-size:.78em;">{{ $t->type }}</span>
+                                <span class="badge badge-{{ in_array($t->type, ['DEPOT','PAIEMENT']) ? 'success' : (in_array($t->type, ['RETRAIT','REMBOURSEMENT']) ? 'danger' : 'info') }}" style="font-size:.78em;">
+                                    {{ $t->type }}
+                                </span>
                             </td>
                             <td class="small"><code style="font-size:.82em;">{{ $t->compte_code ?? '—' }}</code></td>
                             <td class="small">{{ $t->compte?->type ?? '—' }}</td>
@@ -240,10 +251,10 @@
                                     —
                                 @endif
                             </td>
-                            <td class="text-right font-weight-bold text-nowrap {{ in_array($t->type, ['DEPOT','PAIEMENT']) ? 'text-entree' : 'text-sortie' }}">
+                            <td class="text-right font-weight-bold text-nowrap {{ in_array($t->type, ['DEPOT','PAIEMENT']) ? 'text-success' : 'text-danger' }}">
                                 {{ number_format($t->montant, 2, ',', ' ') }}
                             </td>
-                            <td><span class="badge badge-light border">{{ $t->devise_code }}</span></td>
+                            <td class="pr-3"><span class="badge badge-light border">{{ $t->devise_code }}</span></td>
                         </tr>
                         @endforeach
                     </tbody>

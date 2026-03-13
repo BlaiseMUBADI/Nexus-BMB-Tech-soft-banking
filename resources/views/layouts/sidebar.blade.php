@@ -1,4 +1,4 @@
-﻿{{--
+{{--
 sidebar.blade.php
 Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 --}}
@@ -15,10 +15,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 		<nav class="mt-2">
 			<ul class="nav nav-pills nav-sidebar flex-column nav-child-indent" data-widget="treeview" role="menu">
 
-				
-				{{-- ══════════════════════════════════════════════════════
-				1. CLIENTS / MEMBRES — EBEN-PER15
-				══════════════════════════════════════════════════════ --}}
+		
 				@if(in_array('EBEN-PER15', $userPermCodes ?? []))
 					<li class="nav-item {{ request()->routeIs('clients.*') ? 'menu-open' : '' }}">
 						<a href="#" class="nav-link parent-link {{ request()->routeIs('clients.*') ? 'active' : '' }}">
@@ -47,9 +44,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</li>
 				@endif
 
-				{{-- ══════════════════════════════════════════════════════
-				2. COMPTE / CLIENT — EBEN-PER18
-				══════════════════════════════════════════════════════ --}}
+				
+				
 				@if(in_array('EBEN-PER18', $userPermCodes ?? []))
 					<li class="nav-item {{ request()->routeIs('comptes.*') ? 'menu-open' : '' }}">
 						<a href="#" class="nav-link parent-link {{ request()->routeIs('comptes.*') ? 'active' : '' }}">
@@ -99,9 +95,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</li>
 				@endif
 
-				{{-- ══════════════════════════════════════════════════════
-				3. CAISSE / GUICHET — EBEN-PER10
-				══════════════════════════════════════════════════════ --}}
+				
+				
 				@if(in_array('EBEN-PER10', $userPermCodes ?? []))
 					<li class="nav-item {{ request()->is('caisse*') ? 'menu-open' : '' }}">
 						<a href="#" class="nav-link parent-link {{ request()->is('caisse*') ? 'active' : '' }}">
@@ -160,9 +155,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</li>
 				@endif
 
-				{{-- ══════════════════════════════════════════════════════
-				4. RESSOURCES HUMAINES — EBEN-PER6/7/8/9
-				══════════════════════════════════════════════════════ --}}
+				
 				@if(in_array('EBEN-PER6', $userPermCodes ?? []) || in_array('EBEN-PER7', $userPermCodes ?? []) || in_array('EBEN-PER8', $userPermCodes ?? []) || in_array('EBEN-PER9', $userPermCodes ?? []))
 					<li class="nav-item has-treeview {{ request()->is('rh*') ? 'menu-open' : '' }}">
 						<a href="#" class="nav-link parent-link {{ request()->is('rh*') ? 'active' : '' }}">
@@ -209,10 +202,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</li>
 				@endif
 
-				{{-- ══════════════════════════════════════════════════════
-				5. TRÉSORERIE / COFFRE — EBEN-PER44
-				(en premier : le gérant vérifie le coffre avant tout)
-				══════════════════════════════════════════════════════ --}}
+				
+				
 				@if(in_array('EBEN-PER44', $userPermCodes ?? []))
 					<li class="nav-item {{ request()->is('tresorerie*') ? 'menu-open' : '' }}">
 						<a href="#" class="nav-link parent-link {{ request()->is('tresorerie*') ? 'active' : '' }}">
@@ -224,43 +215,27 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						</a>
 						<ul class="nav nav-treeview custom-sub-menu">
 							<li class="nav-item">
-								<a href="{{ route('tresorerie.coffre.index') }}"
-									class="nav-link sub-link {{ request()->is('tresorerie/coffre*') ? 'active' : '' }}"
+								<a href="{{ route('tresorerie.etat-coffre') }}"
+									class="nav-link sub-link "
 									title="État du Coffre">
 									<i class="fas fa-lock fa-fw nav-icon text-warning"></i>
 									<p>État du Coffre</p>
 								</a>
 							</li>
+							
 							<li class="nav-item">
-								<a href="{{ route('tresorerie.coffre.index') }}#approvisionnement" class="nav-link sub-link"
-									title="Approvisionnement">
-									<i class="fas fa-arrow-circle-down fa-fw nav-icon text-warning"></i>
-									<p>Approvisionnement</p>
-								</a>
-							</li>
-							<li class="nav-item">
-							<a href="{{ route('tresorerie.coffre.index') }}#tab-intercaisses"
-								class="nav-link sub-link"
-								title="Inter-caisses">
-									<i class="fas fa-exchange-alt fa-fw nav-icon text-warning"></i>
-									<p>Inter-caisses</p>
-								</a>
-							</li>
-							<li class="nav-item">
-								<a href="{{ route('tresorerie.coffre.index') }}#journal" class="nav-link sub-link"
-									title="Journal central">
-									<i class="fas fa-book-open fa-fw nav-icon text-warning"></i>
-									<p>Journal central</p>
+								<a href="{{ route('tresorerie.agents.mobiles') }}" class="nav-link sub-link {{ request()->is('tresorerie/agents*') ? 'active' : '' }}"
+									title="Rapport Agents Terrain">
+									<i class="fas fa-mobile-alt fa-fw nav-icon text-warning"></i>
+									<p>Agents Terrain</p>
 								</a>
 							</li>
 						</ul>
 					</li>
 				@endif
 
-				{{-- ══════════════════════════════════════════════════════
-				6. ADMINISTRATION — EBEN-PER1/2/3/4/5/20/21
-				(configuration technique — en dernier)
-				══════════════════════════════════════════════════════ --}}
+				
+				
 				@php $hasAdminAccess = count(array_intersect(['EBEN-PER1', 'EBEN-PER2', 'EBEN-PER3', 'EBEN-PER4', 'EBEN-PER5', 'EBEN-PER20', 'EBEN-PER21'], $userPermCodes ?? [])) > 0; @endphp
 				@if($hasAdminAccess)
 					<li class="nav-item {{ request()->routeIs('administration.*') ? 'menu-open' : '' }}">

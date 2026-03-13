@@ -222,12 +222,12 @@
                                 @forelse($operations as $op)
                                 <tr class="{{ $op->statut === 'ANNULE' ? 'text-muted' : '' }}" id="opRow_{{ $op->id }}">
                                     <td class="text-center">
-                                        <i class="fas {{ \App\Models\Transaction::typeIcon($op->type) }} fa-sm"></i>
+                                        <i class="fas {{ \App\Models\Caisse\Transaction::typeIcon($op->type) }} fa-sm"></i>
                                     </td>
                                     <td>
                                         <small class="text-monospace">{{ $op->reference }}</small><br>
-                                        <span class="badge badge-pill badge-sm {{ \App\Models\Transaction::typeBadgeClass($op->type) }}">
-                                            {{ \App\Models\Transaction::typeLabel($op->type) }}
+                                        <span class="badge badge-pill badge-sm {{ \App\Models\Caisse\Transaction::typeBadgeClass($op->type) }}">
+                                            {{ \App\Models\Caisse\Transaction::typeLabel($op->type) }}
                                         </span>
                                         @if($op->compte_code)
                                         <br><small class="text-muted"><i class="fas fa-university fa-xs"></i> {{ $op->compte_code }}</small>

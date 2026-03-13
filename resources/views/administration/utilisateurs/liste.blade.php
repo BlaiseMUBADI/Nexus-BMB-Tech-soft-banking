@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('page_title', 'Utilisateurs')
 @section('breadcrumb_parent', 'Administration')

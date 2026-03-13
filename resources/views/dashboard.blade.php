@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('page_title', 'Accueil')
 @section('breadcrumb_parent', 'Accueil')
@@ -38,7 +38,7 @@
             : $authUser->name;
 
         $roleCodes  = $authUser->getRoleCodes();
-        $rolesLabel = \App\Models\Role::whereIn('code', $roleCodes)
+        $rolesLabel = \App\Models\RH\Role::whereIn('code', $roleCodes)
                         ->pluck('nom')->join(', ') ?: 'Utilisateur';
     @endphp
 

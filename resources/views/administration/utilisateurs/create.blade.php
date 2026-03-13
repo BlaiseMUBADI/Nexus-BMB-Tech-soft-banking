@@ -36,7 +36,7 @@
                             <tbody>
                                 @forelse($agents as $agent)
                                     @php
-                                        $affectation = \App\Models\Affectation::with(['poste.service'])
+                                        $affectation = \App\Models\RH\Affectation::with(['poste.service'])
                                             ->where('agent_matricule', $agent->matricule)
                                             ->orderByDesc('date_debut')
                                             ->first();

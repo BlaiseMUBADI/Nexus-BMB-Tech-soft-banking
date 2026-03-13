@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Administration\UtilisateurController;
@@ -10,7 +10,7 @@ use App\Http\Controllers\Administration\RolesPermissionsController;
 
 Route::middleware('auth')->prefix('administration')->group(function () {
 
-    // ── Accès administration général (utilisateurs, zones, guichets) ───────
+    
     Route::middleware('permission:EBEN-PER1')->group(function () {
         Route::get('/utilisateurs/nouveau',               [UtilisateurController::class, 'nouveau'])->name('administration.utilisateurs.nouveau');
         Route::get('/utilisateurs',                       [UtilisateurController::class, 'liste'])->name('administration.utilisateurs.liste');
@@ -38,7 +38,7 @@ Route::middleware('auth')->prefix('administration')->group(function () {
         Route::get('/guichets/coffre-balances',           [GuichetController::class, 'coffreBalances'])->name('administration.guichets.coffreBalances');
     });
 
-    // ── Rôles : consultation (EBEN-PER2) ────────────────────────────────────
+    
     Route::middleware('permission:EBEN-PER2')->group(function () {
         Route::get('/roles-permissions',                  [RolesPermissionsController::class, 'index'])->name('administration.roles_permissions');
         Route::get('/roles/{role}',                       [RolesPermissionsController::class, 'show'])->name('administration.roles.show');
@@ -47,7 +47,7 @@ Route::middleware('auth')->prefix('administration')->group(function () {
         Route::get('/role-permissions/{role_code}',       [RolesPermissionsController::class, 'rolePermissionsList'])->name('administration.role-permissions.list');
     });
 
-    // ── Rôles : gestion (EBEN-PER3) ─────────────────────────────────────────
+    
     Route::middleware('permission:EBEN-PER3')->group(function () {
         Route::post('/roles-permissions',                 [RolesPermissionsController::class, 'store'])->name('administration.roles_permissions.store');
         Route::delete('/roles/{role}',                    [RolesPermissionsController::class, 'destroy'])->name('administration.roles.destroy');
@@ -55,32 +55,26 @@ Route::middleware('auth')->prefix('administration')->group(function () {
         Route::post('/user-roles/detach',                 [RolesPermissionsController::class, 'detachUserRole'])->name('administration.user-roles.detach');
     });
 
-    // ── Permissions : attribution aux rôles (EBEN-PER5) ─────────────────────
+    
     Route::middleware('permission:EBEN-PER5')->group(function () {
         Route::post('/role-permissions/attach',           [RolesPermissionsController::class, 'attachPermission'])->name('administration.role-permissions.attach');
         Route::post('/role-permissions/detach',           [RolesPermissionsController::class, 'detachPermission'])->name('administration.role-permissions.detach');
     });
 
-    // ── Permissions : consultation (EBEN-PER4) ───────────────────────────────
+   
     Route::middleware('permission:EBEN-PER4')->group(function () {
         Route::get('/permissions-table',                  [RolesPermissionsController::class, 'permissionsTable'])->name('administration.permissions.table');
     });
 
-    // ── Permissions : gestion (EBEN-PER5) ───────────────────────────────────
-    // ⚠  DÉSACTIVÉ : les permissions sont statiques (définies dans le code).
-    //    Seul un développeur peut en créer via une migration.
-    //    Route::middleware('permission:EBEN-PER5')->group(function () {
-    //        Route::post('/permissions', [RolesPermissionsController::class, 'storePermission'])->name('administration.permissions.store');
-    //    });
-    // Route de secours pour capturer les appels résiduels et retourner 403
+  
     Route::post('/permissions', fn() => abort(403, 'Les permissions sont gérées par le développeur.'))->name('administration.permissions.store');
 
-    // ── Devises : consultation (EBEN-PER20) ─────────────────────────────────
+    
     Route::middleware('permission:EBEN-PER20')->group(function () {
         Route::get('/devises-taux',                       [DeviseTauxController::class, 'index'])->name('administration.devises-taux.index');
     });
 
-    // ── Devises : gestion (EBEN-PER21) ──────────────────────────────────────
+    
     Route::middleware('permission:EBEN-PER21')->group(function () {
         Route::post('/devises-taux/devise',               [DeviseTauxController::class, 'storeDevise'])->name('administration.devises-taux.storeDevise');
         Route::post('/devises-taux/taux',                 [DeviseTauxController::class, 'storeTaux'])->name('administration.devises-taux.storeTaux');

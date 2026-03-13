@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\RH\Affectation;
 use App\Models\Caisse\CaissesGuichet;
 use App\Models\Caisse\ClotureCaisse;
@@ -42,7 +43,12 @@ class CaisseController extends Controller
     {
         /** @var \App\Models\User $user */
         $user    = Auth::user();
-        $guichet = CaissesGuichet::findOrFail($id);
+        $guichet = CaissesGuichet::find($id);
+
+        if (!$guichet) {
+            Log::warning('[Caisse] Guichet introuvable', ['id' => $id, 'action' => 'changerStatut', 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Guichet introuvable.'], 404);
+        }
 
         // Vérifier que ce guichet appartient bien à l'agent connecté
         $estTitulaire = Affectation::where('agent_matricule', $user->agent_matricule)
@@ -82,7 +88,12 @@ class CaisseController extends Controller
     {
         /** @var \App\Models\User $user */
         $user    = Auth::user();
-        $guichet = CaissesGuichet::with('soldes.devise')->findOrFail($id);
+        $guichet = CaissesGuichet::with('soldes.devise')->find($id);
+
+        if (!$guichet) {
+            Log::warning('[Caisse] Guichet introuvable', ['id' => $id, 'action' => 'initierFermeture', 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Guichet introuvable.'], 404);
+        }
 
         $estTitulaire = Affectation::where('agent_matricule', $user->agent_matricule)
             ->where('guichet_id', $guichet->id)
@@ -139,7 +150,12 @@ class CaisseController extends Controller
 
         /** @var \App\Models\User $user */
         $user    = Auth::user();
-        $guichet = CaissesGuichet::with('soldes')->findOrFail($id);
+        $guichet = CaissesGuichet::with('soldes')->find($id);
+
+        if (!$guichet) {
+            Log::warning('[Caisse] Guichet introuvable', ['id' => $id, 'action' => 'confirmerFermeture', 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Guichet introuvable.'], 404);
+        }
 
         $estTitulaire = Affectation::where('agent_matricule', $user->agent_matricule)
             ->where('guichet_id', $guichet->id)

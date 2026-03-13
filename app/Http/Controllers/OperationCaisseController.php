@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\RH\Affectation;
 use App\Models\Clients\Compte;
 use App\Models\Caisse\CaissesGuichet;
@@ -71,7 +72,7 @@ class OperationCaisseController extends Controller
                 ->get();
         }
 
-        $comptes = \App\Models\Clients\Clients\Compte::with('client')
+        $comptes = \App\Models\Clients\Compte::with('client')
             ->orderBy('devise')
             ->orderBy('code_compte')
             ->get();
@@ -326,7 +327,12 @@ class OperationCaisseController extends Controller
 
         $op = Transaction::where('id', $id)
             ->where('guichet_id', $guichet->id)
-            ->firstOrFail();
+            ->first();
+
+        if (!$op) {
+            Log::warning('[Caisse] Opération introuvable pour annulation', ['id' => $id, 'guichet_id' => $guichet->id, 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Opération introuvable.'], 404);
+        }
 
         if ($op->statut === Transaction::ANNULE) {
             return response()->json(['success' => false, 'message' => 'Cette opération est déjà annulée.'], 422);
@@ -825,7 +831,12 @@ class OperationCaisseController extends Controller
         $op = Transaction::where('id', $id)
             ->where('guichet_id', $guichet->id)
             ->where('statut', Transaction::CONFIRME)
-            ->firstOrFail();
+            ->first();
+
+        if (!$op) {
+            Log::warning('[Caisse] Opération introuvable pour demande modification', ['id' => $id, 'guichet_id' => $guichet->id, 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Opération introuvable ou non confirmée.'], 404);
+        }
 
         // Vérifier qu'il n'existe pas déjà une demande EN_ATTENTE pour cette opération
         $existante = \App\Models\Caisse\DemandeModification::where('transaction_id', $id)
@@ -842,7 +853,7 @@ class OperationCaisseController extends Controller
         // Info client pour l'audit
         $clientNom = null;
         if ($op->compte_code) {
-            $compte = \App\Models\Clients\Clients\Compte::with('client')->where('code_compte', $op->compte_code)->first();
+            $compte = \App\Models\Clients\Compte::with('client')->where('code_compte', $op->compte_code)->first();
             if ($compte && $compte->client) {
                 $clientNom = trim(($compte->client->nom ?? '') . ' ' . ($compte->client->postnom ?? '') . ' ' . ($compte->client->prenom ?? ''));
             }

@@ -11,6 +11,7 @@ use App\Models\Caisse\MouvementInterCaisse;
 use App\Models\Tresorerie\Devise;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * TresorerieController
@@ -26,21 +27,51 @@ use Illuminate\Support\Facades\DB;
 class TresorerieController extends Controller
 {
     /**
+     * Récupère le coffre central avec logging en cas d'absence.
+     * Retourne null si introuvable (au lieu de 404).
+     */
+    private function getCoffreCentral(string $caller = '')
+    {
+        $coffre = CaissesGuichet::central()->with(['soldes.devise'])->first();
+
+        if (!$coffre) {
+            Log::error('[Trésorerie] Coffre central introuvable (type_guichet=CENTRAL absent de tb_caisses_guichets)', [
+                'methode'    => $caller ?: debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'] ?? 'unknown',
+                'user'       => Auth::id(),
+                'ip'         => request()->ip(),
+                'url'        => request()->fullUrl(),
+                'timestamp'  => now()->toDateTimeString(),
+            ]);
+        }
+
+        return $coffre;
+    }
+
+    /**
      * Page principale du coffre-fort.
      */
-    public function index()
+    public function etat_coffre()
     {
-        $coffre = CaissesGuichet::central()
-            ->with(['soldes.devise'])
-            ->firstOrFail();
+        $coffre = $this->getCoffreCentral('etat_coffre');
 
-        $devises  = Devise::orderBy('code_iso')->get();
+        if (!$coffre) {
+            return view('tresorerie.etat_coffre', [
+                'coffre' => null,
+                'stats'  => [
+                    'total_entrees'    => 0,
+                    'total_sorties'    => 0,
+                    'total_mouvements' => 0,
+                    'par_devise'       => [],
+                ],
+            ]);
+        }
 
         $aujourdHui = now()->toDateString();
         $stats      = $this->computeStats($coffre->id, $aujourdHui);
 
-        return view('tresorerie.coffre', compact('coffre', 'stats'));
+        return view('tresorerie.etat_coffre', compact('coffre', 'stats'));
     }
+
 
     /**
      * Approvisionnement du coffre depuis une source externe (banque, capital).
@@ -58,7 +89,10 @@ class TresorerieController extends Controller
             'montant.min'          => 'Le montant doit être supérieur à 0.',
         ]);
 
-        $coffre = CaissesGuichet::central()->firstOrFail();
+        $coffre = $this->getCoffreCentral('approvisionner');
+        if (!$coffre) {
+            return response()->json(['success' => false, 'message' => 'Coffre central introuvable. Contactez l\'administrateur.'], 500);
+        }
 
         $soldeCoffre = CaissesGuichetSolde::firstOrCreate(
             ['guichet_id' => $coffre->id, 'devise_code' => $request->devise_code],
@@ -120,7 +154,11 @@ class TresorerieController extends Controller
             'montant.min' => 'Le montant doit être supérieur à 0.',
         ]);
 
-        $guichet = CaissesGuichet::with('soldes')->findOrFail($request->guichet_id);
+        $guichet = CaissesGuichet::with('soldes')->find($request->guichet_id);
+        if (!$guichet) {
+            Log::warning('[Trésorerie] Guichet introuvable pour alimentation', ['guichet_id' => $request->guichet_id, 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Guichet introuvable.'], 404);
+        }
 
         if ($guichet->statut_operationnel !== 'OUVERT') {
             return response()->json([
@@ -231,7 +269,10 @@ class TresorerieController extends Controller
      */
     public function mouvements(Request $request)
     {
-        $coffre = CaissesGuichet::central()->firstOrFail();
+        $coffre = $this->getCoffreCentral('mouvements');
+        if (!$coffre) {
+            return response()->json(['success' => false, 'message' => 'Coffre central introuvable.'], 500);
+        }
 
         $limit  = (int) ($request->get('limit', 100));
         $devise = $request->get('devise_code');
@@ -315,7 +356,10 @@ class TresorerieController extends Controller
      */
     public function stats()
     {
-        $coffre = CaissesGuichet::central()->firstOrFail();
+        $coffre = $this->getCoffreCentral('stats');
+        if (!$coffre) {
+            return response()->json(['total_entrees' => 0, 'total_sorties' => 0, 'total_mouvements' => 0, 'par_devise' => []]);
+        }
         return response()->json($this->computeStats($coffre->id, now()->toDateString()));
     }
 
@@ -337,11 +381,6 @@ class TresorerieController extends Controller
         );
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // DEMANDES D'APPROVISIONNEMENT
-    // Utilisé directement tb_mouvements_inter_caisses
-    // type_flux = 'DEMANDE_APPRO' | statut : EN_ATTENTE / CONFIRME / ANNULE
-    // ════════════════════════════════════════════════════════════════════════
 
     /**
      * Nombre de demandes EN_ATTENTE (pour badge sidebar).
@@ -401,9 +440,17 @@ class TresorerieController extends Controller
 
         $demande = MouvementInterCaisse::where('type_flux', 'DEMANDE_APPRO')
             ->where('statut', 'EN_ATTENTE')
-            ->findOrFail($id);
+            ->find($id);
 
-        $coffre = CaissesGuichet::central()->firstOrFail();
+        if (!$demande) {
+            Log::warning('[Trésorerie] Demande appro introuvable', ['id' => $id, 'action' => 'approuverDemande', 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Demande introuvable ou déjà traitée.'], 404);
+        }
+
+        $coffre = $this->getCoffreCentral('approuverDemande');
+        if (!$coffre) {
+            return response()->json(['success' => false, 'message' => 'Coffre central introuvable. Contactez l\'administrateur.'], 500);
+        }
 
         $soldeCoffre = CaissesGuichetSolde::where('guichet_id', $coffre->id)
             ->where('devise_code', $demande->devise_code)
@@ -413,7 +460,7 @@ class TresorerieController extends Controller
             $dispo = $soldeCoffre ? number_format($soldeCoffre->solde_en_caisse, 2, ',', ' ') : '0,00';
             return response()->json([
                 'success' => false,
-                'message' => 'Fonds insuffisants dans le coffre. Disponible : ' . $dispo . ' ' . $demande->devise_code,
+                'message' => 'Fonds insuffisants dans le coffre. Disponible.: ' . $dispo . ' ' . $demande->devise_code,
             ], 422);
         }
 
@@ -443,7 +490,7 @@ class TresorerieController extends Controller
                 $soldeGuichet->increment('solde_en_caisse', (float) $demande->montant);
             });
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Erreur.: ' . $e->getMessage()], 500);
         }
 
         $guichetCode = $demande->guichetDest?->code_guichet ?? 'le guichet';
@@ -468,13 +515,18 @@ class TresorerieController extends Controller
 
         $demande = MouvementInterCaisse::where('type_flux', 'DEMANDE_APPRO')
             ->where('statut', 'EN_ATTENTE')
-            ->findOrFail($id);
+            ->find($id);
+
+        if (!$demande) {
+            Log::warning('[Trésorerie] Demande appro introuvable pour rejet', ['id' => $id, 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Demande introuvable ou déjà traitée.'], 404);
+        }
 
         $demande->update([
             'statut'               => 'ANNULE',
             'validateur_matricule' => Auth::user()->agent_matricule,
             'observations'         => ($demande->observations ? $demande->observations . ' | ' : '')
-                                     . 'Rejeté : ' . $request->observations,
+                                     . 'Rejeté.: ' . $request->observations,
         ]);
 
         return response()->json([
@@ -483,10 +535,7 @@ class TresorerieController extends Controller
         ]);
     }
 
-    // ══════════════════════════════════════════════════════════════════
-    // GESTION CLÔTURES GUICHETS (Double contrôle fin de journée)
-    // ══════════════════════════════════════════════════════════════════
-
+   
     /**
      * Retourne JSON des guichets EN_VERIFICATION en attente superviseur.
      */
@@ -559,7 +608,12 @@ class TresorerieController extends Controller
 
         /** @var \App\Models\User $user */
         $user    = Auth::user();
-        $guichet = CaissesGuichet::with('soldes')->findOrFail($guichetId);
+        $guichet = CaissesGuichet::with('soldes')->find($guichetId);
+
+        if (!$guichet) {
+            Log::warning('[Trésorerie] Guichet introuvable pour approbation clôture', ['guichet_id' => $guichetId, 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Guichet introuvable.'], 404);
+        }
 
         if ($guichet->statut_operationnel !== 'EN_VERIFICATION') {
             return response()->json(['success' => false, 'message' => "Ce guichet n'est pas en attente de vérification."], 422);
@@ -573,7 +627,10 @@ class TresorerieController extends Controller
             return response()->json(['success' => false, 'message' => 'Aucune clôture en attente pour ce guichet.'], 422);
         }
 
-        $coffre = CaissesGuichet::central()->firstOrFail();
+        $coffre = $this->getCoffreCentral('approuverCloture');
+        if (!$coffre) {
+            return response()->json(['success' => false, 'message' => 'Coffre central introuvable. Contactez l\'administrateur.'], 500);
+        }
 
         try {
             DB::transaction(function () use ($clotures, $guichet, $coffre, $user, $request) {
@@ -646,7 +703,12 @@ class TresorerieController extends Controller
 
         /** @var \App\Models\User $user */
         $user    = Auth::user();
-        $guichet = CaissesGuichet::findOrFail($guichetId);
+        $guichet = CaissesGuichet::find($guichetId);
+
+        if (!$guichet) {
+            Log::warning('[Trésorerie] Guichet introuvable pour rejet clôture', ['guichet_id' => $guichetId, 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Guichet introuvable.'], 404);
+        }
 
         if ($guichet->statut_operationnel !== 'EN_VERIFICATION') {
             return response()->json(['success' => false, 'message' => "Ce guichet n'est pas en attente de vérification."], 422);
@@ -687,14 +749,26 @@ class TresorerieController extends Controller
 
         /** @var \App\Models\User $user */
         $user    = Auth::user();
-        $cloture = ClotureCaisse::findOrFail($clotureId);
+        $cloture = ClotureCaisse::find($clotureId);
+
+        if (!$cloture) {
+            Log::warning('[Trésorerie] Clôture introuvable pour approbation ligne', ['cloture_id' => $clotureId, 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Clôture introuvable.'], 404);
+        }
 
         if ($cloture->statut_validation !== ClotureCaisse::VALIDATION_EN_ATTENTE) {
             return response()->json(['success' => false, 'message' => 'Cette ligne a déjà été traitée.'], 422);
         }
 
-        $guichet = CaissesGuichet::with('soldes')->findOrFail($cloture->guichet_id);
-        $coffre  = CaissesGuichet::central()->firstOrFail();
+        $guichet = CaissesGuichet::with('soldes')->find($cloture->guichet_id);
+        if (!$guichet) {
+            Log::warning('[Trésorerie] Guichet de clôture introuvable', ['guichet_id' => $cloture->guichet_id, 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Guichet introuvable.'], 404);
+        }
+        $coffre  = $this->getCoffreCentral('approuverLigneCloture');
+        if (!$coffre) {
+            return response()->json(['success' => false, 'message' => 'Coffre central introuvable. Contactez l\'administrateur.'], 500);
+        }
 
         try {
             DB::transaction(function () use ($cloture, $guichet, $coffre, $user, $request) {
@@ -778,13 +852,22 @@ class TresorerieController extends Controller
 
         /** @var \App\Models\User $user */
         $user    = Auth::user();
-        $cloture = ClotureCaisse::findOrFail($clotureId);
+        $cloture = ClotureCaisse::find($clotureId);
+
+        if (!$cloture) {
+            Log::warning('[Trésorerie] Clôture introuvable pour rejet ligne', ['cloture_id' => $clotureId, 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Clôture introuvable.'], 404);
+        }
 
         if ($cloture->statut_validation !== ClotureCaisse::VALIDATION_EN_ATTENTE) {
             return response()->json(['success' => false, 'message' => 'Cette ligne a déjà été traitée.'], 422);
         }
 
-        $guichet = CaissesGuichet::findOrFail($cloture->guichet_id);
+        $guichet = CaissesGuichet::find($cloture->guichet_id);
+        if (!$guichet) {
+            Log::warning('[Trésorerie] Guichet de clôture introuvable', ['guichet_id' => $cloture->guichet_id, 'ip' => request()->ip()]);
+            return response()->json(['success' => false, 'message' => 'Guichet introuvable.'], 404);
+        }
 
         try {
             DB::transaction(function () use ($cloture, $guichet, $user, $request) {
@@ -821,10 +904,7 @@ class TresorerieController extends Controller
         return response()->json(['count' => $count]);
     }
 
-    // ══════════════════════════════════════════════════════════════════
-    // RAPPORT — APPORTS AGENTS MOBILES (GUICHET MOBILE)
-    // ══════════════════════════════════════════════════════════════════
-
+   
     /**
      * Vue rapport des apports des agents commerciaux (guichets MOBILE).
      */
@@ -836,7 +916,7 @@ class TresorerieController extends Controller
             ->where('statut', 'CONFIRME')
             ->with(['guichet', 'compte.client']);
 
-        // ── Filtres ────────────────────────────────────────────────
+        
         if ($request->filled('date_debut')) {
             $query->whereDate('date_operation', '>=', $request->date_debut);
         }
@@ -856,7 +936,6 @@ class TresorerieController extends Controller
             $query->where('type', $request->type_operation);
         }
 
-        // ── Filtrer par zone (via la zone dont l'agent commercial correspond) ──
         if ($request->filled('code_zone')) {
             $zone = \App\Models\Zone::where('code_zone', $request->code_zone)->first();
             if ($zone && $zone->agent_commercial_matricule) {
@@ -875,7 +954,7 @@ class TresorerieController extends Controller
 
         $transactions = $query->orderBy('date_operation')->get();
 
-        // ── Calcul apports par agent ────────────────────────────────
+        
         $parAgent = $transactions->groupBy('agent_matricule')->map(function ($items, $matricule) {
             $agent = \App\Models\RH\Agent::find($matricule);
             $parDevise = $items->groupBy('devise_code')->map(function ($devItems, $devise) {
@@ -899,7 +978,7 @@ class TresorerieController extends Controller
             ];
         })->values();
 
-        // ── Données pour filtres de la vue ──────────────────────────
+        
         $agents = \App\Models\RH\Agent::whereIn('matricule',
             \App\Models\RH\Affectation::whereIn('guichet_id', $guichetsMobiles)
                 ->pluck('agent_matricule')

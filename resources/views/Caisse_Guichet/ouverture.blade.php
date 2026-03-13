@@ -1,4 +1,4 @@
-﻿{{-- ============================================================
+{{-- ============================================================
      Ouverture / Fermeture — Vue Guichetier
      Affiche UNIQUEMENT le guichet de l'agent connecté.
      Permissions : EBEN-PER10 (voir) | EBEN-PER11 (ouvrir/fermer)

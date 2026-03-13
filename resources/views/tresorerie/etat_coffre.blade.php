@@ -1,7 +1,4 @@
-{{-- ============================================================
-     Vue Trésorerie : État du Coffre-Fort Central
-     Permission : EBEN-PER44 (ROL1, ROL3, ROL5, ROL8)
-     ============================================================ --}}
+
 @extends('layouts.app')
 
 @section('page_title', 'État du Coffre')
@@ -11,7 +8,19 @@
 @section('content')
 <div class="container-fluid">
 
-    {{-- ══════════════════════════════════ SOLDES COFFRE ══════════════════════════════════ --}}
+    @if(!$coffre)
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <strong>Coffre central introuvable.</strong>
+                Aucun guichet de type <code>CENTRAL</code> n'existe dans la table <code>tb_caisses_guichets</code>.
+                Veuillez créer un guichet avec <code>type_guichet = 'CENTRAL'</code> pour utiliser cette page.
+            </div>
+        </div>
+    </div>
+    @else
+
     <div class="row mb-3">
         <div class="col-12">
             <div class="card card-warning card-outline shadow elevation-2">
@@ -61,16 +70,6 @@
         </div>
     </div>
 
-    {{-- ══════════════════════════════════ STATISTIQUES JOURNÉE ══════════════════════════ --}}
-    <div class="row mb-3">
-        <div class="col-12">
-            <a href="{{ route('tresorerie.agents.mobiles') }}" class="btn btn-sm btn-outline-primary mb-3">
-                <i class="fas fa-mobile-alt mr-1"></i>Rapport Agents Mobiles
-            </a>
-        </div>
-    </div>
-
-    {{-- ══════════════════════════════════ STATISTIQUES JOURNÉE ══════════════════════════ --}}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card card-outline card-secondary shadow elevation-2">
@@ -152,7 +151,6 @@
         </div>
     </div>
 
-    {{-- ══════════════════════════════════ GUICHETS EN VÉRIFICATION ════════════════════════ --}}
     <div class="row mb-3">
         <div class="col-12">
             <div class="card card-outline card-info shadow elevation-2">
@@ -175,7 +173,6 @@
         </div>
     </div>
 
-    {{-- ══════════════════════════════════ DEMANDES D'APPROVISIONNEMENT ═══════════════════ --}}
     <div class="row">
         <div class="col-12">
             <div class="card card-outline card-primary shadow elevation-2">
@@ -315,6 +312,7 @@
         </div>
     </div>
 </div>
+@endif
 @endsection
 
 
@@ -341,7 +339,7 @@
     /* Ligne EN_ATTENTE légèrement surlignée */
     tr.row-en-attente { background-color: rgba(255,193,7,.06) !important; }
 
-    /* ── Clôtures en vérification ─────────────────────────────── */
+    
     .cloture-guichet-card {
         border-left: 4px solid #17a2b8;
         border-radius: 6px;
@@ -352,7 +350,7 @@
     .cloture-ecart-warn   { color: #ffd54f; font-weight: 700; }
     .cloture-ecart-danger { color: #f87272; font-weight: 700; }
 
-    /* ── Statistiques par devise (accordéon) ─────────────────── */
+    
     .stat-devise-header {
         cursor: pointer;
         user-select: none;
@@ -394,10 +392,7 @@ $(document).ready(function () {
     var filtreActif   = '';
     var toutesLesDemandes = [];
 
-    // ══════════════════════════════════════
-    // CLÔTURES EN VÉRIFICATION
-    // ══════════════════════════════════════
-
+   
     function renderClotures(data) {
         var $panel = $('#cloturePanelBody');
         if (!data.length) {
@@ -595,7 +590,7 @@ $(document).ready(function () {
         });
     });
 
-    // ── Valider UNE ligne (1 devise) ───────────────────────────
+    
     $(document).on('click', '.btn-valider-ligne', function () {
         var id     = $(this).data('id');
         var devise = $(this).data('devise');
@@ -639,7 +634,7 @@ $(document).ready(function () {
         );
     });
 
-    // ── Rejeter UNE ligne (1 devise) — ouvre modal ──────────────
+   
     $(document).on('click', '.btn-rejeter-ligne', function () {
         $('#rejetLigneClotureId').val($(this).data('id'));
         $('#rejetLigneDevise').text($(this).data('devise'));
@@ -682,7 +677,7 @@ $(document).ready(function () {
     rafraichirClotures();
     setInterval(rafraichirClotures, 45000);
 
-    // ── Statistiques par devise ───────────────────────────────────
+    
     function fmtMontant(n) {
         return n.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
     }
@@ -751,7 +746,7 @@ $(document).ready(function () {
         });
     }
 
-    // ── Balances ──────────────────────────────────────────────────
+    
     function rafraichirBalances() {
         $.get(urlBalances).done(function (data) {
             $.each(data, function (i, s) {
@@ -761,7 +756,7 @@ $(document).ready(function () {
         });
     }
 
-    // ── Demandes ───────────────────────────────────────────────────
+   
     function statutLabel(statut) {
         var labels = { EN_ATTENTE: 'En attente', CONFIRME: 'Approuvée', ANNULE: 'Rejetée' };
         return labels[statut] || statut;
@@ -848,7 +843,7 @@ $(document).ready(function () {
         });
     }
 
-    // ── Filtres ────────────────────────────────────────────────────
+    
     $(document).on('click', '.filtre-statut', function() {
         $('.filtre-statut').removeClass('active');
         $(this).addClass('active');
@@ -856,7 +851,7 @@ $(document).ready(function () {
         renderDemandes(toutesLesDemandes);
     });
 
-    // ── Approuver ──────────────────────────────────────────────────
+    
     $(document).on('click', '.btn-approuver', function() {
         var id  = $(this).data('id');
         var btn = $(this);
@@ -884,7 +879,7 @@ $(document).ready(function () {
         });
     });
 
-    // ── Rejeter ────────────────────────────────────────────────────
+    
     $(document).on('click', '.btn-rejeter', function() {
         $('#rejetDemandeId').val($(this).data('id'));
         $('#rejetObservations').val('');
@@ -913,7 +908,7 @@ $(document).ready(function () {
         });
     });
 
-    // ── Initialisation ─────────────────────────────────────────────
+   
     $('#btnRefreshBalances').on('click', rafraichirBalances);
     $('#btnRefreshDemandes').on('click', rafraichirDemandes);
     $('#btnRefreshStats').on('click', rafraichirStats);

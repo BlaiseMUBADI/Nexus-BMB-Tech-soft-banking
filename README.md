@@ -7,6 +7,12 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+
+Voici les recommandation du client encore "Boss veuillez masquer le solde en  compte vraiment, et nous ajouter encore les menus pour la  signature dans deux exemplaires" image 1, "Cher ir
+ j'aimerais que chaque impression laisse le trace, 
+C'est-à-dire imprimer : le nom du profil" image 2 mettez le nom de l'agent du cporfil connecté
+
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

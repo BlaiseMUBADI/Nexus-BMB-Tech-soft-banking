@@ -69,7 +69,11 @@ class CompteController extends Controller
     public function destroy($code_compte)
     {
         try {
-            $compte = Compte::findOrFail($code_compte);
+            $compte = Compte::find($code_compte);
+            if (!$compte) {
+                Log::warning('[Compte] Compte introuvable', ['code_compte' => $code_compte, 'action' => 'destroy', 'ip' => request()->ip()]);
+                return response()->json(['success' => false, 'message' => 'Compte introuvable : ' . $code_compte], 404);
+            }
             $compte->delete();
             return response()->json(['success' => true, 'message' => 'Compte supprimé avec succès.']);
         } catch (\Exception $e) {
@@ -97,20 +101,32 @@ class CompteController extends Controller
 
     public function show($code_compte)
     {
-        $compte = Compte::with(['client', 'portefeuille.agent'])->findOrFail($code_compte);
+        $compte = Compte::with(['client', 'portefeuille.agent'])->find($code_compte);
+        if (!$compte) {
+            Log::warning('[Compte] Compte introuvable', ['code_compte' => $code_compte, 'action' => 'show', 'ip' => request()->ip()]);
+            abort(404, 'Compte introuvable : ' . $code_compte);
+        }
         return view('comptes_clients.show', compact('compte'));
     }
 
     public function edit($code_compte)
     {
-        $compte = Compte::with(['client', 'portefeuille.agent'])->findOrFail($code_compte);
+        $compte = Compte::with(['client', 'portefeuille.agent'])->find($code_compte);
+        if (!$compte) {
+            Log::warning('[Compte] Compte introuvable', ['code_compte' => $code_compte, 'action' => 'edit', 'ip' => request()->ip()]);
+            abort(404, 'Compte introuvable : ' . $code_compte);
+        }
         return view('comptes_clients.edit', compact('compte'));
     }
 
     // ── Impression RIB ─────────────────────────────────────────────────────
     public function imprimerRIB(string $code_compte)
     {
-        $compte = Compte::with(['client'])->findOrFail($code_compte);
+        $compte = Compte::with(['client'])->find($code_compte);
+        if (!$compte) {
+            Log::warning('[Compte] Compte introuvable pour RIB', ['code_compte' => $code_compte, 'ip' => request()->ip()]);
+            abort(404, 'Compte introuvable : ' . $code_compte);
+        }
         $client = $compte->client;
         $devise = Devise::where('code_iso', $compte->devise)->first();
 
@@ -125,7 +141,11 @@ class CompteController extends Controller
     // ── Relevé bancaire ───────────────────────────────────────────────────
     public function releveCompte(\Illuminate\Http\Request $request, string $code_compte)
     {
-        $compte  = Compte::with(['client'])->findOrFail($code_compte);
+        $compte  = Compte::with(['client'])->find($code_compte);
+        if (!$compte) {
+            Log::warning('[Compte] Compte introuvable pour relevé', ['code_compte' => $code_compte, 'ip' => request()->ip()]);
+            abort(404, 'Compte introuvable : ' . $code_compte);
+        }
         $client  = $compte->client;
         $devise  = Devise::where('code_iso', $compte->devise)->first();
 
@@ -226,7 +246,11 @@ class CompteController extends Controller
     // ── Historique des mouvements d'un compte ────────────────────────────────
     public function historiqueCompte(\Illuminate\Http\Request $request, string $code_compte)
     {
-        $compte = Compte::with(['client'])->findOrFail($code_compte);
+        $compte = Compte::with(['client'])->find($code_compte);
+        if (!$compte) {
+            Log::warning('[Compte] Compte introuvable pour historique', ['code_compte' => $code_compte, 'ip' => request()->ip()]);
+            abort(404, 'Compte introuvable : ' . $code_compte);
+        }
         $devise = Devise::where('code_iso', $compte->devise)->first();
 
         $query = \App\Models\Caisse\Transaction::where('compte_code', $code_compte)

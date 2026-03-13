@@ -16,7 +16,11 @@ class ServiceController extends Controller
      */
     public function postesAjax($id)
     {
-        $service = \App\Models\RH\Service::findOrFail($id);
+        $service = \App\Models\RH\Service::find($id);
+        if (!$service) {
+            Log::warning('[RH] Service introuvable', ['id' => $id, 'action' => 'postesAjax', 'ip' => request()->ip()]);
+            abort(404, 'Service introuvable.');
+        }
         $postes = $service->postes;
         return view('rh.services.postes_table', compact('postes', 'service'));
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use App\Models\RH\Agent;
 
 class AgentController extends Controller
@@ -76,19 +77,31 @@ class AgentController extends Controller
 
     public function show($matricule)
     {
-        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->firstOrFail();
+        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->first();
+        if (!$agent) {
+            Log::warning('[Agent] Agent introuvable', ['matricule' => $matricule, 'action' => 'show', 'ip' => request()->ip()]);
+            abort(404, 'Agent introuvable : ' . $matricule);
+        }
         return view('rh.agents.show', compact('agent'));
     }
 
     public function edit($matricule)
     {
-        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->firstOrFail();
+        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->first();
+        if (!$agent) {
+            Log::warning('[Agent] Agent introuvable', ['matricule' => $matricule, 'action' => 'edit', 'ip' => request()->ip()]);
+            abort(404, 'Agent introuvable : ' . $matricule);
+        }
         return view('rh.agents.edit', compact('agent'));
     }
 
     public function update(Request $request, $matricule)
     {
-        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->firstOrFail();
+        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->first();
+        if (!$agent) {
+            Log::warning('[Agent] Agent introuvable', ['matricule' => $matricule, 'action' => 'update', 'ip' => request()->ip()]);
+            abort(404, 'Agent introuvable : ' . $matricule);
+        }
         $validated = $request->validate([
             'nom' => 'required|string|max:191',
             'postnom' => 'nullable|string|max:191',
@@ -120,7 +133,11 @@ class AgentController extends Controller
 
     public function destroy($matricule)
     {
-        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->firstOrFail();
+        $agent = \App\Models\RH\Agent::where('matricule', $matricule)->first();
+        if (!$agent) {
+            Log::warning('[Agent] Agent introuvable', ['matricule' => $matricule, 'action' => 'destroy', 'ip' => request()->ip()]);
+            abort(404, 'Agent introuvable : ' . $matricule);
+        }
         // Supprimer la photo si elle existe
         if ($agent->photo && file_exists(base_path('images_projet/' . $agent->photo))) {
             @unlink(base_path('images_projet/' . $agent->photo));

@@ -169,8 +169,11 @@ class ClientController extends Controller
      */
     public function show(string $id)
     {
-        // On suppose que $id est le matricule du client
-        $client = \App\Models\Clients\Client::where('matricule', $id)->firstOrFail();
+        $client = \App\Models\Clients\Client::where('matricule', $id)->first();
+        if (!$client) {
+            Log::warning('[Client] Client introuvable', ['matricule' => $id, 'action' => 'show', 'ip' => request()->ip()]);
+            abort(404, 'Client introuvable : ' . $id);
+        }
         return view('clients.show', compact('client'));
     }
 
@@ -180,7 +183,11 @@ class ClientController extends Controller
      
     public function edit(string $id)
     {
-        $client = \App\Models\Clients\Client::where('matricule', $id)->firstOrFail();
+        $client = \App\Models\Clients\Client::where('matricule', $id)->first();
+        if (!$client) {
+            Log::warning('[Client] Client introuvable', ['matricule' => $id, 'action' => 'edit', 'ip' => request()->ip()]);
+            abort(404, 'Client introuvable : ' . $id);
+        }
         $zones = \App\Models\Zone::orderBy('nom')->get();
         return view('clients.edit', compact('client', 'zones'));
     }
@@ -190,7 +197,11 @@ class ClientController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $client = \App\Models\Clients\Client::where('matricule', $id)->firstOrFail();
+        $client = \App\Models\Clients\Client::where('matricule', $id)->first();
+        if (!$client) {
+            Log::warning('[Client] Client introuvable', ['matricule' => $id, 'action' => 'update', 'ip' => request()->ip()]);
+            abort(404, 'Client introuvable : ' . $id);
+        }
         try {
             $validated = $request->validate([
                 'nom' => 'required|string|max:255',
@@ -301,7 +312,14 @@ class ClientController extends Controller
      */
     public function destroy(string $id)
     {
-        $client = \App\Models\Clients\Client::where('matricule', $id)->firstOrFail();
+        $client = \App\Models\Clients\Client::where('matricule', $id)->first();
+        if (!$client) {
+            Log::warning('[Client] Client introuvable', ['matricule' => $id, 'action' => 'destroy', 'ip' => request()->ip()]);
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Client introuvable.'], 404);
+            }
+            abort(404, 'Client introuvable : ' . $id);
+        }
         // Supprimer la photo si elle existe
         if ($client->photo && file_exists(base_path('images_projet/' . $client->photo))) {
             @unlink(base_path('images_projet/' . $client->photo));
@@ -320,7 +338,11 @@ class ClientController extends Controller
      */
     public function serveImage(string $id)
     {
-        $client = \App\Models\Clients\Client::findOrFail($id);
+        $client = \App\Models\Clients\Client::find($id);
+        if (!$client) {
+            Log::warning('[Client] Client introuvable pour image', ['id' => $id, 'ip' => request()->ip()]);
+            return response()->json(['message' => 'Client introuvable'], 404);
+        }
         if ($client->photo) {
             $path = storage_path('app/public/clients/' . $client->photo);
             if (file_exists($path)) {
@@ -344,7 +366,11 @@ class ClientController extends Controller
     {
         $client = \App\Models\Clients\Client::with(['zone', 'comptes'])
                     ->where('matricule', $matricule)
-                    ->firstOrFail();
+                    ->first();
+        if (!$client) {
+            Log::warning('[Client] Client introuvable pour impression fiche', ['matricule' => $matricule, 'ip' => request()->ip()]);
+            abort(404, 'Client introuvable : ' . $matricule);
+        }
 
         // Photo base64
         $photoBase64 = null;
