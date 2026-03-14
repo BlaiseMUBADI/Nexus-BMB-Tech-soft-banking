@@ -14,6 +14,9 @@ require_once __DIR__.'/administration.php';
 // Trésorerie & Coffre Central
 require_once __DIR__.'/tresorerie.php';
 
+// Comptabilité OHADA
+require_once __DIR__.'/comptabilite.php';
+
 // Ressources Humaines routes
 require_once __DIR__.'/rh.php';
 

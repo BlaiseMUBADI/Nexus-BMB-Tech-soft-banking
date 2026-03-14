@@ -4,6 +4,7 @@ namespace App\Models\Caisse;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Clients\Compte;
+use App\Models\Comptabilite\JournalComptable;
 use App\Models\Tresorerie\Devise;
 
 /**
@@ -45,6 +46,11 @@ class Transaction extends Model
         'devise_code',
         'type',
         'montant',
+        'montant_commission_total',
+        'solde_compte_avant',
+        'solde_compte_apres',
+        'montant_total_client',
+        'montant_net_client',
         'reference',
         'devise_dest',
         'montant_dest',
@@ -56,6 +62,11 @@ class Transaction extends Model
 
     protected $casts = [
         'montant'        => 'decimal:2',
+        'montant_commission_total' => 'decimal:2',
+        'solde_compte_avant' => 'decimal:2',
+        'solde_compte_apres' => 'decimal:2',
+        'montant_total_client' => 'decimal:2',
+        'montant_net_client' => 'decimal:2',
         'montant_dest'   => 'decimal:2',
         'taux_change'    => 'decimal:6',
         'date_operation' => 'datetime',
@@ -79,6 +90,16 @@ class Transaction extends Model
     public function devise()
     {
         return $this->belongsTo(Devise::class, 'devise_code', 'code_iso');
+    }
+
+    public function commissions()
+    {
+        return $this->hasMany(TransactionCommission::class, 'transaction_id', 'id');
+    }
+
+    public function journauxComptables()
+    {
+        return $this->hasMany(JournalComptable::class, 'transaction_id', 'id');
     }
 
     // ── Helpers statiques ────────────────────────────────────────
@@ -123,5 +144,44 @@ class Transaction extends Model
             self::PAIEMENT      => 'badge-secondary',
             default             => 'badge-light',
         };
+    }
+
+    /**
+     * Types d'opérations autorisés selon le type de guichet.
+     */
+    public static function allowedTypesForGuichetType(?string $guichetType = null): array
+    {
+        $default = [
+            self::DEPOT,
+            self::RETRAIT,
+            self::CHANGE,
+            self::PAIEMENT,
+            self::REMBOURSEMENT,
+        ];
+
+        if (strtoupper((string) $guichetType) === 'MOBILE') {
+            return [
+                self::DEPOT,
+                self::CHANGE,
+                self::PAIEMENT,
+                self::REMBOURSEMENT,
+            ];
+        }
+
+        return $default;
+    }
+
+    /**
+     * Options prêtes à afficher dans les filtres / formulaires.
+     */
+    public static function operationTypeOptions(?string $guichetType = null): array
+    {
+        return collect(self::allowedTypesForGuichetType($guichetType))
+            ->map(fn ($type) => [
+                'value' => $type,
+                'label' => self::typeLabel($type),
+            ])
+            ->values()
+            ->all();
     }
 }

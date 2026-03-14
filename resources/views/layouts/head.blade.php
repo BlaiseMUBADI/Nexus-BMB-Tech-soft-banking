@@ -27,6 +27,79 @@
 <!-- Toastr (notifications) -->
 <link rel="stylesheet" href="{{ asset('plugins/toastr/toastr.min.css') }}">
 
+<style>
+    .content-wrapper,
+    .content-header,
+    .main-footer {
+        overflow-x: hidden;
+    }
+
+    @media (max-width: 767.98px) {
+        .content-header .container-fluid,
+        .content .container-fluid {
+            padding-left: .85rem;
+            padding-right: .85rem;
+        }
+
+        .content-header .row {
+            row-gap: .35rem;
+        }
+
+        .content-header h1 {
+            font-size: 1.35rem;
+            line-height: 1.2;
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        .content-header .breadcrumb {
+            float: none !important;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 0;
+            padding-left: 0;
+        }
+
+        .card-header,
+        .card-header > .d-flex,
+        .card-header .card-tools {
+            gap: .5rem;
+        }
+
+        .card-header > .d-flex,
+        .card-header .card-tools {
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: flex-start !important;
+        }
+
+        .btn-group {
+            flex-wrap: wrap;
+        }
+
+        .btn-group > .btn {
+            flex: 1 1 auto;
+        }
+
+        .small-box .icon {
+            display: none;
+        }
+
+        .small-box .inner {
+            padding-right: 1rem;
+        }
+
+        .small-box .inner h3,
+        .small-box .inner h4 {
+            font-size: 1.35rem;
+        }
+
+        .modal-dialog {
+            margin: .5rem;
+        }
+    }
+</style>
+
 @stack('css')
 
 

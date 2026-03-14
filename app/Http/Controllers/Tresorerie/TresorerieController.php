@@ -8,10 +8,15 @@ use App\Models\Caisse\CaissesGuichet;
 use App\Models\Caisse\CaissesGuichetSolde;
 use App\Models\Caisse\ClotureCaisse;
 use App\Models\Caisse\MouvementInterCaisse;
+use App\Models\Tresorerie\CommissionRule;
 use App\Models\Tresorerie\Devise;
+use App\Models\Tresorerie\Portefeuille;
+use App\Models\Zone;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * TresorerieController
@@ -26,6 +31,134 @@ use Illuminate\Support\Facades\Log;
  */
 class TresorerieController extends Controller
 {
+    private function commissionRuleValidation(Request $request): array
+    {
+        return $request->validate([
+            'libelle' => 'required|string|max:150',
+            'code_operation' => ['required', Rule::in(CommissionRule::operationChoices())],
+            'type_compte' => ['required', Rule::in(CommissionRule::accountTypeChoices())],
+            'type_guichet' => ['required', Rule::in(CommissionRule::guichetTypeChoices())],
+            'devise_code' => 'nullable|exists:tb_devises,code_iso',
+            'code_zone' => 'nullable|exists:tb_zones,code_zone',
+            'portefeuille_id' => 'nullable|exists:tb_portefeuilles_agents,id',
+            'montant_min' => 'nullable|numeric|min:0',
+            'montant_max' => 'nullable|numeric|gte:montant_min',
+            'mode_calcul' => ['required', Rule::in([CommissionRule::MODE_FIXED, CommissionRule::MODE_PERCENTAGE])],
+            'valeur' => 'required|numeric|min:0',
+            'priorite' => 'required|integer|min:1|max:9999',
+            'date_debut' => 'required|date',
+            'date_fin' => 'nullable|date|after_or_equal:date_debut',
+            'observations' => 'nullable|string|max:1000',
+        ], [
+            'montant_max.gte' => 'Le montant maximum doit être supérieur ou égal au minimum.',
+        ]);
+    }
+
+    private function commissionRulePayload(array $validated): array
+    {
+        return [
+            'libelle' => $validated['libelle'],
+            'code_operation' => $validated['code_operation'],
+            'type_compte' => $validated['type_compte'],
+            'type_guichet' => $validated['type_guichet'],
+            'devise_code' => $validated['devise_code'] ?? null,
+            'code_zone' => $validated['code_zone'] ?? null,
+            'portefeuille_id' => $validated['portefeuille_id'] ?? null,
+            'montant_min' => $validated['montant_min'] ?? null,
+            'montant_max' => $validated['montant_max'] ?? null,
+            'mode_calcul' => $validated['mode_calcul'],
+            'valeur' => $validated['valeur'],
+            'priorite' => $validated['priorite'],
+            'date_debut' => $validated['date_debut'],
+            'date_fin' => $validated['date_fin'] ?? null,
+            'observations' => $validated['observations'] ?? null,
+        ];
+    }
+
+    public function commissions(Request $request)
+    {
+        $rules = CommissionRule::with(['devise', 'portefeuille.agent'])
+            ->orderByDesc('est_actif')
+            ->orderByDesc('priorite')
+            ->orderByDesc('date_debut')
+            ->orderByDesc('id')
+            ->get();
+
+        $editingRule = $request->filled('edit')
+            ? CommissionRule::find($request->integer('edit'))
+            : null;
+
+        $devises = Devise::orderBy('code_iso')->get(['code_iso', 'nom', 'symbole']);
+        $zones = Zone::orderBy('nom')->get(['code_zone', 'nom']);
+        $portefeuilles = Portefeuille::with('agent')->orderBy('nom_portefeuille')->get();
+
+        $stats = [
+            'total' => $rules->count(),
+            'actives' => $rules->where('est_actif', true)->count(),
+            'fixes' => $rules->where('mode_calcul', CommissionRule::MODE_FIXED)->count(),
+            'pourcentages' => $rules->where('mode_calcul', CommissionRule::MODE_PERCENTAGE)->count(),
+        ];
+
+        $nextPriority = ((int) CommissionRule::max('priorite')) + 10;
+        if ($nextPriority <= 0) {
+            $nextPriority = 100;
+        }
+
+        return view('tresorerie.commissions', [
+            'rules' => $rules,
+            'editingRule' => $editingRule,
+            'devises' => $devises,
+            'zones' => $zones,
+            'portefeuilles' => $portefeuilles,
+            'operationChoices' => CommissionRule::operationChoices(),
+            'accountTypeChoices' => CommissionRule::accountTypeChoices(),
+            'guichetTypeChoices' => CommissionRule::guichetTypeChoices(),
+            'modeChoices' => [CommissionRule::MODE_FIXED, CommissionRule::MODE_PERCENTAGE],
+            'stats' => $stats,
+            'nextPriority' => $nextPriority,
+        ]);
+    }
+
+    public function storeCommission(Request $request)
+    {
+        $validated = $this->commissionRuleValidation($request);
+
+        CommissionRule::create($this->commissionRulePayload($validated) + [
+            'est_actif' => $request->boolean('est_actif', true),
+            'created_by_agent' => Auth::user()?->agent_matricule,
+        ]);
+
+        return redirect()
+            ->route('tresorerie.commissions.index')
+            ->with('success', 'Règle de commission ajoutée avec succès.');
+    }
+
+    public function updateCommission(Request $request, CommissionRule $commissionRule)
+    {
+        $validated = $this->commissionRuleValidation($request);
+
+        $commissionRule->update($this->commissionRulePayload($validated) + [
+            'est_actif' => $request->boolean('est_actif', false),
+        ]);
+
+        return redirect()
+            ->route('tresorerie.commissions.index')
+            ->with('success', 'Règle de commission mise à jour.');
+    }
+
+    public function toggleCommission(CommissionRule $commissionRule)
+    {
+        $commissionRule->update([
+            'est_actif' => !$commissionRule->est_actif,
+        ]);
+
+        return redirect()
+            ->route('tresorerie.commissions.index')
+            ->with('success', $commissionRule->est_actif
+                ? 'Règle activée.'
+                : 'Règle désactivée.');
+    }
+
     /**
      * Récupère le coffre central avec logging en cas d'absence.
      * Retourne null si introuvable (au lieu de 404).
@@ -45,6 +178,21 @@ class TresorerieController extends Controller
         }
 
         return $coffre;
+    }
+
+    /**
+     * Référence de mouvement robuste (évite collisions en forte volumétrie).
+     */
+    private function buildReference(string $prefix, string $suffix = ''): string
+    {
+        try {
+            $rand = strtoupper(str_pad(dechex(random_int(0, 65535)), 4, '0', STR_PAD_LEFT));
+        } catch (\Exception $e) {
+            $rand = strtoupper(substr(md5(uniqid((string) mt_rand(), true)), 0, 4));
+        }
+
+        $core = now()->format('Ymd-His-u') . '-' . $rand;
+        return $suffix !== '' ? $prefix . '-' . $core . '-' . $suffix : $prefix . '-' . $core;
     }
 
     /**
@@ -72,6 +220,23 @@ class TresorerieController extends Controller
         return view('tresorerie.etat_coffre', compact('coffre', 'stats'));
     }
 
+    /**
+     * Interface dédiée aux opérations d'approvisionnement / inter-caisses.
+     */
+    public function interfaceApprovisionnement(Request $request)
+    {
+        $coffre = $this->getCoffreCentral('interfaceApprovisionnement');
+        $devises = Devise::orderBy('code_iso')->get(['code_iso', 'nom', 'symbole']);
+        $guichetsAlimentables = CaissesGuichet::operationnels()
+            ->with(['affectationActive.agent'])
+            ->orderBy('code_guichet')
+            ->get();
+
+        $module = $request->routeIs('tresorerie.intercaisse') ? 'intercaisse' : 'approvisionnement';
+
+        return view('tresorerie.approvisionnement', compact('coffre', 'devises', 'guichetsAlimentables', 'module'));
+    }
+
 
     /**
      * Approvisionnement du coffre depuis une source externe (banque, capital).
@@ -94,18 +259,33 @@ class TresorerieController extends Controller
             return response()->json(['success' => false, 'message' => 'Coffre central introuvable. Contactez l\'administrateur.'], 500);
         }
 
-        $soldeCoffre = CaissesGuichetSolde::firstOrCreate(
-            ['guichet_id' => $coffre->id, 'devise_code' => $request->devise_code],
-            ['solde_en_caisse' => 0]
-        );
+        if ($coffre->statut_operationnel !== 'OUVERT') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Le coffre central est ' . $coffre->statut_operationnel . '. Approvisionnement bloqué tant qu\'il n\'est pas OUVERT.',
+            ], 422);
+        }
 
         $observations = 'Approvisionnement externe';
         if ($request->source)       $observations .= ' — ' . $request->source;
         if ($request->observations) $observations .= ' : ' . $request->observations;
 
+        $nouveauSolde = 0.0;
+
         try {
-            DB::transaction(function () use ($request, $soldeCoffre, $coffre, $observations) {
-                $reference = 'APP-' . now()->format('Ymd-His');
+            DB::transaction(function () use ($request, $coffre, $observations, &$nouveauSolde) {
+                $soldeCoffre = CaissesGuichetSolde::where('guichet_id', $coffre->id)
+                    ->where('devise_code', $request->devise_code)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$soldeCoffre) {
+                    $soldeCoffre = CaissesGuichetSolde::create([
+                        'guichet_id'       => $coffre->id,
+                        'devise_code'      => $request->devise_code,
+                        'solde_en_caisse'  => 0,
+                    ]);
+                }
 
                 MouvementInterCaisse::create([
                     'guichet_source_id'    => null,
@@ -114,7 +294,7 @@ class TresorerieController extends Controller
                     'type_flux'            => 'ALIMENTATION',
                     'montant'              => $request->montant,
                     'devise_code'          => $request->devise_code,
-                    'reference_bordereau'  => $reference,
+                    'reference_bordereau'  => $this->buildReference('APP'),
                     'date_mouvement'       => now(),
                     'statut'               => 'CONFIRME',
                     'validateur_matricule' => Auth::user()->agent_matricule,
@@ -122,15 +302,20 @@ class TresorerieController extends Controller
                 ]);
 
                 $soldeCoffre->increment('solde_en_caisse', (float) $request->montant);
+                $nouveauSolde = (float) $soldeCoffre->fresh()->solde_en_caisse;
             });
         } catch (\Exception $e) {
+            Log::error('[Trésorerie] Erreur approvisionnement coffre', [
+                'devise_code' => $request->devise_code,
+                'montant'     => $request->montant,
+                'source'      => $request->source,
+                'erreur'      => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur : ' . $e->getMessage(),
             ], 500);
         }
-
-        $nouveauSolde = (float) ($soldeCoffre->fresh()->solde_en_caisse ?? 0);
 
         return response()->json([
             'success'       => true,
@@ -160,6 +345,32 @@ class TresorerieController extends Controller
             return response()->json(['success' => false, 'message' => 'Guichet introuvable.'], 404);
         }
 
+        if ($guichet->type_guichet === 'CENTRAL') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous ne pouvez pas alimenter le coffre central via inter-caisses.',
+            ], 422);
+        }
+
+        $coffre = $this->getCoffreCentral('alimenter');
+        if (!$coffre) {
+            return response()->json(['success' => false, 'message' => 'Coffre central introuvable. Contactez l\'administrateur.'], 500);
+        }
+
+        if ((int) $guichet->id === (int) $coffre->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mouvement invalide : source et destination ne peuvent pas être le même guichet.',
+            ], 422);
+        }
+
+        if ($coffre->statut_operationnel !== 'OUVERT') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Le coffre central est ' . $coffre->statut_operationnel . '. Alimentation inter-caisses indisponible.',
+            ], 422);
+        }
+
         if ($guichet->statut_operationnel !== 'OUVERT') {
             return response()->json([
                 'success' => false,
@@ -168,63 +379,65 @@ class TresorerieController extends Controller
             ], 422);
         }
 
-        $solde = CaissesGuichetSolde::where('guichet_id', $request->guichet_id)
-            ->where('devise_code', $request->devise_code)
-            ->first();
-
-        if (!$solde) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Le guichet ' . $guichet->code_guichet . ' ne gère pas la devise ' . $request->devise_code . '.',
-            ], 422);
-        }
-
-        $coffre = CaissesGuichet::central()->first();
-        $soldeCoffre = null;
-        if ($coffre) {
-            $soldeCoffre = CaissesGuichetSolde::where('guichet_id', $coffre->id)
-                ->where('devise_code', $request->devise_code)
-                ->first();
-
-            if (!$soldeCoffre || $soldeCoffre->solde_en_caisse < $request->montant) {
-                $disponible = $soldeCoffre ? number_format($soldeCoffre->solde_en_caisse, 2, ',', ' ') : '0,00';
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Fonds insuffisants dans le coffre. Disponible : ' . $disponible .
-                                 ' ' . $request->devise_code . ' | Demandé : ' .
-                                 number_format($request->montant, 2, ',', ' ') . ' ' . $request->devise_code,
-                ], 422);
-            }
-        }
-
+        $nouveauSoldeCoffre = null;
         try {
-            DB::transaction(function () use ($request, $solde, $soldeCoffre, $guichet, $coffre) {
-                $reference = 'ALI-' . now()->format('Ymd-His') . '-G' . str_pad($guichet->id, 2, '0', STR_PAD_LEFT);
+            DB::transaction(function () use ($request, $guichet, $coffre, &$nouveauSoldeCoffre) {
+                $soldeGuichet = CaissesGuichetSolde::where('guichet_id', $guichet->id)
+                    ->where('devise_code', $request->devise_code)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$soldeGuichet) {
+                    throw ValidationException::withMessages([
+                        'devise_code' => 'Le guichet ' . $guichet->code_guichet . ' ne gère pas la devise ' . $request->devise_code . '.',
+                    ]);
+                }
+
+                $soldeCoffre = CaissesGuichetSolde::where('guichet_id', $coffre->id)
+                    ->where('devise_code', $request->devise_code)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$soldeCoffre || (float) $soldeCoffre->solde_en_caisse < (float) $request->montant) {
+                    $disponible = $soldeCoffre ? number_format((float) $soldeCoffre->solde_en_caisse, 2, ',', ' ') : '0,00';
+                    throw ValidationException::withMessages([
+                        'montant' => 'Fonds insuffisants dans le coffre. Disponible : ' . $disponible
+                                   . ' ' . $request->devise_code . ' | Demandé : '
+                                   . number_format((float) $request->montant, 2, ',', ' ') . ' ' . $request->devise_code,
+                    ]);
+                }
 
                 MouvementInterCaisse::create([
-                    'guichet_source_id'    => $coffre ? $coffre->id : null,
+                    'guichet_source_id'    => $coffre->id,
                     'guichet_dest_id'      => $guichet->id,
                     'agent_initiateur'     => Auth::user()->agent_matricule,
                     'type_flux'            => 'ALIMENTATION',
                     'montant'              => $request->montant,
                     'devise_code'          => $request->devise_code,
-                    'reference_bordereau'  => $reference,
+                    'reference_bordereau'  => $this->buildReference('ALI', 'G' . str_pad((string) $guichet->id, 2, '0', STR_PAD_LEFT)),
                     'date_mouvement'       => now(),
                     'statut'               => 'CONFIRME',
                     'validateur_matricule' => Auth::user()->agent_matricule,
-                    'observations'         => $request->observations,
+                    'observations'         => $request->observations ?: 'Alimentation inter-caisses',
                 ]);
 
-                if ($soldeCoffre) {
-                    $soldeCoffre->decrement('solde_en_caisse', (float) $request->montant);
-                }
-                $solde->increment('solde_en_caisse', (float) $request->montant);
+                $soldeCoffre->decrement('solde_en_caisse', (float) $request->montant);
+                $soldeGuichet->increment('solde_en_caisse', (float) $request->montant);
+
+                $nouveauSoldeCoffre = (float) $soldeCoffre->fresh()->solde_en_caisse;
             });
+        } catch (ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first() ?? 'Données invalides.';
+            return response()->json(['success' => false, 'message' => $message], 422);
         } catch (\Exception $e) {
+            Log::error('[Trésorerie] Erreur alimentation inter-caisses', [
+                'guichet_id'   => $guichet->id,
+                'devise_code'  => $request->devise_code,
+                'montant'      => $request->montant,
+                'erreur'       => $e->getMessage(),
+            ]);
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }
-
-        $nouveauSoldeCoffre = $soldeCoffre ? (float) $soldeCoffre->fresh()->solde_en_caisse : null;
 
         return response()->json([
             'success'              => true,
@@ -254,7 +467,9 @@ class TresorerieController extends Controller
                     'devise_code'    => $m->devise_code,
                     'statut'         => $m->statut,
                     'guichet_source' => $m->guichetSource ? $m->guichetSource->code_guichet : 'Externe',
+                    'guichet_source_type' => $m->guichetSource ? ($m->guichetSource->type_guichet ?? '—') : 'EXTERNE',
                     'guichet_dest'   => $m->guichetDest   ? $m->guichetDest->code_guichet   : '—',
+                    'guichet_dest_type' => $m->guichetDest ? ($m->guichetDest->type_guichet ?? '—') : '—',
                     'initiateur'     => $m->agent_initiateur,
                     'date'           => $m->date_mouvement ? $m->date_mouvement->format('d/m/Y H:i') : '—',
                     'observations'   => $m->observations,
@@ -452,52 +667,94 @@ class TresorerieController extends Controller
             return response()->json(['success' => false, 'message' => 'Coffre central introuvable. Contactez l\'administrateur.'], 500);
         }
 
-        $soldeCoffre = CaissesGuichetSolde::where('guichet_id', $coffre->id)
-            ->where('devise_code', $demande->devise_code)
-            ->first();
-
-        if (!$soldeCoffre || $soldeCoffre->solde_en_caisse < $demande->montant) {
-            $dispo = $soldeCoffre ? number_format($soldeCoffre->solde_en_caisse, 2, ',', ' ') : '0,00';
+        $guichetDest = CaissesGuichet::find($demande->guichet_dest_id);
+        if (!$guichetDest) {
             return response()->json([
                 'success' => false,
-                'message' => 'Fonds insuffisants dans le coffre. Disponible.: ' . $dispo . ' ' . $demande->devise_code,
+                'message' => 'Le guichet destinataire est introuvable.',
             ], 422);
         }
 
-        $soldeGuichet = CaissesGuichetSolde::where('guichet_id', $demande->guichet_dest_id)
-            ->where('devise_code', $demande->devise_code)
-            ->first();
-
-        if (!$soldeGuichet) {
+        if ($guichetDest->type_guichet === 'CENTRAL') {
             return response()->json([
                 'success' => false,
-                'message' => 'Le guichet ne gère pas la devise ' . $demande->devise_code . '.',
+                'message' => 'Demande invalide : le destinataire ne peut pas être le coffre central.',
             ], 422);
         }
 
+        if ($guichetDest->statut_operationnel !== 'OUVERT') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Le guichet ' . $guichetDest->code_guichet . ' est ' . $guichetDest->statut_operationnel . '. Ouvrez la session avant approbation.',
+            ], 422);
+        }
+
+        $montantDemande = (float) $demande->montant;
+        $deviseDemande  = $demande->devise_code;
         try {
-            DB::transaction(function () use ($demande, $coffre, $soldeCoffre, $soldeGuichet, $request) {
+            DB::transaction(function () use ($demande, $coffre, $guichetDest, $request, &$montantDemande, &$deviseDemande) {
+                $demandeVerrouillee = MouvementInterCaisse::where('id', $demande->id)
+                    ->where('type_flux', 'DEMANDE_APPRO')
+                    ->where('statut', 'EN_ATTENTE')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$demandeVerrouillee) {
+                    throw ValidationException::withMessages([
+                        'demande' => 'Cette demande a déjà été traitée par un autre utilisateur.',
+                    ]);
+                }
+
+                $soldeCoffre = CaissesGuichetSolde::where('guichet_id', $coffre->id)
+                    ->where('devise_code', $demandeVerrouillee->devise_code)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$soldeCoffre || (float) $soldeCoffre->solde_en_caisse < (float) $demandeVerrouillee->montant) {
+                    $dispo = $soldeCoffre ? number_format((float) $soldeCoffre->solde_en_caisse, 2, ',', ' ') : '0,00';
+                    throw ValidationException::withMessages([
+                        'montant' => 'Fonds insuffisants dans le coffre. Disponible : ' . $dispo . ' ' . $demandeVerrouillee->devise_code,
+                    ]);
+                }
+
+                $soldeGuichet = CaissesGuichetSolde::where('guichet_id', $guichetDest->id)
+                    ->where('devise_code', $demandeVerrouillee->devise_code)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$soldeGuichet) {
+                    throw ValidationException::withMessages([
+                        'devise_code' => 'Le guichet ne gère pas la devise ' . $demandeVerrouillee->devise_code . '.',
+                    ]);
+                }
+
                 // Met à jour le mouvement existant (EN_ATTENTE → CONFIRME)
-                $demande->update([
+                $demandeVerrouillee->update([
                     'guichet_source_id'    => $coffre->id,   // on fixe le coffre comme source
                     'statut'               => 'CONFIRME',
                     'validateur_matricule' => Auth::user()->agent_matricule,
-                    'observations'         => ($demande->observations ? $demande->observations . ' | ' : '')
+                    'observations'         => ($demandeVerrouillee->observations ? $demandeVerrouillee->observations . ' | ' : '')
                                              . 'Approuvé' . ($request->observations ? ' : ' . $request->observations : ''),
                 ]);
 
-                $soldeCoffre->decrement('solde_en_caisse', (float) $demande->montant);
-                $soldeGuichet->increment('solde_en_caisse', (float) $demande->montant);
+                $soldeCoffre->decrement('solde_en_caisse', (float) $demandeVerrouillee->montant);
+                $soldeGuichet->increment('solde_en_caisse', (float) $demandeVerrouillee->montant);
+
+                $montantDemande = (float) $demandeVerrouillee->montant;
+                $deviseDemande  = $demandeVerrouillee->devise_code;
             });
+        } catch (ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first() ?? 'Données invalides.';
+            return response()->json(['success' => false, 'message' => $message], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erreur.: ' . $e->getMessage()], 500);
         }
 
-        $guichetCode = $demande->guichetDest?->code_guichet ?? 'le guichet';
+        $guichetCode = $guichetDest->code_guichet ?? 'le guichet';
         return response()->json([
             'success' => true,
             'message' => 'Demande #' . $demande->id . ' approuvée. '
-                       . number_format((float) $demande->montant, 2, ',', ' ') . ' ' . $demande->devise_code
+                       . number_format($montantDemande, 2, ',', ' ') . ' ' . $deviseDemande
                        . ' transférés vers ' . $guichetCode . '.',
         ]);
     }
@@ -911,8 +1168,11 @@ class TresorerieController extends Controller
     public function agentsMobiles(Request $request)
     {
         $guichetsMobiles = CaissesGuichet::where('type_guichet', 'MOBILE')->pluck('id')->toArray();
+        $allowedMobileTypes = \App\Models\Caisse\Transaction::allowedTypesForGuichetType('MOBILE');
+        $operationTypeOptions = \App\Models\Caisse\Transaction::operationTypeOptions('MOBILE');
 
         $query = \App\Models\Caisse\Transaction::whereIn('guichet_id', $guichetsMobiles)
+            ->whereIn('type', $allowedMobileTypes)
             ->where('statut', 'CONFIRME')
             ->with(['guichet', 'compte.client']);
 
@@ -932,7 +1192,7 @@ class TresorerieController extends Controller
         if ($request->filled('devise_code') && $request->devise_code !== 'tous') {
             $query->where('devise_code', $request->devise_code);
         }
-        if ($request->filled('type_operation') && $request->type_operation !== 'tous') {
+        if ($request->filled('type_operation') && $request->type_operation !== 'tous' && in_array($request->type_operation, $allowedMobileTypes, true)) {
             $query->where('type', $request->type_operation);
         }
 
@@ -988,7 +1248,7 @@ class TresorerieController extends Controller
         $devises = \App\Models\Tresorerie\Devise::orderBy('code_iso')->get();
 
         return view('tresorerie.agents_mobiles', compact(
-            'parAgent', 'transactions', 'agents', 'zones', 'devises'
+            'parAgent', 'transactions', 'agents', 'zones', 'devises', 'operationTypeOptions'
         ));
     }
 
@@ -998,8 +1258,10 @@ class TresorerieController extends Controller
     public function agentsMobilesPdf(Request $request)
     {
         $guichetsMobiles = CaissesGuichet::where('type_guichet', 'MOBILE')->pluck('id')->toArray();
+        $allowedMobileTypes = \App\Models\Caisse\Transaction::allowedTypesForGuichetType('MOBILE');
 
         $query = \App\Models\Caisse\Transaction::whereIn('guichet_id', $guichetsMobiles)
+            ->whereIn('type', $allowedMobileTypes)
             ->where('statut', 'CONFIRME')
             ->with(['guichet', 'compte.client']);
 
@@ -1018,7 +1280,7 @@ class TresorerieController extends Controller
         if ($request->filled('devise_code') && $request->devise_code !== 'tous') {
             $query->where('devise_code', $request->devise_code);
         }
-        if ($request->filled('type_operation') && $request->type_operation !== 'tous') {
+        if ($request->filled('type_operation') && $request->type_operation !== 'tous' && in_array($request->type_operation, $allowedMobileTypes, true)) {
             $query->where('type', $request->type_operation);
         }
         if ($request->filled('code_zone')) {

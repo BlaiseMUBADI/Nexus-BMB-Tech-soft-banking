@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page_title', 'Liste des comptes')
+@section('page_title', 'Liste des comptes' . (($zoneRestriction['active'] ?? false) && !empty($zoneRestriction['zone_label']) ? ' (' . $zoneRestriction['zone_label'] . ')' : ''))
 @section('breadcrumb_parent', 'Gestion des comptes')
 @section('breadcrumb', 'Liste des comptes')
 
@@ -123,11 +123,13 @@
                         <span class="input-group-text"><i class="fas fa-search"></i></span>
                     </div>
                 </div>
-                <button type="button" class="btn btn-secondary btn-sm mr-2"
-                        data-toggle="modal" data-target="#modalImpressionComptes"
-                        title="Imprimer la liste">
-                    <i class="fas fa-print mr-1"></i> Imprimer
-                </button>
+                @if($canPrintDocuments ?? true)
+                    <button type="button" class="btn btn-secondary btn-sm mr-2"
+                            data-toggle="modal" data-target="#modalImpressionComptes"
+                            title="Imprimer la liste">
+                        <i class="fas fa-print mr-1"></i> Imprimer
+                    </button>
+                @endif
                 <a href="{{ route('comptes.create') }}" class="btn btn-primary btn-sm">
                     <i class="fas fa-plus-circle mr-1"></i> Ouvrir un compte
                 </a>
@@ -196,10 +198,12 @@
                                    class="btn btn-xs btn-warning mr-1" title="Modifier">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{{ route('comptes.rib', $compte->code_compte) }}"
-                                   target="_blank" class="btn btn-xs btn-secondary mr-1" title="RIB PDF">
-                                    <i class="fas fa-file-pdf"></i>
-                                </a>
+                                @if($canPrintDocuments ?? true)
+                                    <a href="{{ route('comptes.rib', $compte->code_compte) }}"
+                                       target="_blank" class="btn btn-xs btn-secondary mr-1" title="RIB PDF">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                @endif
                                 <button type="button"
                                         class="btn btn-xs btn-danger btn-delete-compte"
                                         data-id="{{ $compte->code_compte }}"
@@ -225,149 +229,155 @@
 </div>
 
 {{-- ===== Modal Impression Liste Comptes ===== --}}
-<div class="modal fade" id="modalImpressionComptes" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-secondary text-white py-2">
-                <h5 class="modal-title"><i class="fas fa-print mr-2"></i>Paramètres d'impression — Comptes</h5>
-                <button type="button" class="close text-white" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <form id="formImpressionComptes" action="{{ route('comptes.liste.pdf') }}" method="GET" target="_blank">
-                <div class="modal-body">
-                    <div class="row">
-                        {{-- Type de compte --}}
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Type de compte</label>
-                                <select name="type" class="form-control form-control-sm">
-                                    <option value="tous">— Tous les types —</option>
-                                    <option value="CC">Compte Courant (CC)</option>
-                                    <option value="RMB">Remboursement (RMB)</option>
-                                    <option value="GTC">Caution (GTC)</option>
-                                    <option value="DAT">Dépôt à Terme (DAT)</option>
-                                    <option value="EAV">Épargne & Vie (EAV)</option>
-                                </select>
-                            </div>
-                        </div>
-                        {{-- Devise --}}
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Devise</label>
-                                <select name="devise" class="form-control form-control-sm">
-                                    <option value="tous">— Toutes les devises —</option>
-                                    @foreach($devises as $d)
-                                        <option value="{{ $d->code_iso }}">{{ $d->nom }} ({{ $d->code_iso }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        {{-- Zone du client --}}
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Zone du titulaire</label>
-                                <select name="code_zone" class="form-control form-control-sm">
-                                    <option value="">— Toutes les zones —</option>
-                                    @foreach($zones as $z)
-                                        <option value="{{ $z->code_zone }}">{{ $z->nom }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        {{-- État du solde --}}
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">État du solde réel</label>
-                                <select name="etat_solde" class="form-control form-control-sm">
-                                    <option value="tous">— Tous —</option>
-                                    <option value="positif">Solde positif (&gt; 0)</option>
-                                    <option value="nul">Solde nul (= 0)</option>
-                                    <option value="negatif">Solde négatif (&lt; 0)</option>
-                                </select>
-                            </div>
-                        </div>
-                        {{-- Plage de dates d'ouverture --}}
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Ouvert à partir du</label>
-                                <input type="date" name="date_debut" class="form-control form-control-sm">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Ouvert jusqu'au</label>
-                                <input type="date" name="date_fin" class="form-control form-control-sm">
-                            </div>
-                        </div>
-                        {{-- Plage de solde --}}
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Solde réel minimum</label>
-                                <input type="number" name="solde_min" step="0.01" placeholder="ex: 0"
-                                       class="form-control form-control-sm">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Solde réel maximum</label>
-                                <input type="number" name="solde_max" step="0.01" placeholder="ex: 100000"
-                                       class="form-control form-control-sm">
-                            </div>
-                        </div>
-                        {{-- Portefeuille --}}
-                        <div class="col-md-12">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Portefeuille (Agent commercial)</label>
-                                <select name="portefeuille_id" class="form-control form-control-sm">
-                                    <option value="tous">— Tous les portefeuilles —</option>
-                                    <option value="aucun">Sans portefeuille assigné</option>
-                                    @foreach($portefeuilles as $p)
-                                        <option value="{{ $p->id }}">
-                                            {{ $p->nom_portefeuille }}
-                                            @if($p->agent)
-                                                &mdash; {{ $p->agent->nom }} {{ $p->agent->prenom }}
-                                                ({{ $p->agent->matricule }})
-                                            @endif
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="alert alert-info py-1 small mb-0">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        Laissez vide pour ne pas filtrer. Le PDF s'ouvre en paysage dans un nouvel onglet.
-                    </div>
-                </div>
-                <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-sm btn-primary">
-                        <i class="fas fa-file-pdf mr-1"></i> Générer le PDF
+@if($canPrintDocuments ?? true)
+    <div class="modal fade" id="modalImpressionComptes" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white py-2">
+                    <h5 class="modal-title"><i class="fas fa-print mr-2"></i>Paramètres d'impression — Comptes</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
                     </button>
                 </div>
-            </form>
+                <form id="formImpressionComptes" action="{{ route('comptes.liste.pdf') }}" method="GET" target="_blank">
+                    <div class="modal-body">
+                        <div class="row">
+                            {{-- Type de compte --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Type de compte</label>
+                                    <select name="type" class="form-control form-control-sm">
+                                        <option value="tous">— Tous les types —</option>
+                                        <option value="CC">Compte Courant (CC)</option>
+                                        <option value="RMB">Remboursement (RMB)</option>
+                                        <option value="GTC">Caution (GTC)</option>
+                                        <option value="DAT">Dépôt à Terme (DAT)</option>
+                                        <option value="EAV">Épargne & Vie (EAV)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {{-- Devise --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Devise</label>
+                                    <select name="devise" class="form-control form-control-sm">
+                                        <option value="tous">— Toutes les devises —</option>
+                                        @foreach($devises as $d)
+                                            <option value="{{ $d->code_iso }}">{{ $d->nom }} ({{ $d->code_iso }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            {{-- Zone du client --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Zone du titulaire</label>
+                                    <select name="code_zone" class="form-control form-control-sm">
+                                        <option value="">— Toutes les zones —</option>
+                                        @foreach($zones as $z)
+                                            <option value="{{ $z->code_zone }}">{{ $z->nom }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            {{-- État du solde --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">État du solde réel</label>
+                                    <select name="etat_solde" class="form-control form-control-sm">
+                                        <option value="tous">— Tous —</option>
+                                        <option value="positif">Solde positif (&gt; 0)</option>
+                                        <option value="nul">Solde nul (= 0)</option>
+                                        <option value="negatif">Solde négatif (&lt; 0)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {{-- Plage de dates d'ouverture --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Ouvert à partir du</label>
+                                    <input type="date" name="date_debut" class="form-control form-control-sm">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Ouvert jusqu'au</label>
+                                    <input type="date" name="date_fin" class="form-control form-control-sm">
+                                </div>
+                            </div>
+                            {{-- Plage de solde --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Solde réel minimum</label>
+                                    <input type="number" name="solde_min" step="0.01" placeholder="ex: 0"
+                                           class="form-control form-control-sm">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Solde réel maximum</label>
+                                    <input type="number" name="solde_max" step="0.01" placeholder="ex: 100000"
+                                           class="form-control form-control-sm">
+                                </div>
+                            </div>
+                            {{-- Portefeuille --}}
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Portefeuille (Agent commercial)</label>
+                                    <select name="portefeuille_id" class="form-control form-control-sm">
+                                        <option value="tous">— Tous les portefeuilles —</option>
+                                        <option value="aucun">Sans portefeuille assigné</option>
+                                        @foreach($portefeuilles as $p)
+                                            <option value="{{ $p->id }}">
+                                                {{ $p->nom_portefeuille }}
+                                                @if($p->agent)
+                                                    &mdash; {{ $p->agent->nom }} {{ $p->agent->prenom }}
+                                                    ({{ $p->agent->matricule }})
+                                                @endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-info py-1 small mb-0">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Laissez vide pour ne pas filtrer. Le PDF s'ouvre en paysage dans un nouvel onglet.
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-file-pdf mr-1"></i> Générer le PDF
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
+@endif
 
 {{-- ── Context menu (clic droit) ─────────────────────── --}}
 <div id="contextMenuCompte">
     <div class="ctx-header"><i class="fas fa-university mr-2"></i>Actions sur le compte</div>
     <div class="ctx-section">
         <ul>
-            <li><a href="#" class="ctx-item" id="ctxRIB"><i class="fas fa-file-alt"></i> Imprimer RIB / IBAN</a></li>
-            <li><a href="#" class="ctx-item"><i class="fas fa-file-contract"></i> Convention de compte</a></li>
-            <li><a href="#" class="ctx-item"><i class="fas fa-certificate"></i> Certificat d'ouverture</a></li>
-            <li><a href="#" class="ctx-item" id="ctxReleve"><i class="fas fa-list-alt text-success"></i> Relevé bancaire</a></li>
+            @if($canPrintDocuments ?? true)
+                <li><a href="#" class="ctx-item" id="ctxRIB"><i class="fas fa-file-alt"></i> Imprimer RIB / IBAN</a></li>
+                <li><a href="#" class="ctx-item"><i class="fas fa-file-contract"></i> Convention de compte</a></li>
+                <li><a href="#" class="ctx-item"><i class="fas fa-certificate"></i> Certificat d'ouverture</a></li>
+                <li><a href="#" class="ctx-item" id="ctxReleve"><i class="fas fa-list-alt text-success"></i> Relevé bancaire</a></li>
+            @endif
             <li><a href="#" class="ctx-item" id="ctxHistorique"><i class="fas fa-history text-primary"></i> Historique des mouvements</a></li>
-            <li><a href="#" class="ctx-item"><i class="fas fa-receipt"></i> Avis d'opération</a></li>
-            <li><a href="#" class="ctx-item"><i class="fas fa-chart-line"></i> Échelle d'intérêts</a></li>
-            <li><a href="#" class="ctx-item"><i class="fas fa-table"></i> Tableau d'amortissement</a></li>
-            <li><a href="#" class="ctx-item"><i class="fas fa-balance-scale"></i> Attestation de solde</a></li>
-            <li><a href="#" class="ctx-item"><i class="fas fa-check-circle"></i> Attestation de non-redevance</a></li>
-            <li><a href="#" class="ctx-item"><i class="fas fa-id-card"></i> Fiche client (KYC)</a></li>
-            <li><a href="#" class="ctx-item"><i class="fas fa-pen-nib"></i> Spécimen de signature</a></li>
+            @if($canPrintDocuments ?? true)
+                <li><a href="#" class="ctx-item"><i class="fas fa-receipt"></i> Avis d'opération</a></li>
+                <li><a href="#" class="ctx-item"><i class="fas fa-chart-line"></i> Échelle d'intérêts</a></li>
+                <li><a href="#" class="ctx-item"><i class="fas fa-table"></i> Tableau d'amortissement</a></li>
+                <li><a href="#" class="ctx-item"><i class="fas fa-balance-scale"></i> Attestation de solde</a></li>
+                <li><a href="#" class="ctx-item"><i class="fas fa-check-circle"></i> Attestation de non-redevance</a></li>
+                <li><a href="#" class="ctx-item"><i class="fas fa-id-card"></i> Fiche client (KYC)</a></li>
+                <li><a href="#" class="ctx-item"><i class="fas fa-pen-nib"></i> Spécimen de signature</a></li>
+            @endif
         </ul>
     </div>
 </div>
@@ -375,40 +385,42 @@
 {{-- ══════════════════════════════════════════════════════════════
      MODAL — Paramètres relevé bancaire
      ══════════════════════════════════════════════════════════════ --}}
-<div class="modal fade" id="modalReleve" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-sm" role="document">
-        <div class="modal-content shadow" style="border-radius:12px;overflow:hidden;">
-            <div class="modal-header py-2" style="background:linear-gradient(90deg,#059669 0%,#047857 100%);">
-                <h6 class="modal-title text-white mb-0">
-                    <i class="fas fa-list-alt mr-2"></i>Relevé bancaire
-                </h6>
-                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p class="small text-muted mb-2">
-                    <i class="fas fa-university mr-1 text-success"></i>
-                    Compte&nbsp;: <strong id="releveCompteCode">—</strong>
-                </p>
-                <div class="form-group mb-2">
-                    <label class="small font-weight-bold">Période du</label>
-                    <input type="date" id="releveDebut" class="form-control form-control-sm"
-                           value="{{ now()->startOfMonth()->toDateString() }}">
+@if($canPrintDocuments ?? true)
+    <div class="modal fade" id="modalReleve" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content shadow" style="border-radius:12px;overflow:hidden;">
+                <div class="modal-header py-2" style="background:linear-gradient(90deg,#059669 0%,#047857 100%);">
+                    <h6 class="modal-title text-white mb-0">
+                        <i class="fas fa-list-alt mr-2"></i>Relevé bancaire
+                    </h6>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
                 </div>
-                <div class="form-group mb-0">
-                    <label class="small font-weight-bold">Au</label>
-                    <input type="date" id="releveFin" class="form-control form-control-sm"
-                           value="{{ now()->toDateString() }}">
+                <div class="modal-body">
+                    <p class="small text-muted mb-2">
+                        <i class="fas fa-university mr-1 text-success"></i>
+                        Compte&nbsp;: <strong id="releveCompteCode">—</strong>
+                    </p>
+                    <div class="form-group mb-2">
+                        <label class="small font-weight-bold">Période du</label>
+                        <input type="date" id="releveDebut" class="form-control form-control-sm"
+                               value="{{ now()->startOfMonth()->toDateString() }}">
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="small font-weight-bold">Au</label>
+                        <input type="date" id="releveFin" class="form-control form-control-sm"
+                               value="{{ now()->toDateString() }}">
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-sm btn-success" id="btnGenererReleve">
-                    <i class="fas fa-file-pdf mr-1"></i>Générer PDF
-                </button>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-sm btn-success" id="btnGenererReleve">
+                        <i class="fas fa-file-pdf mr-1"></i>Générer PDF
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+@endif
 
 @endsection
 

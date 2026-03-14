@@ -12,6 +12,11 @@ use App\Models\Caisse\CaissesGuichet;
 use App\Models\Caisse\CaissesGuichetSolde;
 use App\Models\Caisse\MouvementInterCaisse;
 use App\Models\Caisse\Transaction;
+use App\Models\Tresorerie\CommissionRule;
+use App\Services\Comptabilite\OhadaAccountingService;
+use App\Services\Commissions\CommissionEngine;
+use App\Models\Zone;
+use Illuminate\Validation\Rule;
 
 /**
  * OperationCaisseController
@@ -49,6 +54,171 @@ class OperationCaisseController extends Controller
         return $affectation?->guichet;
     }
 
+    private function buildZoneLabel(array $zoneNames): string
+    {
+        $zoneNames = array_values(array_filter($zoneNames));
+        if (empty($zoneNames)) {
+            return '';
+        }
+
+        if (count($zoneNames) === 1) {
+            $label = trim($zoneNames[0]);
+            return preg_match('/^zones?\b/i', $label) ? $label : 'Zone ' . $label;
+        }
+
+        $joined = implode(', ', array_map('trim', $zoneNames));
+        return preg_match('/^zones?\b/i', $joined) ? $joined : 'Zones ' . $joined;
+    }
+
+    private function resolveZoneScope(): array
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        $guichet = $this->getGuichetAgent();
+
+        if (!$user || !$guichet || $guichet->type_guichet !== 'MOBILE') {
+            return ['restricted' => false, 'zone_codes' => []];
+        }
+
+        $zones = Zone::where('agent_commercial_matricule', $user->agent_matricule)
+            ->orderBy('nom')
+            ->get(['code_zone', 'nom']);
+
+        $zoneCodes = $zones->pluck('code_zone')
+            ->filter()
+            ->values()
+            ->all();
+
+        $zoneNames = $zones->pluck('nom')
+            ->filter()
+            ->values()
+            ->all();
+
+        $zoneLabel = $this->buildZoneLabel($zoneNames);
+
+        return [
+            'restricted' => true,
+            'zone_codes' => $zoneCodes,
+            'zone_names' => $zoneNames,
+            'zone_label' => $zoneLabel,
+            'agent_matricule' => $user->agent_matricule,
+        ];
+    }
+
+    private function applyZoneScopeToComptes($query, array $zoneScope)
+    {
+        if (!($zoneScope['restricted'] ?? false)) {
+            return $query;
+        }
+
+        $zoneCodes = $zoneScope['zone_codes'] ?? [];
+        if (empty($zoneCodes)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('client', fn($q) => $q->whereIn('code_zone', $zoneCodes));
+    }
+
+    private function canAccessCompte(?Compte $compte, array $zoneScope): bool
+    {
+        if (!$compte) {
+            return false;
+        }
+
+        if (!($zoneScope['restricted'] ?? false)) {
+            return true;
+        }
+
+        return in_array(optional($compte->client)->code_zone, $zoneScope['zone_codes'] ?? [], true);
+    }
+
+    private function getAllowedOperationTypes(?CaissesGuichet $guichet): array
+    {
+        return Transaction::allowedTypesForGuichetType($guichet?->type_guichet);
+    }
+
+    private function getOperationTypeOptions(?CaissesGuichet $guichet): array
+    {
+        $labels = [
+            Transaction::DEPOT => '💰 Dépôt (compte client)',
+            Transaction::RETRAIT => '💸 Retrait (compte client)',
+            Transaction::CHANGE => '🔄 Change de devises',
+            Transaction::PAIEMENT => '🧾 Paiement facture/service',
+            Transaction::REMBOURSEMENT => '↩ Remboursement',
+            Transaction::VIREMENT => '🔁 Virement',
+        ];
+
+        return collect(Transaction::operationTypeOptions($guichet?->type_guichet))
+            ->map(fn ($type) => [
+                'value' => $type['value'],
+                'label' => $labels[$type['value']] ?? $type['label'],
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function getOperationTypeFilterOptions(?CaissesGuichet $guichet): array
+    {
+        return Transaction::operationTypeOptions($guichet?->type_guichet);
+    }
+
+    private function buildCommissionContext(string $type, ?Compte $compteOperation, ?CaissesGuichet $guichet, string $devise, float $montant, ?string $agentMatricule): array
+    {
+        return [
+            'code_operation' => $type,
+            'type_compte' => $compteOperation?->type ?? CommissionRule::TYPE_NO_ACCOUNT,
+            'type_guichet' => strtoupper((string) ($guichet?->type_guichet ?? CommissionRule::ALL)),
+            'devise_code' => $devise,
+            'code_zone' => $compteOperation?->client?->code_zone,
+            'portefeuille_id' => $compteOperation?->portefeuille_id,
+            'montant' => $montant,
+            'agent_matricule' => $agentMatricule,
+            'guichet_id' => $guichet?->id,
+        ];
+    }
+
+    private function previewCommissionAmount(CommissionEngine $commissionEngine, array $commissionContext): float
+    {
+        $rule = $commissionEngine->resolveRule($commissionContext, now());
+        if (!$rule) {
+            return 0.0;
+        }
+
+        return $commissionEngine->calculateCommission($rule, (float) ($commissionContext['montant'] ?? 0));
+    }
+
+    private function computeCompteImpact(string $type, float $montant, float $commission): array
+    {
+        $commission = max(0, round($commission, 2));
+        $montant = max(0, round($montant, 2));
+
+        if ($type === Transaction::DEPOT) {
+            $delta = round($montant - $commission, 2);
+
+            return [
+                'delta' => $delta,
+                'total_client' => $delta,
+                'sens' => 'CREDIT',
+            ];
+        }
+
+        if ($type === Transaction::RETRAIT) {
+            $totalDebite = round($montant + $commission, 2);
+
+            return [
+                'delta' => -$totalDebite,
+                'total_client' => $totalDebite,
+                'sens' => 'DEBIT',
+            ];
+        }
+
+        return [
+            'delta' => 0.0,
+            'total_client' => null,
+            'sens' => null,
+        ];
+    }
+
     // ══════════════════════════════════════════════════════════════
     //  1. OPÉRATIONS DE CAISSE
     // ══════════════════════════════════════════════════════════════
@@ -62,6 +232,7 @@ class OperationCaisseController extends Controller
         /** @var \App\Models\User $user */
         $user    = Auth::user();
         $guichet = $this->getGuichetAgent();
+        $zoneScope = $this->resolveZoneScope();
 
         $operations = [];
         if ($guichet) {
@@ -72,12 +243,22 @@ class OperationCaisseController extends Controller
                 ->get();
         }
 
-        $comptes = \App\Models\Clients\Compte::with('client')
+        $comptesQuery = \App\Models\Clients\Compte::with('client')
             ->orderBy('devise')
-            ->orderBy('code_compte')
-            ->get();
+            ->orderBy('code_compte');
+        $this->applyZoneScopeToComptes($comptesQuery, $zoneScope);
+        $comptes = $comptesQuery->get();
 
-        return view('Caisse_Guichet.operations', compact('guichet', 'user', 'operations', 'comptes'));
+        $zoneRestriction = [
+            'active' => (bool) ($zoneScope['restricted'] ?? false),
+            'zone_count' => count($zoneScope['zone_codes'] ?? []),
+            'zone_names' => $zoneScope['zone_names'] ?? [],
+            'zone_label' => $zoneScope['zone_label'] ?? '',
+        ];
+
+        $operationTypeOptions = $this->getOperationTypeOptions($guichet);
+
+        return view('Caisse_Guichet.operations', compact('guichet', 'user', 'operations', 'comptes', 'zoneRestriction', 'operationTypeOptions'));
     }
 
     /**
@@ -90,20 +271,31 @@ class OperationCaisseController extends Controller
      * REMBOURSEMENT → solde guichet diminue (espèces, sans compte)
      * CHANGE      → solde +montant(devise_code), -montant_dest(devise_dest)
      */
-    public function store(Request $request)
+    public function store(Request $request, CommissionEngine $commissionEngine, OhadaAccountingService $accountingService)
     {
+        /** @var \App\Models\User $user */
+        $user    = Auth::user();
+        $guichet = $this->getGuichetAgent();
+
+        if (!$guichet) {
+            return response()->json(['success' => false, 'message' => 'Aucun guichet affecté à votre compte.'], 422);
+        }
+
+        $allowedTypes = $this->getAllowedOperationTypes($guichet);
+
         $request->validate([
-            'type_operation' => 'required|in:DEPOT,RETRAIT,CHANGE,PAIEMENT,REMBOURSEMENT',
+            'type_operation' => ['required', Rule::in($allowedTypes)],
             'devise_code'    => 'required|exists:tb_devises,code_iso',
             'montant'        => 'required|numeric|min:0.01',
             'observations'   => 'nullable|string|max:500',
-            // Compte client — obligatoire pour DEPOT et RETRAIT
             'compte_code'    => 'required_if:type_operation,DEPOT,RETRAIT|nullable|exists:tb_comptes,code_compte',
-            // Champs obligatoires uniquement pour CHANGE
             'devise_dest'    => 'required_if:type_operation,CHANGE|nullable|exists:tb_devises,code_iso|different:devise_code',
             'montant_dest'   => 'required_if:type_operation,CHANGE|nullable|numeric|min:0.01',
             'taux_change'    => 'nullable|numeric|min:0',
         ], [
+            'type_operation.in'        => $guichet->type_guichet === 'MOBILE'
+                ? 'Cette opération n\'est pas autorisée sur un guichet mobile.'
+                : 'Type d\'opération invalide.',
             'compte_code.required_if'  => 'Le compte client est obligatoire pour un dépôt ou un retrait.',
             'compte_code.exists'       => 'Le numéro de compte est introuvable.',
             'devise_dest.required_if'  => 'La devise de destination est obligatoire pour un change.',
@@ -111,12 +303,11 @@ class OperationCaisseController extends Controller
             'devise_dest.different'    => 'Les deux devises doivent être différentes.',
         ]);
 
-        /** @var \App\Models\User $user */
-        $user    = Auth::user();
-        $guichet = $this->getGuichetAgent();
-
-        if (!$guichet) {
-            return response()->json(['success' => false, 'message' => 'Aucun guichet affecté à votre compte.'], 422);
+        if ($guichet->type_guichet === 'MOBILE' && in_array($request->type_operation, [Transaction::RETRAIT, Transaction::VIREMENT], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Les opérations de retrait et de virement sont interdites sur un guichet mobile.',
+            ], 403);
         }
 
         if ($guichet->statut_operationnel !== 'OUVERT') {
@@ -132,6 +323,48 @@ class OperationCaisseController extends Controller
         $type    = $request->type_operation;
         $montant = (float) $request->montant;
         $devise  = $request->devise_code;
+        $zoneScope = $this->resolveZoneScope();
+
+        $compteOperation = null;
+        if (in_array($type, [Transaction::DEPOT, Transaction::RETRAIT], true)) {
+            $compteOperation = Compte::with('client')->where('code_compte', $request->compte_code)->first();
+            if (!$compteOperation) {
+                return response()->json(['success' => false, 'message' => 'Compte client introuvable.'], 422);
+            }
+
+            if (!$this->canAccessCompte($compteOperation, $zoneScope)) {
+                Log::warning('[Caisse] Opération refusée hors zone', [
+                    'type_operation' => $type,
+                    'compte_code' => $request->compte_code,
+                    'agent_matricule' => $user->agent_matricule,
+                    'ip' => request()->ip(),
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Accès refusé : ce compte client est hors de votre zone affectée.',
+                ], 403);
+            }
+        }
+
+        $commissionContext = $this->buildCommissionContext(
+            $type,
+            $compteOperation,
+            $guichet,
+            $devise,
+            $montant,
+            $user->agent_matricule
+        );
+
+        $commissionPreviewAmount = $this->previewCommissionAmount($commissionEngine, $commissionContext);
+        $compteImpact = $this->computeCompteImpact($type, $montant, $commissionPreviewAmount);
+        $soldeCompteAvant = $compteOperation ? (float) $compteOperation->solde_reel : null;
+
+        if ($type === Transaction::DEPOT && $compteOperation && $compteImpact['delta'] <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Commission invalide : le montant net credite au client doit etre strictement positif.',
+            ], 422);
+        }
 
         // Récupérer le solde pour la devise source
         $solde = CaissesGuichetSolde::where('guichet_id', $guichet->id)
@@ -157,19 +390,18 @@ class OperationCaisseController extends Controller
             }
         }
 
-        // Pour un RETRAIT : vérifier aussi le solde du compte client
+        // Pour un RETRAIT : vérifier aussi le solde du compte client (montant + commission)
         if ($type === Transaction::RETRAIT && $request->filled('compte_code')) {
-            $compte = Compte::where('code_compte', $request->compte_code)->first();
-            if (!$compte) {
-                return response()->json(['success' => false, 'message' => 'Compte client introuvable.'], 422);
-            }
-            if ((float) $compte->solde_reel < $montant) {
+            $totalDebiteClient = (float) $compteImpact['total_client'];
+            if ((float) $compteOperation->solde_reel < $totalDebiteClient) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Solde compte insuffisant. Disponible sur le compte '
-                               . $compte->code_compte . ' : '
-                               . number_format((float)$compte->solde_reel, 2, ',', ' ')
-                               . ' ' . $compte->devise . '.',
+                               . $compteOperation->code_compte . ' : '
+                               . number_format((float)$compteOperation->solde_reel, 2, ',', ' ')
+                               . ' ' . $compteOperation->devise . '. Montant total debite (avec commission) : '
+                               . number_format($totalDebiteClient, 2, ',', ' ')
+                               . ' ' . $compteOperation->devise . '.',
                 ], 422);
             }
         }
@@ -204,11 +436,16 @@ class OperationCaisseController extends Controller
         $reference = 'OP-' . now()->format('Ymd-His') . '-'
                    . strtoupper(substr($user->agent_matricule ?? 'XXXX', 0, 4));
 
+        $transaction = null;
+        $commissionSnapshot = null;
+        $soldeCompteApres = $compteOperation ? round($soldeCompteAvant + (float) $compteImpact['delta'], 2) : null;
+        $finalCompteDelta = (float) $compteImpact['delta'];
+
         try {
-            DB::transaction(function () use ($request, $guichet, $user, $type, $montant, $devise, $reference) {
+            DB::transaction(function () use ($request, $guichet, $user, $type, $montant, $devise, $reference, $commissionEngine, $accountingService, $compteOperation, $commissionContext, $commissionPreviewAmount, $soldeCompteAvant, &$soldeCompteApres, &$finalCompteDelta, &$transaction, &$commissionSnapshot) {
 
                 // 1. Enregistrer l'opération
-                Transaction::create([
+                $transaction = Transaction::create([
                     'reference'       => $reference,
                     'guichet_id'      => $guichet->id,
                     'agent_matricule' => $user->agent_matricule,
@@ -224,6 +461,15 @@ class OperationCaisseController extends Controller
                     'observations'    => $request->observations,
                     'statut'          => Transaction::CONFIRME,
                     'date_operation'  => now(),
+                    'montant_commission_total' => $commissionPreviewAmount,
+                    'solde_compte_avant' => $soldeCompteAvant,
+                    'solde_compte_apres' => $soldeCompteApres,
+                    'montant_total_client' => in_array($type, [Transaction::DEPOT, Transaction::RETRAIT], true)
+                        ? abs($finalCompteDelta)
+                        : null,
+                    'montant_net_client' => in_array($type, [Transaction::DEPOT, Transaction::RETRAIT], true)
+                        ? $finalCompteDelta
+                        : null,
                 ]);
 
                 // 2. Mettre à jour les soldes
@@ -233,9 +479,14 @@ class OperationCaisseController extends Controller
                         CaissesGuichetSolde::where('guichet_id', $guichet->id)
                             ->where('devise_code', $devise)
                             ->increment('solde_en_caisse', $montant);
-                        // Créditer le compte client
-                        Compte::where('code_compte', $request->compte_code)
-                            ->increment('solde_reel', $montant);
+                        // Crédit net du compte client (montant - commission)
+                        if ($finalCompteDelta >= 0) {
+                            Compte::where('code_compte', $request->compte_code)
+                                ->increment('solde_reel', $finalCompteDelta);
+                        } else {
+                            Compte::where('code_compte', $request->compte_code)
+                                ->decrement('solde_reel', abs($finalCompteDelta));
+                        }
                         break;
 
                     case Transaction::RETRAIT:
@@ -243,9 +494,9 @@ class OperationCaisseController extends Controller
                         CaissesGuichetSolde::where('guichet_id', $guichet->id)
                             ->where('devise_code', $devise)
                             ->decrement('solde_en_caisse', $montant);
-                        // Débiter le compte client
+                        // Débit compte client (montant + commission)
                         Compte::where('code_compte', $request->compte_code)
-                            ->decrement('solde_reel', $montant);
+                            ->decrement('solde_reel', abs($finalCompteDelta));
                         break;
 
                     case Transaction::PAIEMENT:
@@ -275,6 +526,52 @@ class OperationCaisseController extends Controller
                             ->decrement('solde_en_caisse', $montantDest);
                         break;
                 }
+
+                $commissionSnapshot = $commissionEngine->applyToTransaction($transaction, $commissionContext);
+
+                $commissionFinale = (float) ($commissionSnapshot?->montant_commission ?? 0);
+                $ecartCommission = round($commissionFinale - $commissionPreviewAmount, 2);
+
+                if (in_array($type, [Transaction::DEPOT, Transaction::RETRAIT], true) && $compteOperation && $ecartCommission !== 0.0) {
+                    // Ajuster le compte client si la commission finale diffère de la prévisualisation.
+                    if ($ecartCommission > 0) {
+                        Compte::where('code_compte', $request->compte_code)->decrement('solde_reel', $ecartCommission);
+                    } else {
+                        Compte::where('code_compte', $request->compte_code)->increment('solde_reel', abs($ecartCommission));
+                    }
+
+                    $finalCompteDelta = round($finalCompteDelta - $ecartCommission, 2);
+                }
+
+                $soldeCompteApres = $soldeCompteAvant !== null
+                    ? round($soldeCompteAvant + $finalCompteDelta, 2)
+                    : null;
+
+                $transaction->forceFill([
+                    'montant_commission_total' => $commissionFinale,
+                    'solde_compte_apres' => $soldeCompteApres,
+                    'montant_total_client' => in_array($type, [Transaction::DEPOT, Transaction::RETRAIT], true)
+                        ? abs($finalCompteDelta)
+                        : null,
+                    'montant_net_client' => in_array($type, [Transaction::DEPOT, Transaction::RETRAIT], true)
+                        ? $finalCompteDelta
+                        : null,
+                ])->save();
+
+                $accountingService->postTransaction($transaction, [
+                    'commission' => $commissionFinale,
+                    'agent_matricule' => $user->agent_matricule,
+                    'commission_trace' => [
+                        'snapshot_id' => $commissionSnapshot?->id,
+                        'rule_id' => $commissionSnapshot?->commission_rule_id,
+                        'libelle' => $commissionSnapshot?->libelle,
+                        'mode' => $commissionSnapshot?->mode_calcul,
+                        'valeur' => (float) ($commissionSnapshot?->valeur_snapshot ?? 0),
+                        'base' => (float) ($commissionSnapshot?->base_calcul ?? $transaction->montant ?? 0),
+                        'montant' => $commissionFinale,
+                        'has_rule' => (bool) ($commissionSnapshot?->commission_rule_id),
+                    ],
+                ]);
             });
         } catch (\Exception $e) {
             return response()->json([
@@ -295,9 +592,38 @@ class OperationCaisseController extends Controller
 
         $typeLabel = Transaction::typeLabel($type);
         $msg = "{$typeLabel} de " . number_format($montant, 2, ',', ' ') . " {$devise} enregistré. Réf : {$reference}";
+        if ($commissionSnapshot) {
+            $msg .= ' Commission appliquée : '
+                . number_format((float) $commissionSnapshot->montant_commission, 2, ',', ' ')
+                . ' '
+                . ($commissionSnapshot->devise_code ?: $devise)
+                . '.';
+        }
+
+        $clientOperation = null;
+        if ($transaction && in_array($type, [Transaction::DEPOT, Transaction::RETRAIT], true) && $compteOperation) {
+            $clientOperation = [
+                'compte_code' => $transaction->compte_code,
+                'solde_avant' => (float) ($transaction->solde_compte_avant ?? 0),
+                'solde_apres' => (float) ($transaction->solde_compte_apres ?? 0),
+                'montant_total_client' => (float) ($transaction->montant_total_client ?? 0),
+                'montant_net_client' => (float) ($transaction->montant_net_client ?? 0),
+                'solde_avant_fmt' => number_format((float) ($transaction->solde_compte_avant ?? 0), 2, ',', ' ') . ' ' . $compteOperation->devise,
+                'solde_apres_fmt' => number_format((float) ($transaction->solde_compte_apres ?? 0), 2, ',', ' ') . ' ' . $compteOperation->devise,
+                'montant_total_client_fmt' => number_format((float) ($transaction->montant_total_client ?? 0), 2, ',', ' ') . ' ' . $compteOperation->devise,
+                'montant_net_client_fmt' => number_format((float) ($transaction->montant_net_client ?? 0), 2, ',', ' ') . ' ' . $compteOperation->devise,
+            ];
+
+            $msg .= ' Solde client: avant '
+                . number_format((float) ($transaction->solde_compte_avant ?? 0), 2, ',', ' ')
+                . ' ' . $compteOperation->devise
+                . ' | apres '
+                . number_format((float) ($transaction->solde_compte_apres ?? 0), 2, ',', ' ')
+                . ' ' . $compteOperation->devise
+                . '.';
+        }
 
         // Retrouver l'id de la transaction fraîchement créée pour le bordereau
-        $transaction = Transaction::where('reference', $reference)->latest('id')->first();
         $bordereauUrl = $transaction
             ? route('caisses.operations.bordereau', ['id' => $transaction->id])
             : null;
@@ -308,6 +634,13 @@ class OperationCaisseController extends Controller
             'soldes'         => $soldesMaj,
             'message'        => $msg,
             'bordereau_url'  => $bordereauUrl,
+            'commission'     => $commissionSnapshot ? [
+                'montant' => (float) $commissionSnapshot->montant_commission,
+                'montant_fmt' => number_format((float) $commissionSnapshot->montant_commission, 2, ',', ' ') . ' ' . ($commissionSnapshot->devise_code ?: $devise),
+                'libelle' => $commissionSnapshot->libelle,
+                'mode_calcul' => $commissionSnapshot->mode_calcul,
+            ] : null,
+            'client_operation' => $clientOperation,
         ]);
     }
 
@@ -315,7 +648,7 @@ class OperationCaisseController extends Controller
      * Annule une opération déjà confirmée.
      * Inverse le mouvement de solde correspondant.
      */
-    public function annuler(Request $request, $id)
+    public function annuler(Request $request, $id, OhadaAccountingService $accountingService)
     {
         /** @var \App\Models\User $user */
         $user    = Auth::user();
@@ -349,13 +682,22 @@ class OperationCaisseController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($op, $guichet) {
+            DB::transaction(function () use ($op, $guichet, $user, $accountingService) {
                 $op->statut = Transaction::ANNULE;
                 $op->save();
 
                 $type    = $op->type;
                 $montant = (float) $op->montant;
                 $devise  = $op->devise_code;
+                $commission = (float) ($op->montant_commission_total ?? 0);
+
+                $montantTotalClient = $op->montant_total_client !== null
+                    ? abs((float) $op->montant_total_client)
+                    : match ($type) {
+                        Transaction::DEPOT => round(max(0, $montant - $commission), 2),
+                        Transaction::RETRAIT => round($montant + $commission, 2),
+                        default => 0.0,
+                    };
 
                 // Inverser le mouvement de solde (et de compte le cas échéant)
                 switch ($type) {
@@ -366,7 +708,7 @@ class OperationCaisseController extends Controller
                             ->decrement('solde_en_caisse', $montant);
                         if ($op->compte_code) {
                             Compte::where('code_compte', $op->compte_code)
-                                ->decrement('solde_reel', $montant);
+                                ->decrement('solde_reel', $montantTotalClient);
                         }
                         break;
 
@@ -383,7 +725,7 @@ class OperationCaisseController extends Controller
                             ->increment('solde_en_caisse', $montant);
                         if ($op->compte_code) {
                             Compte::where('code_compte', $op->compte_code)
-                                ->increment('solde_reel', $montant);
+                                ->increment('solde_reel', $montantTotalClient);
                         }
                         break;
 
@@ -406,6 +748,10 @@ class OperationCaisseController extends Controller
                         }
                         break;
                 }
+
+                $accountingService->postReversal($op, 'Annulation operation caisse', [
+                    'agent_matricule' => $user->agent_matricule,
+                ]);
             });
         } catch (\Exception $e) {
             return response()->json([
@@ -435,7 +781,9 @@ class OperationCaisseController extends Controller
             return response()->json([]);
         }
 
-        $comptes = Compte::with('client')
+        $zoneScope = $this->resolveZoneScope();
+
+        $query = Compte::with('client')
             ->where(function ($query) use ($q) {
                 $query->where('code_compte', 'like', "%{$q}%")
                       ->orWhereHas('client', fn($cq) =>
@@ -443,7 +791,11 @@ class OperationCaisseController extends Controller
                              ->orWhere('prenom', 'like', "%{$q}%")
                              ->orWhere('postnom','like', "%{$q}%")
                       );
-            })
+            });
+
+        $this->applyZoneScopeToComptes($query, $zoneScope);
+
+        $comptes = $query
             ->limit(10)
             ->get()
             ->map(fn($c) => [
@@ -470,8 +822,9 @@ class OperationCaisseController extends Controller
         /** @var \App\Models\User $user */
         $user    = Auth::user();
         $guichet = $this->getGuichetAgent();
+        $operationTypeOptions = $this->getOperationTypeFilterOptions($guichet);
 
-        return view('Caisse_Guichet.journal', compact('guichet', 'user'));
+        return view('Caisse_Guichet.journal', compact('guichet', 'user', 'operationTypeOptions'));
     }
 
     /**
@@ -490,12 +843,14 @@ class OperationCaisseController extends Controller
 
         $date = $request->filled('date') ? $request->date : today()->toDateString();
         $type = $request->input('type', 'TOUS');
+        $allowedTypes = $this->getAllowedOperationTypes($guichet);
 
         $query = Transaction::where('guichet_id', $guichet->id)
             ->whereDate('date_operation', $date)
+            ->whereIn('type', $allowedTypes)
             ->orderByDesc('date_operation');
 
-        if ($type !== 'TOUS') {
+        if ($type !== 'TOUS' && in_array($type, $allowedTypes, true)) {
             $query->where('type', $type);
         }
 
@@ -523,6 +878,7 @@ class OperationCaisseController extends Controller
         // Totaux par type (opérations confirmées uniquement)
         $toutes = Transaction::where('guichet_id', $guichet->id)
             ->whereDate('date_operation', $date)
+            ->whereIn('type', $allowedTypes)
             ->where('statut', Transaction::CONFIRME)
             ->get();
 
@@ -570,6 +926,7 @@ class OperationCaisseController extends Controller
             'total_operations' => 0,
             'par_type'         => collect(),
             'soldes_actuels'   => collect(),
+            'par_devise'       => collect(),
         ];
 
         if ($guichet) {
@@ -593,6 +950,23 @@ class OperationCaisseController extends Controller
                     'fmt'    => number_format($d->sum(fn($i) => (float)$i->montant), 2, ',', ' ') . ' ' . $dev,
                 ])->values(),
             ])->values();
+
+            $entryTypes = [Transaction::DEPOT, Transaction::PAIEMENT];
+            $exitTypes  = [Transaction::RETRAIT, Transaction::REMBOURSEMENT];
+
+            $stats['par_devise'] = $ops->groupBy('devise_code')->map(function ($items, $devise) use ($entryTypes, $exitTypes) {
+                $totalEntrees = (float) $items->whereIn('type', $entryTypes)->sum('montant');
+                $totalSorties = (float) $items->whereIn('type', $exitTypes)->sum('montant');
+
+                return [
+                    'devise' => $devise,
+                    'count' => $items->count(),
+                    'total_entrees' => $totalEntrees,
+                    'total_sorties' => $totalSorties,
+                    'net' => $totalEntrees - $totalSorties,
+                    'volume_total' => (float) $items->sum('montant'),
+                ];
+            })->sortBy('devise')->values();
 
             $stats['soldes_actuels'] = $guichet->fresh('soldes.devise')->soldes
                 ->sortBy('devise_code')
@@ -953,7 +1327,7 @@ class OperationCaisseController extends Controller
      * Superviseur approuve une demande — exécute la modification ou suppression.
      * POST /caisses/demandes-modification/{id}/approuver
      */
-    public function approuverModification(\Illuminate\Http\Request $request, $id)
+    public function approuverModification(\Illuminate\Http\Request $request, $id, CommissionEngine $commissionEngine, OhadaAccountingService $accountingService)
     {
         $request->validate([
             'commentaire' => 'nullable|string|max:500',
@@ -967,11 +1341,19 @@ class OperationCaisseController extends Controller
         $op = Transaction::with(['guichet'])->findOrFail($demande->transaction_id);
 
         try {
-            DB::transaction(function () use ($demande, $op, $user, $request) {
+            DB::transaction(function () use ($demande, $op, $user, $request, $commissionEngine, $accountingService) {
                 if ($demande->type_demande === \App\Models\Caisse\DemandeModification::SUPPRESSION) {
                     // ── Exécuter la suppression (annulation) ──────────────
                     $montant = (float) $op->montant;
                     $devise  = $op->devise_code;
+                    $commission = (float) ($op->montant_commission_total ?? 0);
+                    $montantTotalClient = $op->montant_total_client !== null
+                        ? abs((float) $op->montant_total_client)
+                        : match ($op->type) {
+                            Transaction::DEPOT => round(max(0, $montant - $commission), 2),
+                            Transaction::RETRAIT => round($montant + $commission, 2),
+                            default => 0.0,
+                        };
 
                     $op->statut = Transaction::ANNULE;
                     $op->observations = ($op->observations ? $op->observations . ' | ' : '')
@@ -985,7 +1367,7 @@ class OperationCaisseController extends Controller
                                 ->where('devise_code', $devise)
                                 ->decrement('solde_en_caisse', $montant);
                             if ($op->compte_code) {
-                                Compte::where('code_compte', $op->compte_code)->decrement('solde_reel', $montant);
+                                Compte::where('code_compte', $op->compte_code)->decrement('solde_reel', $montantTotalClient);
                             }
                             break;
                         case Transaction::RETRAIT:
@@ -993,7 +1375,7 @@ class OperationCaisseController extends Controller
                                 ->where('devise_code', $devise)
                                 ->increment('solde_en_caisse', $montant);
                             if ($op->compte_code) {
-                                Compte::where('code_compte', $op->compte_code)->increment('solde_reel', $montant);
+                                Compte::where('code_compte', $op->compte_code)->increment('solde_reel', $montantTotalClient);
                             }
                             break;
                         case Transaction::PAIEMENT:
@@ -1017,12 +1399,32 @@ class OperationCaisseController extends Controller
                             }
                             break;
                     }
+
+                    $accountingService->postReversal($op, 'Annulation sur demande superviseur', [
+                        'agent_matricule' => $user->agent_matricule,
+                    ]);
                 } else {
                     // ── Exécuter la modification ───────────────────────────
                     $ancienMontant  = (float) $op->montant;
+                    $ancienneCommission = (float) ($op->montant_commission_total ?? 0);
+                    $ancienMontantDest = (float) ($op->montant_dest ?? 0);
+                    $ancienneDeviseDest = $op->devise_dest;
+
+                    $ancienNetCompte = $op->montant_net_client !== null
+                        ? (float) $op->montant_net_client
+                        : (float) $this->computeCompteImpact($op->type, $ancienMontant, $ancienneCommission)['delta'];
+
                     $nouveauMontant = (float) $demande->nouveau_montant;
                     $diff           = $nouveauMontant - $ancienMontant;
                     $devise         = $op->devise_code;
+
+                    $accountingService->postReversal($op, 'Regularisation avant modification', [
+                        'montant' => $ancienMontant,
+                        'commission' => $ancienneCommission,
+                        'montant_dest' => $ancienMontantDest,
+                        'devise_dest' => $ancienneDeviseDest,
+                        'agent_matricule' => $user->agent_matricule,
+                    ]);
 
                     $op->montant      = $nouveauMontant;
                     $op->observations = ($demande->nouvelles_observations ?? $op->observations);
@@ -1036,17 +1438,11 @@ class OperationCaisseController extends Controller
                                 CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
                                     ->where('devise_code', $devise)
                                     ->increment('solde_en_caisse', $diff);
-                                if ($op->compte_code) {
-                                    Compte::where('code_compte', $op->compte_code)->increment('solde_reel', $diff);
-                                }
                                 break;
                             case Transaction::RETRAIT:
                                 CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
                                     ->where('devise_code', $devise)
                                     ->decrement('solde_en_caisse', $diff);
-                                if ($op->compte_code) {
-                                    Compte::where('code_compte', $op->compte_code)->decrement('solde_reel', $diff);
-                                }
                                 break;
                             case Transaction::PAIEMENT:
                                 CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
@@ -1060,6 +1456,77 @@ class OperationCaisseController extends Controller
                                 break;
                         }
                     }
+
+                    $compteOperation = $op->compte_code
+                        ? Compte::with('client')->where('code_compte', $op->compte_code)->first()
+                        : null;
+
+                    $commissionContext = $this->buildCommissionContext(
+                        $op->type,
+                        $compteOperation,
+                        $op->guichet,
+                        $op->devise_code,
+                        $nouveauMontant,
+                        $user->agent_matricule
+                    );
+
+                    $commissionPreview = $this->previewCommissionAmount($commissionEngine, $commissionContext);
+                    $impactPreview = $this->computeCompteImpact($op->type, $nouveauMontant, $commissionPreview);
+                    $nouveauNetCompte = (float) $impactPreview['delta'];
+
+                    if ($op->compte_code && in_array($op->type, [Transaction::DEPOT, Transaction::RETRAIT], true)) {
+                        $deltaCompte = round($nouveauNetCompte - $ancienNetCompte, 2);
+                        if ($deltaCompte > 0) {
+                            Compte::where('code_compte', $op->compte_code)->increment('solde_reel', $deltaCompte);
+                        } elseif ($deltaCompte < 0) {
+                            Compte::where('code_compte', $op->compte_code)->decrement('solde_reel', abs($deltaCompte));
+                        }
+                    }
+
+                    $commissionSnapshot = $commissionEngine->applyToTransaction($op, $commissionContext);
+                    $commissionFinale = (float) ($commissionSnapshot?->montant_commission ?? 0);
+                    $impactFinal = $this->computeCompteImpact($op->type, $nouveauMontant, $commissionFinale);
+                    $netFinalCompte = (float) $impactFinal['delta'];
+
+                    if ($op->compte_code && in_array($op->type, [Transaction::DEPOT, Transaction::RETRAIT], true)) {
+                        $ecartFinal = round($netFinalCompte - $nouveauNetCompte, 2);
+                        if ($ecartFinal > 0) {
+                            Compte::where('code_compte', $op->compte_code)->increment('solde_reel', $ecartFinal);
+                        } elseif ($ecartFinal < 0) {
+                            Compte::where('code_compte', $op->compte_code)->decrement('solde_reel', abs($ecartFinal));
+                        }
+                    }
+
+                    $soldeAvantSnapshot = $op->solde_compte_avant !== null ? (float) $op->solde_compte_avant : null;
+                    $soldeApresSnapshot = $soldeAvantSnapshot !== null
+                        ? round($soldeAvantSnapshot + $netFinalCompte, 2)
+                        : null;
+
+                    $op->forceFill([
+                        'montant_commission_total' => $commissionFinale,
+                        'solde_compte_apres' => $soldeApresSnapshot,
+                        'montant_total_client' => in_array($op->type, [Transaction::DEPOT, Transaction::RETRAIT], true)
+                            ? abs($netFinalCompte)
+                            : null,
+                        'montant_net_client' => in_array($op->type, [Transaction::DEPOT, Transaction::RETRAIT], true)
+                            ? $netFinalCompte
+                            : null,
+                    ])->save();
+
+                    $accountingService->postTransaction($op, [
+                        'commission' => $commissionFinale,
+                        'agent_matricule' => $user->agent_matricule,
+                        'commission_trace' => [
+                            'snapshot_id' => $commissionSnapshot?->id,
+                            'rule_id' => $commissionSnapshot?->commission_rule_id,
+                            'libelle' => $commissionSnapshot?->libelle,
+                            'mode' => $commissionSnapshot?->mode_calcul,
+                            'valeur' => (float) ($commissionSnapshot?->valeur_snapshot ?? 0),
+                            'base' => (float) ($commissionSnapshot?->base_calcul ?? $op->montant ?? 0),
+                            'montant' => $commissionFinale,
+                            'has_rule' => (bool) ($commissionSnapshot?->commission_rule_id),
+                        ],
+                    ]);
                 }
 
                 // Marquer la demande comme approuvée
@@ -1118,11 +1585,12 @@ class OperationCaisseController extends Controller
      */
     public function bordereau($id)
     {
-        $op = Transaction::with(['guichet', 'compte.client', 'devise'])->findOrFail($id);
+        $op = Transaction::with(['guichet', 'compte.client.zone', 'devise', 'commissions'])->findOrFail($id);
 
         $guichet = $op->guichet;
         $compte  = $op->compte;
         $client  = $compte?->client;
+        $zoneNom = $client?->zone?->nom;
 
         // Agent caissier
         $agentUser = \App\Models\User::with('agent')->where('agent_matricule', $op->agent_matricule)->first();
@@ -1169,7 +1637,7 @@ class OperationCaisseController extends Controller
         }
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.caisse.bordereau', compact(
-            'op', 'guichet', 'compte', 'client', 'agentNom', 'photoBase64', 'imprimeParNom', 'imprimeParProfil'
+            'op', 'guichet', 'compte', 'client', 'agentNom', 'photoBase64', 'imprimeParNom', 'imprimeParProfil', 'zoneNom'
         ));
         $pdf->setPaper([0, 0, 595.28, 420], 'landscape'); // A5 landscape (half A4)
 

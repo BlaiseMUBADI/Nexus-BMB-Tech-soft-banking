@@ -276,6 +276,7 @@
                                                     <th style="width:35px">#</th>
                                                     <th>Code</th>
                                                     <th>Intitulé</th>
+                                                    <th>Type</th>
                                                     <th>Devises &amp; Soldes</th>
                                                     <th>Titulaire actif</th>
                                                     <th class="text-center" style="width:100px">Statut</th>
@@ -288,6 +289,19 @@
                                                     <td class="text-muted">{{ $loop->iteration }}</td>
                                                     <td><strong>{{ $g->code_guichet }}</strong></td>
                                                     <td>{{ $g->intitule }}</td>
+
+                                                    {{-- Type du guichet --}}
+                                                    <td>
+                                                        @if($g->type_guichet === 'FIXE')
+                                                            <span class="badge badge-primary">FIXE</span>
+                                                        @elseif($g->type_guichet === 'MOBILE')
+                                                            <span class="badge badge-warning text-dark">MOBILE</span>
+                                                        @elseif($g->type_guichet === 'CENTRAL')
+                                                            <span class="badge badge-info">CENTRAL</span>
+                                                        @else
+                                                            <span class="badge badge-secondary">{{ $g->type_guichet ?? '—' }}</span>
+                                                        @endif
+                                                    </td>
 
                                                     {{-- Soldes par devise --}}
                                                     <td>
@@ -346,7 +360,7 @@
                                                 </tr>
                                                 @empty
                                                 <tr>
-                                                    <td colspan="7" class="text-center text-muted py-5">
+                                                    <td colspan="8" class="text-center text-muted py-5">
                                                         <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                                                         Aucun guichet enregistré.
                                                     </td>

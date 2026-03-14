@@ -29,6 +29,13 @@
         ucfirst(strtolower($client->prenom ?? ''))
     );
     $clientNomSignature = $clientNomSignature !== '' ? $clientNomSignature : 'Client';
+    $commission = $op->commissions->sortByDesc('id')->first();
+    $soldeAvantCompte = $op->solde_compte_avant !== null ? (float) $op->solde_compte_avant : null;
+    $soldeApresCompte = $op->solde_compte_apres !== null
+        ? (float) $op->solde_compte_apres
+        : ($compte ? (float) $compte->solde_reel : null);
+    $montantTotalClient = $op->montant_total_client !== null ? (float) $op->montant_total_client : null;
+    $impactClientLabel = $op->type === 'DEPOT' ? 'Montant net credite' : 'Montant total debite';
 @endphp
 
 @section('contenu')
@@ -113,11 +120,44 @@
                         {{ $estAnnule ? 'ANNULÉ' : 'CONFIRMÉ' }}
                     </td>
                 </tr>
+                @if($commission && (float) $commission->montant_commission > 0)
+                <tr>
+                    <td style="color:#666; padding:2px 0;">Commission :</td>
+                    <td style="font-weight:bold; color:#8e44ad;">
+                        {{ number_format((float) $commission->montant_commission, 2, ',', ' ') }} {{ $commission->devise_code ?: $op->devise_code }}
+                        <span style="color:#777; font-weight:normal;">({{ $commission->libelle }})</span>
+                    </td>
+                </tr>
+                @endif
                 @if($op->compte_code)
                 <tr>
                     <td style="color:#666; padding:2px 0;">N° Compte :</td>
                     <td style="font-family:'Courier New',monospace; font-size:8.5px; font-weight:bold;">
                         {{ $op->compte_code }}
+                    </td>
+                </tr>
+                @endif
+                @if($op->compte_code && $montantTotalClient !== null)
+                <tr>
+                    <td style="color:#666; padding:2px 0;">{{ $impactClientLabel }} :</td>
+                    <td style="font-weight:bold; color:#2c3e50;">
+                        {{ number_format($montantTotalClient, 2, ',', ' ') }} {{ $op->devise_code }}
+                    </td>
+                </tr>
+                @endif
+                @if($op->compte_code && $soldeAvantCompte !== null)
+                <tr>
+                    <td style="color:#666; padding:2px 0;">Solde reel avant :</td>
+                    <td style="font-weight:bold; color:#34495e;">
+                        {{ number_format($soldeAvantCompte, 2, ',', ' ') }} {{ $op->devise_code }}
+                    </td>
+                </tr>
+                @endif
+                @if($op->compte_code && $soldeApresCompte !== null)
+                <tr>
+                    <td style="color:#666; padding:2px 0;">Solde reel apres :</td>
+                    <td style="font-weight:bold; color:#1a7a4a;">
+                        {{ number_format($soldeApresCompte, 2, ',', ' ') }} {{ $op->devise_code }}
                     </td>
                 </tr>
                 @endif
@@ -166,6 +206,9 @@
                             Tél : {{ $client->telephone }}
                         </div>
                         @endif
+                        <div style="font-size:8.5px; color:#555;">
+                            Zone : <strong>{{ $zoneNom ?: '—' }}</strong>
+                        </div>
                     </div>
                 </div>
                 @if($compte)
@@ -265,6 +308,18 @@
             @if($op->type === 'CHANGE' && $op->montant_dest)
             <div style="color:#555;">→ {{ number_format((float)$op->montant_dest, 2, ',', ' ') }} {{ $op->devise_dest }}</div>
             @endif
+            @if($op->compte_code && $montantTotalClient !== null)
+            <div style="color:#555; margin-top:3px;">
+                {{ $impactClientLabel }} :
+                <strong>{{ number_format($montantTotalClient, 2, ',', ' ') }} {{ $op->devise_code }}</strong>
+            </div>
+            @endif
+            @if($op->compte_code && $soldeApresCompte !== null)
+            <div style="color:#1a7a4a; margin-top:2px;">
+                Solde reel apres :
+                <strong>{{ number_format($soldeApresCompte, 2, ',', ' ') }} {{ $op->devise_code }}</strong>
+            </div>
+            @endif
         </div>
         <div style="display:table-cell; width:34%; vertical-align:top; border-left:1px solid #dde; padding-left:10px;">
             @if($client)
@@ -278,6 +333,9 @@
                 {{ $op->compte_code }}
             </div>
             @endif
+            <div style="font-size:8px; color:#555;">
+                Zone : <strong>{{ $zoneNom ?: '—' }}</strong>
+            </div>
             @else
             <div style="color:#666; margin-bottom:1px;">Guichet</div>
             <div style="font-weight:bold;">{{ $guichet?->intitule ?? '—' }}</div>

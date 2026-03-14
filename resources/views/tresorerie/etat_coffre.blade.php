@@ -24,23 +24,27 @@
     <div class="row mb-3">
         <div class="col-12">
             <div class="card card-warning card-outline shadow elevation-2">
-                <div class="card-header d-flex align-items-center justify-content-between py-2">
+                <div class="card-header d-flex align-items-center justify-content-between py-2 coffre-header-row collapsible-card-header"
+                     data-toggle="collapse" data-target="#coffreBalancesSection"
+                     aria-expanded="true" aria-controls="coffreBalancesSection">
                     <h5 class="mb-0">
                         <i class="fas fa-lock mr-2 text-warning"></i>
                         <strong>COFFRE-FORT CENTRAL</strong>
                         <span class="badge badge-primary ml-2">{{ $coffre->code_guichet }}</span>
                         <span class="badge badge-success ml-1">{{ $coffre->statut_operationnel }}</span>
                     </h5>
-                    <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center coffre-header-tools">
                         <small class="text-muted mr-3">
                             <i class="fas fa-info-circle mr-1"></i>
                             Source unique de fonds — toute alimentation guichet débite ce coffre
                         </small>
-                        <button class="btn btn-xs btn-outline-warning" id="btnRefreshBalances">
+                        <button class="btn btn-xs btn-outline-warning stop-card-toggle" id="btnRefreshBalances">
                             <i class="fas fa-sync-alt"></i>
                         </button>
+                        <i class="fas fa-chevron-down ml-2 collapse-chevron"></i>
                     </div>
                 </div>
+                <div class="collapse show" id="coffreBalancesSection">
                 <div class="card-body py-3">
                     <div class="row" id="coffreBalancesRow">
                         @forelse($coffre->soldes as $sc)
@@ -66,6 +70,7 @@
                         @endforelse
                     </div>
                 </div>
+                </div>
             </div>
         </div>
     </div>
@@ -73,21 +78,25 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card card-outline card-secondary shadow elevation-2">
-                <div class="card-header d-flex align-items-center justify-content-between py-2">
+                <div class="card-header d-flex align-items-center justify-content-between py-2 coffre-header-row collapsible-card-header"
+                     data-toggle="collapse" data-target="#coffreActivitySection"
+                     aria-expanded="true" aria-controls="coffreActivitySection">
                     <h5 class="mb-0">
                         <i class="fas fa-chart-bar mr-2 text-secondary"></i>
                         <strong>Activité du jour</strong>
                         <small class="text-muted font-weight-normal ml-2" style="font-size:.78rem">{{ now()->format('d/m/Y') }}</small>
                     </h5>
-                    <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center coffre-activity-tools">
                         <span class="badge badge-success mr-1" id="statTotalEntrees">{{ $stats['total_entrees'] }} dégag.</span>
                         <span class="badge badge-danger mr-1" id="statTotalSorties">{{ $stats['total_sorties'] }} alim.</span>
                         <span class="badge badge-info mr-2" id="statTotalMvt">{{ $stats['total_mouvements'] }} mvt</span>
-                        <button class="btn btn-xs btn-outline-secondary" id="btnRefreshStats" title="Actualiser">
+                        <button class="btn btn-xs btn-outline-secondary stop-card-toggle" id="btnRefreshStats" title="Actualiser">
                             <i class="fas fa-sync-alt"></i>
                         </button>
+                        <i class="fas fa-chevron-down ml-2 collapse-chevron"></i>
                     </div>
                 </div>
+                <div class="collapse show" id="coffreActivitySection">
                 <div class="card-body p-0" id="statsDeviseContainer">
                     @forelse($stats['par_devise'] as $d)
                     <div class="stat-devise-block border-bottom" data-devise="{{ $d['devise_code'] }}">
@@ -147,6 +156,7 @@
                     </div>
                     @endforelse
                 </div>
+                </div>
             </div>
         </div>
     </div>
@@ -154,20 +164,27 @@
     <div class="row mb-3">
         <div class="col-12">
             <div class="card card-outline card-info shadow elevation-2">
-                <div class="card-header d-flex align-items-center justify-content-between py-2">
+                <div class="card-header d-flex align-items-center justify-content-between py-2 coffre-header-row collapsible-card-header"
+                     data-toggle="collapse" data-target="#coffreCloturesSection"
+                     aria-expanded="true" aria-controls="coffreCloturesSection">
                     <h5 class="mb-0">
                         <i class="fas fa-hourglass-half mr-2 text-info"></i>
                         <strong>Clôtures en attente de validation</strong>
                         <span class="badge badge-info ml-2" id="badgeCloturesCount" style="display:none"></span>
                     </h5>
-                    <button class="btn btn-xs btn-outline-info" id="btnRefreshClotures" title="Actualiser">
+                    <div class="d-flex align-items-center">
+                    <button class="btn btn-xs btn-outline-info stop-card-toggle" id="btnRefreshClotures" title="Actualiser">
                         <i class="fas fa-sync-alt"></i>
                     </button>
+                    <i class="fas fa-chevron-down ml-2 collapse-chevron"></i>
+                    </div>
                 </div>
+                <div class="collapse show" id="coffreCloturesSection">
                 <div class="card-body p-0" id="cloturePanelBody">
                     <div class="text-center py-4 text-muted">
                         <i class="fas fa-spinner fa-spin mr-1"></i> Chargement…
                     </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -176,13 +193,15 @@
     <div class="row">
         <div class="col-12">
             <div class="card card-outline card-primary shadow elevation-2">
-                <div class="card-header d-flex align-items-center justify-content-between py-2">
+                <div class="card-header d-flex align-items-center justify-content-between py-2 collapsible-card-header"
+                     data-toggle="collapse" data-target="#coffreDemandesSection"
+                     aria-expanded="true" aria-controls="coffreDemandesSection">
                     <h5 class="mb-0">
                         <i class="fas fa-bell mr-2 text-primary"></i>
                         <strong>Demandes d'approvisionnement</strong>
                         <span class="badge badge-danger ml-2" id="badgeDemandesCount" style="display:none"></span>
                     </h5>
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 coffre-demandes-tools">
                         {{-- Filtres statut --}}
                         <div class="btn-group btn-group-sm mr-2" role="group">
                             <button type="button" class="btn btn-outline-secondary filtre-statut active" data-statut="">Toutes</button>
@@ -192,11 +211,13 @@
                             <button type="button" class="btn btn-outline-success filtre-statut" data-statut="CONFIRME">Approuvées</button>
                             <button type="button" class="btn btn-outline-danger filtre-statut" data-statut="ANNULE">Rejetées</button>
                         </div>
-                        <button class="btn btn-sm btn-outline-primary" id="btnRefreshDemandes">
+                        <button class="btn btn-sm btn-outline-primary stop-card-toggle" id="btnRefreshDemandes">
                             <i class="fas fa-sync-alt"></i>
                         </button>
+                        <i class="fas fa-chevron-down ml-2 collapse-chevron"></i>
                     </div>
                 </div>
+                <div class="collapse show" id="coffreDemandesSection">
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover table-sm mb-0" id="tableDemandes">
@@ -222,6 +243,7 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -359,6 +381,23 @@
     .stat-devise-header:hover { background: rgba(255,255,255,.05); }
     .stat-devise-header[aria-expanded="true"] .stat-chevron { transform: rotate(180deg); }
     .stat-chevron { transition: transform .25s ease; }
+    .collapsible-card-header {
+        cursor: pointer;
+        user-select: none;
+    }
+    .collapsible-card-header:hover {
+        background: rgba(255,255,255,.03);
+    }
+    .collapsible-card-header[aria-expanded="false"] .collapse-chevron {
+        transform: rotate(-90deg);
+    }
+    .collapsible-card-header[aria-expanded="true"] .collapse-chevron {
+        transform: rotate(0deg);
+    }
+    .collapse-chevron {
+        transition: transform .2s ease;
+        color: #adb5bd;
+    }
     .stat-icon-box {
         width: 38px; height: 38px; min-width: 38px;
         border-radius: 6px;
@@ -366,6 +405,52 @@
     }
     .stat-icon-box i { color: #fff; font-size: .85rem; }
     .stat-label { font-size: .75rem; }
+
+    @media (max-width: 767.98px) {
+        .coffre-header-row,
+        .coffre-header-tools,
+        .coffre-activity-tools,
+        .coffre-demandes-tools {
+            flex-wrap: wrap;
+            align-items: flex-start !important;
+        }
+
+        .coffre-header-tools small {
+            margin-right: 0 !important;
+            width: 100%;
+        }
+
+        .coffre-activity-tools,
+        .coffre-demandes-tools {
+            width: 100%;
+            gap: .5rem;
+        }
+
+        .coffre-activity-tools .badge,
+        .coffre-demandes-tools .btn-group,
+        .coffre-demandes-tools > .btn {
+            margin-right: 0 !important;
+        }
+
+        .coffre-demandes-tools .btn-group {
+            width: 100%;
+        }
+
+        .coffre-demandes-tools .btn-group .btn {
+            flex: 1 1 48%;
+        }
+
+        .stat-devise-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: .5rem;
+        }
+
+        .stat-devise-header > div:last-child {
+            width: 100%;
+            justify-content: space-between;
+        }
+    }
 </style>
 @endpush
 
@@ -379,6 +464,19 @@ $(document).ready(function () {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
             'Accept'       : 'application/json'
         }
+    });
+
+    $(document).on('click', '.stop-card-toggle', function (e) {
+        e.stopPropagation();
+    });
+
+    $(document).on('click', '.coffre-demandes-tools .btn-group .btn', function (e) {
+        e.stopPropagation();
+    });
+
+    $(document).on('show.bs.collapse hide.bs.collapse', '#coffreBalancesSection, #coffreActivitySection, #coffreCloturesSection, #coffreDemandesSection', function (e) {
+        var $header = $(this).prev('.collapsible-card-header');
+        $header.attr('aria-expanded', e.type === 'show');
     });
 
     var urlBalances   = '{{ route("tresorerie.coffre.balances") }}';
@@ -422,7 +520,7 @@ $(document).ready(function () {
                   + '</div>';
 
             // Tableau des devises
-            html += '<table class="table table-sm table-bordered mb-0" style="font-size:.85rem">'
+            html += '<div class="table-responsive"><table class="table table-sm table-bordered mb-0" style="font-size:.85rem">'
                   + '<thead class="thead-dark"><tr>'
                   + '<th>Devise</th><th>Système</th><th>Physique (agent)</th><th>Écart</th><th>Actions</th>'
                   + '</tr></thead><tbody>';
@@ -462,7 +560,7 @@ $(document).ready(function () {
                 }
             });
 
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
             html += '</div></div>';
         });
 

@@ -8,9 +8,7 @@
 </p>
 
 
-Voici les recommandation du client encore "Boss veuillez masquer le solde en  compte vraiment, et nous ajouter encore les menus pour la  signature dans deux exemplaires" image 1, "Cher ir
- j'aimerais que chaque impression laisse le trace, 
-C'est-à-dire imprimer : le nom du profil" image 2 mettez le nom de l'agent du cporfil connecté
+
 
 
 ## About Laravel

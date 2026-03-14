@@ -7,6 +7,23 @@
 @section('content')
 <div class="container-fluid">
 
+   @php
+        $totalOps      = $transactions->count();
+        $nbAgents      = $parAgent->count();
+        $totauxParDevise = $transactions->groupBy('devise_code')->map(function ($items, $devise) {
+            $totalEntrees = (float) $items->whereIn('type', ['DEPOT', 'PAIEMENT'])->sum('montant');
+            $totalSorties = (float) $items->whereIn('type', ['RETRAIT', 'REMBOURSEMENT'])->sum('montant');
+
+            return [
+                'devise' => $devise ?: '—',
+                'nb_operations' => $items->count(),
+                'total_entrees' => $totalEntrees,
+                'total_sorties' => $totalSorties,
+                'net' => $totalEntrees - $totalSorties,
+            ];
+        })->sortBy('devise')->values();
+    @endphp
+
     
     <form method="GET" action="{{ route('tresorerie.agents.mobiles') }}" id="formFiltre">
         <div class="card card-warning card-outline shadow elevation-2 mb-3">
@@ -15,7 +32,7 @@
                     <i class="fas fa-filter mr-2 text-warning"></i>
                     <strong>Filtres</strong>
                 </h5>
-                <div class="d-flex" style="gap:6px;">
+                <div class="d-flex flex-wrap agents-toolbar" style="gap:6px;">
                     <button type="submit" class="btn btn-sm btn-primary">
                         <i class="fas fa-search mr-1"></i>Filtrer
                     </button>
@@ -74,8 +91,8 @@
                         <label class="small font-weight-bold mb-1">Type opération</label>
                         <select name="type_operation" class="form-control form-control-sm">
                             <option value="tous" @selected(request('type_operation','tous')==='tous')>Tous</option>
-                            @foreach(['DEPOT','RETRAIT','VIREMENT','CHANGE','PAIEMENT','REMBOURSEMENT'] as $to)
-                                <option value="{{ $to }}" @selected(request('type_operation') === $to)>{{ $to }}</option>
+                            @foreach(($operationTypeOptions ?? []) as $to)
+                                <option value="{{ $to['value'] }}" @selected(request('type_operation') === $to['value'])>{{ $to['label'] }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -96,12 +113,6 @@
     </form>
 
    
-   @php
-        $totalOps      = $transactions->count();
-        $totalEntrees  = $transactions->whereIn('type', ['DEPOT','PAIEMENT'])->sum('montant');
-        $totalSorties  = $transactions->whereIn('type', ['RETRAIT','REMBOURSEMENT'])->sum('montant');
-        $nbAgents      = $parAgent->count();
-    @endphp
     <div class="row mb-3">
         <div class="col-lg-3 col-sm-6 col-12 mb-2">
             <div class="small-box bg-info shadow elevation-2">
@@ -124,8 +135,8 @@
         <div class="col-lg-3 col-sm-6 col-12 mb-2">
             <div class="small-box bg-success shadow elevation-2">
                 <div class="inner">
-                    <h4>{{ number_format($totalEntrees, 2, ',', ' ') }}</h4>
-                    <p>Total entrées</p>
+                    <h4>{{ $totauxParDevise->count() }}</h4>
+                    <p>Devises actives</p>
                 </div>
                 <div class="icon"><i class="fas fa-arrow-down"></i></div>
             </div>
@@ -133,13 +144,33 @@
         <div class="col-lg-3 col-sm-6 col-12 mb-2">
             <div class="small-box bg-danger shadow elevation-2">
                 <div class="inner">
-                    <h4>{{ number_format($totalSorties, 2, ',', ' ') }}</h4>
-                    <p>Total sorties</p>
+                    <h4>{{ $totauxParDevise->sum('nb_operations') }}</h4>
+                    <p>Lignes par devise</p>
                 </div>
                 <div class="icon"><i class="fas fa-arrow-up"></i></div>
             </div>
         </div>
     </div>
+
+    @if($totauxParDevise->isNotEmpty())
+    <div class="row mb-3">
+        @foreach($totauxParDevise as $resume)
+        <div class="col-xl-3 col-md-4 col-sm-6 col-12 mb-2">
+            <div class="card border-0 shadow-sm h-100 devise-summary-card">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="badge badge-light border px-2 py-1">{{ $resume['devise'] }}</span>
+                        <small class="text-muted">{{ $resume['nb_operations'] }} op.</small>
+                    </div>
+                    <div class="small text-success font-weight-bold mb-1">Entrées : {{ number_format($resume['total_entrees'], 2, ',', ' ') }}</div>
+                    <div class="small text-danger font-weight-bold mb-1">Sorties : {{ number_format($resume['total_sorties'], 2, ',', ' ') }}</div>
+                    <div class="small font-weight-bold {{ $resume['net'] >= 0 ? 'text-success' : 'text-danger' }}">Net : {{ number_format($resume['net'], 2, ',', ' ') }}</div>
+                </div>
+            </div>
+        </div>
+        @endforeach
+    </div>
+    @endif
 
     
     @if($parAgent->isEmpty())
@@ -266,6 +297,28 @@
 
 </div>
 @endsection
+
+@push('css')
+<style>
+    .devise-summary-card {
+        background: rgba(255,255,255,.04);
+    }
+
+    @media (max-width: 767.98px) {
+        .agents-toolbar {
+            width: 100%;
+        }
+
+        .agents-toolbar .btn {
+            flex: 1 1 calc(50% - .5rem);
+        }
+
+        .devise-summary-card .card-body {
+            padding: .9rem;
+        }
+    }
+</style>
+@endpush
 
 @push('js')
 <script>

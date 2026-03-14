@@ -35,9 +35,16 @@ Route::middleware(['auth', 'permission:EBEN-PER44'])->prefix('tresorerie')->grou
     
     //Route::get('/coffre',                [TresorerieController::class, 'index'])->name('tresorerie.coffre.index');
     Route::get('/etat-coffre',    [TresorerieController::class, 'etat_coffre'])->name('tresorerie.etat-coffre');
+    Route::get('/approvisionnement', [TresorerieController::class, 'interfaceApprovisionnement'])->name('tresorerie.approvisionnement');
+    Route::get('/intercaisse', [TresorerieController::class, 'interfaceApprovisionnement'])->name('tresorerie.intercaisse');
     
     Route::get('/agents-mobiles',     [TresorerieController::class, 'agentsMobiles'])->name('tresorerie.agents.mobiles');
     Route::get('/agents-mobiles-pdf', [TresorerieController::class, 'agentsMobilesPdf'])->name('tresorerie.agents.mobiles.pdf');
+
+    Route::get('/commissions', [TresorerieController::class, 'commissions'])->name('tresorerie.commissions.index');
+    Route::post('/commissions', [TresorerieController::class, 'storeCommission'])->name('tresorerie.commissions.store');
+    Route::put('/commissions/{commissionRule}', [TresorerieController::class, 'updateCommission'])->name('tresorerie.commissions.update');
+    Route::patch('/commissions/{commissionRule}/toggle', [TresorerieController::class, 'toggleCommission'])->name('tresorerie.commissions.toggle');
 });
 
 

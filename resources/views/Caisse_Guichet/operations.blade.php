@@ -5,7 +5,7 @@
      ============================================================ --}}
 @extends('layouts.app')
 
-@section('page_title', 'Opérations de Caisse')
+@section('page_title', 'Opérations de Caisse' . (($zoneRestriction['active'] ?? false) && !empty($zoneRestriction['zone_label']) ? ' (' . $zoneRestriction['zone_label'] . ')' : ''))
 @section('breadcrumb_parent', 'Caisse / Guichet')
 @section('breadcrumb', 'Opérations')
 
@@ -44,7 +44,7 @@
     @endif
 
     {{-- ── Soldes actuels ─────────────────────────────────────── --}}
-    <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+    <div class="d-flex align-items-center flex-wrap gap-2 mb-3 operation-soldes-bar">
         <small class="text-muted text-uppercase" style="letter-spacing:.08em;">
             <i class="fas fa-wallet mr-1"></i> Soldes :
         </small>
@@ -82,11 +82,9 @@
                         </label>
                         <select class="form-control" id="selTypeOp" {{ !$guichetOuvert ? 'disabled' : '' }}>
                             <option value="">— Sélectionnez —</option>
-                            <option value="DEPOT">💰 Dépôt (compte client)</option>
-                            <option value="RETRAIT">💸 Retrait (compte client)</option>
-                            <option value="CHANGE">🔄 Change de devises</option>
-                            <option value="PAIEMENT">🧾 Paiement facture/service</option>
-                            <option value="REMBOURSEMENT">↩ Remboursement</option>
+                            @foreach(($operationTypeOptions ?? []) as $operationType)
+                            <option value="{{ $operationType['value'] }}">{{ $operationType['label'] }}</option>
+                            @endforeach
                         </select>
                     </div>
 
@@ -248,27 +246,29 @@
                                         @endif
                                     </td>
                                     <td>
-                                        @if($op->statut === 'CONFIRME')
-                                        <button class="btn btn-xs btn-outline-danger btn-annuler"
-                                                data-id="{{ $op->id }}" title="Annuler">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                        <button class="btn btn-xs btn-outline-warning btn-demande-modif"
-                                                data-id="{{ $op->id }}"
-                                                data-ref="{{ $op->reference }}"
-                                                data-montant="{{ $op->montant }}"
-                                                data-type="{{ $op->type }}"
-                                                data-devise="{{ $op->devise_code }}"
-                                                title="Demander modification / suppression">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        @endif
-                                        <a href="{{ route('caisses.operations.bordereau', ['id' => $op->id]) }}"
-                                           target="_blank"
-                                           class="btn btn-xs btn-outline-info ml-1"
-                                           title="Imprimer le bordereau PDF">
-                                            <i class="fas fa-file-invoice"></i>
-                                        </a>
+                                        <div class="op-actions">
+                                            @if($op->statut === 'CONFIRME')
+                                            <button class="btn btn-xs btn-outline-danger btn-annuler"
+                                                    data-id="{{ $op->id }}" title="Annuler">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                            <button class="btn btn-xs btn-outline-warning btn-demande-modif"
+                                                    data-id="{{ $op->id }}"
+                                                    data-ref="{{ $op->reference }}"
+                                                    data-montant="{{ $op->montant }}"
+                                                    data-type="{{ $op->type }}"
+                                                    data-devise="{{ $op->devise_code }}"
+                                                    title="Demander modification / suppression">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            @endif
+                                            <a href="{{ route('caisses.operations.bordereau', ['id' => $op->id]) }}"
+                                               target="_blank"
+                                               class="btn btn-xs btn-outline-info"
+                                               title="Imprimer le bordereau PDF">
+                                                <i class="fas fa-file-invoice"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                                 @empty
@@ -309,9 +309,9 @@
                     Confirmez que la personne se présentant correspond bien au titulaire ci-dessous.
                 </div>
                 <div class="p-3">
-                    <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center identite-client-layout">
                         {{-- Photo du client --}}
-                        <div class="mr-3 flex-shrink-0">
+                        <div class="mr-3 flex-shrink-0 identite-client-media">
                             <img id="photoIdentiteClient"
                                  src="{{ asset('images_projet/default_user.png') }}"
                                  alt="Photo client"
@@ -433,6 +433,53 @@
     .badge-sm { font-size: .72rem; padding: .15em .45em; }
     .btn-xs { padding: .15rem .45rem; font-size: .78rem; }
     .gap-2 { gap: .5rem; }
+    .op-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .25rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .operation-soldes-bar {
+            display: grid !important;
+            grid-template-columns: 1fr;
+            align-items: stretch !important;
+        }
+
+        .operation-soldes-bar small,
+        .operation-soldes-bar .solde-pill,
+        .operation-soldes-bar > .badge {
+            width: 100%;
+            margin-left: 0 !important;
+        }
+
+        .operation-soldes-bar .solde-pill,
+        .operation-soldes-bar > .badge {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .op-actions {
+            justify-content: flex-start;
+        }
+
+        #modalIdentiteClient .identite-client-layout {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
+
+        #modalIdentiteClient .identite-client-media {
+            margin-right: 0 !important;
+            margin-bottom: 1rem;
+        }
+
+        #modalIdentiteClient #photoIdentiteClient {
+            width: 88px !important;
+            height: 108px !important;
+        }
+    }
 </style>
 @endpush
 
@@ -615,6 +662,17 @@ $(document).ready(function () {
         })
         .done(function (r) {
             showSystemMessage('success', r.message || 'Opération enregistrée.');
+
+            if (r.client_operation) {
+                var detailsClient = 'Compte: ' + (r.client_operation.compte_code || 'N/A')
+                    + '\nSolde avant: ' + (r.client_operation.solde_avant_fmt || '0,00')
+                    + '\nImpact client: ' + (r.client_operation.montant_total_client_fmt || '0,00')
+                    + '\nSolde apres: ' + (r.client_operation.solde_apres_fmt || '0,00');
+                setTimeout(function () {
+                    showSystemMessage('info', detailsClient, 'Information client');
+                }, 200);
+            }
+
             // Ouvrir automatiquement le bordereau dans un nouvel onglet
             if (r.bordereau_url) {
                 setTimeout(function () { window.open(r.bordereau_url, '_blank'); }, 400);

@@ -22,9 +22,19 @@
 
 {{-- ── Résumé global ── --}}
 @php
-    $totalEntrees = $transactions->whereIn('type', ['DEPOT','PAIEMENT'])->sum('montant');
-    $totalSorties = $transactions->whereIn('type', ['RETRAIT','REMBOURSEMENT'])->sum('montant');
-    $nbAgents     = $parAgent->count();
+    $nbAgents = $parAgent->count();
+    $totauxParDevise = $transactions->groupBy('devise_code')->map(function ($items, $devise) {
+        $totalEntrees = (float) $items->whereIn('type', ['DEPOT', 'PAIEMENT'])->sum('montant');
+        $totalSorties = (float) $items->whereIn('type', ['RETRAIT', 'REMBOURSEMENT'])->sum('montant');
+
+        return [
+            'devise' => $devise ?: '—',
+            'nb_operations' => $items->count(),
+            'total_entrees' => $totalEntrees,
+            'total_sorties' => $totalSorties,
+            'net' => $totalEntrees - $totalSorties,
+        ];
+    })->sortBy('devise')->values();
 @endphp
 <table style="width:100%; border-collapse:collapse; margin-bottom:14px; font-size:9px;">
     <tr style="background:#e8f0fe;">
@@ -35,13 +45,55 @@
             Total opérations<br><span style="font-size:13px; color:#333;">{{ $transactions->count() }}</span>
         </td>
         <td style="padding:6px 10px; border:1px solid #c7d2e9; font-weight:bold; text-align:center; color:#065f46;">
-            Total entrées<br><span style="font-size:12px;">{{ number_format($totalEntrees, 2, ',', ' ') }}</span>
+            Total entrées par devise
+            <div style="font-size:10px; line-height:1.45; margin-top:4px;">
+                @forelse($totauxParDevise as $resume)
+                    <div><strong>{{ $resume['devise'] }}</strong> : {{ number_format($resume['total_entrees'], 2, ',', ' ') }}</div>
+                @empty
+                    <span style="font-size:12px;">0,00</span>
+                @endforelse
+            </div>
         </td>
         <td style="padding:6px 10px; border:1px solid #c7d2e9; font-weight:bold; text-align:center; color:#991b1b;">
-            Total sorties<br><span style="font-size:12px;">{{ number_format($totalSorties, 2, ',', ' ') }}</span>
+            Total sorties par devise
+            <div style="font-size:10px; line-height:1.45; margin-top:4px;">
+                @forelse($totauxParDevise as $resume)
+                    <div><strong>{{ $resume['devise'] }}</strong> : {{ number_format($resume['total_sorties'], 2, ',', ' ') }}</div>
+                @empty
+                    <span style="font-size:12px;">0,00</span>
+                @endforelse
+            </div>
         </td>
     </tr>
 </table>
+
+@if($totauxParDevise->isNotEmpty())
+<div style="font-size:10px; font-weight:bold; color:#1e3a5f; margin-bottom:4px; border-bottom:2px solid #1e3a5f; padding-bottom:2px;">
+    SYNTHÈSE GLOBALE PAR DEVISE
+</div>
+<table style="width:100%; border-collapse:collapse; font-size:8.5px; margin-bottom:16px;">
+    <thead>
+        <tr style="background:#1e3a5f; color:#fff; text-transform:uppercase; font-size:7.5px;">
+            <th style="padding:5px 7px; text-align:center; border:1px solid #2d4f7a;">Devise</th>
+            <th style="padding:5px 7px; text-align:center; border:1px solid #2d4f7a;">Nb opér.</th>
+            <th style="padding:5px 7px; text-align:right; border:1px solid #2d4f7a;">Entrées</th>
+            <th style="padding:5px 7px; text-align:right; border:1px solid #2d4f7a;">Sorties</th>
+            <th style="padding:5px 7px; text-align:right; border:1px solid #2d4f7a;">Net</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach($totauxParDevise as $i => $resume)
+        <tr style="background:{{ $i % 2 === 0 ? '#f9fafb' : '#fff' }};">
+            <td style="padding:4px 7px; border:1px solid #e5e7eb; text-align:center; font-weight:bold;">{{ $resume['devise'] }}</td>
+            <td style="padding:4px 7px; border:1px solid #e5e7eb; text-align:center;">{{ $resume['nb_operations'] }}</td>
+            <td style="padding:4px 7px; border:1px solid #e5e7eb; text-align:right; color:#065f46;">{{ number_format($resume['total_entrees'], 2, ',', ' ') }}</td>
+            <td style="padding:4px 7px; border:1px solid #e5e7eb; text-align:right; color:#991b1b;">{{ number_format($resume['total_sorties'], 2, ',', ' ') }}</td>
+            <td style="padding:4px 7px; border:1px solid #e5e7eb; text-align:right; font-weight:bold; color:{{ $resume['net'] >= 0 ? '#065f46' : '#991b1b' }};">{{ number_format($resume['net'], 2, ',', ' ') }}</td>
+        </tr>
+        @endforeach
+    </tbody>
+</table>
+@endif
 
 {{-- ── Récapitulatif par agent ── --}}
 <div style="font-size:10px; font-weight:bold; color:#1e3a5f; margin-bottom:4px; border-bottom:2px solid #1e3a5f; padding-bottom:2px;">

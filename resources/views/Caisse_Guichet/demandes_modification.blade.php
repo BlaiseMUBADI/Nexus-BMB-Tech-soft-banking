@@ -17,8 +17,8 @@
             <h6 class="card-title mb-0"><i class="fas fa-filter mr-1"></i>Filtres</h6>
         </div>
         <div class="card-body py-2">
-            <div class="row g-2 align-items-end">
-                <div class="col-md-3 col-sm-6">
+            <div class="row g-2 align-items-end demande-filter-row">
+                <div class="col-12 col-sm-6 col-md-3">
                     <label class="small font-weight-bold mb-1">Statut</label>
                     <select id="filtreStatut" class="form-control form-control-sm">
                         <option value="">— Tous —</option>
@@ -27,7 +27,7 @@
                         <option value="REJETEE">Rejetée</option>
                     </select>
                 </div>
-                <div class="col-md-3 col-sm-6">
+                <div class="col-12 col-sm-6 col-md-3">
                     <label class="small font-weight-bold mb-1">Type de demande</label>
                     <select id="filtreType" class="form-control form-control-sm">
                         <option value="">— Tous —</option>
@@ -35,17 +35,17 @@
                         <option value="SUPPRESSION">Suppression</option>
                     </select>
                 </div>
-                <div class="col-md-2 col-sm-6">
+                <div class="col-12 col-sm-6 col-md-2">
                     <label class="small font-weight-bold mb-1">Date début</label>
                     <input type="date" id="filtreDebut" class="form-control form-control-sm"
                            value="{{ today()->toDateString() }}">
                 </div>
-                <div class="col-md-2 col-sm-6">
+                <div class="col-12 col-sm-6 col-md-2">
                     <label class="small font-weight-bold mb-1">Date fin</label>
                     <input type="date" id="filtreFin" class="form-control form-control-sm"
                            value="{{ today()->toDateString() }}">
                 </div>
-                <div class="col-md-2 col-sm-6">
+                <div class="col-12 col-sm-6 col-md-2 demande-filter-action">
                     <button id="btnCharger" class="btn btn-sm btn-warning btn-block">
                         <i class="fas fa-search mr-1"></i>Rechercher
                     </button>
@@ -56,7 +56,7 @@
 
     {{-- ── Tableau des demandes ─────────────────────────────────────── --}}
     <div class="card card-outline card-warning shadow-sm">
-        <div class="card-header py-2 d-flex align-items-center justify-content-between">
+        <div class="card-header py-2 d-flex align-items-center justify-content-between demandes-head-row">
             <h6 class="card-title mb-0">
                 <i class="fas fa-list mr-1"></i>
                 Demandes
@@ -159,6 +159,27 @@
     .table-sm th { font-size: .80rem; }
     .badge-sm { font-size: .70rem; padding: .15em .45em; }
     .btn-xs { padding: .15rem .45rem; font-size: .78rem; }
+
+    @media (max-width: 767.98px) {
+        .demandes-head-row {
+            flex-wrap: wrap;
+            gap: .5rem;
+            align-items: flex-start !important;
+        }
+
+        #btnRefresh {
+            width: 100%;
+        }
+
+        .demande-filter-action .btn {
+            width: 100%;
+        }
+
+        #tbodyDemandes td,
+        #tbodyDemandes th {
+            white-space: nowrap;
+        }
+    }
 </style>
 @endpush
 

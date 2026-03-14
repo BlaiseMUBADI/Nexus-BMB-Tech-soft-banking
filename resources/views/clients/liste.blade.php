@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('page_title', 'Liste des clients')
+@section('page_title', 'Liste des clients' . (($zoneRestriction['active'] ?? false) && !empty($zoneRestriction['zone_label']) ? ' (' . $zoneRestriction['zone_label'] . ')' : ''))
 @section('breadcrumb_parent', 'Clients / Membres')
 @section('breadcrumb', 'Liste des clients')
 
@@ -58,11 +58,13 @@
                     </div>
                 </div>
                 {{-- Bouton Impression --}}
-                <button type="button" class="btn btn-sm btn-secondary mr-2"
-                        data-toggle="modal" data-target="#modalImpressionListe"
-                        title="Imprimer la liste">
-                    <i class="fas fa-print mr-1"></i> Imprimer
-                </button>
+                @if($canPrintDocuments ?? true)
+                    <button type="button" class="btn btn-sm btn-secondary mr-2"
+                            data-toggle="modal" data-target="#modalImpressionListe"
+                            title="Imprimer la liste">
+                        <i class="fas fa-print mr-1"></i> Imprimer
+                    </button>
+                @endif
                 <a href="{{ route('clients.create') }}" class="btn btn-sm btn-primary">
                     <i class="fas fa-user-plus mr-1"></i> Nouveau client
                 </a>
@@ -125,10 +127,12 @@
                                        class="btn btn-xs btn-warning mr-1" title="Modifier">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <a href="{{ route('clients.fiche.pdf', $client->matricule) }}"
-                                       target="_blank" class="btn btn-xs btn-secondary mr-1" title="Fiche PDF">
-                                        <i class="fas fa-file-pdf"></i>
-                                    </a>
+                                    @if($canPrintDocuments ?? true)
+                                        <a href="{{ route('clients.fiche.pdf', $client->matricule) }}"
+                                           target="_blank" class="btn btn-xs btn-secondary mr-1" title="Fiche PDF">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                    @endif
                                     <button type="button"
                                             class="btn btn-xs btn-danger btn-delete-client"
                                             data-url="{{ route('clients.destroy', $client->matricule) }}"
@@ -156,105 +160,107 @@
 </div>
 
 {{-- ===== Modal Impression Liste ===== --}}
-<div class="modal fade" id="modalImpressionListe" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-secondary text-white py-2">
-                <h5 class="modal-title"><i class="fas fa-print mr-2"></i>Paramètres d'impression</h5>
-                <button type="button" class="close text-white" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <form id="formImpressionListe" action="{{ route('clients.liste.pdf') }}" method="GET" target="_blank">
-                <div class="modal-body">
-                    <div class="row">
-                        {{-- Zone --}}
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Zone / Secteur</label>
-                                <select name="code_zone" class="form-control form-control-sm">
-                                    <option value="">— Toutes les zones —</option>
-                                    @foreach($zones as $z)
-                                        <option value="{{ $z->code_zone }}">{{ $z->nom }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        {{-- Sexe --}}
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Sexe</label>
-                                <select name="sexe" class="form-control form-control-sm">
-                                    <option value="tous">— Hommes & Femmes —</option>
-                                    <option value="M">Hommes uniquement</option>
-                                    <option value="F">Femmes uniquement</option>
-                                </select>
-                            </div>
-                        </div>
-                        {{-- Plage de dates d'inscription --}}
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Inscrit(e) à partir du</label>
-                                <input type="date" name="date_debut" class="form-control form-control-sm">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Inscrit(e) jusqu'au</label>
-                                <input type="date" name="date_fin" class="form-control form-control-sm">
-                            </div>
-                        </div>
-                        {{-- Photo --}}
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Photo d'identité</label>
-                                <select name="avec_photo" class="form-control form-control-sm">
-                                    <option value="tous">Tous (avec ou sans)</option>
-                                    <option value="oui">Avec photo uniquement</option>
-                                    <option value="non">Sans photo uniquement</option>
-                                </select>
-                            </div>
-                        </div>
-                        {{-- Comptes --}}
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">Comptes bancaires</label>
-                                <select name="avec_comptes" class="form-control form-control-sm">
-                                    <option value="tous">Tous (avec ou sans)</option>
-                                    <option value="oui">Avec compte(s) uniquement</option>
-                                    <option value="non">Sans aucun compte</option>
-                                </select>
-                            </div>
-                        </div>
-                        {{-- État civil --}}
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label class="font-weight-bold small">État civil</label>
-                                <select name="etat_civil" class="form-control form-control-sm">
-                                    <option value="tous">— Tous —</option>
-                                    <option value="Célibataire">Célibataire</option>
-                                    <option value="Marié(e)">Marié(e)</option>
-                                    <option value="Divorcé(e)">Divorcé(e)</option>
-                                    <option value="Veuf/Veuve">Veuf / Veuve</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="alert alert-info py-1 small mb-0">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        Laissez un champ vide pour ne pas filtrer sur ce critère. Le PDF s'ouvrira dans un nouvel onglet.
-                    </div>
-                </div>
-                <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-sm btn-primary">
-                        <i class="fas fa-file-pdf mr-1"></i> Générer le PDF
+@if($canPrintDocuments ?? true)
+    <div class="modal fade" id="modalImpressionListe" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white py-2">
+                    <h5 class="modal-title"><i class="fas fa-print mr-2"></i>Paramètres d'impression</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
                     </button>
                 </div>
-            </form>
+                <form id="formImpressionListe" action="{{ route('clients.liste.pdf') }}" method="GET" target="_blank">
+                    <div class="modal-body">
+                        <div class="row">
+                            {{-- Zone --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Zone / Secteur</label>
+                                    <select name="code_zone" class="form-control form-control-sm">
+                                        <option value="">— Toutes les zones —</option>
+                                        @foreach($zones as $z)
+                                            <option value="{{ $z->code_zone }}">{{ $z->nom }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            {{-- Sexe --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Sexe</label>
+                                    <select name="sexe" class="form-control form-control-sm">
+                                        <option value="tous">— Hommes & Femmes —</option>
+                                        <option value="M">Hommes uniquement</option>
+                                        <option value="F">Femmes uniquement</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {{-- Plage de dates d'inscription --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Inscrit(e) à partir du</label>
+                                    <input type="date" name="date_debut" class="form-control form-control-sm">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Inscrit(e) jusqu'au</label>
+                                    <input type="date" name="date_fin" class="form-control form-control-sm">
+                                </div>
+                            </div>
+                            {{-- Photo --}}
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Photo d'identité</label>
+                                    <select name="avec_photo" class="form-control form-control-sm">
+                                        <option value="tous">Tous (avec ou sans)</option>
+                                        <option value="oui">Avec photo uniquement</option>
+                                        <option value="non">Sans photo uniquement</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {{-- Comptes --}}
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Comptes bancaires</label>
+                                    <select name="avec_comptes" class="form-control form-control-sm">
+                                        <option value="tous">Tous (avec ou sans)</option>
+                                        <option value="oui">Avec compte(s) uniquement</option>
+                                        <option value="non">Sans aucun compte</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {{-- État civil --}}
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">État civil</label>
+                                    <select name="etat_civil" class="form-control form-control-sm">
+                                        <option value="tous">— Tous —</option>
+                                        <option value="Célibataire">Célibataire</option>
+                                        <option value="Marié(e)">Marié(e)</option>
+                                        <option value="Divorcé(e)">Divorcé(e)</option>
+                                        <option value="Veuf/Veuve">Veuf / Veuve</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-info py-1 small mb-0">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Laissez un champ vide pour ne pas filtrer sur ce critère. Le PDF s'ouvrira dans un nouvel onglet.
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-file-pdf mr-1"></i> Générer le PDF
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
+@endif
 
 {{-- ===== Menu contextuel ===== --}}
 <div id="contextMenuClient">
@@ -263,7 +269,9 @@
         <ul>
             <li><a href="#" class="ctx-item" id="ctxVoir"><i class="fas fa-eye"></i> Voir la fiche</a></li>
             <li><a href="#" class="ctx-item" id="ctxModif"><i class="fas fa-edit"></i> Modifier</a></li>
-            <li><a href="#" class="ctx-item" id="ctxFiche" target="_blank"><i class="fas fa-file-pdf"></i> Imprimer fiche PDF</a></li>
+            @if($canPrintDocuments ?? true)
+                <li><a href="#" class="ctx-item" id="ctxFiche" target="_blank"><i class="fas fa-file-pdf"></i> Imprimer fiche PDF</a></li>
+            @endif
         </ul>
         <div class="ctx-divider"></div>
         <ul>
@@ -434,7 +442,9 @@
 
             $('#ctxVoir').attr('href',  $ctxRow.data('show-url'));
             $('#ctxModif').attr('href', $ctxRow.data('edit-url'));
-            $('#ctxFiche').attr('href', $ctxRow.data('fiche-url'));
+            @if($canPrintDocuments ?? true)
+                $('#ctxFiche').attr('href', $ctxRow.data('fiche-url'));
+            @endif
 
             $ctx.css({ left: e.pageX + 'px', top: e.pageY + 'px' }).show();
             $(document).one('click.ctxClient', function () { closeCtx(); });

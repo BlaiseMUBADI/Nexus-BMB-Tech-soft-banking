@@ -216,10 +216,28 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						<ul class="nav nav-treeview custom-sub-menu">
 							<li class="nav-item">
 								<a href="{{ route('tresorerie.etat-coffre') }}"
-									class="nav-link sub-link "
+									class="nav-link sub-link {{ request()->routeIs('tresorerie.etat-coffre') ? 'active' : '' }}"
 									title="État du Coffre">
 									<i class="fas fa-lock fa-fw nav-icon text-warning"></i>
 									<p>État du Coffre</p>
+								</a>
+							</li>
+
+							<li class="nav-item">
+								<a href="{{ route('tresorerie.approvisionnement') }}"
+									class="nav-link sub-link {{ request()->routeIs('tresorerie.approvisionnement') ? 'active' : '' }}"
+									title="Approvisionnement du coffre central">
+									<i class="fas fa-piggy-bank fa-fw nav-icon text-success"></i>
+									<p>Approvisionnement</p>
+								</a>
+							</li>
+
+							<li class="nav-item">
+								<a href="{{ route('tresorerie.intercaisse') }}"
+									class="nav-link sub-link {{ request()->routeIs('tresorerie.intercaisse') ? 'active' : '' }}"
+									title="Transferts inter-caisses">
+									<i class="fas fa-random fa-fw nav-icon text-info"></i>
+									<p>Intercaisse</p>
 								</a>
 							</li>
 							
@@ -230,12 +248,70 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>Agents Terrain</p>
 								</a>
 							</li>
+
+							<li class="nav-item">
+								<a href="{{ route('tresorerie.commissions.index') }}"
+									class="nav-link sub-link {{ request()->routeIs('tresorerie.commissions.*') ? 'active' : '' }}"
+									title="Paramétrage des commissions">
+									<i class="fas fa-percent fa-fw nav-icon text-danger"></i>
+									<p>Commissions</p>
+								</a>
+							</li>
 						</ul>
 					</li>
 				@endif
 
-				
-				
+				@if(in_array('EBEN-PER49', $userPermCodes ?? []))
+					<li class="nav-item {{ request()->is('comptabilite*') ? 'menu-open' : '' }}">
+						<a href="#" class="nav-link parent-link {{ request()->is('comptabilite*') ? 'active' : '' }}">
+							<i class="nav-icon fas fa-book text-info"></i>
+							<p>
+								Comptabilite
+								<i class="right fas fa-angle-left"></i>
+							</p>
+						</a>
+						<ul class="nav nav-treeview custom-sub-menu">
+							<li class="nav-item">
+								<a href="{{ route('comptabilite.dashboard') }}"
+									class="nav-link sub-link {{ request()->routeIs('comptabilite.dashboard') ? 'active' : '' }}">
+									<i class="fas fa-chart-line nav-icon"></i>
+									<p>Tableau de bord</p>
+								</a>
+							</li>
+
+							@if(in_array('EBEN-PER51', $userPermCodes ?? []))
+								<li class="nav-item">
+									<a href="{{ route('comptabilite.plan') }}"
+										class="nav-link sub-link {{ request()->routeIs('comptabilite.plan') ? 'active' : '' }}">
+										<i class="fas fa-sitemap nav-icon"></i>
+										<p>Plan OHADA</p>
+									</a>
+								</li>
+							@endif
+
+							@if(in_array('EBEN-PER50', $userPermCodes ?? []))
+								<li class="nav-item">
+									<a href="{{ route('comptabilite.journal') }}"
+										class="nav-link sub-link {{ request()->routeIs('comptabilite.journal') ? 'active' : '' }}">
+										<i class="fas fa-book-open nav-icon"></i>
+										<p>Journal comptable</p>
+									</a>
+								</li>
+							@endif
+
+							@if(in_array('EBEN-PER52', $userPermCodes ?? []))
+								<li class="nav-item">
+									<a href="{{ route('comptabilite.grand-livre') }}"
+										class="nav-link sub-link {{ request()->routeIs('comptabilite.grand-livre') ? 'active' : '' }}">
+										<i class="fas fa-balance-scale nav-icon"></i>
+										<p>Grand livre</p>
+									</a>
+								</li>
+							@endif
+						</ul>
+					</li>
+				@endif
+
 				@php $hasAdminAccess = count(array_intersect(['EBEN-PER1', 'EBEN-PER2', 'EBEN-PER3', 'EBEN-PER4', 'EBEN-PER5', 'EBEN-PER20', 'EBEN-PER21'], $userPermCodes ?? [])) > 0; @endphp
 				@if($hasAdminAccess)
 					<li class="nav-item {{ request()->routeIs('administration.*') ? 'menu-open' : '' }}">

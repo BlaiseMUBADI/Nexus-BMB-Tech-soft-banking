@@ -60,7 +60,7 @@
 
             {{-- ── En-tête session ───────────────────────────────────── --}}
             <div class="callout callout-{{ $couleur }} mb-4">
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-center ouverture-session-head">
                     <div>
                         <h5 class="mb-1">
                             <i class="fas fa-calendar-day mr-2"></i>
@@ -71,7 +71,7 @@
                             gérez l'état de votre guichet avant de démarrer les opérations.
                         </p>
                     </div>
-                    <span class="badge badge-{{ $couleur }} px-3 py-2" id="clock"
+                                                <span class="badge badge-{{ $couleur }} px-3 py-2 ouverture-clock" id="clock"
                           style="font-size:1.25rem; border-radius:8px;"></span>
                 </div>
             </div>
@@ -124,7 +124,7 @@
         <div class="col-lg-8 col-md-7 mb-3">
             <div class="card shadow border-top-{{ $couleur }} h-100" id="guichetCard">
                 <div class="card-header bg-transparent pb-0">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center ouverture-card-head">
                         <h4 class="font-weight-bold mb-0">
                             <i class="fas fa-cash-register mr-2 text-secondary"></i>
                             {{ $guichet->code_guichet }}
@@ -150,7 +150,7 @@
                     @if($guichet->soldes->isNotEmpty())
                     <div class="row mb-3">
                         @foreach($guichet->soldes->sortBy('devise_code') as $s)
-                        <div class="col-sm-4 mb-2">
+                        <div class="col-12 col-sm-4 mb-2">
                             <div class="solde-card solde-card-{{ $couleur === 'danger' ? 'secondary' : $couleur }}">
                                 <div class="solde-card-icon">
                                     <span class="solde-symbole">{{ $s->devise->symbole ?? $s->devise_code }}</span>
@@ -180,7 +180,7 @@
 
                     <div class="row">
                         {{-- Ouvrir --}}
-                        <div class="col-sm-4 mb-2">
+                        <div class="col-12 col-sm-4 mb-2">
                             <button class="btn btn-success btn-block btn-action {{ in_array($statut, ['OUVERT','EN_VERIFICATION']) ? 'disabled' : '' }}"
                                     data-id="{{ $guichet->id }}"
                                     data-statut="OUVERT"
@@ -193,7 +193,7 @@
                         </div>
 
                         {{-- Suspendre --}}
-                        <div class="col-sm-4 mb-2">
+                        <div class="col-12 col-sm-4 mb-2">
                             <button class="btn btn-warning btn-block btn-action {{ $statut !== 'OUVERT' ? 'disabled' : '' }}"
                                     data-id="{{ $guichet->id }}"
                                     data-statut="SUSPENDU"
@@ -206,7 +206,7 @@
                         </div>
 
                         {{-- Fermer --}}
-                        <div class="col-sm-4 mb-2">
+                        <div class="col-12 col-sm-4 mb-2">
                             <button class="btn btn-danger btn-block btn-action {{ in_array($statut, ['FERME','EN_VERIFICATION']) ? 'disabled' : '' }}"
                                     data-id="{{ $guichet->id }}"
                                     data-statut="FERME"
@@ -257,7 +257,7 @@
     <div class="row">
         <div class="col-12 mb-3">
             <div class="card card-outline card-secondary shadow">
-                <div class="card-header d-flex align-items-center justify-content-between py-2">
+                <div class="card-header d-flex align-items-center justify-content-between py-2 ouverture-demandes-head">
                     <h6 class="mb-0">
                         <i class="fas fa-history mr-1 text-secondary"></i>
                         Mes demandes d'approvisionnement
@@ -472,7 +472,57 @@
         color: #ffd54f !important;
     }
     .arrete-ecart-row.table-warning td span { color: #ffd54f !important; }
-    #arreteBody { max-height: 72vh; overflow-y: auto; }</style>
+    #arreteBody { max-height: 72vh; overflow-y: auto; }
+
+    @media (max-width: 767.98px) {
+        .ouverture-session-head,
+        .ouverture-card-head,
+        .ouverture-demandes-head {
+            flex-wrap: wrap;
+            gap: .75rem;
+            align-items: flex-start !important;
+        }
+
+        .ouverture-clock,
+        #statutBadge {
+            width: 100%;
+            text-align: center;
+        }
+
+        .solde-card {
+            padding: .85rem .95rem;
+        }
+
+        .solde-montant {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: initial;
+            word-break: break-word;
+        }
+
+        .btn-action {
+            min-height: 82px;
+        }
+
+        #btnRefreshDemandes {
+            width: 100%;
+        }
+
+        #modalArreteCaisse .modal-footer {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        #modalArreteCaisse .modal-footer small {
+            margin-right: 0 !important;
+            margin-bottom: .75rem;
+        }
+
+        #modalArreteCaisse .modal-footer .btn {
+            width: 100%;
+        }
+    }
+</style>
 @endpush
 
 

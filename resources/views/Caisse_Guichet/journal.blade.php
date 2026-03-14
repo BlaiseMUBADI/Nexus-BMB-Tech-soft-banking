@@ -28,24 +28,22 @@
     {{-- ── Filtres ─────────────────────────────────────────────── --}}
     <div class="card card-outline card-info shadow mb-3">
         <div class="card-body py-2">
-            <div class="row align-items-end">
-                <div class="col-sm-auto mb-2 mb-sm-0">
+            <div class="row align-items-end journal-filter-row">
+                <div class="col-12 col-sm-6 col-md-auto mb-2 mb-md-0">
                     <label class="mb-1 small font-weight-bold">Date</label>
-                    <input type="date" class="form-control form-control-sm" id="filtreDate"
+                    <input type="date" class="form-control form-control-sm journal-filter-control" id="filtreDate"
                            value="{{ today()->toDateString() }}" style="width:160px;">
                 </div>
-                <div class="col-sm-auto mb-2 mb-sm-0">
+                <div class="col-12 col-sm-6 col-md-auto mb-2 mb-md-0">
                     <label class="mb-1 small font-weight-bold">Type</label>
-                    <select class="form-control form-control-sm" id="filtreType" style="width:190px;">
+                    <select class="form-control form-control-sm journal-filter-control" id="filtreType" style="width:190px;">
                         <option value="TOUS">— Tous les types —</option>
-                        <option value="DEPOT">Dépôt</option>
-                        <option value="RETRAIT">Retrait</option>
-                        <option value="CHANGE">Change</option>
-                        <option value="PAIEMENT">Paiement</option>
-                        <option value="REMBOURSEMENT">Remboursement</option>
+                        @foreach(($operationTypeOptions ?? []) as $operationType)
+                            <option value="{{ $operationType['value'] }}">{{ $operationType['label'] }}</option>
+                        @endforeach
                     </select>
                 </div>
-                <div class="col-sm-auto">
+                <div class="col-12 col-md-auto journal-filter-actions">
                     <button class="btn btn-info btn-sm" id="btnFiltrer">
                         <i class="fas fa-search mr-1"></i> Filtrer
                     </button>
@@ -53,7 +51,7 @@
                         <i class="fas fa-file-csv mr-1"></i> CSV
                     </button>
                 </div>
-                <div class="col-sm-auto ml-auto">
+                <div class="col-12 col-md-auto ml-md-auto journal-meta-wrap">
                     <small class="text-muted" id="journalMeta"></small>
                 </div>
             </div>
@@ -126,6 +124,37 @@
     .stat-type-card .st-count { font-size: 1.4rem; font-weight: 700; }
     .stat-type-card .st-label { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: #8a9bb0; }
     .stat-type-card .st-devises { font-size: .78rem; color: #adb5bd; margin-top: 2px; }
+
+    @media (max-width: 767.98px) {
+        .journal-filter-control {
+            width: 100% !important;
+        }
+
+        .journal-filter-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .5rem;
+        }
+
+        .journal-filter-actions .btn {
+            flex: 1 1 auto;
+            margin-left: 0 !important;
+        }
+
+        .journal-meta-wrap {
+            margin-top: .25rem;
+        }
+
+        #journalTotaux .col-auto {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+
+        .stat-type-card {
+            min-width: 0;
+            width: 100%;
+        }
+    }
 </style>
 @endpush
 

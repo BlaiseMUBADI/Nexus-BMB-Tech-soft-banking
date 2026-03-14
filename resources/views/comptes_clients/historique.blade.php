@@ -76,8 +76,8 @@
                     <label class="small font-weight-bold mb-1">Type</label>
                     <select name="type" class="form-control form-control-sm">
                         <option value="tous" @selected(request('type','tous')==='tous')>Tous</option>
-                        @foreach(['DEPOT','RETRAIT','VIREMENT','CHANGE','PAIEMENT','REMBOURSEMENT'] as $t)
-                            <option value="{{ $t }}" @selected(request('type') === $t)>{{ $t }}</option>
+                        @foreach(($operationTypeOptions ?? []) as $t)
+                            <option value="{{ $t['value'] }}" @selected(request('type') === $t['value'])>{{ $t['label'] }}</option>
                         @endforeach
                     </select>
                 </div>

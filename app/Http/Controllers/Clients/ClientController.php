@@ -4,18 +4,171 @@
 namespace App\Http\Controllers\Clients;
 
 use App\Http\Controllers\Controller;
+use App\Models\RH\Affectation;
+use App\Models\Zone;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Validation\Rule;
 
 class ClientController extends Controller
 {
+    private function isMobileGuichet(): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (!$user || empty($user->agent_matricule)) {
+            return false;
+        }
+
+        $affectation = Affectation::with('guichet')
+            ->where('agent_matricule', $user->agent_matricule)
+            ->where('Etat', 'ACTIF')
+            ->whereNotNull('guichet_id')
+            ->latest('date_debut')
+            ->first();
+
+        return (bool) ($affectation && $affectation->guichet && $affectation->guichet->type_guichet === 'MOBILE');
+    }
+
+    private function abortIfMobilePrintForbidden(string $documentType): void
+    {
+        if (!$this->isMobileGuichet()) {
+            return;
+        }
+
+        Log::warning('[Client] Impression refusée pour guichet mobile', [
+            'document_type' => $documentType,
+            'agent_matricule' => Auth::user()?->agent_matricule,
+            'ip' => request()->ip(),
+        ]);
+
+        abort(403, 'Accès refusé : un guichet mobile ne peut pas imprimer les documents liés au client.');
+    }
+
+    private function buildZoneLabel(array $zoneNames): string
+    {
+        $zoneNames = array_values(array_filter($zoneNames));
+        if (empty($zoneNames)) {
+            return '';
+        }
+
+        if (count($zoneNames) === 1) {
+            $label = trim($zoneNames[0]);
+            return preg_match('/^zones?\b/i', $label) ? $label : 'Zone ' . $label;
+        }
+
+        $joined = implode(', ', array_map('trim', $zoneNames));
+        return preg_match('/^zones?\b/i', $joined) ? $joined : 'Zones ' . $joined;
+    }
+
+    private function resolveZoneScope(): array
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (!$user || empty($user->agent_matricule)) {
+            return ['restricted' => false, 'zone_codes' => []];
+        }
+
+        $affectation = Affectation::with('guichet')
+            ->where('agent_matricule', $user->agent_matricule)
+            ->where('Etat', 'ACTIF')
+            ->whereNotNull('guichet_id')
+            ->latest('date_debut')
+            ->first();
+
+        if (!$affectation || !$affectation->guichet || $affectation->guichet->type_guichet !== 'MOBILE') {
+            return ['restricted' => false, 'zone_codes' => []];
+        }
+
+        $zones = Zone::where('agent_commercial_matricule', $user->agent_matricule)
+            ->orderBy('nom')
+            ->get(['code_zone', 'nom']);
+
+        $zoneCodes = $zones->pluck('code_zone')
+            ->filter()
+            ->values()
+            ->all();
+
+        $zoneNames = $zones->pluck('nom')
+            ->filter()
+            ->values()
+            ->all();
+
+        $zoneLabel = $this->buildZoneLabel($zoneNames);
+
+        return [
+            'restricted' => true,
+            'zone_codes' => $zoneCodes,
+            'zone_names' => $zoneNames,
+            'zone_label' => $zoneLabel,
+            'agent_matricule' => $user->agent_matricule,
+        ];
+    }
+
+    private function applyZoneScopeToClients(Builder $query, array $zoneScope): Builder
+    {
+        if (!($zoneScope['restricted'] ?? false)) {
+            return $query;
+        }
+
+        $zoneCodes = $zoneScope['zone_codes'] ?? [];
+        if (empty($zoneCodes)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereIn('code_zone', $zoneCodes);
+    }
+
+    private function canAccessClientZone(?string $clientZone, array $zoneScope): bool
+    {
+        if (!($zoneScope['restricted'] ?? false)) {
+            return true;
+        }
+
+        return in_array($clientZone, $zoneScope['zone_codes'] ?? [], true);
+    }
+
+    private function restrictedZonesQuery(array $zoneScope)
+    {
+        $zones = Zone::orderBy('nom');
+
+        if (!($zoneScope['restricted'] ?? false)) {
+            return $zones;
+        }
+
+        $zoneCodes = $zoneScope['zone_codes'] ?? [];
+        if (empty($zoneCodes)) {
+            return $zones->whereRaw('1 = 0');
+        }
+
+        return $zones->whereIn('code_zone', $zoneCodes);
+    }
+
+    private function zoneRestrictionInfo(array $zoneScope): array
+    {
+        return [
+            'active' => (bool) ($zoneScope['restricted'] ?? false),
+            'zone_count' => count($zoneScope['zone_codes'] ?? []),
+            'zone_names' => $zoneScope['zone_names'] ?? [],
+            'zone_label' => $zoneScope['zone_label'] ?? '',
+        ];
+    }
+
 
     /* La méthode pour afficher la liste des clients avec la possibilité de rechercher par nom, postnom ou matricule */
     public function index()
     {
+        $zoneScope = $this->resolveZoneScope();
+
         // On ajoute with(['zone']) pour charger la relation
-        $query = \App\Models\Clients\Client::with(['zone']); 
+        $query = \App\Models\Clients\Client::with(['zone']);
+        $this->applyZoneScopeToClients($query, $zoneScope);
 
         // Si une recherche est effectuée, filtrer les clients
         if (request()->has('search') && request('search')) {
@@ -37,9 +190,12 @@ class ClientController extends Controller
             'avec_photo' => $clients->filter(fn($c) => $c->photo)->count(),
         ];
 
-        $zones = \App\Models\Zone::orderBy('nom')->get();
+        $zones = $this->restrictedZonesQuery($zoneScope)->get();
+        $zoneRestriction = $this->zoneRestrictionInfo($zoneScope);
 
-        return view('clients.liste', compact('clients', 'stats', 'zones'));
+        $canPrintDocuments = !$this->isMobileGuichet();
+
+        return view('clients.liste', compact('clients', 'stats', 'zones', 'zoneRestriction', 'canPrintDocuments'));
     }
 
                 
@@ -47,19 +203,24 @@ class ClientController extends Controller
 
     public function create()
     {
-        $zones = \App\Models\Zone::orderBy('nom')->get();
-        return view('clients.create', compact('zones'));
+        $zoneScope = $this->resolveZoneScope();
+        $zones = $this->restrictedZonesQuery($zoneScope)->get();
+        $zoneRestriction = $this->zoneRestrictionInfo($zoneScope);
+
+        return view('clients.create', compact('zones', 'zoneRestriction'));
     }
 
     /* La méthode pour stocker un nouveau client dans la base de données */
     public function store(Request $request)
     {
+        $zoneScope = $this->resolveZoneScope();
+
         try {
             $validated = $request->validate([
                 'nom' => 'required|string|max:255',
                 'postnom' => 'required|string|max:255',
                 'prenom' => 'required|string|max:255',
-                'email' => 'nullable|email|max:255',
+                'email' => 'nullable|email|max:255|unique:tb_clients,email',
                 'telephone' => 'nullable|string|max:255',
                 'sexe' => 'required|in:M,F',
                 'date_naissance' => 'required|date',
@@ -71,7 +232,13 @@ class ClientController extends Controller
                 'type_piece_identite' => 'required|string|max:255',
                 'lieu_delivrance_piece' => 'required|string|max:255',
                 'date_delivrance_piece' => 'required|date',
-                'numero_piece_identite' => 'required|string|max:255',
+                'numero_piece_identite' => [
+                    'required',
+                    'string',
+                    'max:255',
+                    Rule::unique('tb_clients', 'numero_piece_identite')
+                        ->where(fn ($query) => $query->where('type_piece_identite', $request->input('type_piece_identite'))),
+                ],
                 'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 // Partie 6 : Activité économique
                 'secteur_activite' => 'nullable|string|max:255',
@@ -96,6 +263,19 @@ class ClientController extends Controller
                 }
             }
             throw $e;
+        }
+
+        if (($zoneScope['restricted'] ?? false) && !in_array($validated['code_zone'], $zoneScope['zone_codes'] ?? [], true)) {
+            Log::warning('[Client] Tentative de création hors zone autorisée', [
+                'agent_matricule' => Auth::user()?->agent_matricule,
+                'code_zone' => $validated['code_zone'],
+                'zones_autorisees' => $zoneScope['zone_codes'] ?? [],
+                'ip' => request()->ip(),
+            ]);
+
+            return back()->withErrors([
+                'code_zone' => 'Accès refusé : vous ne pouvez créer un client que dans votre zone affectée.',
+            ])->withInput();
         }
 
         if ($request->hasFile('photo')) {
@@ -159,9 +339,19 @@ class ClientController extends Controller
             }
         }
 
+        try {
+            $client = \App\Models\Clients\Client::create($validated);
+        } catch (QueryException $e) {
+            if (($e->errorInfo[0] ?? null) === '23000') {
+                return back()->withErrors([
+                    'numero_piece_identite' => 'Doublon détecté : cette pièce d\'identité existe déjà dans le système.',
+                ])->withInput();
+            }
 
-    $client = \App\Models\Clients\Client::create($validated);
-    return redirect()->route('clients.create')->with('success', 'Client ajouté avec succès. Matricule : ' . $client->matricule);
+            throw $e;
+        }
+
+        return redirect()->route('clients.create')->with('success', 'Client ajouté avec succès. Matricule : ' . $client->matricule);
     }
 
     /**
@@ -169,11 +359,18 @@ class ClientController extends Controller
      */
     public function show(string $id)
     {
+        $zoneScope = $this->resolveZoneScope();
         $client = \App\Models\Clients\Client::where('matricule', $id)->first();
         if (!$client) {
             Log::warning('[Client] Client introuvable', ['matricule' => $id, 'action' => 'show', 'ip' => request()->ip()]);
             abort(404, 'Client introuvable : ' . $id);
         }
+
+        if (!$this->canAccessClientZone($client->code_zone, $zoneScope)) {
+            Log::warning('[Client] Accès refusé hors zone', ['matricule' => $id, 'action' => 'show', 'ip' => request()->ip()]);
+            abort(403, 'Accès refusé : ce client n\'appartient pas à votre zone.');
+        }
+
         return view('clients.show', compact('client'));
     }
 
@@ -183,12 +380,19 @@ class ClientController extends Controller
      
     public function edit(string $id)
     {
+        $zoneScope = $this->resolveZoneScope();
         $client = \App\Models\Clients\Client::where('matricule', $id)->first();
         if (!$client) {
             Log::warning('[Client] Client introuvable', ['matricule' => $id, 'action' => 'edit', 'ip' => request()->ip()]);
             abort(404, 'Client introuvable : ' . $id);
         }
-        $zones = \App\Models\Zone::orderBy('nom')->get();
+
+        if (!$this->canAccessClientZone($client->code_zone, $zoneScope)) {
+            Log::warning('[Client] Accès refusé hors zone', ['matricule' => $id, 'action' => 'edit', 'ip' => request()->ip()]);
+            abort(403, 'Accès refusé : ce client n\'appartient pas à votre zone.');
+        }
+
+        $zones = $this->restrictedZonesQuery($zoneScope)->get();
         return view('clients.edit', compact('client', 'zones'));
     }
 
@@ -197,11 +401,18 @@ class ClientController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        $zoneScope = $this->resolveZoneScope();
         $client = \App\Models\Clients\Client::where('matricule', $id)->first();
         if (!$client) {
             Log::warning('[Client] Client introuvable', ['matricule' => $id, 'action' => 'update', 'ip' => request()->ip()]);
             abort(404, 'Client introuvable : ' . $id);
         }
+
+        if (!$this->canAccessClientZone($client->code_zone, $zoneScope)) {
+            Log::warning('[Client] Accès refusé hors zone', ['matricule' => $id, 'action' => 'update', 'ip' => request()->ip()]);
+            abort(403, 'Accès refusé : ce client n\'appartient pas à votre zone.');
+        }
+
         try {
             $validated = $request->validate([
                 'nom' => 'required|string|max:255',
@@ -242,6 +453,20 @@ class ClientController extends Controller
                 }
             }
             throw $e;
+        }
+
+        if (($zoneScope['restricted'] ?? false) && !in_array($validated['code_zone'], $zoneScope['zone_codes'] ?? [], true)) {
+            Log::warning('[Client] Tentative de modification hors zone autorisée', [
+                'matricule' => $id,
+                'agent_matricule' => Auth::user()?->agent_matricule,
+                'code_zone' => $validated['code_zone'],
+                'zones_autorisees' => $zoneScope['zone_codes'] ?? [],
+                'ip' => request()->ip(),
+            ]);
+
+            return back()->withErrors([
+                'code_zone' => 'Accès refusé : vous ne pouvez affecter ce client qu\'à votre zone.',
+            ])->withInput();
         }
 
         if ($request->hasFile('photo')) {
@@ -312,6 +537,7 @@ class ClientController extends Controller
      */
     public function destroy(string $id)
     {
+        $zoneScope = $this->resolveZoneScope();
         $client = \App\Models\Clients\Client::where('matricule', $id)->first();
         if (!$client) {
             Log::warning('[Client] Client introuvable', ['matricule' => $id, 'action' => 'destroy', 'ip' => request()->ip()]);
@@ -320,6 +546,15 @@ class ClientController extends Controller
             }
             abort(404, 'Client introuvable : ' . $id);
         }
+
+        if (!$this->canAccessClientZone($client->code_zone, $zoneScope)) {
+            Log::warning('[Client] Accès refusé hors zone', ['matricule' => $id, 'action' => 'destroy', 'ip' => request()->ip()]);
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Accès refusé : client hors de votre zone.'], 403);
+            }
+            abort(403, 'Accès refusé : ce client n\'appartient pas à votre zone.');
+        }
+
         // Supprimer la photo si elle existe
         if ($client->photo && file_exists(base_path('images_projet/' . $client->photo))) {
             @unlink(base_path('images_projet/' . $client->photo));
@@ -364,12 +599,20 @@ class ClientController extends Controller
      * ───────────────────────────────────────────────────────── */
     public function imprimerFiche(string $matricule)
     {
+        $this->abortIfMobilePrintForbidden('fiche-client');
+
+        $zoneScope = $this->resolveZoneScope();
         $client = \App\Models\Clients\Client::with(['zone', 'comptes'])
                     ->where('matricule', $matricule)
                     ->first();
         if (!$client) {
             Log::warning('[Client] Client introuvable pour impression fiche', ['matricule' => $matricule, 'ip' => request()->ip()]);
             abort(404, 'Client introuvable : ' . $matricule);
+        }
+
+        if (!$this->canAccessClientZone($client->code_zone, $zoneScope)) {
+            Log::warning('[Client] Impression refusée hors zone', ['matricule' => $matricule, 'ip' => request()->ip()]);
+            abort(403, 'Accès refusé : ce client n\'appartient pas à votre zone.');
         }
 
         // Photo base64
@@ -393,11 +636,24 @@ class ClientController extends Controller
      * ───────────────────────────────────────────────────────── */
     public function imprimerListe(\Illuminate\Http\Request $request)
     {
+        $this->abortIfMobilePrintForbidden('liste-clients');
+
+        $zoneScope = $this->resolveZoneScope();
         $query = \App\Models\Clients\Client::with(['zone', 'comptes']);
+        $this->applyZoneScopeToClients($query, $zoneScope);
 
         // Filtres
         if ($request->filled('code_zone')) {
-            $query->where('code_zone', $request->code_zone);
+            if (($zoneScope['restricted'] ?? false) && !in_array($request->code_zone, $zoneScope['zone_codes'] ?? [], true)) {
+                Log::warning('[Client] Impression liste refusée hors zone', [
+                    'code_zone' => $request->code_zone,
+                    'agent_matricule' => Auth::user()?->agent_matricule,
+                    'ip' => request()->ip(),
+                ]);
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where('code_zone', $request->code_zone);
+            }
         }
         if ($request->filled('sexe') && in_array($request->sexe, ['M', 'F'])) {
             $query->where('sexe', $request->sexe);
@@ -428,7 +684,10 @@ class ClientController extends Controller
 
         $clients  = $query->orderBy('nom')->get();
         $filtres  = $request->only(['code_zone','sexe','date_debut','date_fin','avec_photo','avec_comptes','etat_civil']);
-        $zone     = $request->filled('code_zone') ? \App\Models\Zone::find($request->code_zone) : null;
+        $zone = null;
+        if ($request->filled('code_zone') && (!($zoneScope['restricted'] ?? false) || in_array($request->code_zone, $zoneScope['zone_codes'] ?? [], true))) {
+            $zone = \App\Models\Zone::find($request->code_zone);
+        }
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.liste', compact('clients', 'filtres', 'zone'))
                   ->setPaper('a4', 'portrait');
