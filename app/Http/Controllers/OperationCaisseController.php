@@ -810,6 +810,130 @@ class OperationCaisseController extends Controller
         return response()->json($comptes);
     }
 
+    /**
+     * Prévisualise la commission et l'impact client en temps réel.
+     * GET /caisses/operations/commission-preview
+     */
+    public function commissionPreview(Request $request, CommissionEngine $commissionEngine)
+    {
+        $guichet = $this->getGuichetAgent();
+        if (!$guichet) {
+            return response()->json([
+                'ready' => false,
+                'message' => 'Aucun guichet affecte a votre profil.',
+            ], 422);
+        }
+
+        $type = strtoupper(trim((string) $request->input('type_operation', '')));
+        $devise = strtoupper(trim((string) $request->input('devise_code', '')));
+        $montant = (float) $request->input('montant', 0);
+        $compteCode = trim((string) $request->input('compte_code', ''));
+
+        $allowedTypes = $this->getAllowedOperationTypes($guichet);
+        if ($type === '' || !in_array($type, $allowedTypes, true)) {
+            return response()->json([
+                'ready' => false,
+                'message' => 'Selectionnez un type operation valide.',
+            ]);
+        }
+
+        if ($devise === '' || $montant <= 0) {
+            return response()->json([
+                'ready' => false,
+                'message' => 'Renseignez la devise et un montant superieur a 0.',
+            ]);
+        }
+
+        $zoneScope = $this->resolveZoneScope();
+        $compteOperation = null;
+        $requiresCompte = in_array($type, [Transaction::DEPOT, Transaction::RETRAIT], true);
+
+        if ($requiresCompte) {
+            if ($compteCode === '') {
+                return response()->json([
+                    'ready' => false,
+                    'requires_compte' => true,
+                    'message' => 'Selectionnez un compte client.',
+                ]);
+            }
+
+            $compteOperation = Compte::with('client')->where('code_compte', $compteCode)->first();
+            if (!$compteOperation) {
+                return response()->json([
+                    'ready' => false,
+                    'requires_compte' => true,
+                    'message' => 'Compte client introuvable.',
+                ], 404);
+            }
+
+            if (!$this->canAccessCompte($compteOperation, $zoneScope)) {
+                return response()->json([
+                    'ready' => false,
+                    'requires_compte' => true,
+                    'message' => 'Acces refuse a ce compte client.',
+                ], 403);
+            }
+
+            if (strtoupper((string) $compteOperation->devise) !== $devise) {
+                return response()->json([
+                    'ready' => false,
+                    'requires_compte' => true,
+                    'message' => 'La devise operation doit correspondre a la devise du compte.',
+                ]);
+            }
+        }
+
+        $commissionContext = $this->buildCommissionContext(
+            $type,
+            $compteOperation,
+            $guichet,
+            $devise,
+            $montant,
+            Auth::user()?->agent_matricule
+        );
+
+        $rule = $commissionEngine->resolveRule($commissionContext, now());
+        $commissionAmount = $rule
+            ? $commissionEngine->calculateCommission($rule, $montant)
+            : 0.0;
+
+        $impact = $this->computeCompteImpact($type, $montant, $commissionAmount);
+
+        $soldeAvant = $compteOperation ? (float) $compteOperation->solde_reel : null;
+        $soldeApres = $soldeAvant !== null
+            ? round($soldeAvant + (float) $impact['delta'], 2)
+            : null;
+
+        return response()->json([
+            'ready' => true,
+            'message' => null,
+            'commission' => [
+                'has_rule' => (bool) $rule,
+                'rule_id' => $rule?->id,
+                'libelle' => $rule?->libelle ?? 'Aucune regle de commission applicable',
+                'mode' => $rule?->mode_calcul ?? CommissionRule::MODE_FIXED,
+                'valeur' => (float) ($rule?->valeur ?? 0),
+                'montant' => (float) $commissionAmount,
+                'devise_code' => $devise,
+            ],
+            'impact' => [
+                'sens' => $impact['sens'],
+                'delta' => (float) $impact['delta'],
+                'total_client' => $impact['total_client'] !== null ? (float) $impact['total_client'] : null,
+                'formule' => $type === Transaction::RETRAIT
+                    ? 'Montant total debite = montant retrait + commission'
+                    : ($type === Transaction::DEPOT ? 'Montant net credite = montant depot - commission' : null),
+            ],
+            'compte' => $compteOperation ? [
+                'code_compte' => $compteOperation->code_compte,
+                'devise' => $compteOperation->devise,
+                'solde_avant' => $soldeAvant,
+                'solde_apres' => $soldeApres,
+                'insuffisant' => $type === Transaction::RETRAIT && $soldeApres !== null && $soldeApres < 0,
+            ] : null,
+        ]);
+    }
+
     // ══════════════════════════════════════════════════════════════
     //  2. JOURNAL DES OPÉRATIONS
     // ══════════════════════════════════════════════════════════════

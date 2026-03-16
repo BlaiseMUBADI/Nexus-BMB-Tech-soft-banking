@@ -173,6 +173,24 @@
                 <form id="formImpressionListe" action="{{ route('clients.liste.pdf') }}" method="GET" target="_blank">
                     <div class="modal-body">
                         <div class="row">
+                            {{-- Type de document --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Document à imprimer</label>
+                                    <select name="document_type" class="form-control form-control-sm" id="selDocumentType">
+                                        <option value="liste_clients">Liste des clients</option>
+                                        <option value="fiche_recolte_journaliere">Fiche de récolte journalière</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {{-- Date de récolte --}}
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="font-weight-bold small">Date de récolte</label>
+                                    <input type="date" name="date_recolte" class="form-control form-control-sm" value="{{ now()->toDateString() }}">
+                                </div>
+                            </div>
+
                             {{-- Zone --}}
                             <div class="col-md-6">
                                 <div class="form-group">
@@ -247,7 +265,7 @@
                         </div>
                         <div class="alert alert-info py-1 small mb-0">
                             <i class="fas fa-info-circle mr-1"></i>
-                            Laissez un champ vide pour ne pas filtrer sur ce critère. Le PDF s'ouvrira dans un nouvel onglet.
+                            Sélectionnez le type de document à imprimer. Laissez un champ vide pour ne pas filtrer sur ce critère. Le PDF s'ouvrira dans un nouvel onglet.
                         </div>
                     </div>
                     <div class="modal-footer py-2">

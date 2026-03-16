@@ -27,10 +27,12 @@ WHERE email IS NOT NULL
 GROUP BY email
 HAVING COUNT(*) > 1;
 
--- C) Doublons comptes (client/type/devise)
-SELECT client_matricule, type, devise, COUNT(*) AS total
-FROM tb_comptes
-GROUP BY client_matricule, type, devise
+-- C) Doublons matricule client
+SELECT matricule, COUNT(*) AS total
+FROM tb_clients
+WHERE matricule IS NOT NULL
+  AND matricule <> ''
+GROUP BY matricule
 HAVING COUNT(*) > 1;
 
 -- IMPORTANT:
@@ -83,17 +85,19 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- C) Unique compte par client/type/devise
+-- C) Unique numero matricule client
 SET @sql := (
     SELECT IF(
         COUNT(*) = 0,
-        'ALTER TABLE tb_comptes ADD UNIQUE KEY uq_tb_comptes_client_type_devise (client_matricule, type, devise)',
-        'SELECT "Index uq_tb_comptes_client_type_devise deja present" AS info'
+        'ALTER TABLE tb_clients ADD UNIQUE KEY uq_tb_clients_matricule (matricule)',
+        'SELECT "Contrainte d unicite sur tb_clients.matricule deja presente" AS info'
     )
     FROM information_schema.statistics
     WHERE table_schema = @db
-      AND table_name = 'tb_comptes'
-      AND index_name = 'uq_tb_comptes_client_type_devise'
+      AND table_name = 'tb_clients'
+      AND column_name = 'matricule'
+      AND non_unique = 0
+      AND seq_in_index = 1
 );
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
@@ -103,6 +107,5 @@ DEALLOCATE PREPARE stmt;
 -- 3) VERIFICATION FINALE
 -- -------------------------------------------------------------
 SHOW INDEX FROM tb_clients;
-SHOW INDEX FROM tb_comptes;
 
 -- Fin script

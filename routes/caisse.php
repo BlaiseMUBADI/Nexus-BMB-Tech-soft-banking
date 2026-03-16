@@ -13,6 +13,7 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
        
         Route::get('operations',                        [OperationCaisseController::class, 'index'])->name('operations.index');
         Route::get('operations/comptes/search',         [OperationCaisseController::class, 'searchCompte'])->name('operations.comptes.search');
+        Route::get('operations/commission-preview',      [OperationCaisseController::class, 'commissionPreview'])->name('operations.commission.preview');
         Route::get('operations/journal',      [OperationCaisseController::class, 'journalPage'])->name('journal.page');
         Route::get('operations/journal/data', [OperationCaisseController::class, 'journal'])->name('journal.data');
         Route::get('operations/rapport',      [OperationCaisseController::class, 'rapportFinJournee'])->name('rapport.fin.journee');

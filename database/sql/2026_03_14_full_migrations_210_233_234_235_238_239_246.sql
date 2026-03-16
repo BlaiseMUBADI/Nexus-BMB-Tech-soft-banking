@@ -550,9 +550,10 @@ WHERE email IS NOT NULL AND email <> ''
 GROUP BY email
 HAVING COUNT(*) > 1;
 
-SELECT client_matricule, type, devise, COUNT(*) AS total
-FROM tb_comptes
-GROUP BY client_matricule, type, devise
+SELECT matricule, COUNT(*) AS total
+FROM tb_clients
+WHERE matricule IS NOT NULL AND matricule <> ''
+GROUP BY matricule
 HAVING COUNT(*) > 1;
 
 UPDATE tb_clients
@@ -583,11 +584,12 @@ SET @dup_email := (
   ) x
 );
 
-SET @dup_comptes := (
+SET @dup_matricule := (
   SELECT COUNT(*) FROM (
-    SELECT client_matricule, type, devise
-    FROM tb_comptes
-    GROUP BY client_matricule, type, devise
+    SELECT matricule
+    FROM tb_clients
+    WHERE matricule IS NOT NULL AND matricule <> ''
+    GROUP BY matricule
     HAVING COUNT(*) > 1
   ) x
 );
@@ -612,18 +614,17 @@ SET @sql := IF(@dup_email=0 AND @idx_email=0,
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @idx_comptes := (
+SET @idx_matricule := (
   SELECT COUNT(*) FROM information_schema.statistics
-  WHERE table_schema=@db AND table_name='tb_comptes' AND index_name='uq_tb_comptes_client_type_devise'
+  WHERE table_schema=@db AND table_name='tb_clients' AND column_name='matricule' AND non_unique=0 AND seq_in_index=1
 );
-SET @sql := IF(@dup_comptes=0 AND @idx_comptes=0,
-  'ALTER TABLE tb_comptes ADD UNIQUE KEY uq_tb_comptes_client_type_devise (client_matricule, type, devise)',
-  'SELECT "Skip uq_tb_comptes_client_type_devise (existing index or duplicates found)" AS info'
+SET @sql := IF(@dup_matricule=0 AND @idx_matricule=0,
+  'ALTER TABLE tb_clients ADD UNIQUE KEY uq_tb_clients_matricule (matricule)',
+  'SELECT "Skip uq_tb_clients_matricule (existing index or duplicates found)" AS info'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SHOW INDEX FROM tb_clients;
-SHOW INDEX FROM tb_comptes;
 
 SET FOREIGN_KEY_CHECKS = 1;
 

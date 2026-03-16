@@ -30,11 +30,40 @@
     );
     $clientNomSignature = $clientNomSignature !== '' ? $clientNomSignature : 'Client';
     $commission = $op->commissions->sortByDesc('id')->first();
+    $commissionMontant = max(0, (float) ($op->montant_commission_total ?? ($commission->montant_commission ?? 0)));
+    $commissionDevise = $commission->devise_code ?? $op->devise_code;
+    $commissionMode = strtoupper((string) ($commission->mode_calcul ?? ''));
+    $commissionTaux = $commission && $commissionMode === 'POURCENTAGE'
+        ? number_format((float) ($commission->valeur_snapshot ?? 0), 2, ',', ' ') . '%'
+        : null;
+    $commissionDisplay = $commissionTaux
+        ? $commissionTaux . ' (' . number_format($commissionMontant, 2, ',', ' ') . ' ' . $commissionDevise . ')'
+        : ($commission && $commissionMode === 'FIXE'
+            ? 'FIXE (' . number_format($commissionMontant, 2, ',', ' ') . ' ' . $commissionDevise . ')'
+            : number_format($commissionMontant, 2, ',', ' ') . ' ' . $commissionDevise);
+
+    $montantTotalClientCalcule = null;
+    $montantNetClientCalcule = null;
+    if ($op->compte_code && $op->type === 'RETRAIT') {
+        $montantTotalClientCalcule = round((float) $op->montant + $commissionMontant, 2);
+        $montantNetClientCalcule = -$montantTotalClientCalcule;
+    } elseif ($op->compte_code && $op->type === 'DEPOT') {
+        $montantTotalClientCalcule = round((float) $op->montant - $commissionMontant, 2);
+        $montantNetClientCalcule = $montantTotalClientCalcule;
+    }
+
     $soldeAvantCompte = $op->solde_compte_avant !== null ? (float) $op->solde_compte_avant : null;
+    $montantTotalClient = $montantTotalClientCalcule;
+    if ($montantTotalClient === null && $op->montant_total_client !== null) {
+        $montantTotalClient = (float) $op->montant_total_client;
+    }
+
     $soldeApresCompte = $op->solde_compte_apres !== null
         ? (float) $op->solde_compte_apres
-        : ($compte ? (float) $compte->solde_reel : null);
-    $montantTotalClient = $op->montant_total_client !== null ? (float) $op->montant_total_client : null;
+        : (($soldeAvantCompte !== null && $montantNetClientCalcule !== null)
+            ? round($soldeAvantCompte + $montantNetClientCalcule, 2)
+            : ($compte ? (float) $compte->solde_reel : null));
+
     $impactClientLabel = $op->type === 'DEPOT' ? 'Montant net credite' : 'Montant total debite';
 @endphp
 
@@ -120,12 +149,11 @@
                         {{ $estAnnule ? 'ANNULÉ' : 'CONFIRMÉ' }}
                     </td>
                 </tr>
-                @if($commission && (float) $commission->montant_commission > 0)
+                @if($op->compte_code || $commission || $op->montant_commission_total !== null)
                 <tr>
                     <td style="color:#666; padding:2px 0;">Commission :</td>
-                    <td style="font-weight:bold; color:#8e44ad;">
-                        {{ number_format((float) $commission->montant_commission, 2, ',', ' ') }} {{ $commission->devise_code ?: $op->devise_code }}
-                        <span style="color:#777; font-weight:normal;">({{ $commission->libelle }})</span>
+                    <td style="font-weight:bold; color:{{ $commissionMontant > 0 ? '#8e44ad' : '#7f8c8d' }};">
+                        {{ $commissionDisplay }}
                     </td>
                 </tr>
                 @endif
@@ -312,6 +340,12 @@
             <div style="color:#555; margin-top:3px;">
                 {{ $impactClientLabel }} :
                 <strong>{{ number_format($montantTotalClient, 2, ',', ' ') }} {{ $op->devise_code }}</strong>
+            </div>
+            @endif
+            @if($op->compte_code || $commission || $op->montant_commission_total !== null)
+            <div style="color:{{ $commissionMontant > 0 ? '#8e44ad' : '#7f8c8d' }}; margin-top:2px;">
+                Commission :
+                <strong>{{ $commissionDisplay }}</strong>
             </div>
             @endif
             @if($op->compte_code && $soldeApresCompte !== null)

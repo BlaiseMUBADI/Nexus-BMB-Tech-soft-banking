@@ -181,6 +181,38 @@
                                {{ !$guichetOuvert ? 'disabled' : '' }}>
                     </div>
 
+                    <div id="blocCommissionPreview" class="card mb-3 d-none operation-preview-card">
+                        <div class="card-header py-1 px-2 d-flex align-items-center justify-content-between">
+                            <span class="small font-weight-bold text-uppercase" style="letter-spacing:.05em;">
+                                <i class="fas fa-calculator mr-1 text-info"></i>Simulation client
+                            </span>
+                            <span class="badge badge-light" id="previewRuleStatus">--</span>
+                        </div>
+                        <div class="card-body py-2 px-2">
+                            <div class="small text-muted mb-1" id="previewHint">Saisissez type, compte, devise et montant.</div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Commission</span>
+                                <strong id="previewCommissionAmount">0,00</strong>
+                            </div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span id="previewImpactLabel">Impact client</span>
+                                <strong id="previewImpactAmount">0,00</strong>
+                            </div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Solde avant</span>
+                                <strong id="previewSoldeAvant">--</strong>
+                            </div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Solde apres</span>
+                                <strong id="previewSoldeApres">--</strong>
+                            </div>
+                            <div class="small text-muted mt-2" id="previewFormule"></div>
+                            <div class="small text-danger mt-1 d-none" id="previewAlerteInsuffisant">
+                                <i class="fas fa-exclamation-circle mr-1"></i>Solde client insuffisant pour ce retrait.
+                            </div>
+                        </div>
+                    </div>
+
                     <button class="btn btn-primary btn-block" id="btnEnregistrerOp"
                             {{ !$guichetOuvert ? 'disabled' : '' }}>
                         <i class="fas fa-check-circle mr-1"></i> Enregistrer
@@ -440,6 +472,16 @@
         gap: .25rem;
     }
 
+    .operation-preview-card {
+        border: 1px solid rgba(23, 162, 184, .35);
+        background: rgba(23, 162, 184, .08);
+    }
+
+    .operation-preview-card .card-header {
+        background: rgba(23, 162, 184, .14);
+        border-bottom: 1px solid rgba(23, 162, 184, .28);
+    }
+
     @media (max-width: 767.98px) {
         .operation-soldes-bar {
             display: grid !important;
@@ -502,6 +544,7 @@ $(document).ready(function () {
     var urlDemandeModif  = '{{ route("caisses.operations.demande.modification", ["id" => "__ID__"]) }}';
     var urlBordereau     = '{{ route("caisses.operations.bordereau", ["id" => "__ID__"]) }}';
     var urlSearchCompte   = '{{ route("caisses.operations.comptes.search") }}';
+    var urlCommissionPreview = '{{ route("caisses.operations.commission.preview") }}';
     var urlClientPhoto    = '{{ url("/clients/photo") }}';
 
     // ── Select2 — Recherche compte client (chargé côté serveur) ──
@@ -516,6 +559,126 @@ $(document).ready(function () {
 
     var _pendingCompteCode  = null;  // Code en attente de confirmation
     var _pendingDevise      = null;
+    var _previewTimer       = null;
+    var _previewSeq         = 0;
+
+    function fmtAmount(v, devise) {
+        var num = parseFloat(v || 0);
+        if (isNaN(num)) num = 0;
+        return num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (devise ? ' ' + devise : '');
+    }
+
+    function resetPreview(message) {
+        $('#blocCommissionPreview').removeClass('d-none');
+        $('#previewRuleStatus').removeClass('badge-success badge-warning badge-secondary').addClass('badge-light').text('--');
+        $('#previewHint').text(message || 'Saisissez type, compte, devise et montant.');
+        $('#previewCommissionAmount').text('0,00');
+        $('#previewImpactAmount').text('0,00');
+        $('#previewSoldeAvant').text('--');
+        $('#previewSoldeApres').text('--');
+        $('#previewImpactLabel').text('Impact client');
+        $('#previewFormule').text('');
+        $('#previewAlerteInsuffisant').addClass('d-none');
+    }
+
+    function renderPreview(resp, devise) {
+        $('#blocCommissionPreview').removeClass('d-none');
+
+        if (!resp || !resp.ready) {
+            resetPreview((resp && resp.message) ? resp.message : 'Simulation indisponible pour le moment.');
+            return;
+        }
+
+        var commission = (resp.commission && resp.commission.montant) ? parseFloat(resp.commission.montant) : 0;
+        var impactTotal = (resp.impact && resp.impact.total_client !== null && resp.impact.total_client !== undefined)
+            ? parseFloat(resp.impact.total_client)
+            : 0;
+        var hasRule = !!(resp.commission && resp.commission.has_rule);
+        var ruleLabel = (resp.commission && resp.commission.libelle) ? resp.commission.libelle : 'Aucune regle de commission applicable';
+
+        $('#previewRuleStatus')
+            .removeClass('badge-light badge-success badge-warning')
+            .addClass(hasRule ? 'badge-success' : 'badge-warning')
+            .text(hasRule ? 'Règle trouvée' : 'Commission par défaut (0)');
+
+        $('#previewHint').text(ruleLabel);
+        $('#previewCommissionAmount').text(fmtAmount(commission, devise));
+        $('#previewImpactLabel').text((resp.impact && resp.impact.sens === 'DEBIT') ? 'Total debite client' : 'Net credite client');
+        $('#previewImpactAmount').text(fmtAmount(impactTotal, devise));
+
+        if (resp.compte) {
+            $('#previewSoldeAvant').text(fmtAmount(resp.compte.solde_avant, resp.compte.devise || devise));
+            $('#previewSoldeApres').text(fmtAmount(resp.compte.solde_apres, resp.compte.devise || devise));
+            if (resp.compte.insuffisant) {
+                $('#previewAlerteInsuffisant').removeClass('d-none');
+            } else {
+                $('#previewAlerteInsuffisant').addClass('d-none');
+            }
+        } else {
+            $('#previewSoldeAvant').text('--');
+            $('#previewSoldeApres').text('--');
+            $('#previewAlerteInsuffisant').addClass('d-none');
+        }
+
+        $('#previewFormule').text((resp.impact && resp.impact.formule) ? resp.impact.formule : '');
+    }
+
+    function requestPreview() {
+        var type = $('#selTypeOp').val();
+        var devise = $('#selDevise').val();
+        var montant = parseFloat($('#inpMontant').val() || '0');
+        var compteCode = $('#selectedCompteCode').val();
+        var requiresCompte = (type === 'DEPOT' || type === 'RETRAIT');
+
+        if (!type) {
+            resetPreview('Selectionnez un type d\'operation.');
+            return;
+        }
+
+        if (requiresCompte && !compteCode) {
+            resetPreview('Selectionnez et confirmez un compte client pour simuler.');
+            return;
+        }
+
+        if (!devise || !montant || montant <= 0) {
+            resetPreview('Renseignez la devise et un montant valide pour simuler la commission.');
+            return;
+        }
+
+        var reqId = ++_previewSeq;
+        $('#previewHint').text('Calcul en cours...');
+        $('#blocCommissionPreview').removeClass('d-none');
+
+        $.ajax({
+            url: urlCommissionPreview,
+            method: 'GET',
+            dataType: 'json',
+            cache: false,
+            data: {
+                type_operation: type,
+                devise_code: devise,
+                montant: montant,
+                compte_code: compteCode || ''
+            }
+        }).done(function (resp) {
+            if (reqId !== _previewSeq) return;
+            renderPreview(resp, devise);
+        }).fail(function (xhr) {
+            if (reqId !== _previewSeq) return;
+            var msg = 'Simulation indisponible.';
+            if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                msg = xhr.responseJSON.message;
+            }
+            resetPreview(msg);
+        });
+    }
+
+    function queuePreview() {
+        if (_previewTimer) {
+            clearTimeout(_previewTimer);
+        }
+        _previewTimer = setTimeout(requestPreview, 250);
+    }
 
     $('#selCompte').on('select2:select', function () {
         var $opt     = $(this).find('option:selected');
@@ -559,6 +722,7 @@ $(document).ready(function () {
         if (_pendingCompteCode) {
             $('#selectedCompteCode').val(_pendingCompteCode);
             $('#selDevise').val(_pendingDevise).prop('disabled', true);
+            queuePreview();
         }
         $('#modalIdentiteClient').modal('hide');
     });
@@ -571,6 +735,7 @@ $(document).ready(function () {
         $('#selCompte').val(null).trigger('change');
         $('#selDevise').prop('disabled', false);
         $('#modalIdentiteClient').modal('hide');
+        resetPreview('Selectionnez et confirmez un compte client pour simuler.');
         showSystemMessage('warning', 'Opération annulée — identité non confirmée.');
     });
 
@@ -579,6 +744,7 @@ $(document).ready(function () {
         _pendingDevise = null;
         $('#selectedCompteCode').val('');
         $('#selDevise').prop('disabled', false);
+        resetPreview('Selectionnez et confirmez un compte client pour simuler.');
     });
 
     function clearCompteSelection() {
@@ -587,6 +753,7 @@ $(document).ready(function () {
         $('#selectedCompteCode').val('');
         $('#selCompte').val(null).trigger('change');
         $('#selDevise').prop('disabled', false);
+        resetPreview();
     }
 
     // ── Type opération → affichage dynamique ─────────────────────
@@ -597,9 +764,11 @@ $(document).ready(function () {
         // Bloc compte
         if (avecCompte) {
             $('#blocCompte').removeClass('d-none');
+            resetPreview('Selectionnez et confirmez un compte client pour simuler.');
         } else {
             $('#blocCompte').addClass('d-none');
             clearCompteSelection();
+            resetPreview('Cette operation ne necessite pas de compte client.');
         }
 
         // Bloc change
@@ -613,7 +782,10 @@ $(document).ready(function () {
             $('#labelMontant').html('Montant <span class="text-danger">*</span>');
         }
         $('#inpMontant').attr('placeholder', type === 'CHANGE' ? 'Montant donné par le client' : '0.00');
+        queuePreview();
     });
+
+    $('#selDevise, #inpMontant').on('change input', queuePreview);
 
     // ── Enregistrer une opération ────────────────────────────────
     $('#btnEnregistrerOp').on('click', function () {
@@ -696,7 +868,10 @@ $(document).ready(function () {
         clearCompteSelection();
         $('#labelDevise').html('Devise <span class="text-danger">*</span>');
         $('#labelMontant').html('Montant <span class="text-danger">*</span>');
+        resetPreview();
     }
+
+    resetPreview();
 
     // ── Mise à jour des soldes en temps réel ─────────────────────
     function majSoldes(soldes) {

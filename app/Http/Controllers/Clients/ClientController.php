@@ -638,6 +638,8 @@ class ClientController extends Controller
     {
         $this->abortIfMobilePrintForbidden('liste-clients');
 
+        $documentType = $request->input('document_type', 'liste_clients');
+
         $zoneScope = $this->resolveZoneScope();
         $query = \App\Models\Clients\Client::with(['zone', 'comptes']);
         $this->applyZoneScopeToClients($query, $zoneScope);
@@ -683,10 +685,51 @@ class ClientController extends Controller
         }
 
         $clients  = $query->orderBy('nom')->get();
-        $filtres  = $request->only(['code_zone','sexe','date_debut','date_fin','avec_photo','avec_comptes','etat_civil']);
+        $filtres  = $request->only(['code_zone','sexe','date_debut','date_fin','avec_photo','avec_comptes','etat_civil','document_type','date_recolte']);
         $zone = null;
         if ($request->filled('code_zone') && (!($zoneScope['restricted'] ?? false) || in_array($request->code_zone, $zoneScope['zone_codes'] ?? [], true))) {
-            $zone = \App\Models\Zone::find($request->code_zone);
+            $zone = \App\Models\Zone::with('agent')->find($request->code_zone);
+        }
+
+        /** @var \App\Models\User|null $printedByUser */
+        $printedByUser = Auth::user();
+        $printedByUser?->loadMissing('agent');
+
+        $agentCommercialNom = null;
+        if ($zone?->agent) {
+            $agentCommercialNom = trim(
+                strtoupper((string) ($zone->agent->nom ?? '')) . ' ' .
+                strtoupper((string) ($zone->agent->postnom ?? '')) . ' ' .
+                strtoupper((string) ($zone->agent->prenom ?? ''))
+            );
+        }
+
+        if (!$agentCommercialNom && $printedByUser?->agent) {
+            $a = $printedByUser->agent;
+            $agentCommercialNom = trim(
+                strtoupper((string) ($a->nom ?? '')) . ' ' .
+                strtoupper((string) ($a->postnom ?? '')) . ' ' .
+                strtoupper((string) ($a->prenom ?? ''))
+            );
+        }
+
+        if (!$agentCommercialNom) {
+            $agentCommercialNom = strtoupper((string) ($printedByUser->name ?? $printedByUser->agent_matricule ?? 'NON DEFINI'));
+        }
+
+        $dateRecolte = $request->filled('date_recolte')
+            ? \Carbon\Carbon::parse($request->input('date_recolte'))->format('d/m/Y')
+            : now()->format('d/m/Y');
+
+        if ($documentType === 'fiche_recolte_journaliere') {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.fiche_recolte_journaliere', [
+                'clients' => $clients,
+                'zone' => $zone,
+                'agentCommercialNom' => $agentCommercialNom,
+                'dateRecolte' => $dateRecolte,
+            ])->setPaper('a4', 'portrait');
+
+            return $pdf->stream('Fiche_recolte_journaliere.pdf');
         }
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.liste', compact('clients', 'filtres', 'zone'))
