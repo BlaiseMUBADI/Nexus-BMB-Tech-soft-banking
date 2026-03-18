@@ -30,10 +30,24 @@ class CheckPermission
         // 2. Vérifier la permission dynamiquement
         /** @var User $user */
         $user = Auth::user();
-        if (! $user->hasPermission($permissionCode)) {
+        // Supporte 1 permission (legacy) ou plusieurs permissions en OR:
+        // - permission:EBEN-PER60|EBEN-PER61|EBEN-PER62
+        // - permission:EBEN-PER60,EBEN-PER61
+        $permissionCodes = preg_split('/[|,]/', $permissionCode) ?: [$permissionCode];
+        $permissionCodes = array_values(array_filter(array_map('trim', $permissionCodes)));
+
+        $hasAnyPermission = false;
+        foreach ($permissionCodes as $code) {
+            if ($user->hasPermission($code)) {
+                $hasAnyPermission = true;
+                break;
+            }
+        }
+
+        if (! $hasAnyPermission) {
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => 'Accès non autorisé. Permission requise : ' . $permissionCode,
+                    'message' => 'Accès non autorisé. Permission requise : ' . implode(' OU ', $permissionCodes),
                 ], 403);
             }
             abort(403, 'Vous n\'avez pas la permission d\'accéder à cette ressource.');

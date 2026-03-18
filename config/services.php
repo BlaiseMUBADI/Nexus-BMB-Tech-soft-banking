@@ -35,4 +35,31 @@ return [
         ],
     ],
 
+    'sms' => [
+        'simulate' => env('SMS_SIMULATE', true),
+        'verify_ssl' => env('SMS_VERIFY_SSL', true),
+        'ca_bundle' => env('SMS_CA_BUNDLE'),
+    ],
+
+    'infobip' => [
+        'base_url' => env('INFOBIP_BASE_URL'),
+        'api_key' => env('INFOBIP_API_KEY'),
+        'from' => env('INFOBIP_FROM', 'COPPEC EBEN'),
+        'simulate' => env('INFOBIP_SIMULATE', false),
+    ],
+
+    'twilio' => [
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'from' => env('TWILIO_FROM'),
+        'simulate' => env('TWILIO_SIMULATE', false),
+    ],
+
+    'zitasms' => [
+        'base_url' => env('ZITASMS_BASE_URL', 'https://my.zitasms.com'),
+        'api_key' => env('ZITASMS_API_KEY'),
+        'device' => env('ZITASMS_DEVICE', 0),
+        'simulate' => env('ZITASMS_SIMULATE', false),
+    ],
+
 ];

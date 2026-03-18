@@ -47,6 +47,56 @@ SET @sql := (
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @dup_devise := (
+  SELECT COUNT(*) FROM (
+    SELECT code_iso
+    FROM tb_devises
+    WHERE code_iso IS NOT NULL AND code_iso <> ''
+    GROUP BY code_iso
+    HAVING COUNT(*) > 1
+  ) x
+);
+
+SET @pk_devise := (
+  SELECT COUNT(*)
+  FROM information_schema.table_constraints tc
+  JOIN information_schema.key_column_usage kcu
+    ON tc.constraint_schema = kcu.constraint_schema
+   AND tc.table_name = kcu.table_name
+   AND tc.constraint_name = kcu.constraint_name
+  WHERE tc.constraint_schema = @db
+    AND tc.table_name = 'tb_devises'
+    AND tc.constraint_type = 'PRIMARY KEY'
+    AND kcu.column_name = 'code_iso'
+);
+
+SET @uq_devise := (
+  SELECT COUNT(*)
+  FROM information_schema.statistics
+  WHERE table_schema = @db
+    AND table_name = 'tb_devises'
+    AND column_name = 'code_iso'
+    AND seq_in_index = 1
+    AND non_unique = 0
+);
+
+SET @sql := IF(
+  @dup_devise = 0 AND @pk_devise = 0 AND @uq_devise = 0,
+  'ALTER TABLE tb_devises ADD UNIQUE INDEX uq_tb_devises_code_iso (code_iso)',
+  'SELECT "Unique/PK sur tb_devises.code_iso deja present ou doublons detectes" AS info'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+INSERT INTO tb_devises (code_iso, nom, symbole, est_reference, created_at, updated_at)
+VALUES
+('CDF', 'Franc Congolais', 'Fc', 1, NOW(), NULL),
+('USD', 'Dollar Americain', '$', 0, NOW(), NULL),
+('EUR', 'Euro', 'EUR', 0, NOW(), NULL)
+ON DUPLICATE KEY UPDATE
+  nom = VALUES(nom),
+  symbole = VALUES(symbole),
+  est_reference = VALUES(est_reference);
+
 SET @sql := (
   SELECT IF(
     EXISTS (
@@ -163,6 +213,33 @@ CREATE TABLE IF NOT EXISTS tb_commission_rules (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET @sql := (
+  SELECT IF(COUNT(*)=0,
+    'CREATE INDEX tb_comm_rules_zone_fk ON tb_commission_rules (code_zone)',
+    'SELECT "Index tb_comm_rules_zone_fk already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_commission_rules' AND index_name='tb_comm_rules_zone_fk'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+  SELECT IF(COUNT(*)=0,
+    'CREATE INDEX tb_comm_rules_portefeuille_fk ON tb_commission_rules (portefeuille_id)',
+    'SELECT "Index tb_comm_rules_portefeuille_fk already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_commission_rules' AND index_name='tb_comm_rules_portefeuille_fk'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+  SELECT IF(COUNT(*)=0,
+    'CREATE INDEX tb_agent ON tb_commission_rules (created_by_agent)',
+    'SELECT "Index tb_agent already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_commission_rules' AND index_name='tb_agent'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
   SELECT IF(
     COUNT(*) = 0,
     'ALTER TABLE tb_commission_rules ADD CONSTRAINT tb_comm_rules_devise_fk FOREIGN KEY (devise_code) REFERENCES tb_devises(code_iso) ON DELETE SET NULL',
@@ -201,6 +278,19 @@ SET @sql := (
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @sql := (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE tb_commission_rules ADD CONSTRAINT tb_agent FOREIGN KEY (created_by_agent) REFERENCES tb_agents(matricule) ON DELETE RESTRICT ON UPDATE RESTRICT',
+    'SELECT "FK tb_agent already exists"'
+  )
+  FROM information_schema.table_constraints
+  WHERE table_schema = @db
+    AND table_name = 'tb_commission_rules'
+    AND constraint_name = 'tb_agent'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 ALTER TABLE tb_transactions
   ADD COLUMN IF NOT EXISTS montant_commission_total DECIMAL(18,2) NOT NULL DEFAULT 0 AFTER montant;
 
@@ -228,6 +318,51 @@ CREATE TABLE IF NOT EXISTS tb_transaction_commissions (
   INDEX idx_trans_comm_tx_date (transaction_id, date_application),
   INDEX idx_trans_comm_scope (code_operation, type_compte, type_guichet)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET @sql := (
+  SELECT IF(COUNT(*)=0,
+    'CREATE INDEX tb_trans_comm_rule_fk ON tb_transaction_commissions (commission_rule_id)',
+    'SELECT "Index tb_trans_comm_rule_fk already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_transaction_commissions' AND index_name='tb_trans_comm_rule_fk'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+  SELECT IF(COUNT(*)=0,
+    'CREATE INDEX tb_trans_comm_zone_fk ON tb_transaction_commissions (code_zone)',
+    'SELECT "Index tb_trans_comm_zone_fk already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_transaction_commissions' AND index_name='tb_trans_comm_zone_fk'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+  SELECT IF(COUNT(*)=0,
+    'CREATE INDEX tb_trans_comm_portefeuille_fk ON tb_transaction_commissions (portefeuille_id)',
+    'SELECT "Index tb_trans_comm_portefeuille_fk already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_transaction_commissions' AND index_name='tb_trans_comm_portefeuille_fk'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+  SELECT IF(COUNT(*)=0,
+    'CREATE INDEX tb_trans_comm_guichet_fk ON tb_transaction_commissions (guichet_id)',
+    'SELECT "Index tb_trans_comm_guichet_fk already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_transaction_commissions' AND index_name='tb_trans_comm_guichet_fk'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+  SELECT IF(COUNT(*)=0,
+    'CREATE INDEX tb_trans_comm_agent_fk ON tb_transaction_commissions (agent_matricule)',
+    'SELECT "Index tb_trans_comm_agent_fk already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_transaction_commissions' AND index_name='tb_trans_comm_agent_fk'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @sql := (
   SELECT IF(COUNT(*)=0,
@@ -319,6 +454,24 @@ CREATE TABLE IF NOT EXISTS tb_compta_journaux (
 
 SET @sql := (
   SELECT IF(COUNT(*)=0,
+    'CREATE INDEX fk_compta_journal_agent ON tb_compta_journaux (agent_matricule)',
+    'SELECT "Index fk_compta_journal_agent already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_compta_journaux' AND index_name='fk_compta_journal_agent'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+  SELECT IF(COUNT(*)=0,
+    'CREATE INDEX fk_compta_journal_devise ON tb_compta_journaux (devise_code)',
+    'SELECT "Index fk_compta_journal_devise already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_compta_journaux' AND index_name='fk_compta_journal_devise'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+  SELECT IF(COUNT(*)=0,
     'ALTER TABLE tb_compta_journaux ADD CONSTRAINT fk_compta_journal_transaction FOREIGN KEY (transaction_id) REFERENCES tb_transactions(id) ON DELETE SET NULL ON UPDATE CASCADE',
     'SELECT "FK fk_compta_journal_transaction already exists"')
   FROM information_schema.table_constraints
@@ -359,6 +512,15 @@ CREATE TABLE IF NOT EXISTS tb_compta_ecritures (
   INDEX idx_compta_ecriture_compte_devise (numero_compte, devise_code),
   INDEX idx_compta_ecriture_journal (journal_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET @sql := (
+  SELECT IF(COUNT(*)=0,
+    'CREATE INDEX fk_compta_ecriture_devise ON tb_compta_ecritures (devise_code)',
+    'SELECT "Index fk_compta_ecriture_devise already exists"')
+  FROM information_schema.statistics
+  WHERE table_schema=@db AND table_name='tb_compta_ecritures' AND index_name='fk_compta_ecriture_devise'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @sql := (
   SELECT IF(COUNT(*)=0,

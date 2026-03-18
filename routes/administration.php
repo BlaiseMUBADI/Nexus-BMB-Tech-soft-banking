@@ -7,6 +7,7 @@ use App\Http\Controllers\Administration\PortefeuilleController;
 use App\Http\Controllers\Administration\DeviseTauxController;
 use App\Http\Controllers\Administration\GuichetController;
 use App\Http\Controllers\Administration\RolesPermissionsController;
+use App\Http\Controllers\Administration\SmsTestController;
 
 Route::middleware('auth')->prefix('administration')->group(function () {
 
@@ -81,4 +82,7 @@ Route::middleware('auth')->prefix('administration')->group(function () {
         Route::delete('/devises-taux/taux/{id}',          [DeviseTauxController::class, 'destroyTaux'])->name('administration.devises-taux.destroyTaux');
         Route::delete('/devises-taux/devise/{code_iso}',  [DeviseTauxController::class, 'destroyDevise'])->name('administration.devises-taux.destroyDevise');
     });
+
+    Route::get('/sms-test', [SmsTestController::class, 'index'])->name('administration.sms_test.index');
+    Route::post('/sms-test', [SmsTestController::class, 'send'])->name('administration.sms_test.send');
 });
