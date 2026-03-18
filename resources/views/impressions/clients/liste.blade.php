@@ -44,44 +44,44 @@
 @if($clients->isEmpty())
     <div style="text-align:center; padding:20px; color:#999;">Aucun client ne correspond aux critères sélectionnés.</div>
 @else
-<table class="info-table" style="font-size:9.5px;">
+<table class="info-table" style="font-size:9.2px; border:2px solid #333; border-collapse:collapse; table-layout:fixed;">
     <thead>
-        <tr style="background:#1a7a4a; color:#fff;">
-            <th style="padding:5px 6px; width:20px;">#</th>
-            <th style="padding:5px 6px;">Matricule</th>
-            <th style="padding:5px 6px;">Nom complet</th>
-            <th style="padding:5px 6px;">Sexe</th>
-            <th style="padding:5px 6px;">Zone</th>
-            <th style="padding:5px 6px;">Téléphone</th>
-            <th style="padding:5px 6px;">Email</th>
-            <th style="padding:5px 6px; text-align:center;">Comptes</th>
-            <th style="padding:5px 6px;">Membre depuis</th>
+        <tr style="background:#1a7a4a; color:#fff; border:2.5px solid #333;">
+            <th style="padding:6px 8px; width:4%; border:2.5px solid #333; text-align:center;">#</th>
+            <th style="padding:6px 8px; width:13%; border:2.5px solid #333;">Matricule</th>
+            <th style="padding:6px 8px; width:20%; border:2.5px solid #333;">Nom complet</th>
+            <th style="padding:6px 8px; width:5%; border:2.5px solid #333; text-align:center;">Sexe</th>
+            <th style="padding:6px 8px; width:10%; border:2.5px solid #333;">Zone</th>
+            <th style="padding:6px 8px; width:12%; border:2.5px solid #333;">Téléphone</th>
+            <th style="padding:6px 8px; width:20%; border:2.5px solid #333;">Email</th>
+            <th style="padding:6px 8px; width:8%; border:2.5px solid #333; text-align:center;">Comptes</th>
+            <th style="padding:6px 8px; width:8%; border:2.5px solid #333;">Membre depuis</th>
         </tr>
     </thead>
     <tbody>
         @foreach($clients as $i => $client)
-        <tr style="{{ $i % 2 === 0 ? 'background:#fff;' : 'background:#f7f9fc;' }}">
-            <td style="padding:4px 6px; text-align:center;">{{ $i + 1 }}</td>
-            <td style="padding:4px 6px; font-family:DejaVu Sans Mono,monospace; font-size:8.5px;">{{ $client->matricule }}</td>
-            <td style="padding:4px 6px;">
+        <tr style="{{ $i % 2 === 0 ? 'background:#fff;' : 'background:#f9f9f9;' }} border:2px solid #333; font-size:8.8px;">
+            <td style="padding:4px 6px; line-height:1.15; text-align:center; vertical-align:middle; border:2px solid #333; color:#111;">{{ $i + 1 }}</td>
+            <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; font-family:DejaVu Sans Mono,monospace; font-size:8.8px; border:2px solid #333; color:#111;">{{ $client->matricule }}</td>
+            <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; border:2px solid #333; color:#111;">
                 {{ strtoupper($client->nom) }}
                 {{ strtoupper($client->postnom ?? '') }}
                 {{ ucfirst(strtolower($client->prenom ?? '')) }}
             </td>
-            <td style="padding:4px 6px; text-align:center;">{{ $client->sexe === 'M' ? 'H' : 'F' }}</td>
-            <td style="padding:4px 6px;">{{ $client->zone->nom ?? '—' }}</td>
-            <td style="padding:4px 6px;">{{ $client->telephone ?? '—' }}</td>
-            <td style="padding:4px 6px; font-size:8px;">{{ $client->email ?? '—' }}</td>
-            <td style="padding:4px 6px; text-align:center;">{{ $client->comptes->count() }}</td>
-            <td style="padding:4px 6px;">{{ \Carbon\Carbon::parse($client->created_at)->format('d/m/Y') }}</td>
+            <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; text-align:center; white-space:nowrap; border:2px solid #333; color:#111;">{{ $client->sexe === 'M' ? 'H' : 'F' }}</td>
+            <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; white-space:nowrap; border:2px solid #333; color:#111;">{{ $client->zone->nom ?? '—' }}</td>
+            <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; white-space:nowrap; border:2px solid #333; color:#111;">{{ $client->telephone ?? '—' }}</td>
+            <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; font-size:8.8px; white-space:nowrap; border:2px solid #333; color:#111;">{{ $client->email ?? '—' }}</td>
+            <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; text-align:center; white-space:nowrap; border:2px solid #333; color:#111;">{{ $client->comptes_count }}</td>
+            <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; white-space:nowrap; border:2px solid #333; color:#111;">{{ \Carbon\Carbon::parse($client->created_at)->format('d/m/Y') }}</td>
         </tr>
         @endforeach
     </tbody>
     <tfoot>
-        <tr style="background:#e8eef5; font-weight:bold;">
-            <td colspan="7" style="padding:5px 6px; text-align:right;">TOTAL</td>
-            <td style="padding:5px 6px; text-align:center;">{{ $clients->sum(fn($c) => $c->comptes->count()) }}</td>
-            <td style="padding:5px 6px;"></td>
+        <tr style="background:#d9e8e0; font-weight:bold; border:2.5px solid #333;">
+            <td colspan="7" style="padding:6px 8px; text-align:right; border:2.5px solid #333; color:#111;">TOTAL</td>
+            <td style="padding:6px 8px; text-align:center; border:2.5px solid #333; color:#111;">{{ $clients->sum('comptes_count') }}</td>
+            <td style="padding:6px 8px; border:2.5px solid #333;"></td>
         </tr>
     </tfoot>
 </table>

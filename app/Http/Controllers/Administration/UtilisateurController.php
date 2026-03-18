@@ -74,16 +74,53 @@ class UtilisateurController extends Controller
     public function update(Request $request, $id)
     {
         $user = \App\Models\User::findOrFail($id);
+
         $validated = $request->validate([
             'login' => 'required|string|max:255',
             'email' => 'nullable|email|max:255|unique:users,email,' . $id,
             'etat' => 'required|in:actif,inactif',
+            'password' => 'nullable|confirmed|min:6', // Mot de passe optionnel
         ]);
-        $user->name = $validated['login'];
-        $user->email = $validated['email'] ?? null;
-        $user->etat = $validated['etat'];
-        $user->save();
-        return response()->json(['success' => true, 'message' => 'Utilisateur modifié avec succès.']);
+
+        $becomesInactive = strtolower((string) $validated['etat']) === 'inactif';
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user, $validated, $becomesInactive) {
+            $user->name = $validated['login'];
+            $user->email = $validated['email'] ?? null;
+            $user->etat = $validated['etat'];
+
+            // Mettre à jour le mot de passe si fourni
+            if (! empty($validated['password'])) {
+                $user->password = bcrypt($validated['password']);
+            }
+
+            $user->save();
+
+            // Si le compte passe inactif, désactiver aussi les affectations actives.
+            if ($becomesInactive && $user->agent_matricule) {
+                \App\Models\RH\Affectation::where('agent_matricule', $user->agent_matricule)
+                    ->whereRaw('UPPER(Etat) = ?', ['ACTIF'])
+                    ->update([
+                        'Etat' => 'INACTIF',
+                        'date_fin' => now(),
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            // Déconnecter immédiatement toutes les sessions actives de cet utilisateur.
+            if ($becomesInactive) {
+                \Illuminate\Support\Facades\DB::table('sessions')
+                    ->where('user_id', $user->id)
+                    ->delete();
+            }
+        });
+        
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Utilisateur modifié avec succès.']);
+        }
+        
+        return redirect()->route('administration.utilisateurs.liste')
+                        ->with('success', 'Utilisateur modifié avec succès.');
     }
 
         // Affiche un utilisateur

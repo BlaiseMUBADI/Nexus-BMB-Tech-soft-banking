@@ -14,12 +14,12 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
         Route::get('operations',                        [OperationCaisseController::class, 'index'])->name('operations.index');
         Route::get('operations/comptes/search',         [OperationCaisseController::class, 'searchCompte'])->name('operations.comptes.search');
         Route::get('operations/commission-preview',      [OperationCaisseController::class, 'commissionPreview'])->name('operations.commission.preview');
+    });
+
+    Route::middleware('permission:EBEN-PER10')->group(function () {
         Route::get('operations/journal',      [OperationCaisseController::class, 'journalPage'])->name('journal.page');
         Route::get('operations/journal/data', [OperationCaisseController::class, 'journal'])->name('journal.data');
         Route::get('operations/rapport',      [OperationCaisseController::class, 'rapportFinJournee'])->name('rapport.fin.journee');
-
-      
-        Route::get('mobile', [OperationCaisseController::class, 'mobileIndex'])->name('mobile.index');
     });
 
     
@@ -40,9 +40,9 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
         Route::post('mobile/retour',   [OperationCaisseController::class, 'mobileRetour'])->name('mobile.retour');
     });
 
-    Route::middleware('permission:EBEN-PER109')->group(function () {
-        Route::post('operations/{id}/annuler', [OperationCaisseController::class, 'annuler'])->name('operations.annuler');
-    });
+    // Vérification permission d'annulation gérée dans le contrôleur
+    // (EBEN-PER25 transactions bancaire - modèle strict)
+    Route::post('operations/{id}/annuler', [OperationCaisseController::class, 'annuler'])->name('operations.annuler');
 
     
     Route::middleware('permission:EBEN-PER10')->group(function () {
@@ -55,6 +55,7 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
 
     
     Route::middleware('permission:EBEN-PER11')->group(function () {
+        Route::get('operations/{id}/demande-statut', [OperationCaisseController::class, 'statutDemandeModification'])->name('operations.demande.statut');
         Route::post('operations/{id}/demande', [OperationCaisseController::class, 'demanderModification'])->name('operations.demande.modification');
     });
 

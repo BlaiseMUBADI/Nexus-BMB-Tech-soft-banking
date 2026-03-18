@@ -91,7 +91,7 @@ class RolesPermissionsController extends Controller
         return [
             1  => ['label' => 'Administration',    'icon' => 'fa-cog',              'color' => 'danger'],
             2  => ['label' => 'RH',                'icon' => 'fa-users',            'color' => 'info'],
-            3  => ['label' => 'Caisse',            'icon' => 'fa-cash-register',    'color' => 'success'],
+            3  => ['label' => 'Caisse / Guichet',  'icon' => 'fa-cash-register',    'color' => 'success'],
             4  => ['label' => 'Clients',           'icon' => 'fa-user-friends',     'color' => 'primary'],
             5  => ['label' => 'Comptes',           'icon' => 'fa-wallet',           'color' => 'warning'],
             6  => ['label' => 'Devises',           'icon' => 'fa-coins',            'color' => 'secondary'],
@@ -121,11 +121,11 @@ class RolesPermissionsController extends Controller
         if ($n >= 103 && $n <= 106) {
             return 2;
         }
-        if ($n >= 10 && $n <= 14) {
+        if (($n >= 10 && $n <= 14) || $n === 110) {
             return 3;
         }
-        if ($n === 109) {
-            return 3;
+        if ($n === 97) {
+            return 7;
         }
         if (($n >= 15 && $n <= 17) || $n === 76) {
             return 4;

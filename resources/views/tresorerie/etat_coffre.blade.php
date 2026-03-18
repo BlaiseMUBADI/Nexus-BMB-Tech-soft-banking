@@ -219,6 +219,26 @@
                 </div>
                 <div class="collapse show" id="coffreDemandesSection">
                 <div class="card-body p-0">
+                    <div class="px-3 py-2 border-bottom" style="background:rgba(255,255,255,.03)">
+                        <div class="form-row align-items-end">
+                            <div class="col-12 col-md-3 mb-2 mb-md-0">
+                                <label class="small text-muted mb-1">Du</label>
+                                <input type="date" class="form-control form-control-sm" id="filtreDemDateDebut">
+                            </div>
+                            <div class="col-12 col-md-3 mb-2 mb-md-0">
+                                <label class="small text-muted mb-1">Au</label>
+                                <input type="date" class="form-control form-control-sm" id="filtreDemDateFin">
+                            </div>
+                            <div class="col-12 col-md-4 mb-2 mb-md-0">
+                                <label class="small text-muted mb-1">Recherche (réf, guichet, agent, motif)</label>
+                                <input type="text" class="form-control form-control-sm" id="filtreDemSearch" placeholder="Ex: G010, REQ-..., David">
+                            </div>
+                            <div class="col-12 col-md-2 d-flex justify-content-md-end">
+                                <button class="btn btn-sm btn-primary mr-1" id="btnAppliquerFiltresDemandes"><i class="fas fa-search mr-1"></i>Rechercher</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="btnResetFiltresDemandes" title="Réinitialiser"><i class="fas fa-undo"></i></button>
+                            </div>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover table-sm mb-0" id="tableDemandes">
                             <thead class="thead-dark">
@@ -237,7 +257,96 @@
                             <tbody id="tbodyDemandes">
                                 <tr>
                                     <td colspan="9" class="text-center py-4 text-muted">
-                                        <i class="fas fa-spinner fa-spin mr-1"></i> Chargement…
+                                        <i class="fas fa-filter mr-1"></i> Choisissez vos critères puis cliquez sur <strong>Rechercher</strong>.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card card-outline card-warning shadow elevation-2">
+                <div class="card-header d-flex align-items-center justify-content-between py-2 collapsible-card-header"
+                     data-toggle="collapse" data-target="#coffreDemandesTxSection"
+                     aria-expanded="true" aria-controls="coffreDemandesTxSection">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit mr-2 text-warning"></i>
+                        <strong>Demandes de modification / suppression des transactions</strong>
+                        <span class="badge badge-warning ml-2" id="badgeTxDemandesPending" style="display:none"></span>
+                    </h5>
+                    <div class="d-flex align-items-center">
+                        <span class="badge badge-secondary mr-2" id="badgeTxDemandesTotal">0</span>
+                        <button class="btn btn-sm btn-outline-warning stop-card-toggle" id="btnRefreshDemandesTransactions">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <i class="fas fa-chevron-down ml-2 collapse-chevron"></i>
+                    </div>
+                </div>
+                <div class="collapse show" id="coffreDemandesTxSection">
+                <div class="card-body p-0">
+                    <div class="px-3 py-2 border-bottom" style="background:rgba(255,255,255,.03)">
+                        <div class="form-row align-items-end">
+                            <div class="col-12 col-md-2 mb-2 mb-md-0">
+                                <label class="small text-muted mb-1">Statut</label>
+                                <select class="form-control form-control-sm" id="filtreTxStatut">
+                                    <option value="tous">Tous</option>
+                                    <option value="EN_ATTENTE">En attente</option>
+                                    <option value="APPROUVEE">Approuvée</option>
+                                    <option value="REJETEE">Rejetée</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-2 mb-2 mb-md-0">
+                                <label class="small text-muted mb-1">Type</label>
+                                <select class="form-control form-control-sm" id="filtreTxType">
+                                    <option value="tous">Tous</option>
+                                    <option value="MODIFICATION">Modification</option>
+                                    <option value="SUPPRESSION">Suppression</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-2 mb-2 mb-md-0">
+                                <label class="small text-muted mb-1">Du</label>
+                                <input type="date" class="form-control form-control-sm" id="filtreTxDateDebut">
+                            </div>
+                            <div class="col-12 col-md-2 mb-2 mb-md-0">
+                                <label class="small text-muted mb-1">Au</label>
+                                <input type="date" class="form-control form-control-sm" id="filtreTxDateFin">
+                            </div>
+                            <div class="col-12 col-md-3 mb-2 mb-md-0">
+                                <label class="small text-muted mb-1">Recherche (réf, client, compte, agent)</label>
+                                <input type="text" class="form-control form-control-sm" id="filtreTxSearch" placeholder="Ex: OP-..., client, 243-...">
+                            </div>
+                            <div class="col-12 col-md-1 d-flex justify-content-md-end">
+                                <button class="btn btn-sm btn-primary mr-1" id="btnAppliquerFiltresTx"><i class="fas fa-search"></i></button>
+                                <button class="btn btn-sm btn-outline-secondary" id="btnResetFiltresTx" title="Réinitialiser"><i class="fas fa-undo"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0" id="tableDemandesTransactions">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Type</th>
+                                    <th>Référence</th>
+                                    <th>Guichet / Agent</th>
+                                    <th>Client / Compte</th>
+                                    <th>Ancien Montant</th>
+                                    <th>Nouveau Montant</th>
+                                    <th>Motif</th>
+                                    <th>Statut</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyDemandesTransactions">
+                                <tr>
+                                    <td colspan="10" class="text-center py-4 text-muted">
+                                        <i class="fas fa-filter mr-1"></i> Choisissez vos critères puis cliquez sur <strong>Rechercher</strong>.
                                     </td>
                                 </tr>
                             </tbody>
@@ -334,6 +443,61 @@
         </div>
     </div>
 </div>
+
+{{-- Modal Approbation Demande Transaction --}}
+<div class="modal fade" id="modalTxApprouver" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white py-2">
+                <h6 class="modal-title mb-0"><i class="fas fa-check-circle mr-1"></i> Approuver la demande</h6>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="txAppId">
+                <p class="small text-muted mb-2" id="txAppResume">—</p>
+                <div class="form-group mb-0">
+                    <label class="small font-weight-bold">Commentaire (optionnel)</label>
+                    <textarea class="form-control form-control-sm" id="txAppCommentaire" rows="3" maxlength="500"
+                              placeholder="Commentaire du superviseur…"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-sm btn-success" id="btnConfirmTxApprouver">
+                    <i class="fas fa-check mr-1"></i>Approuver
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Rejet Demande Transaction --}}
+<div class="modal fade" id="modalTxRejeter" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white py-2">
+                <h6 class="modal-title mb-0"><i class="fas fa-times-circle mr-1"></i> Rejeter la demande</h6>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="txRejId">
+                <p class="small text-muted mb-2" id="txRejResume">—</p>
+                <div class="form-group mb-0">
+                    <label class="small font-weight-bold">Motif du rejet <span class="text-danger">*</span></label>
+                    <textarea class="form-control form-control-sm" id="txRejCommentaire" rows="3" maxlength="500"
+                              placeholder="Expliquez le rejet…"></textarea>
+                    <small class="text-danger d-none" id="txRejErreur">Le motif est obligatoire (min 5 caractères).</small>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-sm btn-danger" id="btnConfirmTxRejeter">
+                    <i class="fas fa-times mr-1"></i>Rejeter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 @endif
 @endsection
 
@@ -355,8 +519,14 @@
     .badge-statut-CONFIRME   { background-color: #28a745; color:#fff; }
     .badge-statut-ANNULE     { background-color: #dc3545; color:#fff; }
 
+    .badge-dm-EN_ATTENTE { background-color: #17a2b8; color:#fff; }
+    .badge-dm-APPROUVEE  { background-color: #28a745; color:#fff; }
+    .badge-dm-REJETEE    { background-color: #dc3545; color:#fff; }
+
     #tableDemandes th { font-size: .78rem; white-space: nowrap; }
     #tableDemandes td { font-size: .82rem; vertical-align: middle; }
+    #tableDemandesTransactions th { font-size: .78rem; white-space: nowrap; }
+    #tableDemandesTransactions td { font-size: .82rem; vertical-align: middle; }
 
     /* Ligne EN_ATTENTE légèrement surlignée */
     tr.row-en-attente { background-color: rgba(255,193,7,.06) !important; }
@@ -474,7 +644,7 @@ $(document).ready(function () {
         e.stopPropagation();
     });
 
-    $(document).on('show.bs.collapse hide.bs.collapse', '#coffreBalancesSection, #coffreActivitySection, #coffreCloturesSection, #coffreDemandesSection', function (e) {
+    $(document).on('show.bs.collapse hide.bs.collapse', '#coffreBalancesSection, #coffreActivitySection, #coffreCloturesSection, #coffreDemandesSection, #coffreDemandesTxSection', function (e) {
         var $header = $(this).prev('.collapsible-card-header');
         $header.attr('aria-expanded', e.type === 'show');
     });
@@ -483,12 +653,65 @@ $(document).ready(function () {
     var urlDemandes   = '{{ route("tresorerie.coffre.demandes") }}';
     var urlCount      = '{{ route("tresorerie.coffre.demandes.count") }}';
     var urlApprouver  = '{{ url("tresorerie/coffre/demandes") }}';
+    var urlTxDemandesData = '{{ route("caisses.demandes.modification.data") }}';
+    var urlTxApprouver    = '{{ route("caisses.demandes.modification.approuver", ["id" => "__ID__"]) }}';
+    var urlTxRejeter      = '{{ route("caisses.demandes.modification.rejeter", ["id" => "__ID__"]) }}';
     var urlClotures       = '{{ route("tresorerie.coffre.clotures") }}';
     var urlClotureAction  = '{{ url("tresorerie/coffre/clotures") }}';
     var urlLigneAction    = '{{ url("tresorerie/coffre/clotures/ligne") }}';
     var urlStats          = '{{ route("tresorerie.coffre.stats") }}';
     var filtreActif   = '';
     var toutesLesDemandes = [];
+    var toutesLesDemandesTx = [];
+    var demandesChargees = false;
+    var demandesTxChargees = false;
+
+    function escHtml(str) {
+        if (str == null) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function todayIso() {
+        var now = new Date();
+        var year = now.getFullYear();
+        var month = String(now.getMonth() + 1).padStart(2, '0');
+        var day = String(now.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+
+    function setDateFiltersToToday() {
+        var today = todayIso();
+        $('#filtreDemDateDebut').val(today);
+        $('#filtreDemDateFin').val(today);
+        $('#filtreTxDateDebut').val(today);
+        $('#filtreTxDateFin').val(today);
+    }
+
+    function paramsDemandesAppro() {
+        return {
+            statut    : filtreActif || '',
+            date_debut: $('#filtreDemDateDebut').val() || '',
+            date_fin  : $('#filtreDemDateFin').val() || '',
+            search    : $.trim($('#filtreDemSearch').val() || ''),
+            limit     : 200
+        };
+    }
+
+    function paramsDemandesTx() {
+        return {
+            statut      : $('#filtreTxStatut').val() || 'tous',
+            type_demande: $('#filtreTxType').val() || 'tous',
+            date_debut  : $('#filtreTxDateDebut').val() || '',
+            date_fin    : $('#filtreTxDateFin').val() || '',
+            search      : $.trim($('#filtreTxSearch').val() || ''),
+            limit       : 200
+        };
+    }
 
    
     function renderClotures(data) {
@@ -864,16 +1087,12 @@ $(document).ready(function () {
         var tbody = $('#tbodyDemandes');
         tbody.empty();
 
-        var filtered = filtreActif
-            ? demandes.filter(function(d){ return d.statut === filtreActif; })
-            : demandes;
-
-        if (filtered.length === 0) {
+        if (!demandes.length) {
             tbody.html('<tr><td colspan="9" class="text-center py-4 text-muted"><i class="fas fa-inbox mr-1"></i> Aucune demande trouvée.</td></tr>');
             return;
         }
 
-        $.each(filtered, function(i, d) {
+        $.each(demandes, function(i, d) {
             var isAttente = (d.statut === 'EN_ATTENTE');
             var actions   = '';
 
@@ -904,8 +1123,92 @@ $(document).ready(function () {
         });
     }
 
+    function dmTypeBadge(typeDemande) {
+        if (typeDemande === 'SUPPRESSION') {
+            return '<span class="badge badge-danger">Suppression</span>';
+        }
+        return '<span class="badge badge-warning text-dark">Modification</span>';
+    }
+
+    function dmStatutBadge(statut) {
+        var label = statut;
+        if (statut === 'EN_ATTENTE') label = 'En attente';
+        if (statut === 'APPROUVEE')  label = 'Approuvée';
+        if (statut === 'REJETEE')    label = 'Rejetée';
+        return '<span class="badge badge-dm-' + statut + '">' + label + '</span>';
+    }
+
+    function renderDemandesTransactions(demandes) {
+        var $tbody = $('#tbodyDemandesTransactions');
+        $tbody.empty();
+
+        if (!demandes.length) {
+            $tbody.html('<tr><td colspan="10" class="text-center py-4 text-muted"><i class="fas fa-inbox mr-1"></i> Aucune demande de transaction.</td></tr>');
+            return;
+        }
+
+        $.each(demandes, function (i, d) {
+            var actions = '<span class="text-muted small">—</span>';
+            if (d.statut === 'EN_ATTENTE') {
+                actions = '<button class="btn btn-xs btn-success mr-1 btn-tx-approuver" data-id="' + d.id + '" data-resume="' + escHtml((d.reference_operation || '—') + ' — ' + (d.client_nom || '—')) + '" title="Approuver"><i class="fas fa-check"></i></button>'
+                        + '<button class="btn btn-xs btn-danger btn-tx-rejeter" data-id="' + d.id + '" data-resume="' + escHtml((d.reference_operation || '—') + ' — ' + (d.client_nom || '—')) + '" title="Rejeter"><i class="fas fa-times"></i></button>';
+            } else if (d.traitee_le) {
+                actions = '<small class="text-muted">' + escHtml(d.traitee_le) + '</small>';
+            }
+
+            var nouvMontant = d.nouveau_montant
+                ? '<strong class="text-primary">' + escHtml(d.nouveau_montant) + '</strong>'
+                : '<span class="text-muted">—</span>';
+
+            $tbody.append(
+                '<tr class="' + (d.statut === 'EN_ATTENTE' ? 'row-en-attente' : '') + '">' +
+                '<td>' + d.id + '</td>' +
+                '<td class="text-center">' + dmTypeBadge(d.type_demande) + '</td>' +
+                '<td><small class="text-monospace">' + escHtml(d.reference_operation || '—') + '</small><br><small class="text-muted">' + escHtml(d.type_operation || '—') + '</small></td>' +
+                '<td><strong>' + escHtml(d.guichet || '—') + '</strong><br><small class="text-muted">' + escHtml(d.agent_nom || d.agent_matricule || '—') + '</small></td>' +
+                '<td><small>' + escHtml(d.client_nom || '—') + '</small><br><small class="text-monospace text-muted">' + escHtml(d.compte_code || '—') + '</small></td>' +
+                '<td><strong>' + escHtml(d.ancien_montant || '—') + '</strong></td>' +
+                '<td>' + nouvMontant + '</td>' +
+                '<td><small>' + escHtml(d.motif || '—') + '</small></td>' +
+                '<td>' + dmStatutBadge(d.statut) + '</td>' +
+                '<td class="text-center">' + actions + '</td>' +
+                '</tr>'
+            );
+        });
+    }
+
+    function rafraichirDemandesTransactions() {
+        $.get(urlTxDemandesData, paramsDemandesTx())
+        .done(function (data) {
+            if (typeof data === 'string') {
+                try { data = JSON.parse(data.replace(/^\uFEFF/, '').trim()); }
+                catch(e) {
+                    $('#tbodyDemandesTransactions').html('<tr><td colspan="10" class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle mr-1"></i>Réponse invalide du serveur.</td></tr>');
+                    return;
+                }
+            }
+
+            demandesTxChargees = true;
+            toutesLesDemandesTx = Array.isArray(data) ? data : [];
+            var pending = toutesLesDemandesTx.filter(function (d) { return d.statut === 'EN_ATTENTE'; }).length;
+
+            $('#badgeTxDemandesTotal').text(toutesLesDemandesTx.length);
+            if (pending > 0) {
+                $('#badgeTxDemandesPending').text(pending + ' en attente').show();
+            } else {
+                $('#badgeTxDemandesPending').hide();
+            }
+
+            renderDemandesTransactions(toutesLesDemandesTx);
+        })
+        .fail(function (xhr) {
+            handleAjaxFail(xhr, 'Chargement demandes modification/suppression');
+            $('#tbodyDemandesTransactions').html('<tr><td colspan="10" class="text-center py-4 text-muted"><i class="fas fa-exclamation-triangle mr-1 text-danger"></i> Erreur lors du chargement.</td></tr>');
+        });
+    }
+
     function rafraichirDemandes() {
-        $.get(urlDemandes)
+        $.get(urlDemandes, paramsDemandesAppro())
         .done(function(data) {
             // Si le serveur renvoie du HTML au lieu de JSON (ex : page d'erreur Laravel)
             if (typeof data === 'string') {
@@ -923,12 +1226,13 @@ $(document).ready(function () {
                 }
             }
 
-            toutesLesDemandes = data;
-            var nbAttente = data.filter(function(d){ return d.statut === 'EN_ATTENTE'; }).length;
+            demandesChargees = true;
+            toutesLesDemandes = Array.isArray(data) ? data : [];
+            var nbAttente = toutesLesDemandes.filter(function(d){ return d.statut === 'EN_ATTENTE'; }).length;
             if (nbAttente > 0) { $('#badgeDemandesCount').text(nbAttente).show(); }
             else                { $('#badgeDemandesCount').hide(); }
             $('#badgeFiltreAttente').text(nbAttente);
-            renderDemandes(data);
+            renderDemandes(toutesLesDemandes);
         })
         .fail(function(xhr) {
             handleAjaxFail(xhr, 'Chargement demandes approvisionnement');
@@ -946,7 +1250,50 @@ $(document).ready(function () {
         $('.filtre-statut').removeClass('active');
         $(this).addClass('active');
         filtreActif = $(this).data('statut');
-        renderDemandes(toutesLesDemandes);
+        rafraichirDemandes();
+    });
+
+    $('#btnAppliquerFiltresDemandes').on('click', function () {
+        rafraichirDemandes();
+    });
+
+    $('#btnResetFiltresDemandes').on('click', function () {
+        filtreActif = '';
+        $('.filtre-statut').removeClass('active');
+        $('.filtre-statut[data-statut=""]').addClass('active');
+        $('#filtreDemSearch').val('');
+        setDateFiltersToToday();
+        rafraichirDemandes();
+    });
+
+    $('#filtreDemDateDebut, #filtreDemDateFin, #filtreDemSearch').on('keypress', function (e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            rafraichirDemandes();
+        }
+    });
+
+    $('#btnAppliquerFiltresTx').on('click', function () {
+        rafraichirDemandesTransactions();
+    });
+
+    $('#btnResetFiltresTx').on('click', function () {
+        $('#filtreTxStatut').val('tous');
+        $('#filtreTxType').val('tous');
+        $('#filtreTxSearch').val('');
+        setDateFiltersToToday();
+        rafraichirDemandesTransactions();
+    });
+
+    $('#filtreTxStatut, #filtreTxType').on('change', function () {
+        rafraichirDemandesTransactions();
+    });
+
+    $('#filtreTxDateDebut, #filtreTxDateFin, #filtreTxSearch').on('keypress', function (e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            rafraichirDemandesTransactions();
+        }
     });
 
     
@@ -1006,16 +1353,84 @@ $(document).ready(function () {
         });
     });
 
+    $(document).on('click', '.btn-tx-approuver', function () {
+        $('#txAppId').val($(this).data('id'));
+        $('#txAppResume').text($(this).data('resume') || '—');
+        $('#txAppCommentaire').val('');
+        $('#modalTxApprouver').modal('show');
+    });
+
+    $('#btnConfirmTxApprouver').on('click', function () {
+        var id = $('#txAppId').val();
+        if (!id) return;
+
+        var $btn = $(this);
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Traitement…');
+
+        $.post(urlTxApprouver.replace('__ID__', id), {
+            commentaire: $('#txAppCommentaire').val()
+        }).done(function (r) {
+            $('#modalTxApprouver').modal('hide');
+            showSystemMessage('success', r.message || 'Demande approuvée.');
+            rafraichirDemandesTransactions();
+        }).fail(function (xhr) {
+            handleAjaxFail(xhr, 'Approbation demande transaction');
+        }).always(function () {
+            $btn.prop('disabled', false).html('<i class="fas fa-check mr-1"></i>Approuver');
+        });
+    });
+
+    $(document).on('click', '.btn-tx-rejeter', function () {
+        $('#txRejId').val($(this).data('id'));
+        $('#txRejResume').text($(this).data('resume') || '—');
+        $('#txRejCommentaire').val('');
+        $('#txRejErreur').addClass('d-none');
+        $('#modalTxRejeter').modal('show');
+    });
+
+    $('#btnConfirmTxRejeter').on('click', function () {
+        var id = $('#txRejId').val();
+        var commentaire = $.trim($('#txRejCommentaire').val());
+
+        if (!commentaire || commentaire.length < 5) {
+            $('#txRejErreur').removeClass('d-none');
+            return;
+        }
+
+        var $btn = $(this);
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Traitement…');
+
+        $.post(urlTxRejeter.replace('__ID__', id), {
+            commentaire: commentaire
+        }).done(function (r) {
+            $('#modalTxRejeter').modal('hide');
+            showSystemMessage('warning', r.message || 'Demande rejetée.');
+            rafraichirDemandesTransactions();
+        }).fail(function (xhr) {
+            handleAjaxFail(xhr, 'Rejet demande transaction');
+        }).always(function () {
+            $btn.prop('disabled', false).html('<i class="fas fa-times mr-1"></i>Rejeter');
+        });
+    });
+
    
     $('#btnRefreshBalances').on('click', rafraichirBalances);
     $('#btnRefreshDemandes').on('click', rafraichirDemandes);
+    $('#btnRefreshDemandesTransactions').on('click', rafraichirDemandesTransactions);
     $('#btnRefreshStats').on('click', rafraichirStats);
 
-    rafraichirDemandes();
+    setDateFiltersToToday();
     rafraichirStats();
+    rafraichirDemandes();
+    rafraichirDemandesTransactions();
 
     // Actualisation automatique toutes les 60s
-    setInterval(rafraichirDemandes, 60000);
+    setInterval(function () {
+        if (demandesChargees) rafraichirDemandes();
+    }, 60000);
+    setInterval(function () {
+        if (demandesTxChargees) rafraichirDemandesTransactions();
+    }, 60000);
     setInterval(rafraichirStats,   60000);
 });
 </script>

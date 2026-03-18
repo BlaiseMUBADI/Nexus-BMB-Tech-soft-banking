@@ -16,7 +16,6 @@ return new class extends Migration
             ['code' => 'EBEN-PER106', 'nom' => 'Supprimer affectation RH', 'description' => 'Supprimer une affectation RH', 'created_at' => $now, 'updated_at' => $now],
             ['code' => 'EBEN-PER107', 'nom' => 'Supprimer client', 'description' => 'Supprimer un client', 'created_at' => $now, 'updated_at' => $now],
             ['code' => 'EBEN-PER108', 'nom' => 'Supprimer compte client', 'description' => 'Fermer/supprimer un compte client', 'created_at' => $now, 'updated_at' => $now],
-            ['code' => 'EBEN-PER109', 'nom' => 'Annuler operation caisse', 'description' => 'Annuler une operation de caisse', 'created_at' => $now, 'updated_at' => $now],
         ]);
 
         $this->copyRoleMappings('EBEN-PER8', 'EBEN-PER103', $now);
@@ -25,7 +24,6 @@ return new class extends Migration
         $this->copyRoleMappings('EBEN-PER9', 'EBEN-PER106', $now);
         $this->copyRoleMappings('EBEN-PER17', 'EBEN-PER107', $now);
         $this->copyRoleMappings('EBEN-PER19', 'EBEN-PER108', $now);
-        $this->copyRoleMappings('EBEN-PER11', 'EBEN-PER109', $now);
 
         DB::table('tb_permissions')->where('code', 'EBEN-PER103')->update([
             'nom' => 'Modifier agent et service/poste RH',
@@ -85,11 +83,11 @@ return new class extends Migration
         $now = now();
 
         DB::table('tb_role_permission')->whereIn('permission_code', [
-            'EBEN-PER103', 'EBEN-PER104', 'EBEN-PER105', 'EBEN-PER106', 'EBEN-PER107', 'EBEN-PER108', 'EBEN-PER109',
+            'EBEN-PER103', 'EBEN-PER104', 'EBEN-PER105', 'EBEN-PER106', 'EBEN-PER107', 'EBEN-PER108',
         ])->delete();
 
         DB::table('tb_permissions')->whereIn('code', [
-            'EBEN-PER103', 'EBEN-PER104', 'EBEN-PER105', 'EBEN-PER106', 'EBEN-PER107', 'EBEN-PER108', 'EBEN-PER109',
+            'EBEN-PER103', 'EBEN-PER104', 'EBEN-PER105', 'EBEN-PER106', 'EBEN-PER107', 'EBEN-PER108',
         ])->delete();
 
         DB::table('tb_permissions')->where('code', 'EBEN-PER8')->update([

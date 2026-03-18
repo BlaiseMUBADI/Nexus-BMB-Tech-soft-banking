@@ -7,6 +7,11 @@ use App\Http\Controllers\Tresorerie\TresorerieController;
 
 Route::middleware('auth')->prefix('comptes-clients')->group(function () {
 
+    Route::middleware('permission:EBEN-PER76')->group(function () {
+        Route::get('clients/agents-terrain', [TresorerieController::class, 'agentsMobiles'])->name('clients.agents-terrain');
+        Route::get('clients/agents-terrain-pdf', [TresorerieController::class, 'agentsMobilesPdf'])->name('clients.agents-terrain.pdf');
+    });
+
     Route::middleware('permission:EBEN-PER15')->group(function () {
         Route::get('clients',             [ClientController::class, 'index'])->name('clients.index');
         Route::get('clients/create',      [ClientController::class, 'create'])->name('clients.create');
@@ -59,10 +64,4 @@ Route::middleware('auth')->prefix('comptes-clients')->group(function () {
         Route::get('clients/{matricule}/fiche-pdf', [ClientController::class, 'imprimerFiche'])->name('clients.fiche.pdf');
         Route::get('clients-liste-pdf',             [ClientController::class, 'imprimerListe'])->name('clients.liste.pdf');
     });
-
-    Route::middleware('permission:EBEN-PER76')->group(function () {
-        Route::get('clients/agents-terrain', [TresorerieController::class, 'agentsMobiles'])->name('clients.agents-terrain');
-        Route::get('clients/agents-terrain-pdf', [TresorerieController::class, 'agentsMobilesPdf'])->name('clients.agents-terrain.pdf');
-    });
-
 });

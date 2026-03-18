@@ -613,13 +613,42 @@ class TresorerieController extends Controller
      * Liste JSON de toutes les demandes (EN_ATTENTE en premier).
      * Source : tb_mouvements_inter_caisses où type_flux = 'DEMANDE_APPRO'
      */
-    public function demandesJson()
+    public function demandesJson(Request $request)
     {
-        $demandes = MouvementInterCaisse::with(['guichetDest', 'agentInitiateur'])
+        $query = MouvementInterCaisse::with(['guichetDest', 'agentInitiateur'])
             ->where('type_flux', 'DEMANDE_APPRO')
             ->orderByRaw("FIELD(statut, 'EN_ATTENTE', 'CONFIRME', 'ANNULE')")
-            ->orderByDesc('date_mouvement')
-            ->limit(200)
+            ->orderByDesc('date_mouvement');
+
+        if ($request->filled('statut') && $request->statut !== 'tous') {
+            $query->where('statut', $request->statut);
+        }
+
+        if ($request->filled('date_debut')) {
+            $query->whereDate('date_mouvement', '>=', $request->date_debut);
+        }
+
+        if ($request->filled('date_fin')) {
+            $query->whereDate('date_mouvement', '<=', $request->date_fin);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_bordereau', 'like', "%{$search}%")
+                  ->orWhere('agent_initiateur', 'like', "%{$search}%")
+                  ->orWhere('observations', 'like', "%{$search}%")
+                  ->orWhereHas('guichetDest', function ($g) use ($search) {
+                      $g->where('code_guichet', 'like', "%{$search}%")
+                        ->orWhere('intitule', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $limit = (int) $request->input('limit', 200);
+        $limit = max(20, min($limit, 500));
+
+        $demandes = $query->limit($limit)
             ->get()
             ->map(function ($m) {
                 $agent = $m->agentInitiateur;

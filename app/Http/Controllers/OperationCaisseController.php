@@ -10,6 +10,7 @@ use App\Models\RH\Affectation;
 use App\Models\Clients\Compte;
 use App\Models\Caisse\CaissesGuichet;
 use App\Models\Caisse\CaissesGuichetSolde;
+use App\Models\Caisse\DemandeModification;
 use App\Models\Caisse\MouvementInterCaisse;
 use App\Models\Caisse\Transaction;
 use App\Models\Tresorerie\CommissionRule;
@@ -234,13 +235,23 @@ class OperationCaisseController extends Controller
         $guichet = $this->getGuichetAgent();
         $zoneScope = $this->resolveZoneScope();
 
-        $operations = [];
+        $operations = collect();
+        $latestDemandesByTx = [];
         if ($guichet) {
             $operations = Transaction::where('guichet_id', $guichet->id)
                 ->whereDate('date_operation', today())
                 ->orderByDesc('date_operation')
                 ->limit(30)
                 ->get();
+
+            if ($operations->isNotEmpty()) {
+                $latestDemandesByTx = DemandeModification::whereIn('transaction_id', $operations->pluck('id')->all())
+                    ->orderByDesc('id')
+                    ->get()
+                    ->unique('transaction_id')
+                    ->keyBy('transaction_id')
+                    ->all();
+            }
         }
 
         $comptesQuery = \App\Models\Clients\Compte::with('client')
@@ -258,7 +269,13 @@ class OperationCaisseController extends Controller
 
         $operationTypeOptions = $this->getOperationTypeOptions($guichet);
 
-        return view('Caisse_Guichet.operations', compact('guichet', 'user', 'operations', 'comptes', 'zoneRestriction', 'operationTypeOptions'));
+        // ══════════════════════════════════════════════════════════════
+        // Permission annulation bancaire : EBEN-PER25 (transactions)
+        // Modèle strict bancaire: plus de cohabitation avec PER109.
+        // ══════════════════════════════════════════════════════════════
+        $canDeleteOperation = $user->hasPermission('EBEN-PER25');
+
+        return view('Caisse_Guichet.operations', compact('guichet', 'user', 'operations', 'comptes', 'zoneRestriction', 'operationTypeOptions', 'canDeleteOperation', 'latestDemandesByTx'));
     }
 
     /**
@@ -294,7 +311,7 @@ class OperationCaisseController extends Controller
             'taux_change'    => 'nullable|numeric|min:0',
         ], [
             'type_operation.in'        => $guichet->type_guichet === 'MOBILE'
-                ? 'Cette opération n\'est pas autorisée sur un guichet mobile.'
+                ? 'Sur un guichet mobile, seules les opérations de dépôt et de change sont autorisées.'
                 : 'Type d\'opération invalide.',
             'compte_code.required_if'  => 'Le compte client est obligatoire pour un dépôt ou un retrait.',
             'compte_code.exists'       => 'Le numéro de compte est introuvable.',
@@ -302,13 +319,6 @@ class OperationCaisseController extends Controller
             'montant_dest.required_if' => 'Le montant destination est obligatoire pour un change.',
             'devise_dest.different'    => 'Les deux devises doivent être différentes.',
         ]);
-
-        if ($guichet->type_guichet === 'MOBILE' && in_array($request->type_operation, [Transaction::RETRAIT, Transaction::VIREMENT], true)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Les opérations de retrait et de virement sont interdites sur un guichet mobile.',
-            ], 403);
-        }
 
         if ($guichet->statut_operationnel !== 'OUVERT') {
             $msg = match($guichet->statut_operationnel) {
@@ -652,6 +662,23 @@ class OperationCaisseController extends Controller
     {
         /** @var \App\Models\User $user */
         $user    = Auth::user();
+
+        // ══════════════════════════════════════════════════════════════
+        // Vérifier permission annulation transaction bancaire
+        // Modèle strict bancaire : EBEN-PER25 uniquement.
+        // ══════════════════════════════════════════════════════════════
+        if (!$user->hasPermission('EBEN-PER25')) {
+            Log::warning('[Caisse] Tentative d\'annulation sans permission (PER25)', [
+                'user_id' => $user->id,
+                'agent_matricule' => $user->agent_matricule,
+                'transaction_id' => $id,
+                'ip' => request()->ip(),
+            ]);
+
+            // Retourner la page 403 ergonomique (silencieuse, sans popup)
+            return response()->view('errors.403', [], 403);
+        }
+
         $guichet = $this->getGuichetAgent();
 
         if (!$guichet) {
@@ -978,7 +1005,18 @@ class OperationCaisseController extends Controller
             $query->where('type', $type);
         }
 
-        $ops = $query->limit(300)->get()->map(fn($op) => [
+        $opsRows = $query->limit(300)->get();
+
+        $latestDemandes = collect();
+        if ($opsRows->isNotEmpty()) {
+            $latestDemandes = DemandeModification::whereIn('transaction_id', $opsRows->pluck('id')->all())
+                ->orderByDesc('id')
+                ->get()
+                ->unique('transaction_id')
+                ->keyBy('transaction_id');
+        }
+
+        $ops = $opsRows->map(fn($op) => [
             'id'              => $op->id,
             'reference'       => $op->reference,
             'compte_code'     => $op->compte_code,
@@ -997,6 +1035,9 @@ class OperationCaisseController extends Controller
             'statut'          => $op->statut,
             'date'            => $op->date_operation?->format('d/m/Y H:i:s'),
             'observations'    => $op->observations,
+            'demande_id'      => $latestDemandes->get($op->id)?->id,
+            'demande_statut'  => $latestDemandes->get($op->id)?->statut,
+            'demande_type'    => $latestDemandes->get($op->id)?->type_demande,
         ]);
 
         // Totaux par type (opérations confirmées uniquement)
@@ -1302,6 +1343,90 @@ class OperationCaisseController extends Controller
     // ══════════════════════════════════════════════════════════════
 
     /**
+     * Retourne l'état de la dernière demande liée à une opération.
+     * GET /caisses/operations/{id}/demande-statut
+     */
+    public function statutDemandeModification($id)
+    {
+        $guichet = $this->getGuichetAgent();
+
+        if (!$guichet) {
+            return response()->json([
+                'success' => false,
+                'can_submit' => false,
+                'reason' => 'AUCUN_GUICHET',
+                'message' => 'Aucun guichet affecté.',
+            ], 422);
+        }
+
+        $op = Transaction::where('id', $id)
+            ->where('guichet_id', $guichet->id)
+            ->first();
+
+        if (!$op) {
+            return response()->json([
+                'success' => false,
+                'can_submit' => false,
+                'reason' => 'OP_INTROUVABLE',
+                'message' => 'Opération introuvable pour ce guichet.',
+            ], 404);
+        }
+
+        $pending = DemandeModification::where('transaction_id', $id)
+            ->where('statut', DemandeModification::EN_ATTENTE)
+            ->latest('id')
+            ->first();
+
+        $approved = DemandeModification::where('transaction_id', $id)
+            ->where('statut', DemandeModification::APPROUVEE)
+            ->latest('id')
+            ->first();
+
+        $latest = DemandeModification::where('transaction_id', $id)
+            ->latest('id')
+            ->first();
+
+        $reason = 'AUCUNE_DEMANDE';
+        $canSubmit = true;
+        $message = 'Aucune demande en attente. Vous pouvez soumettre une nouvelle demande.';
+
+        if ($op->statut !== Transaction::CONFIRME) {
+            $reason = 'OP_NON_CONFIRMEE';
+            $canSubmit = false;
+            $message = 'Cette opération n\'est plus modifiable (déjà annulée ou non confirmée).';
+        } elseif ($pending) {
+            $reason = 'DEMANDE_EN_ATTENTE';
+            $canSubmit = false;
+            $message = 'Une demande est déjà en attente pour cette opération (#' . $pending->id . ').';
+        } elseif ($approved) {
+            $reason = 'DEMANDE_DEJA_TRAITEE_APPROUVEE';
+            $canSubmit = false;
+            $message = 'Une demande a déjà été approuvée pour cette opération (#' . $approved->id . '). Aucune nouvelle demande autorisée.';
+        } elseif ($latest && $latest->statut === DemandeModification::REJETEE) {
+            $reason = 'DERNIERE_REJETEE';
+            $canSubmit = true;
+            $message = 'La dernière demande a été rejetée. Vous pouvez soumettre une nouvelle demande.';
+        }
+
+        return response()->json([
+            'success' => true,
+            'can_submit' => $canSubmit,
+            'reason' => $reason,
+            'message' => $message,
+            'operation_statut' => $op->statut,
+            'latest_demande' => $latest ? [
+                'id' => $latest->id,
+                'type_demande' => $latest->type_demande,
+                'statut' => $latest->statut,
+                'motif' => $latest->motif,
+                'commentaire_superviseur' => $latest->commentaire_superviseur,
+                'demandee_le' => $latest->created_at?->format('d/m/Y H:i'),
+                'traitee_le' => $latest->traitee_le?->format('d/m/Y H:i'),
+            ] : null,
+        ]);
+    }
+
+    /**
      * Guichetier soumet une demande de modification ou suppression d'une opération.
      * POST /caisses/operations/{id}/demande
      */
@@ -1337,14 +1462,43 @@ class OperationCaisseController extends Controller
         }
 
         // Vérifier qu'il n'existe pas déjà une demande EN_ATTENTE pour cette opération
-        $existante = \App\Models\Caisse\DemandeModification::where('transaction_id', $id)
-            ->where('statut', \App\Models\Caisse\DemandeModification::EN_ATTENTE)
+        $existante = DemandeModification::where('transaction_id', $id)
+            ->where('statut', DemandeModification::EN_ATTENTE)
             ->first();
 
         if ($existante) {
             return response()->json([
                 'success' => false,
                 'message' => 'Une demande est déjà en attente pour cette opération (#' . $existante->id . ').',
+                'reason'  => 'DEMANDE_EN_ATTENTE',
+                'current' => [
+                    'id'            => $existante->id,
+                    'type_demande'  => $existante->type_demande,
+                    'statut'        => $existante->statut,
+                    'demandee_le'   => $existante->created_at?->format('d/m/Y H:i'),
+                    'traitee_le'    => $existante->traitee_le?->format('d/m/Y H:i'),
+                ],
+            ], 422);
+        }
+
+        // Si une demande a déjà été approuvée pour cette opération, on verrouille.
+        $dejaApprouvee = DemandeModification::where('transaction_id', $id)
+            ->where('statut', DemandeModification::APPROUVEE)
+            ->latest('id')
+            ->first();
+
+        if ($dejaApprouvee) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cette opération est verrouillée: une demande (#' . $dejaApprouvee->id . ') a déjà été approuvée.',
+                'reason'  => 'DEMANDE_DEJA_TRAITEE_APPROUVEE',
+                'current' => [
+                    'id'            => $dejaApprouvee->id,
+                    'type_demande'  => $dejaApprouvee->type_demande,
+                    'statut'        => $dejaApprouvee->statut,
+                    'demandee_le'   => $dejaApprouvee->created_at?->format('d/m/Y H:i'),
+                    'traitee_le'    => $dejaApprouvee->traitee_le?->format('d/m/Y H:i'),
+                ],
             ], 422);
         }
 
@@ -1357,7 +1511,7 @@ class OperationCaisseController extends Controller
             }
         }
 
-        \App\Models\Caisse\DemandeModification::create([
+        DemandeModification::create([
             'transaction_id'         => $op->id,
             'reference_operation'    => $op->reference,
             'guichet_id'             => $guichet->id,
@@ -1372,7 +1526,7 @@ class OperationCaisseController extends Controller
             'motif'                  => $request->motif,
             'nouveau_montant'        => $request->type_demande === 'MODIFICATION' ? $request->nouveau_montant : null,
             'nouvelles_observations' => $request->nouvelles_observations,
-            'statut'                 => \App\Models\Caisse\DemandeModification::EN_ATTENTE,
+            'statut'                 => DemandeModification::EN_ATTENTE,
         ]);
 
         return response()->json([
@@ -1415,7 +1569,37 @@ class OperationCaisseController extends Controller
             $query->where('statut', $request->statut);
         }
 
-        $demandes = $query->limit(200)->get()->map(function ($d) {
+        if ($request->filled('type_demande') && $request->type_demande !== 'tous') {
+            $query->where('type_demande', $request->type_demande);
+        }
+
+        if ($request->filled('date_debut')) {
+            $query->whereDate('created_at', '>=', $request->date_debut);
+        }
+
+        if ($request->filled('date_fin')) {
+            $query->whereDate('created_at', '<=', $request->date_fin);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_operation', 'like', "%{$search}%")
+                  ->orWhere('client_nom', 'like', "%{$search}%")
+                  ->orWhere('compte_code', 'like', "%{$search}%")
+                  ->orWhere('agent_matricule', 'like', "%{$search}%")
+                  ->orWhere('motif', 'like', "%{$search}%")
+                  ->orWhereHas('guichet', function ($g) use ($search) {
+                      $g->where('intitule', 'like', "%{$search}%")
+                        ->orWhere('code_guichet', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $limit = (int) $request->input('limit', 200);
+        $limit = max(20, min($limit, 500));
+
+        $demandes = $query->limit($limit)->get()->map(function ($d) {
             $agent = $d->agentDemandeur;
             $sup   = $d->superviseur;
             return [

@@ -1,7 +1,7 @@
 {{-- ============================================================
-     Opérations de Caisse — Guichetier
-     Saisie : Dépôt, Retrait, Change, Paiement, Remboursement
-    Permissions : EBEN-PER10 (voir) | EBEN-PER11 (saisir) | EBEN-PER109 (annuler)
+    Opérations de Caisse — Guichetier
+    Saisie : Dépôt, Retrait, Change, Paiement, Remboursement
+    Permissions : EBEN-PER10 (voir) | EBEN-PER11 (saisir) | EBEN-PER25 (annuler)
      ============================================================ --}}
 @extends('layouts.app')
 
@@ -32,6 +32,7 @@
         $statut  = $guichet->statut_operationnel;
         $typeGch = $guichet->type_guichet;   // FIXE | MOBILE | CENTRAL
         $guichetOuvert = ($statut === 'OUVERT');
+        $isMobileGuichet = strtoupper((string) $typeGch) === 'MOBILE';
     @endphp
 
     {{-- ── Bandeau statut guichet ────────────────────────────── --}}
@@ -75,6 +76,13 @@
                     </h6>
                 </div>
                 <div class="card-body">
+
+                    @if($isMobileGuichet)
+                    <div class="alert alert-warning py-2 small">
+                        <i class="fas fa-mobile-alt mr-1"></i>
+                        Guichet mobile : seules les opérations <strong>Dépôt</strong> et <strong>Change</strong> sont autorisées.
+                    </div>
+                    @endif
 
                     <div class="form-group mb-2">
                         <label class="font-weight-bold text-uppercase" style="font-size:.82rem; letter-spacing:.06em;">
@@ -181,6 +189,17 @@
                                {{ !$guichetOuvert ? 'disabled' : '' }}>
                     </div>
 
+                    <div class="custom-control custom-checkbox mb-3">
+                        <input type="checkbox" class="custom-control-input" id="chkImprimerBordereau"
+                               {{ !$guichetOuvert ? 'disabled' : '' }}>
+                        <label class="custom-control-label" for="chkImprimerBordereau">
+                            Imprimer le bordereau après l'enregistrement
+                        </label>
+                        <small class="form-text text-muted">
+                            Laissez décoché pour enregistrer plus vite sans ouvrir automatiquement le PDF.
+                        </small>
+                    </div>
+
                     <div id="blocCommissionPreview" class="card mb-3 d-none operation-preview-card">
                         <div class="card-header py-1 px-2 d-flex align-items-center justify-content-between">
                             <span class="small font-weight-bold text-uppercase" style="letter-spacing:.05em;">
@@ -231,9 +250,14 @@
                         Opérations du jour
                         <span class="badge badge-secondary ml-1" id="opCount">{{ $operations->count() }}</span>
                     </h6>
-                    <button class="btn btn-xs btn-outline-secondary" id="btnRefreshOps" title="Actualiser">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
+                    <div class="d-flex align-items-center" style="gap:.45rem;">
+                        <small class="text-muted" title="Les opérations avec demande en attente sont affichées en premier">
+                            <i class="fas fa-sort-amount-down-alt mr-1"></i>Tri : demandes en attente d'abord
+                        </small>
+                        <button class="btn btn-xs btn-outline-secondary" id="btnRefreshOps" title="Actualiser">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -245,11 +269,16 @@
                                     <th>Montant</th>
                                     <th>Heure</th>
                                     <th>Statut</th>
-                                    <th style="width:40px;"></th>
+                                    <th>État demande</th>
+                                    <th style="width:100px;"></th>
                                 </tr>
                             </thead>
                             <tbody id="tbodyOps">
                                 @forelse($operations as $op)
+                                @php
+                                    $dmd = ($latestDemandesByTx ?? [])[$op->id] ?? null;
+                                    $demandeBloquee = $dmd && in_array($dmd->statut, ['EN_ATTENTE', 'APPROUVEE'], true);
+                                @endphp
                                 <tr class="{{ $op->statut === 'ANNULE' ? 'text-muted' : '' }}" id="opRow_{{ $op->id }}">
                                     <td class="text-center">
                                         <i class="fas {{ \App\Models\Caisse\Transaction::typeIcon($op->type) }} fa-sm"></i>
@@ -278,21 +307,43 @@
                                         @endif
                                     </td>
                                     <td>
+                                        @if($dmd)
+                                            @if($dmd->statut === 'EN_ATTENTE')
+                                                <span class="badge badge-pill badge-warning px-2 py-1"><i class="fas fa-clock mr-1"></i>En attente #{{ $dmd->id }}</span>
+                                            @elseif($dmd->statut === 'APPROUVEE')
+                                                <span class="badge badge-pill badge-success px-2 py-1"><i class="fas fa-check mr-1"></i>Approuvée #{{ $dmd->id }}</span>
+                                            @else
+                                                <span class="badge badge-pill badge-danger px-2 py-1"><i class="fas fa-times mr-1"></i>Rejetée #{{ $dmd->id }}</span>
+                                            @endif
+                                        @else
+                                            <span class="badge badge-light">Aucune demande</span>
+                                        @endif
+                                    </td>
+                                    <td>
                                         <div class="op-actions">
                                             @if($op->statut === 'CONFIRME')
+                                            @if($canDeleteOperation && !$demandeBloquee)
                                             <button class="btn btn-xs btn-outline-danger btn-annuler"
                                                     data-id="{{ $op->id }}" title="Annuler">
                                                 <i class="fas fa-times"></i>
                                             </button>
-                                            <button class="btn btn-xs btn-outline-warning btn-demande-modif"
-                                                    data-id="{{ $op->id }}"
-                                                    data-ref="{{ $op->reference }}"
-                                                    data-montant="{{ $op->montant }}"
-                                                    data-type="{{ $op->type }}"
-                                                    data-devise="{{ $op->devise_code }}"
-                                                    title="Demander modification / suppression">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
+                                            @endif
+                                            @if(!$demandeBloquee)
+                                                <button class="btn btn-xs btn-outline-warning btn-demande-modif"
+                                                        data-id="{{ $op->id }}"
+                                                        data-ref="{{ $op->reference }}"
+                                                        data-montant="{{ $op->montant }}"
+                                                        data-type="{{ $op->type }}"
+                                                        data-devise="{{ $op->devise_code }}"
+                                                        title="Demander modification / suppression">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            @else
+                                                <button class="btn btn-xs btn-outline-secondary" disabled
+                                                        title="Demande déjà en cours/traitée">
+                                                    <i class="fas fa-lock"></i>
+                                                </button>
+                                            @endif
                                             @endif
                                             <a href="{{ route('caisses.operations.bordereau', ['id' => $op->id]) }}"
                                                target="_blank"
@@ -305,7 +356,7 @@
                                 </tr>
                                 @empty
                                 <tr id="trVide">
-                                    <td colspan="6" class="text-center py-4 text-muted">
+                                    <td colspan="7" class="text-center py-4 text-muted">
                                         <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                                         Aucune opération aujourd'hui.
                                     </td>
@@ -414,6 +465,11 @@
                     Opération : <strong id="demandeRef">—</strong>
                     &bull; Type : <strong id="demandeType">—</strong>
                     &bull; Montant original : <strong id="demandeAncienMontant">—</strong>
+                </div>
+                <div id="etatDemandeInfo" class="alert alert-secondary py-2 small mb-3 d-none">
+                    <div class="font-weight-bold mb-1"><i class="fas fa-stream mr-1"></i> État de la demande</div>
+                    <div id="etatDemandeMessage">—</div>
+                    <div id="etatDemandeDetails" class="text-muted mt-1">—</div>
                 </div>
                 <div class="form-group mb-2">
                     <label class="small font-weight-bold">Type de demande <span class="text-danger">*</span></label>
@@ -541,11 +597,17 @@ $(document).ready(function () {
     var urlStore         = '{{ route("caisses.operations.store") }}';
     var urlJournal        = '{{ route("caisses.journal.data") }}';
     var urlAnnuler        = '{{ route("caisses.operations.annuler", ["id" => "__ID__"]) }}';
+    var urlDemandeStatut = '{{ route("caisses.operations.demande.statut", ["id" => "__ID__"]) }}';
     var urlDemandeModif  = '{{ route("caisses.operations.demande.modification", ["id" => "__ID__"]) }}';
     var urlBordereau     = '{{ route("caisses.operations.bordereau", ["id" => "__ID__"]) }}';
     var urlSearchCompte   = '{{ route("caisses.operations.comptes.search") }}';
     var urlCommissionPreview = '{{ route("caisses.operations.commission.preview") }}';
     var urlClientPhoto    = '{{ url("/clients/photo") }}';
+    
+    // ══════════════════════════════════════════════════════════════
+    // Permission annulation : EBEN-PER25 (transactions)
+    // ══════════════════════════════════════════════════════════════
+    var canDeleteOperation = {{ $canDeleteOperation ? 'true' : 'false' }};
 
     // ── Select2 — Recherche compte client (chargé côté serveur) ──
     $('#selCompte').select2({
@@ -792,6 +854,7 @@ $(document).ready(function () {
         var type    = $('#selTypeOp').val();
         var devise  = $('#selDevise').val();
         var montant = $('#inpMontant').val();
+        var imprimerBordereau = $('#chkImprimerBordereau').is(':checked');
 
         if (!type)    { showSystemMessage('error', 'Sélectionnez un type d\'opération.'); return; }
         if ((type === 'DEPOT' || type === 'RETRAIT') && !$('#selectedCompteCode').val()) {
@@ -845,8 +908,7 @@ $(document).ready(function () {
                 }, 200);
             }
 
-            // Ouvrir automatiquement le bordereau dans un nouvel onglet
-            if (r.bordereau_url) {
+            if (imprimerBordereau && r.bordereau_url) {
                 setTimeout(function () { window.open(r.bordereau_url, '_blank'); }, 400);
             }
             setTimeout(function () { location.reload(); }, 1000);
@@ -863,6 +925,7 @@ $(document).ready(function () {
         $('#selTypeOp').val('');
         $('#selDevise, #selDeviseDest').val('').prop('disabled', false);
         $('#inpMontant, #inpMontantDest, #inpTaux, #inpObservations').val('');
+        $('#chkImprimerBordereau').prop('checked', false);
         $('#blocChange').addClass('d-none');
         $('#blocCompte').addClass('d-none');
         clearCompteSelection();
@@ -886,6 +949,26 @@ $(document).ready(function () {
         $.getJSON(urlJournal, { date: '{{ today()->toDateString() }}' })
         .done(function (data) {
             var ops = data.operations || [];
+
+            // Priorité d'affichage des demandes: EN_ATTENTE -> APPROUVEE -> REJETEE -> aucune
+            function demandePriority(op) {
+                if (!op || !op.demande_statut) return 3;
+                if (op.demande_statut === 'EN_ATTENTE') return 0;
+                if (op.demande_statut === 'APPROUVEE') return 1;
+                if (op.demande_statut === 'REJETEE') return 2;
+                return 3;
+            }
+
+            ops.sort(function (a, b) {
+                var pa = demandePriority(a);
+                var pb = demandePriority(b);
+                if (pa !== pb) return pa - pb;
+
+                var idA = parseInt(a && a.id ? a.id : 0, 10);
+                var idB = parseInt(b && b.id ? b.id : 0, 10);
+                return idB - idA;
+            });
+
             $('#opCount').text(ops.length);
             var tbody = $('#tbodyOps');
             if (!ops.length) {
@@ -897,14 +980,40 @@ $(document).ready(function () {
             $.each(ops, function(i, op) {
                 var montantExtra = op.montant_dest_fmt
                     ? '<br><small class="text-info">→ ' + op.montant_dest_fmt + '</small>' : '';
-                var annulerBtn = op.statut === 'CONFIRME'
-                    ? '<button class="btn btn-xs btn-outline-danger btn-annuler" data-id="' + op.id + '" title="Annuler"><i class="fas fa-times"></i></button>'
-                    + '<button class="btn btn-xs btn-outline-warning btn-demande-modif ml-1" data-id="' + op.id + '" data-ref="' + op.reference + '" data-montant="' + op.montant + '" data-type="' + op.type + '" data-devise="' + (op.devise_code || '') + '" title="Demander modification/suppression"><i class="fas fa-edit"></i></button>'
-                    : '';
+                var hasPendingDemande = op.demande_statut === 'EN_ATTENTE';
+                var hasApprovedDemande = op.demande_statut === 'APPROUVEE';
+                var demandeBloquee = hasPendingDemande || hasApprovedDemande;
+
+                var demandeBtnActif = canDeleteOperation
+                    ? '<button class="btn btn-xs btn-outline-warning btn-demande-modif ml-1" data-id="' + op.id + '" data-ref="' + op.reference + '" data-montant="' + op.montant + '" data-type="' + op.type + '" data-devise="' + (op.devise_code || '') + '" title="Demander modification/suppression"><i class="fas fa-edit"></i></button>'
+                    : '<button class="btn btn-xs btn-outline-secondary btn-demande-modif" data-id="' + op.id + '" data-ref="' + op.reference + '" data-montant="' + op.montant + '" data-type="' + op.type + '" data-devise="' + (op.devise_code || '') + '" title="Demander modification/suppression"><i class="fas fa-edit"></i> Demander</button>';
+
+                var demandeBtnBloque = hasPendingDemande
+                    ? '<button class="btn btn-xs btn-outline-secondary ml-1" disabled title="Demande en attente"><i class="fas fa-lock"></i> En attente</button>'
+                    : '<button class="btn btn-xs btn-outline-secondary ml-1" disabled title="Demande déjà approuvée"><i class="fas fa-lock"></i> Traité</button>';
+
+                var annulerBtn = '';
+                if (op.statut === 'CONFIRME' && !demandeBloquee) {
+                    annulerBtn = canDeleteOperation
+                        ? '<button class="btn btn-xs btn-outline-danger btn-annuler" data-id="' + op.id + '" title="Annuler"><i class="fas fa-times"></i></button>' + demandeBtnActif
+                        : demandeBtnActif;
+                } else if (op.statut === 'CONFIRME' && demandeBloquee) {
+                    annulerBtn = demandeBtnBloque;
+                }
                 var bordereauBtn = '<a href="' + urlBordereau.replace('__ID__', op.id) + '" target="_blank" class="btn btn-xs btn-outline-info ml-1" title="Bordereau PDF"><i class="fas fa-file-invoice"></i></a>';
                 var statutBadge = op.statut === 'ANNULE'
                     ? '<span class="badge badge-secondary">Annulée</span>'
                     : '<span class="badge badge-success">Confirmé</span>';
+                var demandeBadge = '<span class="badge badge-light">Aucune demande</span>';
+                if (op.demande_statut) {
+                    if (op.demande_statut === 'EN_ATTENTE') {
+                        demandeBadge = '<span class="badge badge-pill badge-warning px-2 py-1" title="Demande #' + (op.demande_id || '') + '"><i class="fas fa-clock mr-1"></i>Demande en attente #' + (op.demande_id || '') + '</span>';
+                    } else if (op.demande_statut === 'APPROUVEE') {
+                        demandeBadge = '<span class="badge badge-pill badge-success px-2 py-1" title="Demande #' + (op.demande_id || '') + '"><i class="fas fa-check mr-1"></i>Demande approuvée #' + (op.demande_id || '') + '</span>';
+                    } else if (op.demande_statut === 'REJETEE') {
+                        demandeBadge = '<span class="badge badge-pill badge-danger px-2 py-1" title="Demande #' + (op.demande_id || '') + '"><i class="fas fa-times mr-1"></i>Demande rejetée #' + (op.demande_id || '') + '</span>';
+                    }
+                }
                 var rowClass = op.statut === 'ANNULE' ? ' class="text-muted"' : '';
                 tbody.append(
                     '<tr' + rowClass + ' id="opRow_' + op.id + '">'
@@ -916,6 +1025,7 @@ $(document).ready(function () {
                     + '<td class="font-weight-bold">' + op.montant_fmt + montantExtra + '</td>'
                     + '<td><small>' + (op.date ? op.date.substr(11,5) : '') + '</small></td>'
                     + '<td>' + statutBadge + '</td>'
+                    + '<td>' + demandeBadge + '</td>'
                     + '<td>' + annulerBtn + bordereauBtn + '</td>'
                     + '</tr>'
                 );
@@ -924,12 +1034,100 @@ $(document).ready(function () {
     }
 
     $('#btnRefreshOps').on('click', chargerOpsJour);
+    chargerOpsJour();
     setInterval(chargerOpsJour, 45000);
 
     // ── Demander modification / suppression ──────────────────────
     var _demandeOpId = null;
+    var _demandeCanSubmit = true;
+
+    function setDemandeFormEnabled(enabled, message) {
+        _demandeCanSubmit = !!enabled;
+
+        $('#selTypeDemande, #inpNouveauMontant, #inpNouvObservations, #inpMotifDemande').prop('disabled', !enabled);
+
+        if (enabled) {
+            $('#btnSoumettreDemandeModif')
+                .prop('disabled', false)
+                .html('<i class="fas fa-paper-plane mr-1"></i>Soumettre la demande');
+        } else {
+            $('#btnSoumettreDemandeModif')
+                .prop('disabled', true)
+                .html('<i class="fas fa-lock mr-1"></i>Demande bloquée');
+        }
+
+        if (message) {
+            showSystemMessage(enabled ? 'info' : 'warning', message);
+        }
+    }
+
+    function renderEtatDemande(state) {
+        var $box = $('#etatDemandeInfo');
+        var $msg = $('#etatDemandeMessage');
+        var $details = $('#etatDemandeDetails');
+
+        $box.removeClass('d-none alert-secondary alert-success alert-info alert-warning alert-danger');
+        $msg.text(state.message || 'État non disponible.');
+
+        if (state.latest_demande) {
+            var d = state.latest_demande;
+            var detail = 'Dernière demande #' + d.id
+                + ' • ' + (d.type_demande || '—')
+                + ' • ' + (d.statut || '—');
+            if (d.demandee_le) detail += ' • demandée le ' + d.demandee_le;
+            if (d.traitee_le) detail += ' • traitée le ' + d.traitee_le;
+            $details.text(detail);
+        } else {
+            $details.text('Aucune demande précédente pour cette opération.');
+        }
+
+        if (state.can_submit) {
+            if (state.reason === 'DERNIERE_REJETEE') {
+                $box.addClass('alert-info');
+            } else {
+                $box.addClass('alert-success');
+            }
+            setDemandeFormEnabled(true);
+            return;
+        }
+
+        if (state.reason === 'DEMANDE_EN_ATTENTE' || state.reason === 'DEMANDE_DEJA_TRAITEE_APPROUVEE' || state.reason === 'OP_NON_CONFIRMEE') {
+            $box.addClass('alert-danger');
+        } else {
+            $box.addClass('alert-warning');
+        }
+
+        setDemandeFormEnabled(false);
+    }
+
+    function chargerEtatDemande(operationId) {
+        var $box = $('#etatDemandeInfo');
+        $box.removeClass('d-none alert-success alert-info alert-warning alert-danger').addClass('alert-secondary');
+        $('#etatDemandeMessage').text('Vérification de l\'état de la demande en cours...');
+        $('#etatDemandeDetails').text('Veuillez patienter.');
+        setDemandeFormEnabled(false);
+
+        $.getJSON(urlDemandeStatut.replace('__ID__', operationId))
+            .done(function (resp) {
+                renderEtatDemande(resp || {});
+            })
+            .fail(function (xhr) {
+                var msg = 'Impossible de vérifier l\'état de la demande pour le moment.';
+                if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                renderEtatDemande({
+                    can_submit: false,
+                    reason: 'ETAT_INDISPONIBLE',
+                    message: msg,
+                    latest_demande: null
+                });
+            });
+    }
+
     $(document).on('click', '.btn-demande-modif', function () {
         _demandeOpId = $(this).data('id');
+
         $('#demandeRef').text($(this).data('ref') || '—');
         $('#demandeType').text($(this).data('type') || '—');
         var montant = $(this).data('montant');
@@ -941,6 +1139,7 @@ $(document).ready(function () {
         $('#inpMotifDemande').val('');
         $('#selTypeDemande').val('MODIFICATION').trigger('change');
         $('#modalDemandeModif').modal('show');
+        chargerEtatDemande(_demandeOpId);
     });
 
     $('#selTypeDemande').on('change', function () {
@@ -952,6 +1151,11 @@ $(document).ready(function () {
     });
 
     $('#btnSoumettreDemandeModif').on('click', function () {
+        if (!_demandeCanSubmit) {
+            showSystemMessage('warning', 'Demande non autorisée pour cette opération. Consultez l\'état affiché dans le formulaire.');
+            return;
+        }
+
         var typeDemande   = $('#selTypeDemande').val();
         var motif         = $.trim($('#inpMotifDemande').val());
         var nouveauMontant = $('#inpNouveauMontant').val();
@@ -980,10 +1184,22 @@ $(document).ready(function () {
             showSystemMessage('success', r.message || 'Demande envoyée au superviseur.');
         })
         .fail(function (xhr) {
+            if (xhr && xhr.status === 422 && xhr.responseJSON) {
+                var rj = xhr.responseJSON;
+                if (rj.message) {
+                    showSystemMessage('warning', rj.message);
+                }
+                chargerEtatDemande(_demandeOpId);
+                return;
+            }
             handleAjaxFail(xhr, 'Demande modification opération');
         })
         .always(function () {
-            $('#btnSoumettreDemandeModif').prop('disabled', false).html('<i class="fas fa-paper-plane mr-1"></i>Soumettre la demande');
+            if (_demandeCanSubmit) {
+                $('#btnSoumettreDemandeModif').prop('disabled', false).html('<i class="fas fa-paper-plane mr-1"></i>Soumettre la demande');
+            } else {
+                $('#btnSoumettreDemandeModif').prop('disabled', true).html('<i class="fas fa-lock mr-1"></i>Demande bloquée');
+            }
         });
     });
 
@@ -997,6 +1213,20 @@ $(document).ready(function () {
                 setTimeout(function () { location.reload(); }, 1000);
             })
             .fail(function (xhr) {
+                // ═════════════════════════════════════════════════════════
+                // Erreur 403 → afficher directement la page 403 ergonomique
+                // (pas de popup d'avertissement)
+                // ═════════════════════════════════════════════════════════
+                if (xhr.status === 403) {
+                    if (xhr.responseText && xhr.responseText.indexOf('<!DOCTYPE') !== -1) {
+                        document.open();
+                        document.write(xhr.responseText);
+                        document.close();
+                    }
+                    return;
+                }
+
+                // Autres erreurs
                 handleAjaxFail(xhr, 'Annulation opération caisse');
             });
         }, {

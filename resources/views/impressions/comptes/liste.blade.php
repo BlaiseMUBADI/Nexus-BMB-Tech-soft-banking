@@ -61,26 +61,26 @@
 @if($comptes->isEmpty())
     <div style="text-align:center; padding:20px; color:#999;">Aucun compte ne correspond aux critères sélectionnés.</div>
 @else
-<table class="info-table" style="font-size:8.5px;">
+<table class="info-table" style="font-size:8.5px; border:2px solid #333; border-collapse:collapse;">
     <thead>
-        <tr style="background:#1a7a4a; color:#fff;">
-            <th style="padding:4px 5px; width:18px;">#</th>
-            <th style="padding:4px 5px;">Code Compte</th>
-            <th style="padding:4px 5px;">Titulaire</th>
-            <th style="padding:4px 5px;">Zone</th>
-            <th style="padding:4px 5px;">Type</th>
-            <th style="padding:4px 5px; text-align:right;">Solde réel</th>
-            <th style="padding:4px 5px; text-align:right;">Solde bloqué</th>
-            <th style="padding:4px 5px; text-align:center;">Devise</th>
-            <th style="padding:4px 5px;">Ouvert le</th>
+        <tr style="background:#1a7a4a; color:#fff; border:2.5px solid #333;">
+            <th style="padding:5px 6px; width:18px; border:2.5px solid #333; text-align:center;">#</th>
+            <th style="padding:5px 6px; border:2.5px solid #333;">Code Compte</th>
+            <th style="padding:5px 6px; border:2.5px solid #333;">Titulaire</th>
+            <th style="padding:5px 6px; border:2.5px solid #333;">Zone</th>
+            <th style="padding:5px 6px; border:2.5px solid #333;">Type</th>
+            <th style="padding:5px 6px; text-align:right; border:2.5px solid #333;">Solde réel</th>
+            <th style="padding:5px 6px; text-align:right; border:2.5px solid #333;">Solde bloqué</th>
+            <th style="padding:5px 6px; text-align:center; border:2.5px solid #333;">Devise</th>
+            <th style="padding:5px 6px; border:2.5px solid #333;">Ouvert le</th>
         </tr>
     </thead>
     <tbody>
         @foreach($comptes as $i => $compte)
-        <tr style="{{ $i % 2 === 0 ? 'background:#fff;' : 'background:#f7f9fc;' }}">
-            <td style="padding:3px 5px; text-align:center;">{{ $i + 1 }}</td>
-            <td style="padding:3px 5px; font-family:DejaVu Sans Mono,monospace; font-size:8px;">{{ $compte->code_compte }}</td>
-            <td style="padding:3px 5px;">
+        <tr style="{{ $i % 2 === 0 ? 'background:#fff;' : 'background:#f9f9f9;' }} border:2px solid #333;">
+            <td style="padding:4px 5px; text-align:center; border:2px solid #333; color:#111; font-weight:bold;">{{ $i + 1 }}</td>
+            <td style="padding:4px 5px; font-family:DejaVu Sans Mono,monospace; font-size:8px; border:2px solid #333; color:#111;">{{ $compte->code_compte }}</td>
+            <td style="padding:4px 5px; border:2px solid #333; color:#111; font-size:8.5px;">
                 @if($compte->client)
                     {{ strtoupper($compte->client->nom) }}
                     {{ strtoupper($compte->client->postnom ?? '') }}
@@ -88,30 +88,30 @@
                 @else —
                 @endif
             </td>
-            <td style="padding:3px 5px; font-size:8px;">{{ $compte->client->zone->nom ?? '—' }}</td>
-            <td style="padding:3px 5px; font-size:8px;">{{ $typesLabels[$compte->type] ?? $compte->type }}</td>
-            <td style="padding:3px 5px; text-align:right; font-weight:bold;
+            <td style="padding:4px 5px; font-size:8px; border:2px solid #333; color:#111;">{{ $compte->client->zone->nom ?? '—' }}</td>
+            <td style="padding:4px 5px; font-size:8px; border:2px solid #333; color:#111;">{{ $typesLabels[$compte->type] ?? $compte->type }}</td>
+            <td style="padding:4px 5px; text-align:right; font-weight:bold; border:2px solid #333;
                        color:{{ ($compte->solde_reel ?? 0) >= 0 ? '#1a5e1a' : '#c00' }};">
                 {{ number_format($compte->solde_reel ?? 0, 2, ',', ' ') }}
             </td>
-            <td style="padding:3px 5px; text-align:right;">
+            <td style="padding:4px 5px; text-align:right; border:2px solid #333; color:#111;">
                 {{ number_format($compte->solde_bloque ?? 0, 2, ',', ' ') }}
             </td>
-            <td style="padding:3px 5px; text-align:center;">{{ $compte->devise }}</td>
-            <td style="padding:3px 5px;">{{ \Carbon\Carbon::parse($compte->created_at)->format('d/m/Y') }}</td>
+            <td style="padding:4px 5px; text-align:center; border:2px solid #333; color:#111;">{{ $compte->devise }}</td>
+            <td style="padding:4px 5px; border:2px solid #333; color:#111;">{{ \Carbon\Carbon::parse($compte->created_at)->format('d/m/Y') }}</td>
         </tr>
         @endforeach
     </tbody>
     <tfoot>
-        <tr style="background:#1a7a4a; color:#fff; font-weight:bold;">
-            <td colspan="5" style="padding:4px 5px; text-align:right; font-size:9px;">TOTAUX</td>
-            <td style="padding:4px 5px; text-align:right; font-size:9px;">
+        <tr style="background:#1a7a4a; color:#fff; font-weight:bold; border:2.5px solid #333;">
+            <td colspan="5" style="padding:5px 6px; text-align:right; font-size:9px; border:2.5px solid #333;">TOTAUX</td>
+            <td style="padding:5px 6px; text-align:right; font-size:9px; border:2.5px solid #333;">
                 {{ number_format($totalSolde, 2, ',', ' ') }}
             </td>
-            <td style="padding:4px 5px; text-align:right; font-size:9px;">
+            <td style="padding:5px 6px; text-align:right; font-size:9px; border:2.5px solid #333;">
                 {{ number_format($totalBloque, 2, ',', ' ') }}
             </td>
-            <td colspan="2" style="padding:4px 5px;"></td>
+            <td colspan="2" style="padding:5px 6px; border:2.5px solid #333;"></td>
         </tr>
     </tfoot>
 </table>

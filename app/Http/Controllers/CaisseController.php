@@ -314,6 +314,14 @@ class CaisseController extends Controller
         }
 
         $guichet   = $affectation->guichet;
+
+        if (strtoupper((string) $guichet->type_guichet) === 'MOBILE') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Les demandes d\'approvisionnement ne sont pas autorisées sur un guichet mobile.',
+            ], 403);
+        }
+
         $reference = 'REQ-' . now()->format('Ymd-His') . '-' . strtoupper(substr($user->agent_matricule ?? 'XX', 0, 4));
 
         MouvementInterCaisse::create([

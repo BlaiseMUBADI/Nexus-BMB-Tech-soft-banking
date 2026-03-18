@@ -163,8 +163,6 @@ class Transaction extends Model
             return [
                 self::DEPOT,
                 self::CHANGE,
-                self::PAIEMENT,
-                self::REMBOURSEMENT,
             ];
         }
 

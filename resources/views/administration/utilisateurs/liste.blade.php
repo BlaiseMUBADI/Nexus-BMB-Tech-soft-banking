@@ -61,8 +61,16 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="px-3 pt-3 pb-1">
-                        <input type="text" id="searchUsers" class="form-control form-control-sm"
-                               placeholder="🔍 Rechercher un utilisateur…">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <input type="text" id="searchUsers" class="form-control form-control-sm flex-grow-1"
+                                   placeholder="🔍 Rechercher un utilisateur…" style="min-width: 260px; max-width: 520px;">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="toggleGroupUsers" checked>
+                                <label class="custom-control-label small font-weight-bold" for="toggleGroupUsers">
+                                    Regrouper par service
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped table-sm mb-0" id="usersTable">
@@ -79,8 +87,21 @@
                             </thead>
                             <tbody>
                                 @forelse($users as $i => $user)
-                                @php $affActive = $user->agent?->affectations->first(); @endphp
-                                <tr id="row-user-{{ $user->id }}">
+                                @php
+                                    $affActive = $user->agent?->affectations->first();
+                                    $serviceNom = ($affActive && $affActive->poste) ? ($affActive->poste->service?->nom ?? null) : null;
+                                    $posteNom = ($affActive && $affActive->poste) ? $affActive->poste->nom : null;
+                                    $serviceDisplay = $serviceNom ?: 'Sans service';
+                                    $serviceSortKey = strtolower(trim($serviceDisplay));
+                                    $posteSortKey = strtolower(trim($posteNom ?? ''));
+                                    $agentSortKey = strtolower(trim(($user->agent->nom ?? '') . ' ' . ($user->agent->postnom ?? '') . ' ' . ($user->agent->prenom ?? '') . ' ' . ($user->name ?? '')));
+                                @endphp
+                                <tr class="user-row" id="row-user-{{ $user->id }}"
+                                    data-original-index="{{ $i }}"
+                                    data-service-label="{{ $serviceSortKey }}"
+                                    data-service-display="{{ $serviceDisplay }}"
+                                    data-poste-label="{{ $posteSortKey }}"
+                                    data-agent-label="{{ $agentSortKey }}">
                                     <td class="text-muted">{{ $i + 1 }}</td>
                                     <td>
                                         @if($user->agent)
@@ -94,8 +115,8 @@
                                     <td>{{ $user->email }}</td>
                                     <td>
                                         @if($affActive && $affActive->poste)
-                                            <span class="badge badge-info">{{ $affActive->poste->service?->nom ?? '—' }}</span>
-                                            / {{ $affActive->poste->nom }}
+                                            <span class="badge badge-info">{{ $serviceNom ?? '—' }}</span>
+                                            / {{ $posteNom }}
                                         @else
                                             <span class="text-muted">—</span>
                                         @endif
@@ -126,7 +147,7 @@
                                     </td>
                                 </tr>
                                 @empty
-                                <tr>
+                                <tr class="empty-row">
                                     <td colspan="7" class="text-center text-muted py-5">
                                         <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                                         Aucun utilisateur enregistré.
@@ -146,9 +167,19 @@
 
 @push('css')
 <style>
-    #usersTable tbody tr:hover > td {
+    #usersTable tbody tr.user-row:hover > td {
         background-color: rgba(0, 123, 255, 0.13) !important;
         color: #fff !important;
+    }
+
+    #usersTable tbody tr.group-row td {
+        background: rgba(23, 162, 184, 0.14);
+        border-top: 1px solid rgba(23, 162, 184, 0.45);
+        border-bottom: 1px solid rgba(23, 162, 184, 0.25);
+        color: #8fd8e3;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .04em;
     }
 </style>
 @endpush
@@ -163,13 +194,106 @@
     } });
 
     $(function () {
+        var $tbody = $('#usersTable tbody');
 
-        // ── Live search ────────────────────────────────────────────────
-        $('#searchUsers').on('input', function () {
-            var q = $(this).val().toLowerCase();
-            $('#usersTable tbody tr').each(function () {
-                $(this).toggle(q === '' || $(this).text().toLowerCase().indexOf(q) !== -1);
+        function compareByData(a, b, key) {
+            var av = String($(a).attr('data-' + key) || '');
+            var bv = String($(b).attr('data-' + key) || '');
+            if (av < bv) return -1;
+            if (av > bv) return 1;
+            return 0;
+        }
+
+        function reorderRows() {
+            var rows = $tbody.find('tr.user-row').get();
+            if (!rows.length) return;
+
+            if ($('#toggleGroupUsers').is(':checked')) {
+                rows.sort(function (a, b) {
+                    var byService = compareByData(a, b, 'service-label');
+                    if (byService !== 0) return byService;
+
+                    var byPoste = compareByData(a, b, 'poste-label');
+                    if (byPoste !== 0) return byPoste;
+
+                    return compareByData(a, b, 'agent-label');
+                });
+            } else {
+                rows.sort(function (a, b) {
+                    return Number($(a).attr('data-original-index')) - Number($(b).attr('data-original-index'));
+                });
+            }
+
+            $tbody.append(rows);
+        }
+
+        function applySearchFilter() {
+            var q = $.trim($('#searchUsers').val() || '').toLowerCase();
+            $tbody.find('tr.user-row').each(function () {
+                var haystack = $(this).text().toLowerCase();
+                $(this).toggle(q === '' || haystack.indexOf(q) !== -1);
             });
+        }
+
+        function renderGroupRows() {
+            $tbody.find('tr.group-row').remove();
+            if (!$('#toggleGroupUsers').is(':checked')) return;
+
+            var $visibleRows = $tbody.find('tr.user-row:visible');
+            var lastService = null;
+
+            $visibleRows.each(function () {
+                var $row = $(this);
+                var serviceDisplay = String($row.attr('data-service-display') || 'Sans service');
+                var serviceKey = String($row.attr('data-service-label') || 'sans service');
+
+                if (serviceKey !== lastService) {
+                    $('<tr class="group-row"><td colspan="7"><i class="fas fa-layer-group mr-1"></i>'
+                        + serviceDisplay
+                        + '</td></tr>').insertBefore($row);
+                    lastService = serviceKey;
+                }
+            });
+        }
+
+        function renumberVisibleRows() {
+            var i = 1;
+            $tbody.find('tr.user-row:visible').each(function () {
+                $(this).children('td').first().text(i++);
+            });
+        }
+
+        function ensureEmptyState() {
+            if ($tbody.find('tr.user-row').length > 0) {
+                $tbody.find('tr.empty-row').remove();
+                return;
+            }
+
+            if ($tbody.find('tr.empty-row').length === 0) {
+                $tbody.append(
+                    '<tr class="empty-row">'
+                    + '<td colspan="7" class="text-center text-muted py-5">'
+                    + '<i class="fas fa-inbox fa-2x mb-2 d-block"></i>'
+                    + 'Aucun utilisateur enregistré.'
+                    + '</td></tr>'
+                );
+            }
+        }
+
+        function refreshUsersTableView() {
+            reorderRows();
+            applySearchFilter();
+            renderGroupRows();
+            renumberVisibleRows();
+            ensureEmptyState();
+        }
+
+        $('#searchUsers').on('input', function () {
+            refreshUsersTableView();
+        });
+
+        $('#toggleGroupUsers').on('change', function () {
+            refreshUsersTableView();
         });
 
         // ── Supprimer utilisateur ──────────────────────────────────────
@@ -185,7 +309,10 @@
                         .done(function (resp) {
                             if (resp.success) {
                                 showSystemMessage('success', resp.message || 'Utilisateur supprimé.');
-                                $('#row-user-' + id).fadeOut(400, function () { $(this).remove(); });
+                                $('#row-user-' + id).fadeOut(400, function () {
+                                    $(this).remove();
+                                    refreshUsersTableView();
+                                });
                             } else {
                                 showSystemMessage('error', resp.message || 'Erreur.');
                             }
@@ -198,6 +325,7 @@
             );
         });
 
+        refreshUsersTableView();
     });
 }());
 </script>

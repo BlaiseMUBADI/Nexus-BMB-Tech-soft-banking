@@ -16,8 +16,8 @@
 
         body {
             font-family: DejaVu Sans, Arial, sans-serif;
-            font-size: 11px;
-            color: #1a2e1e;
+            font-size: 12px;
+            color: #111;
             background: #fff;
             margin: 16mm 15mm 24mm 15mm;
         }
@@ -76,7 +76,7 @@
         /* ── Titre document ── */
         .doc-title {
             text-align: center;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: bold;
             color: #1a7a4a;
             text-transform: uppercase;
@@ -105,16 +105,33 @@
             width: 100%;
             border-collapse: collapse;
         }
+        table.info-table th {
+            border: 2.5px solid #333333;
+            padding: 8px 10px;
+            vertical-align: middle;
+            font-weight: bold;
+            color: #fff;
+            text-align: left;
+        }
         table.info-table td {
-            border: 1px solid #c3ddd0;
+            border: 2px solid #333333;
             padding: 6px 10px;
             vertical-align: top;
+            color: #111;
         }
         table.info-table td.label {
             background: #eef7f2;
             font-weight: bold;
             width: 38%;
             color: #1a7a4a;
+            border: 2px solid #333333;
+        }
+        table.info-table tbody tr {
+            border-bottom: 2px solid #333333;
+        }
+        table.info-table tfoot tr {
+            border-top: 3px solid #333333;
+            font-weight: bold;
         }
 
         /* ── IBAN ── */

@@ -41,6 +41,7 @@
     @else
     @php
         $statut   = $guichet->statut_operationnel;
+        $isMobileGuichet = strtoupper((string) $guichet->type_guichet) === 'MOBILE';
         $couleur  = match($statut) {
             'OUVERT'          => 'success',
             'SUSPENDU'        => 'warning',
@@ -94,6 +95,13 @@
                     </h6>
                 </div>
                 <div class="card-body">
+                    @if($isMobileGuichet)
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-mobile-alt mr-1"></i>
+                        Cette action est indisponible sur un <strong>guichet mobile</strong>.
+                        Les agents mobiles ne peuvent pas faire de demande d'approvisionnement.
+                    </div>
+                    @else
                     <div class="form-group mb-2">
                         <label class="font-weight-bold">Devise <span class="text-danger">*</span></label>
                         <select class="form-control" id="demandeDevise">
@@ -116,6 +124,7 @@
                     <button class="btn btn-primary btn-block" id="btnEnvoyerDemande">
                         <i class="fas fa-paper-plane mr-1"></i> Envoyer la demande
                     </button>
+                    @endif
                 </div>
             </div>
         </div>
@@ -262,7 +271,7 @@
                         <i class="fas fa-history mr-1 text-secondary"></i>
                         Mes demandes d'approvisionnement
                     </h6>
-                    <button class="btn btn-xs btn-outline-secondary" id="btnRefreshDemandes" title="Actualiser">
+                    <button class="btn btn-xs btn-outline-secondary" id="btnRefreshDemandes" title="Actualiser" {{ $isMobileGuichet ? 'disabled' : '' }}>
                         <i class="fas fa-sync-alt"></i>
                     </button>
                 </div>
@@ -279,11 +288,20 @@
                                 </tr>
                             </thead>
                             <tbody id="tbodyMesDemandes">
+                                @if($isMobileGuichet)
+                                <tr>
+                                    <td colspan="5" class="text-center py-3 text-muted">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Historique indisponible pour les guichets mobiles.
+                                    </td>
+                                </tr>
+                                @else
                                 <tr>
                                     <td colspan="5" class="text-center py-3 text-muted">
                                         <i class="fas fa-spinner fa-spin mr-1"></i> Chargement…
                                     </td>
                                 </tr>
+                                @endif
                             </tbody>
                         </table>
                     </div>
@@ -939,7 +957,7 @@ $(document).ready(function () {
     });
 
     // ── Demandes d'approvisionnement ──────────────────────────────────────
-    @if($guichet)
+    @if($guichet && !$isMobileGuichet)
     var urlDemandePost   = '{{ route("caisses.demande.appro") }}';
     var urlMesDemandes   = '{{ route("caisses.mes.demandes") }}';
 

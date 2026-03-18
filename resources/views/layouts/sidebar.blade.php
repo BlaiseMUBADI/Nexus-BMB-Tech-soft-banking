@@ -117,50 +117,46 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							</p>
 						</a>
 						<ul class="nav nav-treeview custom-sub-menu">
-							{{-- 1. Ouverture / Fermeture --}}
-							<li class="nav-item">
-								<a href="{{ route('caisses.ouverture') }}"
-									class="nav-link sub-link {{ request()->is('caisses/ouverture*') ? 'active' : '' }}">
-									<i class="fas fa-key nav-icon"></i>
-									<p>Ouverture / Fermeture</p>
-								</a>
-							</li>
+							@if(in_array('EBEN-PER10', $userPermCodes ?? []))
+								{{-- 1. Ouverture / Fermeture --}}
+								<li class="nav-item">
+									<a href="{{ route('caisses.ouverture') }}"
+										class="nav-link sub-link {{ request()->is('caisses/ouverture*') ? 'active' : '' }}">
+										<i class="fas fa-key nav-icon"></i>
+										<p>Ouverture / Fermeture</p>
+									</a>
+								</li>
 
-							{{-- 2. Opérations de Caisse --}}
-							<li class="nav-item">
-								<a href="{{ route('caisses.operations.index') }}"
-									class="nav-link sub-link {{ request()->is('caisses/operations') ? 'active' : '' }}">
-									<i class="fas fa-exchange-alt nav-icon"></i>
-									<p>Opérations</p>
-								</a>
-							</li>
+								{{-- 2. Opérations de Caisse --}}
+								<li class="nav-item">
+									<a href="{{ route('caisses.operations.index') }}"
+										class="nav-link sub-link {{ request()->is('caisses/operations') ? 'active' : '' }}">
+										<i class="fas fa-exchange-alt nav-icon"></i>
+										<p>Opérations</p>
+									</a>
+								</li>
 
-							{{-- 3. Journal des Opérations --}}
-							<li class="nav-item">
-								<a href="{{ route('caisses.journal.page') }}"
-									class="nav-link sub-link {{ request()->is('caisses/operations/journal') ? 'active' : '' }}">
-									<i class="fas fa-book-open nav-icon"></i>
-									<p>Jrnl des Opérations</p>
-								</a>
-							</li>
+							@endif
 
-							{{-- 4. Rapport de Fin de Journée (guichets FIXE / bureau) --}}
-							<li class="nav-item">
-								<a href="{{ route('caisses.rapport.fin.journee') }}"
-									class="nav-link sub-link {{ request()->is('caisses/operations/rapport') ? 'active' : '' }}">
-									<i class="fas fa-chart-bar nav-icon text-info"></i>
-									<p>Rapport Journalier</p>
-								</a>
-							</li>
+							@if(in_array('EBEN-PER10', $userPermCodes ?? []))
+								{{-- 3. Journal des Opérations --}}
+								<li class="nav-item">
+									<a href="{{ route('caisses.journal.page') }}"
+										class="nav-link sub-link {{ request()->is('caisses/operations/journal') ? 'active' : '' }}">
+										<i class="fas fa-book-open nav-icon"></i>
+										<p>Jrnl des Opérations</p>
+									</a>
+								</li>
 
-							{{-- 5. Gestion Mobile Départ / Retour (guichets MOBILE) --}}
-							<li class="nav-item">
-								<a href="{{ route('caisses.mobile.index') }}"
-									class="nav-link sub-link {{ request()->is('caisses/mobile*') ? 'active' : '' }}">
-									<i class="fas fa-mobile-alt nav-icon text-warning"></i>
-									<p>Gestion Mobile</p>
-								</a>
-							</li>
+								{{-- 4. Rapport de Fin de Journée (guichets FIXE / bureau) --}}
+								<li class="nav-item">
+									<a href="{{ route('caisses.rapport.fin.journee') }}"
+										class="nav-link sub-link {{ request()->is('caisses/operations/rapport') ? 'active' : '' }}">
+										<i class="fas fa-chart-bar nav-icon text-info"></i>
+										<p>Rapport Journalier</p>
+									</a>
+								</li>
+							@endif
 						</ul>
 					</li>
 				@endif

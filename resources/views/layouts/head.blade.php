@@ -28,6 +28,31 @@
 <link rel="stylesheet" href="{{ asset('plugins/toastr/toastr.min.css') }}">
 
 <style>
+    /*
+     * Refonte globale du badge "warning" pour améliorer la lisibilité.
+     * Impact: tous les <span class="badge badge-warning"> du projet.
+     */
+    .badge.badge-warning,
+    .badge.badge-warning.text-dark {
+        background: linear-gradient(135deg, #0f766e 0%, #0e7490 100%) !important;
+        color: #f8fafc !important;
+        border: 1px solid rgba(255, 255, 255, .28);
+        font-weight: 700;
+        letter-spacing: .2px;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, .18);
+        box-shadow: 0 1px 2px rgba(2, 6, 23, .35);
+    }
+
+    .badge.badge-warning.badge-pill {
+        border-radius: 999px;
+        padding: .24em .62em;
+    }
+
+    .navbar-badge.badge-warning {
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, .35);
+    }
+
     .content-wrapper,
     .content-header,
     .main-footer {

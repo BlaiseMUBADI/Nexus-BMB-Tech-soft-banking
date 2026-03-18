@@ -638,10 +638,15 @@ class ClientController extends Controller
     {
         $this->abortIfMobilePrintForbidden('liste-clients');
 
+        // Augmente la limite de mémoire pour DomPDF (PDF lists can be memory-intensive)
+        ini_set('memory_limit', '512M');
+
         $documentType = $request->input('document_type', 'liste_clients');
 
         $zoneScope = $this->resolveZoneScope();
-        $query = \App\Models\Clients\Client::with(['zone', 'comptes']);
+        // Optimisation : utiliser withCount() au lieu de with() pour les comptes
+        // Cela charge seulement le nombre de comptes sans charger tous les objets Compte
+        $query = \App\Models\Clients\Client::with(['zone'])->withCount('comptes');
         $this->applyZoneScopeToClients($query, $zoneScope);
 
         // Filtres
@@ -722,20 +727,44 @@ class ClientController extends Controller
             : now()->format('d/m/Y');
 
         if ($documentType === 'fiche_recolte_journaliere') {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.fiche_recolte_journaliere', [
-                'clients' => $clients,
-                'zone' => $zone,
-                'agentCommercialNom' => $agentCommercialNom,
-                'dateRecolte' => $dateRecolte,
-            ])->setPaper('a4', 'portrait');
+            try {
+                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.fiche_recolte_journaliere', [
+                    'clients' => $clients,
+                    'zone' => $zone,
+                    'agentCommercialNom' => $agentCommercialNom,
+                    'dateRecolte' => $dateRecolte,
+                ])->setPaper('a4', 'portrait');
 
-            return $pdf->stream('Fiche_recolte_journaliere.pdf');
+                return $pdf->stream('Fiche_recolte_journaliere.pdf');
+            } catch (\Exception $e) {
+                Log::error('[Client] Erreur génération Fiche récolte journalière', [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'clients_count' => $clients->count(),
+                    'user_id' => Auth::id(),
+                ]);
+                abort(500, 'Erreur lors de la génération du PDF: ' . $e->getMessage());
+            }
         }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.liste', compact('clients', 'filtres', 'zone'))
-                  ->setPaper('a4', 'portrait');
+        try {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.liste', compact('clients', 'filtres', 'zone'))
+                      ->setPaper('a4', 'portrait');
 
-        return $pdf->stream('Liste_clients.pdf');
+            return $pdf->stream('Liste_clients.pdf');
+        } catch (\Exception $e) {
+            Log::error('[Client] Erreur génération Liste clients PDF', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'clients_count' => $clients->count(),
+                'memory_get_peak_usage' => memory_get_peak_usage(true),
+                'ini_memory_limit' => ini_get('memory_limit'),
+                'user_id' => Auth::id(),
+            ]);
+            abort(500, 'Erreur lors de la génération du PDF: ' . $e->getMessage());
+        }
     }
 
     public function photo($filename)

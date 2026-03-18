@@ -24,70 +24,70 @@
 
 <div class="section">
     <div class="section-title">Informations de collecte</div>
-    <table class="info-table">
-        <tr>
-            <td class="label" style="width:25%;">Zone</td>
-            <td style="width:30%;"><strong>{{ $zoneLabel }}</strong></td>
-            <td class="label" style="width:20%;">Date de récolte</td>
-            <td style="width:25%;"><strong>{{ $dateRecolte }}</strong></td>
+    <table class="info-table" style="border:2px solid #333; border-collapse:collapse;">
+        <tr style="border:2px solid #333;">
+            <td class="label" style="width:25%; border:2px solid #333;">Zone</td>
+            <td style="width:30%; border:2px solid #333;"><strong style="color:#111; font-size:11px;">{{ $zoneLabel }}</strong></td>
+            <td class="label" style="width:20%; border:2px solid #333;">Date de récolte</td>
+            <td style="width:25%; border:2px solid #333;"><strong style="color:#111; font-size:11px;">{{ $dateRecolte }}</strong></td>
         </tr>
-        <tr>
-            <td class="label">Agent commercial</td>
-            <td><strong>{{ $agentCommercialNom }}</strong></td>
-            <td class="label">Total clients ciblés</td>
-            <td><strong>{{ $rows->count() }}</strong></td>
+        <tr style="border:2px solid #333;">
+            <td class="label" style="border:2px solid #333;">Agent commercial</td>
+            <td style="border:2px solid #333;"><strong style="color:#111; font-size:11px;">{{ $agentCommercialNom }}</strong></td>
+            <td class="label" style="border:2px solid #333;">Total clients ciblés</td>
+            <td style="border:2px solid #333;"><strong style="color:#111; font-size:11px;">{{ $rows->count() }}</strong></td>
         </tr>
     </table>
 </div>
 
 <div class="section">
     <div class="section-title">Détail journalier de récolte</div>
-    <table class="info-table" style="font-size:9.5px;">
+    <table class="info-table" style="font-size:9.5px; border:2px solid #333; border-collapse:collapse;">
     <thead>
-        <tr>
-            <th style="padding:5px 6px; width:23%;">Matricule client</th>
-            <th style="padding:5px 6px; width:43%;">Noms</th>
-            <th style="padding:5px 6px; width:11%; text-align:center;">EAC</th>
-            <th style="padding:5px 6px; width:11%; text-align:center;">RMB</th>
-            <th style="padding:5px 6px; width:12%; text-align:center;">Signature</th>
+        <tr style="background:#1a7a4a; color:#fff; border:2.5px solid #333;">
+            <th style="padding:6px 8px; width:23%; border:2.5px solid #333;">Matricule client</th>
+            <th style="padding:6px 8px; width:43%; border:2.5px solid #333;">Noms</th>
+            <th style="padding:6px 8px; width:11%; text-align:center; border:2.5px solid #333;">EAC</th>
+            <th style="padding:6px 8px; width:11%; text-align:center; border:2.5px solid #333;">RMB</th>
+            <th style="padding:6px 8px; width:12%; text-align:center; border:2.5px solid #333;">Signature</th>
         </tr>
     </thead>
     <tbody>
         @for($i = 0; $i < $totalRows; $i++)
             @php($client = $rows->get($i))
-            <tr style="{{ $i % 2 === 0 ? 'background:#fff;' : 'background:#f7f9fc;' }}">
-                <td style="padding:5px 6px; font-family:DejaVu Sans Mono, monospace; font-size:9px;">
+            <tr style="{{ $i % 2 === 0 ? 'background:#fff;' : 'background:#f9f9f9;' }} border:2px solid #333;">
+                <td style="padding:9px 6px; font-family:DejaVu Sans Mono, monospace; font-size:10.5px; line-height:1.35; border:2px solid #333; color:#111;">
                     {{ $client ? $matriculeClient($client) : '' }}
                 </td>
-                <td style="padding:5px 6px;">
+                <td style="padding:9px 6px; font-size:10.5px; line-height:1.35; border:2px solid #333; color:#111;">
                     {{ $client ? $nomCompletClient($client) : '' }}
                 </td>
-                <td style="padding:5px 6px;">&nbsp;</td>
-                <td style="padding:5px 6px;">&nbsp;</td>
-                <td style="padding:5px 6px;">&nbsp;</td>
+                <td style="padding:9px 6px; font-size:10.5px; line-height:1.35; border:2px solid #333; color:#111;">&nbsp;</td>
+                <td style="padding:9px 6px; font-size:10.5px; line-height:1.35; border:2px solid #333; color:#111;">&nbsp;</td>
+                <td style="padding:9px 6px; font-size:10.5px; line-height:1.35; border:2px solid #333; color:#111;">&nbsp;</td>
             </tr>
         @endfor
-        <tr style="background:#eef3fa; font-weight:700;">
-            <td colspan="2" style="padding:6px; text-align:right;">TOTAL RECOLTE DU JOUR</td>
-            <td style="padding:6px; text-align:center;">&nbsp;</td>
-            <td style="padding:6px; text-align:center;">&nbsp;</td>
-            <td style="padding:6px; text-align:center;">&nbsp;</td>
+        <tr style="background:#d9e8e0; font-weight:700; border:2.5px solid #333;">
+            <td colspan="2" style="padding:6px 8px; text-align:right; border:2.5px solid #333; color:#111;">TOTAL RECOLTE DU JOUR</td>
+            <td style="padding:6px 8px; text-align:center; border:2.5px solid #333; color:#111;">&nbsp;</td>
+            <td style="padding:6px 8px; text-align:center; border:2.5px solid #333; color:#111;">&nbsp;</td>
+            <td style="padding:6px 8px; text-align:center; border:2.5px solid #333; color:#111;">&nbsp;</td>
         </tr>
     </tbody>
     </table>
 </div>
 
 <div class="section" style="margin-top:10px;">
-    <table class="info-table" style="font-size:9.5px;">
-        <tr>
-            <td class="label" style="width:30%;">Total EAC</td>
-            <td style="width:20%;">&nbsp;</td>
-            <td class="label" style="width:30%;">Total RMB</td>
-            <td style="width:20%;">&nbsp;</td>
+    <table class="info-table" style="font-size:9.5px; border:2px solid #333; border-collapse:collapse;">
+        <tr style="border:2px solid #333;">
+            <td class="label" style="width:30%; border:2px solid #333;">Total EAC</td>
+            <td style="width:20%; border:2px solid #333; color:#111; font-size:10.5px; line-height:1.35; padding:8px 6px;">&nbsp;</td>
+            <td class="label" style="width:30%; border:2px solid #333;">Total RMB</td>
+            <td style="width:20%; border:2px solid #333; color:#111; font-size:10.5px; line-height:1.35; padding:8px 6px;">&nbsp;</td>
         </tr>
-        <tr>
-            <td class="label">Total global recolte</td>
-            <td colspan="3">&nbsp;</td>
+        <tr style="border:2px solid #333;">
+            <td class="label" style="border:2px solid #333;">Total global recolte</td>
+            <td colspan="3" style="border:2px solid #333; color:#111; font-size:10.5px; line-height:1.35; padding:8px 6px;">&nbsp;</td>
         </tr>
     </table>
 </div>

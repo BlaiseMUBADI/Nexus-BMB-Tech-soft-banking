@@ -243,54 +243,72 @@
             </h5>
         </div>
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-striped table-hover mb-0" style="font-size:.89em;">
-                    <thead class="thead-light">
-                        <tr class="text-uppercase text-muted" style="font-size:.77em;">
-                            <th class="pl-3">Date</th>
-                            <th>Référence</th>
-                            <th>Agent</th>
-                            <th>Guichet</th>
-                            <th>Type opér.</th>
-                            <th>Compte</th>
-                            <th>Type cpt</th>
-                            <th>Client</th>
-                            <th class="text-right">Montant</th>
-                            <th class="pr-3">Devise</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($transactions as $t)
-                        <tr>
-                            <td class="pl-3 text-nowrap small">
-                                {{ \Carbon\Carbon::parse($t->date_operation)->format('d/m/Y H:i') }}
-                            </td>
-                            <td><code style="font-size:.82em;">{{ $t->reference ?? '—' }}</code></td>
-                            <td class="small">{{ $t->agent_matricule ?? '—' }}</td>
-                            <td class="small">{{ $t->guichet?->intitule ?? '—' }}</td>
-                            <td>
-                                <span class="badge badge-{{ in_array($t->type, ['DEPOT','PAIEMENT']) ? 'success' : (in_array($t->type, ['RETRAIT','REMBOURSEMENT']) ? 'danger' : 'info') }}" style="font-size:.78em;">
-                                    {{ $t->type }}
-                                </span>
-                            </td>
-                            <td class="small"><code style="font-size:.82em;">{{ $t->compte_code ?? '—' }}</code></td>
-                            <td class="small">{{ $t->compte?->type ?? '—' }}</td>
-                            <td class="small">
-                                @if($t->compte && $t->compte->client)
-                                    {{ $t->compte->client->nom }} {{ $t->compte->client->prenom ?? '' }}
-                                @else
-                                    —
-                                @endif
-                            </td>
-                            <td class="text-right font-weight-bold text-nowrap {{ in_array($t->type, ['DEPOT','PAIEMENT']) ? 'text-success' : 'text-danger' }}">
-                                {{ number_format($t->montant, 2, ',', ' ') }}
-                            </td>
-                            <td class="pr-3"><span class="badge badge-light border">{{ $t->devise_code }}</span></td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+            @php
+                $transactionsParDevise = $transactions
+                    ->groupBy(fn($t) => $t->devise_code ?: 'N/A')
+                    ->sortKeys();
+            @endphp
+
+            @if($transactionsParDevise->isEmpty())
+                <div class="py-4 text-center text-muted">
+                    <i class="fas fa-inbox mr-1"></i> Aucune opération pour les critères sélectionnés.
+                </div>
+            @else
+                @foreach($transactionsParDevise as $devise => $ops)
+                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-dark">
+                    <h6 class="mb-0 text-warning">
+                        <i class="fas fa-coins mr-1"></i> Devise {{ $devise }}
+                    </h6>
+                    <span class="badge badge-warning">{{ $ops->count() }} opération(s)</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover mb-0" style="font-size:.89em;">
+                        <thead class="thead-light">
+                            <tr class="text-uppercase text-muted" style="font-size:.77em;">
+                                <th class="pl-3">Date</th>
+                                <th>Référence</th>
+                                <th>Agent</th>
+                                <th>Guichet</th>
+                                <th>Type opér.</th>
+                                <th>Compte</th>
+                                <th>Type cpt</th>
+                                <th>Client</th>
+                                <th class="text-right pr-3">Montant ({{ $devise }})</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($ops as $t)
+                            <tr>
+                                <td class="pl-3 text-nowrap small">
+                                    {{ \Carbon\Carbon::parse($t->date_operation)->format('d/m/Y H:i') }}
+                                </td>
+                                <td><code style="font-size:.82em;">{{ $t->reference ?? '—' }}</code></td>
+                                <td class="small">{{ $t->agent_matricule ?? '—' }}</td>
+                                <td class="small">{{ $t->guichet?->intitule ?? '—' }}</td>
+                                <td>
+                                    <span class="badge badge-{{ in_array($t->type, ['DEPOT','PAIEMENT']) ? 'success' : (in_array($t->type, ['RETRAIT','REMBOURSEMENT']) ? 'danger' : 'info') }}" style="font-size:.78em;">
+                                        {{ $t->type }}
+                                    </span>
+                                </td>
+                                <td class="small"><code style="font-size:.82em;">{{ $t->compte_code ?? '—' }}</code></td>
+                                <td class="small">{{ $t->compte?->type ?? '—' }}</td>
+                                <td class="small">
+                                    @if($t->compte && $t->compte->client)
+                                        {{ $t->compte->client->nom }} {{ $t->compte->client->prenom ?? '' }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                                <td class="text-right font-weight-bold text-nowrap pr-3 {{ in_array($t->type, ['DEPOT','PAIEMENT']) ? 'text-success' : 'text-danger' }}">
+                                    {{ number_format($t->montant, 2, ',', ' ') }}
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @endforeach
+            @endif
         </div>
     </div>
     @endif

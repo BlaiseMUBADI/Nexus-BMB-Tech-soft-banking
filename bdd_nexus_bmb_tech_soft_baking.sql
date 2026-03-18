@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Hôte : 127.0.0.1:3306
--- Généré le : mar. 17 mars 2026 à 08:53
+-- Généré le : mer. 18 mars 2026 à 11:13
 -- Version du serveur : 8.4.7
 -- Version de PHP : 8.3.28
 
@@ -193,8 +193,9 @@ CREATE TABLE IF NOT EXISTS `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-('4N3hbzA9dxWjC0z5EcOLQpzuAwHy1iDArRX7vat6', 9, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoiWWNicXZMVHkzRjdsUG5TeTBBZXRxMk5RZEEwOGtnbDdTYmRxWjQxMiI7czozOiJ1cmwiO2E6MDp7fXM6OToiX3ByZXZpb3VzIjthOjI6e3M6MzoidXJsIjtzOjgzOiJodHRwOi8vbG9jYWxob3N0L05leHVzLUJNQi1UZWNoLXNvZnQtYmFua2luZy9wdWJsaWMvY2Fpc3Nlcy9vcGVyYXRpb25zLzIwL2JvcmRlcmVhdSI7czo1OiJyb3V0ZSI7czoyODoiY2Fpc3Nlcy5vcGVyYXRpb25zLmJvcmRlcmVhdSI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6NTA6ImxvZ2luX3dlYl81OWJhMzZhZGRjMmIyZjk0MDE1ODBmMDE0YzdmNThlYTRlMzA5ODlkIjtpOjk7fQ==', 1773737601),
-('KmlVwZZzEqIrwpjm0nnsdD0zkTCQitBNLOtfp4WS', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0', 'YTozOntzOjY6Il90b2tlbiI7czo0MDoiVTI5Y2cyYXI3b2gzOWJsRkU2RUcxZWdBdE1vTHVCS0xLOUx0NEJITiI7czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6NTc6Imh0dHA6Ly9sb2NhbGhvc3QvTmV4dXMtQk1CLVRlY2gtc29mdC1iYW5raW5nL3B1YmxpYy9sb2dpbiI7czo1OiJyb3V0ZSI7czo1OiJsb2dpbiI7fX0=', 1773735279);
+('L9HRp3bYbqXeKhdcc6HBULO635S5pCMu5hPwrMwk', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0', 'YTozOntzOjY6Il90b2tlbiI7czo0MDoiRDQzTFA5WE85SmF3S3RiN0hpWTZXSFVUdzVyNWRocGhDUWF5YVE2TCI7czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6NTc6Imh0dHA6Ly9sb2NhbGhvc3QvTmV4dXMtQk1CLVRlY2gtc29mdC1iYW5raW5nL3B1YmxpYy9sb2dpbiI7czo1OiJyb3V0ZSI7czo1OiJsb2dpbiI7fX0=', 1773829558),
+('mCGx6VfE2YsBz8TOrPDJARnNuVTr78hQ5xLZMrDi', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36', 'YTozOntzOjY6Il90b2tlbiI7czo0MDoiNzRzYjZSSEhXUDJzUTZRb0Y4eGtxSGczMlNpaDNPRWd0NFp5YnRpYiI7czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6NTc6Imh0dHA6Ly9sb2NhbGhvc3QvTmV4dXMtQk1CLVRlY2gtc29mdC1iYW5raW5nL3B1YmxpYy9sb2dpbiI7czo1OiJyb3V0ZSI7czo1OiJsb2dpbiI7fX0=', 1773829472),
+('vMFuXhMwiidEr64JMZeSHoqVQO9qMp8d4IARWZfl', NULL, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0', 'YTozOntzOjY6Il90b2tlbiI7czo0MDoiY2wxa2d4NmtGam5nUk1aZWZZTzNDQ3VxVkRxSVRxc1JROU5sVHBoWiI7czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6NTc6Imh0dHA6Ly9sb2NhbGhvc3QvTmV4dXMtQk1CLVRlY2gtc29mdC1iYW5raW5nL3B1YmxpYy9sb2dpbiI7czo1OiJyb3V0ZSI7czo1OiJsb2dpbiI7fX0=', 1773829472);
 
 -- --------------------------------------------------------
 
@@ -1422,6 +1423,7 @@ INSERT INTO `tb_role_permission` (`role_code`, `permission_code`, `created_at`, 
 ('EBEN-ROL2', 'EBEN-PER12', '2026-03-06 12:02:52', '2026-03-06 12:02:52'),
 ('EBEN-ROL2', 'EBEN-PER13', '2026-03-06 12:02:52', '2026-03-06 12:02:52'),
 ('EBEN-ROL2', 'EBEN-PER14', '2026-03-06 12:02:52', '2026-03-06 12:02:52'),
+('EBEN-ROL2', 'EBEN-PER15', '2026-03-18 08:26:40', '2026-03-18 08:26:40'),
 ('EBEN-ROL2', 'EBEN-PER20', '2026-03-06 12:42:08', '2026-03-06 12:42:08'),
 ('EBEN-ROL2', 'EBEN-PER21', '2026-03-06 12:42:08', '2026-03-06 12:42:08'),
 ('EBEN-ROL2', 'EBEN-PER22', '2026-03-06 12:02:52', '2026-03-06 12:02:52'),
