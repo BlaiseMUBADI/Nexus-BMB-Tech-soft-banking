@@ -48,7 +48,10 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
         // ── Création ─────────────────────────────────────────────────
         Route::middleware('permission:EBEN-PER54')->group(function () {
             Route::get('/nouveau',  [CreditController::class, 'create'])->name('create');
-            Route::post('/',        [CreditController::class, 'store'])->name('store');
+        });
+
+        Route::middleware('permission:EBEN-PER54')->group(function () {
+            Route::post('/', [CreditController::class, 'store'])->name('store');
         });
 
         // ── AJAX helpers (pas de permission supplémentaire au-delà PER53) ──
@@ -67,25 +70,37 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
 
         // ── Analyse ───────────────────────────────────────────────────
         Route::middleware('permission:EBEN-PER58')->group(function () {
-            Route::get('/{dossier}/analyse',    [CreditController::class, 'analyse'])->name('analyse');
-            Route::post('/{dossier}/analyse',   [CreditController::class, 'storeAnalyse'])->name('analyse.store');
+            Route::get('/{dossier}/analyse', [CreditController::class, 'analyse'])->name('analyse');
+        });
+
+        Route::middleware('permission:EBEN-PER58')->group(function () {
+            Route::post('/{dossier}/analyse', [CreditController::class, 'storeAnalyse'])->name('analyse.store');
         });
 
         // ── Validation ────────────────────────────────────────────────
         Route::middleware('permission:EBEN-PER60|EBEN-PER61|EBEN-PER62|EBEN-PER63')->group(function () {
-            Route::get('/{dossier}/validation',  [CreditController::class, 'validation'])->name('validation');
+            Route::get('/{dossier}/validation', [CreditController::class, 'validation'])->name('validation');
+        });
+
+        Route::middleware('permission:EBEN-PER60|EBEN-PER61|EBEN-PER62|EBEN-PER63')->group(function () {
             Route::post('/{dossier}/validation', [CreditController::class, 'storeValidation'])->name('validation.store');
         });
 
         // ── Déblocage ─────────────────────────────────────────────────
         Route::middleware('permission:EBEN-PER64')->group(function () {
-            Route::get('/{dossier}/deblocage',  [CreditController::class, 'deblocage'])->name('deblocage');
+            Route::get('/{dossier}/deblocage', [CreditController::class, 'deblocage'])->name('deblocage');
+        });
+
+        Route::middleware('permission:EBEN-PER64')->group(function () {
             Route::post('/{dossier}/deblocage', [CreditController::class, 'storeDeblocage'])->name('deblocage.store');
         });
 
         // ── Remboursement ─────────────────────────────────────────────
         Route::middleware('permission:EBEN-PER65')->group(function () {
-            Route::get('/{dossier}/remboursement',  [CreditController::class, 'remboursement'])->name('remboursement');
+            Route::get('/{dossier}/remboursement', [CreditController::class, 'remboursement'])->name('remboursement');
+        });
+
+        Route::middleware('permission:EBEN-PER65')->group(function () {
             Route::post('/{dossier}/remboursement', [CreditController::class, 'storeRemboursement'])->name('remboursement.store');
         });
 

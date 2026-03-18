@@ -1,7 +1,7 @@
 {{-- ============================================================
      Opérations de Caisse — Guichetier
      Saisie : Dépôt, Retrait, Change, Paiement, Remboursement
-     Permissions : EBEN-PER10 (voir) | EBEN-PER11 (saisir)
+    Permissions : EBEN-PER10 (voir) | EBEN-PER11 (saisir) | EBEN-PER109 (annuler)
      ============================================================ --}}
 @extends('layouts.app')
 

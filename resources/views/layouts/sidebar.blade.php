@@ -40,6 +40,16 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>Ajouter un membre</p>
 								</a>
 							</li>
+							@if(in_array('EBEN-PER76', $userPermCodes ?? []))
+								<li class="nav-item">
+									<a href="{{ route('clients.agents-terrain') }}"
+										class="nav-link sub-link {{ request()->routeIs('clients.agents-terrain') ? 'active' : '' }}"
+										title="Rapport Agents Terrain">
+										<i class="fas fa-mobile-alt nav-icon text-warning"></i>
+										<p>Agents Terrain</p>
+									</a>
+								</li>
+							@endif
 						</ul>
 					</li>
 				@endif
@@ -241,14 +251,6 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								</a>
 							</li>
 							
-							<li class="nav-item">
-								<a href="{{ route('tresorerie.agents.mobiles') }}" class="nav-link sub-link {{ request()->is('tresorerie/agents*') ? 'active' : '' }}"
-									title="Rapport Agents Terrain">
-									<i class="fas fa-mobile-alt fa-fw nav-icon text-warning"></i>
-									<p>Agents Terrain</p>
-								</a>
-							</li>
-
 							<li class="nav-item">
 								<a href="{{ route('tresorerie.commissions.index') }}"
 									class="nav-link sub-link {{ request()->routeIs('tresorerie.commissions.*') ? 'active' : '' }}"

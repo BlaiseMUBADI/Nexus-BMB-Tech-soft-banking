@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('page_title', 'Rapport Agents Terrain')
-@section('breadcrumb_parent', 'Trésorerie')
+@section('breadcrumb_parent', 'Clients / Membres')
 @section('breadcrumb', 'Agents Terrain')
 
 @section('content')
@@ -25,7 +25,7 @@
     @endphp
 
     
-    <form method="GET" action="{{ route('tresorerie.agents.mobiles') }}" id="formFiltre">
+    <form method="GET" action="{{ route('clients.agents-terrain') }}" id="formFiltre">
         <div class="card card-warning card-outline shadow elevation-2 mb-3">
             <div class="card-header d-flex align-items-center justify-content-between py-2">
                 <h5 class="mb-0">
@@ -36,7 +36,7 @@
                     <button type="submit" class="btn btn-sm btn-primary">
                         <i class="fas fa-search mr-1"></i>Filtrer
                     </button>
-                    <a href="{{ route('tresorerie.agents.mobiles') }}" class="btn btn-sm btn-outline-secondary">
+                    <a href="{{ route('clients.agents-terrain') }}" class="btn btn-sm btn-outline-secondary">
                         <i class="fas fa-times"></i>
                     </a>
                     <button type="button" id="btnImprimer" class="btn btn-sm btn-danger">
@@ -324,7 +324,7 @@
 <script>
 (function(){
     'use strict';
-    var pdfUrl = "{{ route('tresorerie.agents.mobiles.pdf') }}";
+    var pdfUrl = "{{ route('clients.agents-terrain.pdf') }}";
 
     $('#btnImprimer').on('click', function () {
         var params = $('#formFiltre').serialize();

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Clients\ClientController;
 use App\Http\Controllers\ComptesClients\CompteController;
+use App\Http\Controllers\Tresorerie\TresorerieController;
 
 Route::middleware('auth')->prefix('comptes-clients')->group(function () {
 
@@ -22,6 +23,9 @@ Route::middleware('auth')->prefix('comptes-clients')->group(function () {
         Route::get('clients/{client}/edit',    [ClientController::class, 'edit'])->name('clients.edit');
         Route::put('clients/{client}',         [ClientController::class, 'update'])->name('clients.update');
         Route::patch('clients/{client}',       [ClientController::class, 'update']);
+    });
+
+    Route::middleware('permission:EBEN-PER107')->group(function () {
         Route::delete('clients/{client}',      [ClientController::class, 'destroy'])->name('clients.destroy');
     });
 
@@ -36,6 +40,9 @@ Route::middleware('auth')->prefix('comptes-clients')->group(function () {
     
     Route::middleware('permission:EBEN-PER19')->group(function () {
         Route::post('comptes',                 [CompteController::class, 'store'])->name('comptes.store');
+    });
+
+    Route::middleware('permission:EBEN-PER108')->group(function () {
         Route::delete('comptes/{code_compte}', [CompteController::class, 'destroy'])->name('comptes.destroy');
     });
 
@@ -51,6 +58,11 @@ Route::middleware('auth')->prefix('comptes-clients')->group(function () {
     Route::middleware('permission:EBEN-PER15')->group(function () {
         Route::get('clients/{matricule}/fiche-pdf', [ClientController::class, 'imprimerFiche'])->name('clients.fiche.pdf');
         Route::get('clients-liste-pdf',             [ClientController::class, 'imprimerListe'])->name('clients.liste.pdf');
+    });
+
+    Route::middleware('permission:EBEN-PER76')->group(function () {
+        Route::get('clients/agents-terrain', [TresorerieController::class, 'agentsMobiles'])->name('clients.agents-terrain');
+        Route::get('clients/agents-terrain-pdf', [TresorerieController::class, 'agentsMobilesPdf'])->name('clients.agents-terrain.pdf');
     });
 
 });

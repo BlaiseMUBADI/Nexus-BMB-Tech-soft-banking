@@ -100,7 +100,9 @@ class RolesPermissionsController extends Controller
             9  => ['label' => 'Crédits',           'icon' => 'fa-hand-holding-usd', 'color' => 'warning'],
             10 => ['label' => 'Rapports',          'icon' => 'fa-chart-bar',        'color' => 'primary'],
             11 => ['label' => 'Comptabilité',      'icon' => 'fa-book',             'color' => 'info'],
-            12 => ['label' => 'Audit & Sécurité',  'icon' => 'fa-shield-alt',       'color' => 'danger'],
+            12 => ['label' => 'Trésorerie',        'icon' => 'fa-university',       'color' => 'success'],
+            13 => ['label' => 'Audit & Sécurité',  'icon' => 'fa-shield-alt',       'color' => 'danger'],
+            14 => ['label' => 'CRUD Global',       'icon' => 'fa-layer-group',      'color' => 'secondary'],
         ];
     }
 
@@ -109,18 +111,63 @@ class RolesPermissionsController extends Controller
     {
         preg_match('/EBEN-PER(\d+)/', $code, $m);
         $n = (int)($m[1] ?? 0);
-        if ($n <= 5)  return 1;
-        if ($n <= 9)  return 2;
-        if ($n <= 14) return 3;
-        if ($n <= 17) return 4;
-        if ($n <= 19) return 5;
-        if ($n <= 21) return 6;
-        if ($n <= 26) return 7;
-        if ($n <= 29) return 8;
-        if ($n <= 35) return 9;
-        if ($n <= 38) return 10;
-        if ($n <= 41) return 11;
-        return 12;
+
+        if ($n >= 1 && $n <= 5) {
+            return 1;
+        }
+        if ($n >= 6 && $n <= 9) {
+            return 2;
+        }
+        if ($n >= 103 && $n <= 106) {
+            return 2;
+        }
+        if ($n >= 10 && $n <= 14) {
+            return 3;
+        }
+        if ($n === 109) {
+            return 3;
+        }
+        if (($n >= 15 && $n <= 17) || $n === 76) {
+            return 4;
+        }
+        if ($n === 107) {
+            return 4;
+        }
+        if ($n >= 18 && $n <= 19) {
+            return 5;
+        }
+        if ($n === 108) {
+            return 5;
+        }
+        if ($n >= 20 && $n <= 21) {
+            return 6;
+        }
+        if ($n >= 22 && $n <= 26) {
+            return 7;
+        }
+        if ($n >= 27 && $n <= 29) {
+            return 8;
+        }
+        if (($n >= 30 && $n <= 35) || ($n >= 53 && $n <= 72)) {
+            return 9;
+        }
+        if ($n >= 36 && $n <= 38) {
+            return 10;
+        }
+        if (($n >= 39 && $n <= 41) || ($n >= 49 && $n <= 52)) {
+            return 11;
+        }
+        if (($n >= 44 && $n <= 48) || ($n >= 77 && $n <= 79)) {
+            return 12;
+        }
+        if ($n === 42 || $n === 43) {
+            return 13;
+        }
+        if ($n >= 73 && $n <= 75) {
+            return 14;
+        }
+
+        return 13;
     }
 
     public function rolePermissionsList($role_code)
