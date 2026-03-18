@@ -6,7 +6,7 @@ Date: 2026-03-18
 
 1. Backup base de donnees en ligne.
 2. Deploy code applicatif (routes + vues + migration).
-3. Executer SQL de `DEPLOIEMENT_PERMISSIONS_MODULES_2026-03-18.md`.
+3. Executer SQL de `DEPLOIEMENT_SQL_PERMISSIONS_2026-03-18_FINAL.sql`.
 4. Vider les caches Laravel:
 
 ```bash
@@ -27,7 +27,8 @@ WHERE code IN (
   'EBEN-PER76','EBEN-PER77','EBEN-PER78','EBEN-PER79',
   'EBEN-PER80','EBEN-PER81','EBEN-PER82','EBEN-PER83','EBEN-PER84','EBEN-PER85',
   'EBEN-PER86','EBEN-PER87','EBEN-PER88','EBEN-PER89','EBEN-PER90','EBEN-PER91','EBEN-PER92','EBEN-PER93','EBEN-PER94',
-  'EBEN-PER95','EBEN-PER96','EBEN-PER97','EBEN-PER100','EBEN-PER101','EBEN-PER102'
+  'EBEN-PER95','EBEN-PER96','EBEN-PER97','EBEN-PER100','EBEN-PER101','EBEN-PER102',
+  'EBEN-PER103','EBEN-PER104','EBEN-PER105','EBEN-PER106','EBEN-PER107','EBEN-PER108','EBEN-PER109'
 )
 ORDER BY code;
 
@@ -45,14 +46,18 @@ SELECT migration, batch
 FROM migrations
 WHERE migration IN (
   '2026_03_18_000015_remove_global_crud_permissions',
-  '2026_03_18_000016_remove_duplicate_module_permissions'
+  '2026_03_18_000016_remove_duplicate_module_permissions',
+  '2026_03_18_000017_normalize_permission_action_aliases',
+  '2026_03_18_000018_refine_permission_action_wording_by_context',
+  '2026_03_18_000019_split_modify_delete_permissions_by_module'
 );
 ```
 
 Resultat attendu:
 - Les permissions dupliquees sont absentes (`73..75`, `80..97`, `100..102`).
 - Les permissions metier historiques restent actives (ex: `16`,`17`,`19`,`7`,`8`,`9`,`54`,`56`, etc.).
-- Les migrations 000015 et 000016 sont executees.
+- Les nouvelles permissions separees (`103..109`) sont presentes.
+- Les migrations 000015 a 000019 sont executees.
 
 ## 3) Smoke tests fonctionnels (UI)
 
@@ -70,7 +75,7 @@ Resultat attendu:
 - Commissions:
   - create: `EBEN-PER77`
   - update: `EBEN-PER78`
-  - toggle: `EBEN-PER79|EBEN-PER78`
+  - toggle: `EBEN-PER78`
 
 ## 4) Verification routes critiques
 
@@ -96,3 +101,4 @@ Resultat attendu:
 - Les permissions globales CRUD (`EBEN-PER73/74/75`) sont retirees.
 - Les permissions module-specifiques ajoutees en doublon (`EBEN-PER80..97` et `EBEN-PER100..102`) sont retirees.
 - Regle de nommage retenue: un seul verbe par permission selon le contexte metier (Creer ou Ajouter, Supprimer ou Annuler).
+- Separation stricte appliquee pour les actions sensibles via `EBEN-PER103..EBEN-PER109`.
