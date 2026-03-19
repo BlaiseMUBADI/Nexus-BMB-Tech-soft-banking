@@ -42,12 +42,13 @@
                                             ->first();
                                     @endphp
                                     <tr data-agent-matricule="{{ $agent->matricule }}"
+                                        data-search="{{ strtolower(trim($agent->full_name . ' ' . $agent->matricule . ' ' . ($affectation->poste->service->nom ?? '') . ' ' . ($affectation->poste->nom ?? ''))) }}"
                                         style="cursor:pointer;"
                                         @if(isset($selectedAgent) && $selectedAgent->matricule == $agent->matricule) class="table-primary" @endif>
                                         <td>{{ $loop->iteration }}</td>
                                         <td>
                                             <i class="fas fa-user-tie mr-1 text-muted"></i>
-                                            {{ $agent->nom }} {{ $agent->postnom }} {{ $agent->prenom }}
+                                            {{ $agent->full_name }}
                                         </td>
                                         <td>
                                             @if($affectation && $affectation->poste && $affectation->poste->service)
@@ -227,7 +228,8 @@
         $('#searchAgents').on('input', function () {
             var q = $(this).val().toLowerCase().trim();
             $('#agentsTable tbody tr').each(function () {
-                $(this).toggle(!q || $(this).text().toLowerCase().indexOf(q) !== -1);
+                var haystack = ($(this).data('search') || $(this).text()).toString().toLowerCase();
+                $(this).toggle(!q || haystack.indexOf(q) !== -1);
             });
         });
 

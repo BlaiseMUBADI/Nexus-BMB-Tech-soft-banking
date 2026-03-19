@@ -62,7 +62,7 @@
                             <option value="">Tous les agents</option>
                             @foreach($agents as $ag)
                                 <option value="{{ $ag->matricule }}" @selected(request('agent_matricule') === $ag->matricule)>
-                                    {{ $ag->prenom }} {{ $ag->nom }}
+                                    {{ $ag->full_name }}
                                 </option>
                             @endforeach
                         </select>
@@ -294,7 +294,7 @@
                                 <td class="small">{{ $t->compte?->type ?? '—' }}</td>
                                 <td class="small">
                                     @if($t->compte && $t->compte->client)
-                                        {{ $t->compte->client->nom }} {{ $t->compte->client->prenom ?? '' }}
+                                        {{ $t->compte->client->full_name }}
                                     @else
                                         —
                                     @endif

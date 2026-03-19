@@ -12,7 +12,9 @@ class UtilisateurController extends Controller
         $users = \App\Models\User::with([
             'agent',
             'agent.affectations' => function ($q) {
-                $q->with('poste.service')->latest('date_debut');
+                $q->with('poste.service')
+                    ->orderByRaw("CASE WHEN UPPER(Etat) = 'ACTIF' THEN 0 ELSE 1 END")
+                    ->orderByDesc('date_debut');
             },
         ])->get();
         if ($request->ajax()) {

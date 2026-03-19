@@ -67,10 +67,11 @@
                             <tbody>
                                 @foreach($agents as $agent)
                                     <tr data-matricule="{{ $agent->matricule }}"
-                                        data-nom="{{ $agent->nom }} {{ $agent->postnom }} {{ $agent->prenom }}">
+                                        data-nom="{{ $agent->full_name }}"
+                                        data-search="{{ strtolower(trim($agent->matricule . ' ' . $agent->full_name)) }}">
                                         <td>{{ $loop->iteration }}</td>
                                         <td><code class="text-primary">{{ $agent->matricule }}</code></td>
-                                        <td>{{ $agent->nom }} {{ $agent->postnom }} {{ $agent->prenom }}</td>
+                                        <td>{{ $agent->full_name }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -542,7 +543,8 @@ $(document).ready(function () {
     $('#searchAgents').on('input', function () {
         var q = $(this).val().toLowerCase();
         $('#agentsTable tbody tr').each(function () {
-            $(this).toggle(q === '' || $(this).text().toLowerCase().indexOf(q) !== -1);
+            var haystack = ($(this).data('search') || $(this).text()).toString().toLowerCase();
+            $(this).toggle(q === '' || haystack.indexOf(q) !== -1);
         });
     });
 

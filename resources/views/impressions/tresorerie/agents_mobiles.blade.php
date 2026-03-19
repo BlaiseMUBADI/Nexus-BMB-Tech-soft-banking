@@ -197,7 +197,7 @@
                 <td style="padding:3px 6px; border:2px solid #333; font-family:monospace; font-size:7px; color:#111;">{{ $t->compte_code ?? '—' }}</td>
                 <td style="padding:3px 6px; border:2px solid #333; color:#111;">
                     @if($t->compte && $t->compte->client)
-                        {{ $t->compte->client->nom }} {{ $t->compte->client->prenom ?? '' }}
+                        {{ $t->compte->client->full_name }}
                     @else —
                     @endif
                 </td>

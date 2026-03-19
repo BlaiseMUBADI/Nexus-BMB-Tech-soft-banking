@@ -152,14 +152,13 @@
                     </thead>
                     <tbody>
                         @forelse($comptes as $loopIndex => $compte)
-                        <tr data-code="{{ $compte->code_compte }}">
+                        <tr data-code="{{ $compte->code_compte }}"
+                            data-search="{{ strtolower(trim($compte->code_compte . ' ' . ($compte->client?->full_name ?? '') . ' ' . $compte->type . ' ' . $compte->devise . ' ' . ($compte->portefeuille?->agent?->full_name ?? '') . ' ' . ($compte->portefeuille?->agent?->matricule ?? ''))) }}">
                             <td>{{ $loopIndex + 1 }}</td>
                             <td><code>{{ $compte->code_compte }}</code></td>
                             <td>
                                 @if($compte->client)
-                                    {{ $compte->client->nom }}
-                                    {{ $compte->client->postnom ?? '' }}
-                                    {{ $compte->client->prenom ?? '' }}
+                                    {{ $compte->client->full_name }}
                                 @else
                                     <span class="text-muted">–</span>
                                 @endif
@@ -331,7 +330,7 @@
                                             <option value="{{ $p->id }}">
                                                 {{ $p->nom_portefeuille }}
                                                 @if($p->agent)
-                                                    &mdash; {{ $p->agent->nom }} {{ $p->agent->prenom }}
+                                                        &mdash; {{ $p->agent->full_name }}
                                                     ({{ $p->agent->matricule }})
                                                 @endif
                                             </option>
@@ -439,7 +438,8 @@
         $('#searchComptes').on('input', function () {
             var q = $(this).val().toLowerCase();
             $('#comptesTable tbody tr').each(function () {
-                $(this).toggle($(this).text().toLowerCase().indexOf(q) !== -1);
+                var haystack = ($(this).data('search') || $(this).text()).toString().toLowerCase();
+                $(this).toggle(haystack.indexOf(q) !== -1);
             });
         });
 

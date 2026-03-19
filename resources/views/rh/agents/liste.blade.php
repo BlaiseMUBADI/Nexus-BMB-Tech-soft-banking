@@ -36,10 +36,10 @@
                     </thead>
                     <tbody>
                         @foreach($agents as $loopIndex => $agent)
-                        <tr>
+                        <tr data-search="{{ strtolower(trim($agent->matricule . ' ' . $agent->full_name . ' ' . ($agent->email ?? '') . ' ' . ($agent->telephone ?? ''))) }}">
                             <td>{{ $loopIndex + 1 }}</td>
                             <td>{{ $agent->matricule }}</td>
-                            <td>{{ $agent->nom }}</td>
+                            <td>{{ $agent->nom }}<span class="d-none"> {{ $agent->full_name }}</span></td>
                             <td>{{ $agent->postnom ?? '' }}</td>
                             <td>{{ $agent->prenom }}</td>
                             <td>{{ $agent->email }}</td>

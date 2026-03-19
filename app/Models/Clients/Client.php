@@ -2,6 +2,7 @@
 
 namespace App\Models\Clients;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Zone;
 
@@ -55,5 +56,28 @@ class Client extends Model
     public function comptes()
     {
         return $this->hasMany(Compte::class, 'client_matricule', 'matricule');
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return trim(preg_replace('/\s+/', ' ', implode(' ', array_filter([
+            $this->nom,
+            $this->postnom,
+            $this->prenom,
+        ], fn ($value) => filled($value)))));
+    }
+
+    public function scopeSearchFullName(Builder $query, ?string $search): Builder
+    {
+        $search = trim(preg_replace('/\s+/', ' ', (string) $search));
+
+        if ($search === '') {
+            return $query;
+        }
+
+        return $query->whereRaw(
+            "LOWER(CONCAT_WS(' ', NULLIF(TRIM(nom), ''), NULLIF(TRIM(postnom), ''), NULLIF(TRIM(prenom), ''))) LIKE LOWER(?)",
+            ['%' . $search . '%']
+        );
     }
 }

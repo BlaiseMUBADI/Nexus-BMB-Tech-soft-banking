@@ -172,11 +172,15 @@ class ClientController extends Controller
 
         // Si une recherche est effectuée, filtrer les clients
         if (request()->has('search') && request('search')) {
-            $search = request('search');
+            $search = trim((string) request('search'));
             $query->where(function($q) use ($search) {
-                $q->where('nom', 'like', "%$search%")
+                $q->searchFullName($search)
+                ->orWhere('nom', 'like', "%$search%")
                 ->orWhere('postnom', 'like', "%$search%")
-                ->orWhere('matricule', 'like', "%$search%");
+                ->orWhere('prenom', 'like', "%$search%")
+                ->orWhere('matricule', 'like', "%$search%")
+                ->orWhere('telephone', 'like', "%$search%")
+                ->orWhere('email', 'like', "%$search%");
             });
         }
 

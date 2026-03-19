@@ -32,8 +32,11 @@ function renderUsersTable(users) {
         var serviceCell = serviceNom
             ? '<span class="badge badge-info">' + serviceNom + '</span> / ' + (poste || '—')
             : '<span class="text-muted">—</span>';
+        var agentFullName = user.agent
+            ? [user.agent.nom || '', user.agent.postnom || '', user.agent.prenom || ''].join(' ').replace(/\s+/g, ' ').trim()
+            : '';
         var agentNom = user.agent
-            ? '<strong>' + user.agent.nom + '</strong> <small class="text-muted">' + (user.agent.postnom || '') + ' ' + (user.agent.prenom || '') + '</small>'
+            ? '<strong>' + agentFullName + '</strong> <small class="text-muted">' + (user.agent.matricule || '') + '</small>'
             : '—';
         tbody += '<tr>'
             + '<td>' + (idx+1) + '</td>'

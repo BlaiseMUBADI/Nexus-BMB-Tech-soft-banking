@@ -239,6 +239,7 @@ class OperationCaisseController extends Controller
         $latestDemandesByTx = [];
         if ($guichet) {
             $operations = Transaction::where('guichet_id', $guichet->id)
+                ->with('compte.client')
                 ->whereDate('date_operation', today())
                 ->orderByDesc('date_operation')
                 ->limit(30)
@@ -813,11 +814,13 @@ class OperationCaisseController extends Controller
         $query = Compte::with('client')
             ->where(function ($query) use ($q) {
                 $query->where('code_compte', 'like', "%{$q}%")
-                      ->orWhereHas('client', fn($cq) =>
-                          $cq->where('nom',     'like', "%{$q}%")
+                      ->orWhereHas('client', function ($cq) use ($q) {
+                          $cq->searchFullName($q)
+                             ->orWhere('nom', 'like', "%{$q}%")
+                             ->orWhere('postnom', 'like', "%{$q}%")
                              ->orWhere('prenom', 'like', "%{$q}%")
-                             ->orWhere('postnom','like', "%{$q}%")
-                      );
+                             ->orWhere('matricule', 'like', "%{$q}%");
+                      });
             });
 
         $this->applyZoneScopeToComptes($query, $zoneScope);
@@ -827,9 +830,7 @@ class OperationCaisseController extends Controller
             ->get()
             ->map(fn($c) => [
                 'code_compte' => $c->code_compte,
-                'client_nom'  => $c->client
-                    ? trim(($c->client->nom ?? '') . ' ' . ($c->client->postnom ?? '') . ' ' . ($c->client->prenom ?? ''))
-                    : '—',
+                'client_nom'  => $c->client?->full_name ?: '—',
                 'devise'      => $c->devise,
                 'solde'       => number_format((float) $c->solde_reel, 2, ',', ' ') . ' ' . $c->devise,
             ]);

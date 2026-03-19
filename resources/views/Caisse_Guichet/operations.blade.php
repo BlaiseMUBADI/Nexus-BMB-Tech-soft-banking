@@ -291,6 +291,9 @@
                                         @if($op->compte_code)
                                         <br><small class="text-muted"><i class="fas fa-university fa-xs"></i> {{ $op->compte_code }}</small>
                                         @endif
+                                        @if($op->compte && $op->compte->client)
+                                        <br><small class="text-info"><i class="fas fa-user fa-xs"></i> {{ $op->compte->client->full_name }}</small>
+                                        @endif
                                     </td>
                                     <td class="font-weight-bold">
                                         {{ number_format($op->montant, 2, ',', ' ') }} {{ $op->devise_code }}

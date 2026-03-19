@@ -29,7 +29,7 @@
                             <select name="client_matricule" id="client_matricule" class="form-control select2" required>
                                 <option value="">-- Sélectionner un client --</option>
                                 @foreach($clients as $client)
-                                    <option value="{{ $client->matricule }}">{{ $client->nom }} {{ $client->postnom ?? '' }} {{ $client->prenom ?? '' }} ({{ $client->matricule }})</option>
+                                    <option value="{{ $client->matricule }}">{{ $client->full_name }} ({{ $client->matricule }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -107,14 +107,12 @@
                             </thead>
                             <tbody>
                                 @forelse($comptes as $compte)
-                                    <tr>
+                                    <tr data-search="{{ strtolower(trim($compte->code_compte . ' ' . ($compte->client?->full_name ?? '') . ' ' . $compte->type . ' ' . $compte->devise . ' ' . ($compte->portefeuille?->agent?->full_name ?? '') . ' ' . ($compte->portefeuille?->agent?->matricule ?? ''))) }}">
                                         <td>{{ $loop->iteration }}</td>
                                         <td><code>{{ $compte->code_compte }}</code></td>
                                         <td>
                                             @if($compte->client)
-                                                {{ $compte->client->nom }}
-                                                {{ $compte->client->postnom ?? '' }}
-                                                {{ $compte->client->prenom ?? '' }}
+                                                {{ $compte->client->full_name }}
                                             @else
                                                 <span class="text-muted">–</span>
                                             @endif
@@ -214,7 +212,8 @@
         $('#searchComptesCreate').on('input', function () {
             var q = $(this).val().toLowerCase();
             $('#comptesCreateTable tbody tr').each(function () {
-                $(this).toggle($(this).text().toLowerCase().indexOf(q) !== -1);
+                var haystack = ($(this).data('search') || $(this).text()).toString().toLowerCase();
+                $(this).toggle(haystack.indexOf(q) !== -1);
             });
         });
 

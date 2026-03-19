@@ -94,19 +94,30 @@
                                     $serviceDisplay = $serviceNom ?: 'Sans service';
                                     $serviceSortKey = strtolower(trim($serviceDisplay));
                                     $posteSortKey = strtolower(trim($posteNom ?? ''));
-                                    $agentSortKey = strtolower(trim(($user->agent->nom ?? '') . ' ' . ($user->agent->postnom ?? '') . ' ' . ($user->agent->prenom ?? '') . ' ' . ($user->name ?? '')));
+                                    $agentFullName = $user->agent?->full_name ?? '';
+                                    $agentSortKey = strtolower(trim($agentFullName . ' ' . ($user->name ?? '')));
+                                    $searchLabel = strtolower(trim(implode(' ', array_filter([
+                                        $agentFullName,
+                                        $user->agent?->matricule,
+                                        $user->name,
+                                        $user->email,
+                                        $serviceDisplay,
+                                        $posteNom,
+                                        $user->etat,
+                                    ]))));
                                 @endphp
                                 <tr class="user-row" id="row-user-{{ $user->id }}"
                                     data-original-index="{{ $i }}"
                                     data-service-label="{{ $serviceSortKey }}"
                                     data-service-display="{{ $serviceDisplay }}"
                                     data-poste-label="{{ $posteSortKey }}"
-                                    data-agent-label="{{ $agentSortKey }}">
+                                    data-agent-label="{{ $agentSortKey }}"
+                                    data-search="{{ $searchLabel }}">
                                     <td class="text-muted">{{ $i + 1 }}</td>
                                     <td>
                                         @if($user->agent)
-                                            <span class="font-weight-bold">{{ $user->agent->nom }}</span>
-                                            <small class="text-muted ml-1">{{ $user->agent->postnom }} {{ $user->agent->prenom }}</small>
+                                            <span class="font-weight-bold">{{ $user->agent->full_name }}</span>
+                                            <small class="text-muted ml-1">{{ $user->agent->matricule }}</small>
                                         @else
                                             <span class="text-muted">—</span>
                                         @endif
@@ -230,7 +241,7 @@
         function applySearchFilter() {
             var q = $.trim($('#searchUsers').val() || '').toLowerCase();
             $tbody.find('tr.user-row').each(function () {
-                var haystack = $(this).text().toLowerCase();
+                var haystack = String($(this).attr('data-search') || $(this).text()).toLowerCase();
                 $(this).toggle(q === '' || haystack.indexOf(q) !== -1);
             });
         }

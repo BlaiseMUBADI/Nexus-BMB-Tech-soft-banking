@@ -92,7 +92,8 @@
                             <tr
                                 class="ctx-row"
                                 data-matricule="{{ $client->matricule }}"
-                                data-nom="{{ $client->nom }} {{ $client->postnom }}"
+                                data-nom="{{ $client->full_name }}"
+                                data-search="{{ strtolower(trim($client->matricule . ' ' . $client->full_name . ' ' . ($client->zone->nom ?? '') . ' ' . ($client->email ?? '') . ' ' . ($client->telephone ?? ''))) }}"
                                 data-show-url="{{ route('clients.show', $client->matricule) }}"
                                 data-edit-url="{{ route('clients.edit', $client->matricule) }}"
                                 data-fiche-url="{{ route('clients.fiche.pdf', $client->matricule) }}"
@@ -112,7 +113,7 @@
                                              alt="Photo"
                                              class="client-photo-thumb"
                                              data-photo-url="{{ route('clients.photo', basename($client->photo)) }}"
-                                             data-client-nom="{{ $client->nom }} {{ $client->postnom }} {{ $client->prenom }}"
+                                             data-client-nom="{{ $client->full_name }}"
                                              style="width:46px;height:46px;object-fit:cover;border-radius:4px;cursor:pointer;">
                                     @else
                                         <span class="badge badge-secondary">Aucune</span>
@@ -385,7 +386,7 @@
             var q = $(this).val().toLowerCase().trim();
             var count = 0;
             $('#clientsTableBody tr').each(function () {
-                var text = $(this).text().toLowerCase();
+                var text = ($(this).data('search') || $(this).text()).toString().toLowerCase();
                 var match = !q || text.indexOf(q) !== -1;
                 $(this).toggle(match);
                 if (match) count++;

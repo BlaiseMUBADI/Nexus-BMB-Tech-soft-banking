@@ -1260,7 +1260,7 @@ class TresorerieController extends Controller
 
             return [
                 'matricule'     => $matricule,
-                'nom_complet'   => $agent ? trim(($agent->prenom ?? '') . ' ' . ($agent->nom ?? '') . ' ' . ($agent->postnom ?? '')) : $matricule,
+                'nom_complet'   => $agent?->full_name ?: $matricule,
                 'guichet'       => $items->first()?->guichet?->intitule ?? '—',
                 'nb_operations' => $items->count(),
                 'par_devise'    => $parDevise,
@@ -1338,7 +1338,7 @@ class TresorerieController extends Controller
 
             return [
                 'matricule'     => $matricule,
-                'nom_complet'   => $agent ? trim(($agent->prenom ?? '') . ' ' . ($agent->nom ?? '') . ' ' . ($agent->postnom ?? '')) : $matricule,
+                'nom_complet'   => $agent?->full_name ?: $matricule,
                 'guichet'       => $items->first()?->guichet?->intitule ?? '—',
                 'nb_operations' => $items->count(),
                 'par_devise'    => $parDevise,
