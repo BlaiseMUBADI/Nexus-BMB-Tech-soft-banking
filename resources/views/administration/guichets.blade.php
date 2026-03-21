@@ -280,12 +280,20 @@
                                                     <th>Devises &amp; Soldes</th>
                                                     <th>Titulaire actif</th>
                                                     <th class="text-center" style="width:100px">Statut</th>
-                                                    <th class="text-center" style="width:70px">Actions</th>
+                                                    <th class="text-center" style="width:110px">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 @forelse($guichets as $g)
-                                                <tr id="row-guichet-{{ $g->id }}">
+                                                <tr id="row-guichet-{{ $g->id }}"
+                                                    class="js-guichet-row"
+                                                    data-guichet-id="{{ $g->id }}"
+                                                    data-guichet-code="{{ $g->code_guichet }}"
+                                                    data-guichet-intitule="{{ $g->intitule }}"
+                                                    data-guichet-responsable="{{ optional($g->affectationActive)->agent_matricule }}"
+                                                    data-guichet-responsable-date-debut="{{ optional(optional($g->affectationActive)->date_debut)->format('Y-m-d') }}"
+                                                    data-guichet-responsable-date-fin="{{ optional(optional($g->affectationActive)->date_fin)->format('Y-m-d') }}"
+                                                    data-guichet-type="{{ $g->type_guichet }}">
                                                     <td class="text-muted">{{ $loop->iteration }}</td>
                                                     <td><strong>{{ $g->code_guichet }}</strong></td>
                                                     <td>{{ $g->intitule }}</td>
@@ -350,6 +358,17 @@
 
                                                     {{-- Actions --}}
                                                     <td class="text-center">
+                                                        <button class="btn btn-sm btn-warning btn-edit-guichet mr-1"
+                                                            data-id="{{ $g->id }}"
+                                                            data-code="{{ $g->code_guichet }}"
+                                                            data-intitule="{{ $g->intitule }}"
+                                                            data-responsable="{{ optional($g->affectationActive)->agent_matricule }}"
+                                                            data-responsable-date-debut="{{ optional(optional($g->affectationActive)->date_debut)->format('Y-m-d') }}"
+                                                            data-responsable-date-fin="{{ optional(optional($g->affectationActive)->date_fin)->format('Y-m-d') }}"
+                                                            data-type="{{ $g->type_guichet }}"
+                                                            title="Modifier guichet">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
                                                         <button class="btn btn-sm btn-danger btn-delete-guichet"
                                                             data-id="{{ $g->id }}"
                                                             data-code="{{ $g->code_guichet }}"
@@ -374,6 +393,44 @@
                         </div>
 
                     </div>{{-- /row tab-gestion --}}
+
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card card-secondary card-outline">
+                                <div class="card-header">
+                                    <h3 class="card-title mb-0">
+                                        <i class="fas fa-history mr-1"></i>
+                                        Historique des affectations RH du guichet sélectionné
+                                        <span id="selectedGuichetLabel" class="badge badge-dark ml-2">Aucun guichet sélectionné</span>
+                                    </h3>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive" style="max-height:260px; overflow-y:auto;">
+                                        <table class="table table-sm mb-0">
+                                            <thead class="thead-light">
+                                                <tr>
+                                                    <th>Guichet</th>
+                                                    <th>Agent</th>
+                                                    <th>Poste</th>
+                                                    <th>Créée le</th>
+                                                    <th>Début</th>
+                                                    <th>Fin</th>
+                                                    <th>Etat</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="guichetAffectationsHistoryBody">
+                                                <tr>
+                                                    <td colspan="7" class="text-center text-muted py-3">
+                                                        Clique sur un guichet pour afficher son historique d'affectation RH.
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>{{-- /tab-pane tab-gestion --}}
 
             </div>{{-- /tab-content --}}
@@ -381,6 +438,76 @@
     </div>{{-- /card tabs --}}
 
 </div>{{-- /container-fluid --}}
+
+<div class="modal fade" id="editGuichetModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="fas fa-edit mr-1"></i> Modifier le guichet</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="guichetEditForm">
+                @csrf
+                @method('PUT')
+                <div class="modal-body">
+                    <input type="hidden" id="edit_guichet_id" name="id">
+
+                    <div class="form-group">
+                        <label for="edit_code_guichet">Code guichet</label>
+                        <input type="text" class="form-control" id="edit_code_guichet" name="code_guichet" maxlength="20" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_intitule">Intitulé</label>
+                        <input type="text" class="form-control" id="edit_intitule" name="intitule" maxlength="100" required>
+                    </div>
+
+                    <div class="form-group mb-0">
+                        <label for="edit_type_guichet">Type</label>
+                        <select class="form-control" id="edit_type_guichet" name="type_guichet" required>
+                            <option value="FIXE">FIXE</option>
+                            <option value="MOBILE">MOBILE</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group mt-3 mb-0">
+                        <label for="edit_responsable_matricule">Responsable du guichet</label>
+                        <select class="form-control select2" id="edit_responsable_matricule" name="responsable_matricule" data-placeholder="Rechercher un agent...">
+                            <option value="">-- Aucun responsable --</option>
+                            @foreach($agentsResponsables as $agentResponsable)
+                                <option value="{{ $agentResponsable->matricule }}">
+                                    {{ $agentResponsable->matricule }} - {{ trim(($agentResponsable->nom ?? '') . ' ' . ($agentResponsable->postnom ?? '') . ' ' . ($agentResponsable->prenom ?? '')) }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted d-block mt-1">
+                            Le changement est enregistré dans l'historique RH (tb_affectations).
+                        </small>
+                    </div>
+
+                    <div class="form-row mt-3">
+                        <div class="form-group col-md-6 mb-0">
+                            <label for="edit_date_debut_responsable">Date début affectation</label>
+                            <input type="date" class="form-control" id="edit_date_debut_responsable" name="date_debut_responsable">
+                        </div>
+                        <div class="form-group col-md-6 mb-0">
+                            <label for="edit_date_fin_responsable">Date fin affectation</label>
+                            <input type="date" class="form-control" id="edit_date_fin_responsable" name="date_fin_responsable">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning" id="btnUpdateGuichet">
+                        <i class="fas fa-save mr-1"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 
@@ -452,13 +579,131 @@
     /* ── Input recherche ────────────────────────────────────── */
     #searchGuichets { margin-bottom: 0; }
 
+    .js-guichet-row.guichet-row-selected > td {
+        background-color: rgba(255, 193, 7, 0.18) !important;
+    }
+
 </style>
 @endpush
+
+@php
+    $guichetAffectationsHistoryData = $guichets->mapWithKeys(function ($guichet) {
+        return [
+            (string) $guichet->id => [
+                'id' => (string) $guichet->id,
+                'code_guichet' => $guichet->code_guichet,
+                'intitule' => $guichet->intitule,
+                'affectations' => $guichet->affectations->map(function ($affectation) {
+                    return [
+                        'agent_matricule' => $affectation->agent_matricule,
+                        'agent_nom' => $affectation->agent ? $affectation->agent->nom : null,
+                        'agent_postnom' => $affectation->agent ? $affectation->agent->postnom : null,
+                        'poste_nom' => $affectation->poste ? $affectation->poste->nom : null,
+                        'date_debut' => optional($affectation->date_debut)->format('Y-m-d'),
+                        'date_fin' => optional($affectation->date_fin)->format('Y-m-d'),
+                        'created_at' => optional($affectation->created_at)->format('Y-m-d'),
+                        'etat' => strtoupper((string) $affectation->Etat),
+                    ];
+                })->values()->all(),
+            ],
+        ];
+    })->toArray();
+@endphp
 
 
 @push('js')
 <script>
 $(document).ready(function () {
+
+    var guichetAffectationsHistory = @json($guichetAffectationsHistoryData);
+    var $historyBody = $('#guichetAffectationsHistoryBody');
+    var $selectedGuichetLabel = $('#selectedGuichetLabel');
+
+    function escapeHtml(value) {
+        return $('<div>').text(value == null ? '' : String(value)).html();
+    }
+
+    function formatDate(value) {
+        if (!value) {
+            return '—';
+        }
+
+        var date = new Date(value + 'T00:00:00');
+        if (isNaN(date.getTime())) {
+            return value;
+        }
+
+        return date.toLocaleDateString('fr-FR');
+    }
+
+    function todayIso() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    function resetGuichetHistoryPanel() {
+        $selectedGuichetLabel.text('Aucun guichet sélectionné');
+        $historyBody.html(
+            '<tr>' +
+                '<td colspan="7" class="text-center text-muted py-3">' +
+                    'Clique sur un guichet pour afficher son historique d\'affectation RH.' +
+                '</td>' +
+            '</tr>'
+        );
+    }
+
+    function renderGuichetAffectations(guichetId) {
+        var guichet = guichetAffectationsHistory[String(guichetId)] || null;
+
+        if (!guichet) {
+            resetGuichetHistoryPanel();
+            return;
+        }
+
+        $selectedGuichetLabel.text((guichet.code_guichet || 'N/A') + ' - ' + (guichet.intitule || '')); // compact selected label
+
+        if (!Array.isArray(guichet.affectations) || guichet.affectations.length === 0) {
+            $historyBody.html(
+                '<tr>' +
+                    '<td colspan="7" class="text-center text-muted py-3">' +
+                        'Aucune affectation RH trouvée pour ce guichet.' +
+                    '</td>' +
+                '</tr>'
+            );
+            return;
+        }
+
+        var rows = guichet.affectations.map(function (affectation) {
+            var agentNomComplet = [affectation.agent_nom, affectation.agent_postnom].filter(Boolean).join(' ');
+            var agentLabel = affectation.agent_matricule
+                ? '<span class="badge badge-info mr-1">' + escapeHtml(affectation.agent_matricule) + '</span>'
+                : '';
+
+            if (agentNomComplet) {
+                agentLabel += '<span>' + escapeHtml(agentNomComplet) + '</span>';
+            }
+            if (!agentLabel) {
+                agentLabel = '<span class="text-muted">—</span>';
+            }
+
+            var posteLabel = affectation.poste_nom ? escapeHtml(affectation.poste_nom) : '<span class="text-muted">—</span>';
+            var etat = (affectation.etat || '').toUpperCase();
+            var badgeClass = etat === 'ACTIF' ? 'badge-success' : 'badge-secondary';
+
+            return (
+                '<tr>' +
+                    '<td><strong>' + escapeHtml(guichet.code_guichet || '') + '</strong></td>' +
+                    '<td>' + agentLabel + '</td>' +
+                    '<td>' + posteLabel + '</td>' +
+                    '<td><small class="text-muted">' + escapeHtml(formatDate(affectation.created_at)) + '</small></td>' +
+                    '<td>' + escapeHtml(formatDate(affectation.date_debut)) + '</td>' +
+                    '<td>' + escapeHtml(formatDate(affectation.date_fin)) + '</td>' +
+                    '<td><span class="badge ' + badgeClass + '">' + escapeHtml(etat || '—') + '</span></td>' +
+                '</tr>'
+            );
+        }).join('');
+
+        $historyBody.html(rows);
+    }
 
     $.ajaxSetup({
         headers: {
@@ -467,12 +712,33 @@ $(document).ready(function () {
         }
     });
 
+    if ($.fn.select2) {
+        $('#edit_responsable_matricule').select2({
+            theme: 'bootstrap4',
+            width: '100%',
+            allowClear: true,
+            placeholder: $('#edit_responsable_matricule').data('placeholder') || 'Rechercher un agent...',
+            dropdownParent: $('#editGuichetModal')
+        });
+    }
+
     // ── Recherche live : tableau guichets ─────────────────────
     $('#searchGuichets').on('input', function () {
         var q = $(this).val().toLowerCase();
         $('#guichetsTable tbody tr').each(function () {
             $(this).toggle(q === '' || $(this).text().toLowerCase().indexOf(q) !== -1);
         });
+    });
+
+    $(document).on('click', '.js-guichet-row', function (e) {
+        if ($(e.target).closest('.btn-edit-guichet, .btn-delete-guichet').length) {
+            return;
+        }
+
+        $('.js-guichet-row').removeClass('guichet-row-selected');
+        $(this).addClass('guichet-row-selected');
+
+        renderGuichetAffectations($(this).data('guichet-id'));
     });
 
     // ══════════════════════════════════════════════════════
@@ -533,6 +799,73 @@ $(document).ready(function () {
     // ══════════════════════════════════════════════════════
     // SUPPRIMER GUICHET
     // ══════════════════════════════════════════════════════
+    $(document).on('click', '.btn-edit-guichet', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var id = $(this).data('id');
+        var code = $(this).data('code');
+        var intitule = $(this).data('intitule');
+        var type = $(this).data('type');
+        var responsable = $(this).data('responsable') || '';
+        var dateDebutResponsable = $(this).data('responsable-date-debut') || '';
+        var dateFinResponsable = $(this).data('responsable-date-fin') || '';
+
+        $('#edit_guichet_id').val(id);
+        $('#edit_code_guichet').val(code);
+        $('#edit_intitule').val(intitule);
+        $('#edit_type_guichet').val(type);
+        $('#edit_responsable_matricule').val(responsable).trigger('change');
+        $('#edit_date_debut_responsable').val(dateDebutResponsable || todayIso());
+        $('#edit_date_fin_responsable').val(dateFinResponsable);
+
+        $('.js-guichet-row').removeClass('guichet-row-selected');
+        $('#row-guichet-' + id).addClass('guichet-row-selected');
+        renderGuichetAffectations(id);
+
+        $('#editGuichetModal').modal('show');
+    });
+
+    $('#guichetEditForm').on('submit', function (e) {
+        e.preventDefault();
+
+        var id = $('#edit_guichet_id').val();
+        var $btn = $('#btnUpdateGuichet');
+        var updateUrl = '{{ route("administration.guichets.update", ["id" => "__ID__"]) }}'.replace('__ID__', id);
+
+        $btn.prop('disabled', true);
+
+        $.ajax({
+            type    : 'POST',
+            url     : updateUrl,
+            data    : $(this).serialize(),
+            dataType: 'json'
+        })
+        .done(function (data) {
+            if (data.success) {
+                showSystemMessage('success', data.message || 'Guichet modifié avec succès.');
+                $('#editGuichetModal').modal('hide');
+                setTimeout(function () { location.reload(); }, 700);
+            } else {
+                showSystemMessage('error', data.message || 'Erreur lors de la modification.');
+            }
+        })
+        .fail(function (xhr) {
+            handleAjaxFail(xhr, 'Modification guichet');
+        })
+        .always(function () {
+            $btn.prop('disabled', false);
+        });
+    });
+
+    $('#editGuichetModal').on('hidden.bs.modal', function () {
+        $('#guichetEditForm')[0].reset();
+        $('#edit_guichet_id').val('');
+        $('#edit_responsable_matricule').val('').trigger('change');
+        $('#edit_date_debut_responsable').val(todayIso());
+        $('#edit_date_fin_responsable').val('');
+    });
+
     $(document).on('click', '.btn-delete-guichet', function () {
         var id   = $(this).data('id');
         var code = $(this).data('code');
@@ -554,6 +887,9 @@ $(document).ready(function () {
                 .done(function (data) {
                     if (data.success) {
                         showSystemMessage('success', data.message);
+                        if ($('#row-guichet-' + id).hasClass('guichet-row-selected')) {
+                            resetGuichetHistoryPanel();
+                        }
                         $('#row-guichet-' + id).fadeOut(400, function () { $(this).remove(); });
                         var badge = $('.card-header .badge-info');
                         badge.text(parseInt(badge.text()) - 1);

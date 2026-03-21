@@ -3,6 +3,9 @@
 **Objectif**: Rendre les tableaux des listes lisibles en impression noir et blanc  
 **Le problème**: Les bordures fines et couleurs claires deviennent floues/illisibles à l'impression
 
+
+je ne vais  que le boton supprimer apparaisse donc la foix dans operation dans Caisse/Guichet je vais seulement deux comme  action demande perssion 'Modification ou suppression et imprimer !D'ailler meme si le bootn il devrai etre proteger par la permission " EBEN-PER25
+Annuler transactions" donc veuiller voir si ce possibile de proteger par la persion faite le si non vous pouvez carement l'enlever !
 ---
 
 ## 📊 MODIFICATIONS APPLIQUÉES

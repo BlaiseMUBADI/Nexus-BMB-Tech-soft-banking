@@ -34,6 +34,7 @@ Route::middleware('auth')->prefix('administration')->group(function () {
 
         Route::get('/guichets',                           [GuichetController::class, 'index'])->name('administration.guichets.index');
         Route::post('/guichets',                          [GuichetController::class, 'store'])->name('administration.guichets.store');
+        Route::put('/guichets/{id}',                      [GuichetController::class, 'update'])->name('administration.guichets.update');
         Route::delete('/guichets/{id}',                   [GuichetController::class, 'destroy'])->name('administration.guichets.destroy');
         Route::post('/guichets/{id}/devise',              [GuichetController::class, 'addDevise'])->name('administration.guichets.addDevise');
         Route::post('/guichets/alimenter',                [GuichetController::class, 'alimenter'])->name('administration.guichets.alimenter');

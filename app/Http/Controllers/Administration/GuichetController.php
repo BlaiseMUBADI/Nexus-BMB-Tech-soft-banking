@@ -7,9 +7,13 @@ use Illuminate\Http\Request;
 use App\Models\Caisse\CaissesGuichet;
 use App\Models\Caisse\CaissesGuichetSolde;
 use App\Models\Caisse\MouvementInterCaisse;
+use App\Models\RH\Agent;
+use App\Models\RH\Affectation;
+use App\Models\User;
 use App\Models\Tresorerie\Devise;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class GuichetController extends Controller
 {
@@ -22,7 +26,16 @@ class GuichetController extends Controller
     {
         // Liste des guichets opérationnels (FIXE + MOBILE — pas le coffre)
         $guichets = CaissesGuichet::operationnels()
-            ->with(['soldes', 'affectationActive'])
+            ->with([
+                'soldes',
+                'affectationActive',
+                'affectations' => function ($query) {
+                    $query->whereNotNull('guichet_id')
+                        ->with(['agent', 'poste'])
+                        ->orderByDesc('date_debut')
+                        ->orderByDesc('id');
+                },
+            ])
             ->orderBy('code_guichet')->get();
 
         // Coffre-fort central
@@ -32,6 +45,17 @@ class GuichetController extends Controller
 
         // Devises disponibles pour créer les soldes initiaux
         $devises = Devise::orderBy('code_iso')->get();
+
+        // Agents candidats au rôle de responsable guichet (doivent avoir une affectation RH existante)
+        $agentsResponsables = Agent::query()
+            ->whereIn('matricule', User::query()
+                ->select('agent_matricule')
+                ->whereNotNull('agent_matricule'))
+            ->whereHas('affectations')
+            ->orderBy('nom')
+            ->orderBy('postnom')
+            ->orderBy('prenom')
+            ->get(['matricule', 'nom', 'postnom', 'prenom']);
 
         // ── Stats mini-dashboard (guichets opérationnels uniquement) ─────
         $stats = [
@@ -50,7 +74,122 @@ class GuichetController extends Controller
             ->with('devise')
             ->get();
 
-        return view('administration.guichets', compact('guichets', 'devises', 'stats', 'soldesParDevise', 'coffre'));
+        return view('administration.guichets', compact('guichets', 'devises', 'stats', 'soldesParDevise', 'coffre', 'agentsResponsables'));
+    }
+
+    /**
+     * Mettre à jour les informations d'un guichet.
+     */
+    public function update(Request $request, int $id)
+    {
+        $guichet = CaissesGuichet::with('affectationActive')->findOrFail($id);
+
+        $request->validate([
+            'code_guichet' => 'required|string|max:20|unique:tb_caisses_guichets,code_guichet,' . $id,
+            'intitule' => 'required|string|max:100',
+            'type_guichet' => 'required|in:FIXE,MOBILE',
+            'responsable_matricule' => 'nullable|string|exists:tb_agents,matricule',
+            'date_debut_responsable' => 'nullable|date|required_with:date_fin_responsable',
+            'date_fin_responsable' => 'nullable|date|after_or_equal:date_debut_responsable',
+        ], [
+            'code_guichet.unique' => 'Ce code guichet est déjà utilisé.',
+            'type_guichet.in' => 'Type de guichet invalide (FIXE ou MOBILE uniquement).',
+            'responsable_matricule.exists' => 'Le responsable sélectionné est invalide.',
+            'date_debut_responsable.required_with' => 'Veuillez renseigner la date de début si une date de fin est définie.',
+            'date_fin_responsable.after_or_equal' => 'La date de fin doit être postérieure ou égale à la date de début.',
+        ]);
+
+        if ($request->filled('responsable_matricule')) {
+            $hasUserAccount = User::where('agent_matricule', trim((string) $request->responsable_matricule))->exists();
+            if (!$hasUserAccount) {
+                throw ValidationException::withMessages([
+                    'responsable_matricule' => "Seuls les agents disposant d'un compte utilisateur peuvent être responsables d'un guichet.",
+                ]);
+            }
+        }
+
+        try {
+            DB::transaction(function () use ($request, $guichet) {
+                $guichet->update([
+                    'code_guichet' => strtoupper(trim($request->code_guichet)),
+                    'intitule' => $request->intitule,
+                    'type_guichet' => $request->type_guichet,
+                ]);
+
+                $nouveauResponsable = $request->filled('responsable_matricule')
+                    ? trim((string) $request->responsable_matricule)
+                    : null;
+                $dateDebutResponsable = $request->filled('date_debut_responsable')
+                    ? $request->date_debut_responsable
+                    : now()->toDateString();
+                $dateFinResponsable = $request->filled('date_fin_responsable')
+                    ? $request->date_fin_responsable
+                    : null;
+
+                $responsableActuel = optional($guichet->affectationActive)->agent_matricule;
+                if ($nouveauResponsable === $responsableActuel) {
+                    return;
+                }
+
+                // Clôturer l'affectation active actuelle du guichet (si présente)
+                Affectation::where('guichet_id', $guichet->id)
+                    ->where('Etat', 'ACTIF')
+                    ->update([
+                        'Etat' => 'TERMINE',
+                        'date_fin' => $dateDebutResponsable,
+                    ]);
+
+                // Si responsable vide, on laisse le guichet sans titulaire
+                if (!$nouveauResponsable) {
+                    return;
+                }
+
+                // Récupérer le poste RH à réutiliser pour la nouvelle ligne d'affectation
+                $affectationSource = Affectation::where('agent_matricule', $nouveauResponsable)
+                    ->whereNotNull('poste_id')
+                    ->orderByRaw("CASE WHEN Etat = 'ACTIF' THEN 0 ELSE 1 END")
+                    ->orderByDesc('date_debut')
+                    ->orderByDesc('id')
+                    ->first();
+
+                if (!$affectationSource) {
+                    throw ValidationException::withMessages([
+                        'responsable_matricule' => "L'agent sélectionné ne possède aucune affectation RH exploitable.",
+                    ]);
+                }
+
+                // Un agent ne doit pas rester titulaire actif de plusieurs guichets
+                Affectation::where('agent_matricule', $nouveauResponsable)
+                    ->where('Etat', 'ACTIF')
+                    ->whereNotNull('guichet_id')
+                    ->where('guichet_id', '!=', $guichet->id)
+                    ->update([
+                        'Etat' => 'TERMINE',
+                        'date_fin' => now()->toDateString(),
+                    ]);
+
+                Affectation::create([
+                    'agent_matricule' => $nouveauResponsable,
+                    'poste_id' => $affectationSource->poste_id,
+                    'guichet_id' => $guichet->id,
+                    'date_debut' => $dateDebutResponsable,
+                    'date_fin' => $dateFinResponsable,
+                    'Etat' => $dateFinResponsable ? 'TERMINE' : 'ACTIF',
+                ]);
+            });
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour du guichet : ' . $e->getMessage(),
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Guichet mis à jour avec succès.',
+        ]);
     }
 
     /**
@@ -174,7 +313,7 @@ class GuichetController extends Controller
             DB::transaction(function () use ($guichet) {
                 // fk_solde_guichet et fk_affectation_guichet sont RESTRICT — suppression manuelle
                 $guichet->soldes()->delete();
-                \App\Models\RH\Affectation::where('guichet_id', $guichet->id)->update(['guichet_id' => null]);
+                Affectation::where('guichet_id', $guichet->id)->update(['guichet_id' => null]);
                 $guichet->delete();
             });
             return response()->json(['success' => true, 'message' => 'Guichet supprimé avec succès.']);

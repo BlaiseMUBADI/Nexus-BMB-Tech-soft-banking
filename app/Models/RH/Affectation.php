@@ -25,6 +25,11 @@ class Affectation extends Model
         'Etat',
     ];
 
+    protected $casts = [
+        'date_debut' => 'date',
+        'date_fin'   => 'date',
+    ];
+
     // ── Relations ────────────────────────────────────────────────
 
     public function agent()
