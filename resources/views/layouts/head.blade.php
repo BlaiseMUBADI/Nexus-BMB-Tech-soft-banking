@@ -28,6 +28,50 @@
 <link rel="stylesheet" href="{{ asset('plugins/toastr/toastr.min.css') }}">
 
 <style>
+    :root {
+        --app-warning-main: #0f766e;
+        --app-warning-soft: #134e4a;
+        --app-warning-border: #115e59;
+        --app-warning-text: #ecfeff;
+    }
+
+    /* Palette warning unifiee pour supprimer l'effet jaune global. */
+    .text-warning {
+        color: var(--app-warning-main) !important;
+    }
+
+    .btn-warning,
+    .bg-warning,
+    .badge-warning,
+    .alert-warning,
+    .card-warning:not(.card-outline) > .card-header {
+        background-color: var(--app-warning-main) !important;
+        border-color: var(--app-warning-border) !important;
+        color: var(--app-warning-text) !important;
+    }
+
+    .btn-outline-warning {
+        color: var(--app-warning-main) !important;
+        border-color: var(--app-warning-main) !important;
+    }
+
+    .btn-outline-warning:hover,
+    .btn-outline-warning:focus {
+        background-color: var(--app-warning-main) !important;
+        color: var(--app-warning-text) !important;
+    }
+
+    .table-warning,
+    .table-warning > th,
+    .table-warning > td {
+        background-color: rgba(15, 118, 110, 0.20) !important;
+        color: #d1fae5 !important;
+    }
+
+    .main-sidebar .text-warning {
+        color: #7dd3fc !important;
+    }
+
     /*
      * Refonte globale du badge "warning" pour améliorer la lisibilité.
      * Impact: tous les <span class="badge badge-warning"> du projet.
