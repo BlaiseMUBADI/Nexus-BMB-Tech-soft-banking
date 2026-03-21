@@ -32,7 +32,7 @@
         <div class="card-tools d-flex gap-1">
             {{-- Action buttons --}}
             @if($demande->statut === 'BROUILLON')
-                @if(in_array('EBEN-PER54', $userPermCodes ?? []))
+                @if(in_array('EBEN-PER56', $userPermCodes ?? []))
                 <form method="POST" action="{{ route('credit.soumettre', $demande) }}" class="d-inline">
                     @csrf
                     <button class="btn btn-sm btn-primary" onclick="return confirm('Soumettre ce dossier ?')">
@@ -81,7 +81,7 @@
             </button>
             @endif
 
-            @if(in_array($demande->statut, ['DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD','EN_VALIDATION','EN_ANALYSE','SOUMIS']) && in_array('EBEN-PER70', $userPermCodes ?? []))
+            @if(in_array($demande->statut, ['DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD','EN_VALIDATION','EN_ANALYSE','SOUMIS']) && in_array('EBEN-PER67', $userPermCodes ?? []))
             <button class="btn btn-sm btn-warning" data-toggle="modal" data-target="#modalSuspendre">
                 <i class="fas fa-pause mr-1"></i>Suspendre
             </button>
@@ -107,8 +107,10 @@
             @if($demande->remboursements->count())
             <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab_remboursements">Remboursements</a></li>
             @endif
+            @if($canViewAudit ?? false)
             <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab_audit">Journal</a></li>
-            @if(in_array($demande->statut, ['DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD','SOLDE']) && in_array('EBEN-PER69', $userPermCodes ?? []))
+            @endif
+            @if(in_array($demande->statut, ['DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD','SOLDE']) && in_array('EBEN-PER71', $userPermCodes ?? []))
             <li class="nav-item ml-auto">
                 <a href="{{ route('credit.pdf.echeancier', $demande) }}" class="nav-link text-primary" target="_blank">
                     <i class="fas fa-print mr-1"></i>PDF Échéancier
@@ -386,6 +388,7 @@
         @endif
 
         {{-- ── TAB AUDIT ──────────────────────────────────────── --}}
+        @if($canViewAudit ?? false)
         <div class="tab-pane" id="tab_audit">
             <table class="table table-sm small">
                 <thead><tr><th>Date/Heure</th><th>Action</th><th>Utilisateur</th><th>Commentaire</th></tr></thead>
@@ -403,6 +406,7 @@
                 </tbody>
             </table>
         </div>
+        @endif
 
     </div>{{-- /.tab-content --}}
     </div>
@@ -412,7 +416,7 @@
 </section>
 
 {{-- ── Modals --}}
-@if(in_array($demande->statut, ['BROUILLON','SOUMIS','EN_ANALYSE','EN_VALIDATION']) && in_array('EBEN-PER54', $userPermCodes ?? []))
+@if(in_array($demande->statut, ['BROUILLON','SOUMIS','EN_ANALYSE','EN_VALIDATION']) && in_array('EBEN-PER66', $userPermCodes ?? []))
 <div class="modal fade" id="modalAnnuler" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <form method="POST" action="{{ route('credit.annuler', $demande) }}">@csrf
@@ -432,7 +436,7 @@
 </div>
 @endif
 
-@if(in_array('EBEN-PER70', $userPermCodes ?? []))
+@if(in_array('EBEN-PER67', $userPermCodes ?? []))
 <div class="modal fade" id="modalSuspendre" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <form method="POST" action="{{ route('credit.suspendre', $demande) }}">@csrf

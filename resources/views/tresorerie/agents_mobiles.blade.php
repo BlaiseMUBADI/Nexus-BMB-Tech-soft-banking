@@ -42,6 +42,9 @@
                     <button type="button" id="btnImprimer" class="btn btn-sm btn-danger">
                         <i class="fas fa-file-pdf mr-1"></i>PDF
                     </button>
+                    <button type="button" class="btn btn-sm btn-outline-dark" data-card-widget="collapse" title="Replier / Déplier">
+                        <i class="fas fa-minus"></i>
+                    </button>
                 </div>
             </div>
             <div class="card-body py-3">
@@ -49,12 +52,12 @@
                     <div class="col-md-2 col-sm-4 col-6 mb-2">
                         <label class="small font-weight-bold mb-1">Du</label>
                         <input type="date" name="date_debut" class="form-control form-control-sm"
-                               value="{{ request('date_debut', now()->startOfMonth()->toDateString()) }}">
+                               value="{{ request('date_debut', $dateDebut ?? now()->toDateString()) }}">
                     </div>
                     <div class="col-md-2 col-sm-4 col-6 mb-2">
                         <label class="small font-weight-bold mb-1">Au</label>
                         <input type="date" name="date_fin" class="form-control form-control-sm"
-                               value="{{ request('date_fin', now()->toDateString()) }}">
+                               value="{{ request('date_fin', $dateFin ?? now()->toDateString()) }}">
                     </div>
                     <div class="col-md-2 col-sm-4 col-6 mb-2">
                         <label class="small font-weight-bold mb-1">Agent</label>
@@ -112,63 +115,88 @@
         </div>
     </form>
 
-   
-    <div class="row mb-3">
-        <div class="col-lg-3 col-sm-6 col-12 mb-2">
-            <div class="small-box bg-info shadow elevation-2">
-                <div class="inner">
-                    <h4>{{ $nbAgents }}</h4>
-                    <p>Agents actifs</p>
-                </div>
-                <div class="icon"><i class="fas fa-users"></i></div>
-            </div>
+    <div class="card card-outline card-info shadow elevation-2 mb-3">
+        <div class="card-header d-flex align-items-center justify-content-between py-2">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-pie mr-2 text-info"></i>
+                <strong>Indicateurs</strong>
+            </h5>
+            <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Replier / Déplier">
+                <i class="fas fa-minus"></i>
+            </button>
         </div>
-        <div class="col-lg-3 col-sm-6 col-12 mb-2">
-            <div class="small-box bg-primary shadow elevation-2">
-                <div class="inner">
-                    <h4>{{ $totalOps }}</h4>
-                    <p>Total opérations</p>
+        <div class="card-body">
+            <div class="row mb-0">
+                <div class="col-lg-3 col-sm-6 col-12 mb-2">
+                    <div class="small-box bg-info shadow elevation-2 mb-0">
+                        <div class="inner">
+                            <h4>{{ $nbAgents }}</h4>
+                            <p>Agents actifs</p>
+                        </div>
+                        <div class="icon"><i class="fas fa-users"></i></div>
+                    </div>
                 </div>
-                <div class="icon"><i class="fas fa-exchange-alt"></i></div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-sm-6 col-12 mb-2">
-            <div class="small-box bg-success shadow elevation-2">
-                <div class="inner">
-                    <h4>{{ $totauxParDevise->count() }}</h4>
-                    <p>Devises actives</p>
+                <div class="col-lg-3 col-sm-6 col-12 mb-2">
+                    <div class="small-box bg-primary shadow elevation-2 mb-0">
+                        <div class="inner">
+                            <h4>{{ $totalOps }}</h4>
+                            <p>Total opérations</p>
+                        </div>
+                        <div class="icon"><i class="fas fa-exchange-alt"></i></div>
+                    </div>
                 </div>
-                <div class="icon"><i class="fas fa-arrow-down"></i></div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-sm-6 col-12 mb-2">
-            <div class="small-box bg-danger shadow elevation-2">
-                <div class="inner">
-                    <h4>{{ $totauxParDevise->sum('nb_operations') }}</h4>
-                    <p>Lignes par devise</p>
+                <div class="col-lg-3 col-sm-6 col-12 mb-2">
+                    <div class="small-box bg-success shadow elevation-2 mb-0">
+                        <div class="inner">
+                            <h4>{{ $totauxParDevise->count() }}</h4>
+                            <p>Devises actives</p>
+                        </div>
+                        <div class="icon"><i class="fas fa-arrow-down"></i></div>
+                    </div>
                 </div>
-                <div class="icon"><i class="fas fa-arrow-up"></i></div>
+                <div class="col-lg-3 col-sm-6 col-12 mb-2">
+                    <div class="small-box bg-danger shadow elevation-2 mb-0">
+                        <div class="inner">
+                            <h4>{{ $totauxParDevise->sum('nb_operations') }}</h4>
+                            <p>Lignes par devise</p>
+                        </div>
+                        <div class="icon"><i class="fas fa-arrow-up"></i></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     @if($totauxParDevise->isNotEmpty())
-    <div class="row mb-3">
-        @foreach($totauxParDevise as $resume)
-        <div class="col-xl-3 col-md-4 col-sm-6 col-12 mb-2">
-            <div class="card border-0 shadow-sm h-100 devise-summary-card">
-                <div class="card-body py-3">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="badge badge-light border px-2 py-1">{{ $resume['devise'] }}</span>
-                        <small class="text-muted">{{ $resume['nb_operations'] }} op.</small>
+    <div class="card card-outline card-success shadow elevation-2 mb-3">
+        <div class="card-header d-flex align-items-center justify-content-between py-2">
+            <h5 class="mb-0">
+                <i class="fas fa-coins mr-2 text-success"></i>
+                <strong>Synthèse par devise</strong>
+            </h5>
+            <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Replier / Déplier">
+                <i class="fas fa-minus"></i>
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="row mb-0">
+                @foreach($totauxParDevise as $resume)
+                <div class="col-xl-3 col-md-4 col-sm-6 col-12 mb-2">
+                    <div class="card border-0 shadow-sm h-100 devise-summary-card">
+                        <div class="card-body py-3">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="badge badge-light border px-2 py-1">{{ $resume['devise'] }}</span>
+                                <small class="text-muted">{{ $resume['nb_operations'] }} op.</small>
+                            </div>
+                            <div class="small text-success font-weight-bold mb-1">Entrées : {{ number_format($resume['total_entrees'], 2, ',', ' ') }}</div>
+                            <div class="small text-danger font-weight-bold mb-1">Sorties : {{ number_format($resume['total_sorties'], 2, ',', ' ') }}</div>
+                            <div class="small font-weight-bold {{ $resume['net'] >= 0 ? 'text-success' : 'text-danger' }}">Net : {{ number_format($resume['net'], 2, ',', ' ') }}</div>
+                        </div>
                     </div>
-                    <div class="small text-success font-weight-bold mb-1">Entrées : {{ number_format($resume['total_entrees'], 2, ',', ' ') }}</div>
-                    <div class="small text-danger font-weight-bold mb-1">Sorties : {{ number_format($resume['total_sorties'], 2, ',', ' ') }}</div>
-                    <div class="small font-weight-bold {{ $resume['net'] >= 0 ? 'text-success' : 'text-danger' }}">Net : {{ number_format($resume['net'], 2, ',', ' ') }}</div>
                 </div>
+                @endforeach
             </div>
         </div>
-        @endforeach
     </div>
     @endif
 
@@ -184,6 +212,9 @@
                 <i class="fas fa-users mr-2 text-primary"></i>
                 <strong>Récapitulatif par agent</strong>
             </h5>
+            <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Replier / Déplier">
+                <i class="fas fa-minus"></i>
+            </button>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -241,6 +272,9 @@
                 <strong>Détail des opérations</strong>
                 <span class="badge badge-primary ml-2">{{ $transactions->count() }}</span>
             </h5>
+            <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Replier / Déplier">
+                <i class="fas fa-minus"></i>
+            </button>
         </div>
         <div class="card-body p-0">
             @php

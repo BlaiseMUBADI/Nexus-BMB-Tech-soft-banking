@@ -49,4 +49,23 @@
         @endforeach
     </div>
     @endif
+
+    @if(($userLegacyPermissions ?? collect())->isNotEmpty())
+    <div class="mt-2">
+        <small class="text-warning font-weight-bold">
+            <i class="fas fa-exclamation-triangle mr-1"></i>
+            Permissions legacy détectées (à migrer) :
+        </small>
+    </div>
+    <div class="d-flex flex-wrap gap-1 mt-1">
+        @foreach($userLegacyPermissions as $permCode)
+            <span class="badge badge-warning mb-1">
+                {{ $permCode }}
+                @if(!empty($legacyPermissionMap[$permCode]))
+                    → {{ $legacyPermissionMap[$permCode] }}
+                @endif
+            </span>
+        @endforeach
+    </div>
+    @endif
 @endif

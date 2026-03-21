@@ -24,10 +24,12 @@ Route::middleware('auth')->prefix('administration')->group(function () {
 
         Route::get('/zones-portfeuille',                  [ZoneController::class, 'index'])->name('administration.zones.index');
         Route::post('/zones/store',                       [ZoneController::class, 'store'])->name('administration.zones.store');
+        Route::put('/zones-portfeuille/{code_zone}',      [ZoneController::class, 'update'])->name('administration.zones.update');
         Route::delete('/zones-portfeuille/{code_zone}',   [ZoneController::class, 'destroy'])->name('administration.zones.destroy');
         Route::get('/zones/data',                         [ZoneController::class, 'data'])->name('administration.zones.data');
         Route::get('/portefeuilles', fn () => redirect()->route('administration.zones.index', ['#tab-portefeuilles']))->name('administration.portefeuilles.index');
         Route::post('/portefeuilles',                     [PortefeuilleController::class, 'store'])->name('administration.portefeuilles.store');
+        Route::put('/portefeuilles/{id}',                 [PortefeuilleController::class, 'update'])->name('administration.portefeuilles.update');
         Route::delete('/portefeuilles/{id}',              [PortefeuilleController::class, 'destroy'])->name('administration.portefeuilles.destroy');
 
         Route::get('/guichets',                           [GuichetController::class, 'index'])->name('administration.guichets.index');

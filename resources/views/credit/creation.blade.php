@@ -45,11 +45,11 @@
         <div class="form-row">
             <div class="form-group col-md-8">
                 <label>Client <span class="text-danger">*</span></label>
-                <select name="client_matricule" id="sel_client" class="form-control select2"
-                        required onchange="chargerComptes(this.value)">
+                @php($selectedClientValue = old('client_matricule', $selectedClientMatricule ?? request('client_matricule')))
+                <select name="client_matricule" id="sel_client" class="form-control select2" required>
                     <option value="">-- Sélectionner un client --</option>
                     @foreach($clients as $c)
-                    <option value="{{ $c->matricule }}" {{ old('client_matricule') == $c->matricule ? 'selected' : '' }}>
+                    <option value="{{ $c->matricule }}" {{ $selectedClientValue == $c->matricule ? 'selected' : '' }}>
                         {{ $c->nom }} {{ $c->prenom }} – {{ $c->matricule }}
                     </option>
                     @endforeach
@@ -65,12 +65,9 @@
             </div>
         </div>
 
-        <div class="form-group">
-            <label>Compte de déblocage <span class="text-danger">*</span></label>
-            <select name="compte_id" id="sel_compte" class="form-control" required>
-                <option value="">-- Sélectionner d'abord un client --</option>
-            </select>
-            <small class="text-muted">Compte CC ou RMB du client (fonds versés sur ce compte)</small>
+        <div class="alert alert-info py-2 small">
+            <i class="fas fa-info-circle mr-1"></i>
+            Le compte du client n'est pas demandé à cette étape. Un compte RMB sera rattaché automatiquement lors du déblocage, si nécessaire.
         </div>
 
         <h6 class="text-muted text-uppercase font-weight-bold border-bottom pb-1 mb-3 mt-3">
@@ -161,29 +158,8 @@
 </section>
 @endsection
 
-@section('scripts')
+@push('js')
 <script>
-function chargerComptes(matricule) {
-    const sel = document.getElementById('sel_compte');
-    sel.innerHTML = '<option value="">Chargement...</option>';
-    if (!matricule) {
-        sel.innerHTML = '<option value="">-- Sélectionner d\'abord un client --</option>';
-        return;
-    }
-    fetch('{{ route("credit.ajax.comptes_client") }}?client_matricule=' + encodeURIComponent(matricule))
-        .then(r => r.json())
-        .then(data => {
-            if (!data.length) {
-                sel.innerHTML = '<option value="">Aucun compte CC/RMB disponible</option>';
-                return;
-            }
-            sel.innerHTML = '<option value="">-- Sélectionner un compte --</option>';
-            data.forEach(c => {
-                sel.innerHTML += `<option value="${c.code_compte}">${c.code_compte} (${c.type}) – Solde: ${parseFloat(c.solde_reel).toLocaleString('fr')} ${c.devise}</option>`;
-            });
-        });
-}
-
 let simulTimer = null;
 function simuler() {
     clearTimeout(simulTimer);
@@ -236,9 +212,19 @@ function simuler() {
 
 // Pré-charger si valeur sauvegardée
 window.addEventListener('DOMContentLoaded', () => {
-    const mat = document.getElementById('sel_client').value;
-    if (mat) chargerComptes(mat);
+    if (window.jQuery && $.fn.select2) {
+        $('#sel_client').select2({
+            theme: 'bootstrap4',
+            width: '100%',
+            placeholder: '-- Sélectionner un client --',
+            allowClear: true,
+            language: {
+                noResults: function () { return 'Aucun client trouvé'; }
+            }
+        });
+    }
+
     simuler();
 });
 </script>
-@endsection
+@endpush

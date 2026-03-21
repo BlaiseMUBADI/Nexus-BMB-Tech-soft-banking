@@ -203,11 +203,17 @@
                     onclick="document.getElementById('inp_action').value='SAUVER'">
                 <i class="fas fa-save mr-1"></i>Sauvegarder (en cours)
             </button>
+            @if(in_array('EBEN-PER59', $userPermCodes ?? []))
             <button type="submit" class="btn btn-success ml-2"
                     onclick="document.getElementById('inp_action').value='COMPLETER'"
                     id="btnCompleter">
                 <i class="fas fa-check mr-1"></i>Compléter et transmettre à la validation
             </button>
+            @else
+            <button type="button" class="btn btn-success ml-2" disabled title="Permission EBEN-PER59 requise">
+                <i class="fas fa-lock mr-1"></i>Compléter et transmettre à la validation
+            </button>
+            @endif
             <a href="{{ route('credit.show', $demande) }}" class="btn btn-secondary ml-2">
                 <i class="fas fa-arrow-left mr-1"></i>Retour
             </a>

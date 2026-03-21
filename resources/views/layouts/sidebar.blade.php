@@ -42,7 +42,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							</li>
 							@if(in_array('EBEN-PER76', $userPermCodes ?? []))
 								<li class="nav-item">
-									<a href="{{ route('clients.agents-terrain') }}"
+									<a href="{{ route('clients.agents-terrain', ['date_debut' => now()->toDateString(), 'date_fin' => now()->toDateString()]) }}"
 										class="nav-link sub-link {{ request()->routeIs('clients.agents-terrain') ? 'active' : '' }}"
 										title="Rapport Agents Terrain">
 										<i class="fas fa-mobile-alt nav-icon text-warning"></i>

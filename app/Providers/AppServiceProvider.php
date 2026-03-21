@@ -16,8 +16,9 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
 
-        // Injecter l'utilisateur connecté + ses permissions dans les layouts
-        View::composer(['layouts.navbar', 'layouts.sidebar'], function (\Illuminate\View\View $view) {
+        // Injecter l'utilisateur connecté + ses permissions dans toutes les vues
+        // afin que les contrôles conditionnels de permissions restent cohérents.
+        View::composer('*', function (\Illuminate\View\View $view) {
             /** @var User|null $authUser */
             $authUser = Auth::check() ? Auth::user() : null;
 

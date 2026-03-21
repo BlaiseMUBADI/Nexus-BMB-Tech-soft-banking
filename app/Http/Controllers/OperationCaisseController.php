@@ -81,7 +81,7 @@ class OperationCaisseController extends Controller
             return ['restricted' => false, 'zone_codes' => []];
         }
 
-        $zones = Zone::where('agent_commercial_matricule', $user->agent_matricule)
+        $zones = Zone::assignedToAgent($user->agent_matricule)
             ->orderBy('nom')
             ->get(['code_zone', 'nom']);
 
@@ -998,6 +998,7 @@ class OperationCaisseController extends Controller
         $allowedTypes = $this->getAllowedOperationTypes($guichet);
 
         $query = Transaction::where('guichet_id', $guichet->id)
+            ->with('compte.client')
             ->whereDate('date_operation', $date)
             ->whereIn('type', $allowedTypes)
             ->orderByDesc('date_operation');
@@ -1021,6 +1022,7 @@ class OperationCaisseController extends Controller
             'id'              => $op->id,
             'reference'       => $op->reference,
             'compte_code'     => $op->compte_code,
+            'client_full_name'=> optional(optional($op->compte)->client)->full_name,
             'type'            => $op->type,
             'type_label'      => Transaction::typeLabel($op->type),
             'badge_class'     => Transaction::typeBadgeClass($op->type),

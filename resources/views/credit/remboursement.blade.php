@@ -86,7 +86,7 @@
 
             <div class="form-group">
                 <label>Échéance concernée <span class="text-danger">*</span></label>
-                <select name="echeance_id" class="form-control" required id="sel_echeance"
+                <select name="echeance_id" class="form-control" id="sel_echeance"
                         onchange="remplirMontant(this)">
                     <option value="">-- Sélectionner une échéance --</option>
                     @foreach($echeancier->echeances->whereIn('statut', ['EN_ATTENTE','EN_RETARD','PARTIELLEMENT_PAYE']) as $e)

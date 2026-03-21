@@ -94,7 +94,6 @@
             }
 
             $comptesDebitList = is_iterable($comptesDebit ?? null) ? $comptesDebit : [];
-            $comptesClientList = is_iterable($comptesClient ?? null) ? $comptesClient : [];
         @endphp
         @if(count($formErrors))
             <div class="alert alert-danger">
@@ -130,6 +129,11 @@
             <small class="text-muted">Le mois suivant la mise en place est recommandé.</small>
         </div>
 
+        <div class="alert alert-info py-2 small">
+            <i class="fas fa-info-circle mr-1"></i>
+            Le compte RMB du client sera recherché automatiquement dans la devise du dossier, puis créé si aucun compte adapté n'existe encore.
+        </div>
+
         <div class="form-row">
             <div class="form-group col-md-6">
                 <label>Compte à débiter (ressources) <span class="text-danger">*</span></label>
@@ -140,20 +144,6 @@
                     <option value="{{ $c->code_compte }}" {{ old('compte_debit_id') == $c->code_compte ? 'selected' : '' }}>
                         {{ $c->code_compte }} – {{ $c->type }}
                         (Solde: {{ number_format($c->solde_reel, 0, ',', ' ') }} {{ $c->devise }})
-                    </option>
-                    @endif
-                    @endforeach
-                </select>
-            </div>
-            <div class="form-group col-md-6">
-                <label>Compte crédit du client <span class="text-danger">*</span></label>
-                <select name="compte_credit_id" class="form-control" required>
-                    <option value="">-- Sélectionner --</option>
-                    @foreach($comptesClientList as $c)
-                    @if(is_object($c))
-                    <option value="{{ $c->code_compte }}" {{ old('compte_credit_id') == $c->code_compte ? 'selected' : '' }}>
-                        {{ $c->code_compte }} ({{ $c->type_compte }})
-                        – Solde: {{ number_format($c->solde_reel, 0, ',', ' ') }} {{ $c->devise }}
                     </option>
                     @endif
                     @endforeach

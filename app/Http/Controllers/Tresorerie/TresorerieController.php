@@ -77,7 +77,7 @@ class TresorerieController extends Controller
 
     public function commissions(Request $request)
     {
-        $rules = CommissionRule::with(['devise', 'portefeuille.agent'])
+        $rules = CommissionRule::with(['devise', 'portefeuille.agent', 'portefeuille.affectationActive.agent'])
             ->orderByDesc('est_actif')
             ->orderByDesc('priorite')
             ->orderByDesc('date_debut')
@@ -90,7 +90,7 @@ class TresorerieController extends Controller
 
         $devises = Devise::orderBy('code_iso')->get(['code_iso', 'nom', 'symbole']);
         $zones = Zone::orderBy('nom')->get(['code_zone', 'nom']);
-        $portefeuilles = Portefeuille::with('agent')->orderBy('nom_portefeuille')->get();
+        $portefeuilles = Portefeuille::with(['agent', 'affectationActive.agent'])->orderBy('nom_portefeuille')->get();
 
         $stats = [
             'total' => $rules->count(),
@@ -1196,6 +1196,10 @@ class TresorerieController extends Controller
      */
     public function agentsMobiles(Request $request)
     {
+        $today = now()->toDateString();
+        $dateDebut = $request->input('date_debut', $today);
+        $dateFin = $request->input('date_fin', $today);
+
         $guichetsMobiles = CaissesGuichet::where('type_guichet', 'MOBILE')->pluck('id')->toArray();
         $allowedMobileTypes = \App\Models\Caisse\Transaction::allowedTypesForGuichetType('MOBILE');
         $operationTypeOptions = \App\Models\Caisse\Transaction::operationTypeOptions('MOBILE');
@@ -1206,12 +1210,8 @@ class TresorerieController extends Controller
             ->with(['guichet', 'compte.client']);
 
         
-        if ($request->filled('date_debut')) {
-            $query->whereDate('date_operation', '>=', $request->date_debut);
-        }
-        if ($request->filled('date_fin')) {
-            $query->whereDate('date_operation', '<=', $request->date_fin);
-        }
+        $query->whereDate('date_operation', '>=', $dateDebut)
+            ->whereDate('date_operation', '<=', $dateFin);
         if ($request->filled('agent_matricule')) {
             $query->where('agent_matricule', $request->agent_matricule);
         }
@@ -1227,9 +1227,13 @@ class TresorerieController extends Controller
 
         if ($request->filled('code_zone')) {
             $zone = \App\Models\Zone::where('code_zone', $request->code_zone)->first();
-            if ($zone && $zone->agent_commercial_matricule) {
+            $zoneAgentMatricule = $zone
+                ? \App\Models\ZoneAffectation::where('code_zone', $zone->code_zone)->actives()->value('agent_matricule')
+                : null;
+
+            if ($zone && $zoneAgentMatricule) {
                 // Trouver les guichets MOBILES affectés à cet agent
-                $guichetsZone = \App\Models\RH\Affectation::where('agent_matricule', $zone->agent_commercial_matricule)
+                $guichetsZone = \App\Models\RH\Affectation::where('agent_matricule', $zoneAgentMatricule)
                     ->whereNotNull('guichet_id')
                     ->pluck('guichet_id');
                 if ($guichetsZone->isNotEmpty()) {
@@ -1277,7 +1281,7 @@ class TresorerieController extends Controller
         $devises = \App\Models\Tresorerie\Devise::orderBy('code_iso')->get();
 
         return view('tresorerie.agents_mobiles', compact(
-            'parAgent', 'transactions', 'agents', 'zones', 'devises', 'operationTypeOptions'
+            'parAgent', 'transactions', 'agents', 'zones', 'devises', 'operationTypeOptions', 'dateDebut', 'dateFin'
         ));
     }
 
@@ -1286,6 +1290,10 @@ class TresorerieController extends Controller
      */
     public function agentsMobilesPdf(Request $request)
     {
+        $today = now()->toDateString();
+        $dateDebut = $request->input('date_debut', $today);
+        $dateFin = $request->input('date_fin', $today);
+
         $guichetsMobiles = CaissesGuichet::where('type_guichet', 'MOBILE')->pluck('id')->toArray();
         $allowedMobileTypes = \App\Models\Caisse\Transaction::allowedTypesForGuichetType('MOBILE');
 
@@ -1294,12 +1302,8 @@ class TresorerieController extends Controller
             ->where('statut', 'CONFIRME')
             ->with(['guichet', 'compte.client']);
 
-        if ($request->filled('date_debut')) {
-            $query->whereDate('date_operation', '>=', $request->date_debut);
-        }
-        if ($request->filled('date_fin')) {
-            $query->whereDate('date_operation', '<=', $request->date_fin);
-        }
+        $query->whereDate('date_operation', '>=', $dateDebut)
+            ->whereDate('date_operation', '<=', $dateFin);
         if ($request->filled('agent_matricule')) {
             $query->where('agent_matricule', $request->agent_matricule);
         }
@@ -1314,8 +1318,12 @@ class TresorerieController extends Controller
         }
         if ($request->filled('code_zone')) {
             $zone = \App\Models\Zone::where('code_zone', $request->code_zone)->first();
-            if ($zone && $zone->agent_commercial_matricule) {
-                $guichetsZone = \App\Models\RH\Affectation::where('agent_matricule', $zone->agent_commercial_matricule)
+            $zoneAgentMatricule = $zone
+                ? \App\Models\ZoneAffectation::where('code_zone', $zone->code_zone)->actives()->value('agent_matricule')
+                : null;
+
+            if ($zone && $zoneAgentMatricule) {
+                $guichetsZone = \App\Models\RH\Affectation::where('agent_matricule', $zoneAgentMatricule)
                     ->whereNotNull('guichet_id')->pluck('guichet_id');
                 $guichetsZone->isNotEmpty()
                     ? $query->whereIn('guichet_id', $guichetsZone)
@@ -1345,7 +1353,9 @@ class TresorerieController extends Controller
             ];
         })->values();
 
-        $filtres = $request->only(['date_debut','date_fin','agent_matricule','type_compte','devise_code','type_operation','code_zone']);
+        $filtres = $request->only(['agent_matricule','type_compte','devise_code','type_operation','code_zone']);
+        $filtres['date_debut'] = $dateDebut;
+        $filtres['date_fin'] = $dateFin;
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.tresorerie.agents_mobiles',
             compact('parAgent', 'transactions', 'filtres')

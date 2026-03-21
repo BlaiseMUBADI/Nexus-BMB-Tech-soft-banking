@@ -126,7 +126,7 @@ class CompteController extends Controller
             return ['restricted' => false, 'zone_codes' => []];
         }
 
-        $zones = Zone::where('agent_commercial_matricule', $user->agent_matricule)
+        $zones = Zone::assignedToAgent($user->agent_matricule)
             ->orderBy('nom')
             ->get(['code_zone', 'nom']);
 
@@ -219,12 +219,12 @@ class CompteController extends Controller
             }
         }
 
-        $comptesQuery = Compte::with(['client', 'portefeuille.agent'])->orderByDesc('created_at');
+        $comptesQuery = Compte::with(['client', 'portefeuille.agent', 'portefeuille.affectationActive.agent'])->orderByDesc('created_at');
         $this->applyZoneScopeToComptes($comptesQuery, $zoneScope);
 
         $clients = $clientsQuery->get();
         $comptes = $comptesQuery->get();
-        $portefeuilles = \App\Models\Tresorerie\Portefeuille::with('agent')->orderBy('nom_portefeuille')->get();
+        $portefeuilles = \App\Models\Tresorerie\Portefeuille::with(['agent', 'affectationActive.agent'])->orderBy('nom_portefeuille')->get();
         $devises = \App\Models\Tresorerie\Devise::orderBy('nom')->get();
         $zoneRestriction = $this->zoneRestrictionInfo($zoneScope);
 
@@ -348,7 +348,7 @@ class CompteController extends Controller
     {
         $zoneScope = $this->resolveZoneScope();
 
-        $query = Compte::with(['client', 'portefeuille.agent'])->orderByDesc('created_at');
+        $query = Compte::with(['client', 'portefeuille.agent', 'portefeuille.affectationActive.agent'])->orderByDesc('created_at');
         $this->applyZoneScopeToComptes($query, $zoneScope);
         $comptes = $query->get();
 
@@ -362,7 +362,7 @@ class CompteController extends Controller
         ];
         $devises = Devise::orderBy('nom')->get();
         $zones   = $this->restrictedZonesQuery($zoneScope)->get();
-        $portefeuilles = \App\Models\Tresorerie\Portefeuille::with('agent')->orderBy('nom_portefeuille')->get();
+        $portefeuilles = \App\Models\Tresorerie\Portefeuille::with(['agent', 'affectationActive.agent'])->orderBy('nom_portefeuille')->get();
         $zoneRestriction = $this->zoneRestrictionInfo($zoneScope);
 
         $canPrintDocuments = !$this->isMobileGuichet();
@@ -373,7 +373,7 @@ class CompteController extends Controller
     public function show($code_compte)
     {
         $zoneScope = $this->resolveZoneScope();
-        $compte = Compte::with(['client', 'portefeuille.agent'])->find($code_compte);
+        $compte = Compte::with(['client', 'portefeuille.agent', 'portefeuille.affectationActive.agent'])->find($code_compte);
         if (!$compte) {
             Log::warning('[Compte] Compte introuvable', ['code_compte' => $code_compte, 'action' => 'show', 'ip' => request()->ip()]);
             abort(404, 'Compte introuvable : ' . $code_compte);
@@ -554,7 +554,7 @@ class CompteController extends Controller
             $zone = \App\Models\Zone::find($request->code_zone);
         }
         $portefeuille = ($request->filled('portefeuille_id') && $request->portefeuille_id !== 'tous' && $request->portefeuille_id !== 'aucun')
-                        ? \App\Models\Tresorerie\Portefeuille::with('agent')->find($request->portefeuille_id) : null;
+                ? \App\Models\Tresorerie\Portefeuille::with(['agent', 'affectationActive.agent'])->find($request->portefeuille_id) : null;
 
         $pdf = Pdf::loadView('impressions.comptes.liste', compact('comptes', 'filtres', 'zone', 'portefeuille'))
                   ->setPaper('a4', 'landscape');

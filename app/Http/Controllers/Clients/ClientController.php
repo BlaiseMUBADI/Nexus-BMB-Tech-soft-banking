@@ -86,7 +86,7 @@ class ClientController extends Controller
             return ['restricted' => false, 'zone_codes' => []];
         }
 
-        $zones = Zone::where('agent_commercial_matricule', $user->agent_matricule)
+        $zones = Zone::assignedToAgent($user->agent_matricule)
             ->orderBy('nom')
             ->get(['code_zone', 'nom']);
 
@@ -697,7 +697,7 @@ class ClientController extends Controller
         $filtres  = $request->only(['code_zone','sexe','date_debut','date_fin','avec_photo','avec_comptes','etat_civil','document_type','date_recolte']);
         $zone = null;
         if ($request->filled('code_zone') && (!($zoneScope['restricted'] ?? false) || in_array($request->code_zone, $zoneScope['zone_codes'] ?? [], true))) {
-            $zone = \App\Models\Zone::with('agent')->find($request->code_zone);
+            $zone = \App\Models\Zone::with(['agent', 'affectationActive.agent'])->find($request->code_zone);
         }
 
         /** @var \App\Models\User|null $printedByUser */
@@ -705,11 +705,12 @@ class ClientController extends Controller
         $printedByUser?->loadMissing('agent');
 
         $agentCommercialNom = null;
-        if ($zone?->agent) {
+        $zoneAgentActif = $zone?->affectationActive?->agent ?? $zone?->agent;
+        if ($zoneAgentActif) {
             $agentCommercialNom = trim(
-                strtoupper((string) ($zone->agent->nom ?? '')) . ' ' .
-                strtoupper((string) ($zone->agent->postnom ?? '')) . ' ' .
-                strtoupper((string) ($zone->agent->prenom ?? ''))
+                strtoupper((string) ($zoneAgentActif->nom ?? '')) . ' ' .
+                strtoupper((string) ($zoneAgentActif->postnom ?? '')) . ' ' .
+                strtoupper((string) ($zoneAgentActif->prenom ?? ''))
             );
         }
 

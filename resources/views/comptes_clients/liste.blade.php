@@ -152,8 +152,9 @@
                     </thead>
                     <tbody>
                         @forelse($comptes as $loopIndex => $compte)
+                        @php($pfAgent = $compte->portefeuille?->affectationActive?->agent ?? $compte->portefeuille?->agent)
                         <tr data-code="{{ $compte->code_compte }}"
-                            data-search="{{ strtolower(trim($compte->code_compte . ' ' . ($compte->client?->full_name ?? '') . ' ' . $compte->type . ' ' . $compte->devise . ' ' . ($compte->portefeuille?->agent?->full_name ?? '') . ' ' . ($compte->portefeuille?->agent?->matricule ?? ''))) }}">
+                            data-search="{{ strtolower(trim($compte->code_compte . ' ' . ($compte->client?->full_name ?? '') . ' ' . $compte->type . ' ' . $compte->devise . ' ' . ($pfAgent?->full_name ?? '') . ' ' . ($pfAgent?->matricule ?? ''))) }}">
                             <td>{{ $loopIndex + 1 }}</td>
                             <td><code>{{ $compte->code_compte }}</code></td>
                             <td>
@@ -180,10 +181,10 @@
                             <td class="text-right">{{ number_format($compte->solde_reel, 2, ',', ' ') }}</td>
                             <td><span class="badge badge-secondary">{{ $compte->devise }}</span></td>
                             <td>
-                                @if($compte->portefeuille_id && $compte->portefeuille && $compte->portefeuille->agent)
-                                    <small>({{ $compte->portefeuille->agent->matricule }})
-                                    {{ $compte->portefeuille->agent->nom }}
-                                    {{ $compte->portefeuille->agent->prenom }}</small>
+                                @if($compte->portefeuille_id && $pfAgent)
+                                    <small>({{ $pfAgent->matricule }})
+                                    {{ $pfAgent->nom }}
+                                    {{ $pfAgent->prenom }}</small>
                                 @else
                                     <span class="text-muted">–</span>
                                 @endif
@@ -327,11 +328,12 @@
                                         <option value="tous">— Tous les portefeuilles —</option>
                                         <option value="aucun">Sans portefeuille assigné</option>
                                         @foreach($portefeuilles as $p)
+                                            @php($pfAgent = $p->affectationActive->agent ?? $p->agent)
                                             <option value="{{ $p->id }}">
                                                 {{ $p->nom_portefeuille }}
-                                                @if($p->agent)
-                                                        &mdash; {{ $p->agent->full_name }}
-                                                    ({{ $p->agent->matricule }})
+                                                @if($pfAgent)
+                                                        &mdash; {{ $pfAgent->full_name }}
+                                                    ({{ $pfAgent->matricule }})
                                                 @endif
                                             </option>
                                         @endforeach

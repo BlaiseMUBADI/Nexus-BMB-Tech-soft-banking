@@ -49,9 +49,10 @@
                             <select name="portefeuille_id" id="portefeuille_id" class="form-control select2">
                                 <option value="">-- Sélectionner l'agent --</option>
                                 @foreach($portefeuilles as $pf)
+                                    @php($pfAgent = $pf->affectationActive->agent ?? $pf->agent)
                                     <option value="{{ $pf->id }}">
-                                        @if($pf->agent)
-                                            ({{ $pf->agent->matricule }}) {{ $pf->agent->nom }} {{ $pf->agent->prenom }}
+                                        @if($pfAgent)
+                                            ({{ $pfAgent->matricule }}) {{ $pfAgent->nom }} {{ $pfAgent->prenom }}
                                         @else
                                             Portefeuille #{{ $pf->id }}
                                         @endif
@@ -107,7 +108,8 @@
                             </thead>
                             <tbody>
                                 @forelse($comptes as $compte)
-                                    <tr data-search="{{ strtolower(trim($compte->code_compte . ' ' . ($compte->client?->full_name ?? '') . ' ' . $compte->type . ' ' . $compte->devise . ' ' . ($compte->portefeuille?->agent?->full_name ?? '') . ' ' . ($compte->portefeuille?->agent?->matricule ?? ''))) }}">
+                                    @php($pfAgent = $compte->portefeuille?->affectationActive?->agent ?? $compte->portefeuille?->agent)
+                                    <tr data-search="{{ strtolower(trim($compte->code_compte . ' ' . ($compte->client?->full_name ?? '') . ' ' . $compte->type . ' ' . $compte->devise . ' ' . ($pfAgent?->full_name ?? '') . ' ' . ($pfAgent?->matricule ?? ''))) }}">
                                         <td>{{ $loop->iteration }}</td>
                                         <td><code>{{ $compte->code_compte }}</code></td>
                                         <td>
@@ -134,9 +136,9 @@
                                         <td class="text-right">{{ number_format($compte->solde_reel, 2, ',', ' ') }}</td>
                                         <td><span class="badge badge-secondary">{{ $compte->devise }}</span></td>
                                         <td>
-                                            @if($compte->portefeuille && $compte->portefeuille->agent)
-                                                <small>({{ $compte->portefeuille->agent->matricule }})
-                                                {{ $compte->portefeuille->agent->nom }}</small>
+                                            @if($pfAgent)
+                                                <small>({{ $pfAgent->matricule }})
+                                                {{ $pfAgent->nom }}</small>
                                             @else
                                                 <span class="text-muted">–</span>
                                             @endif

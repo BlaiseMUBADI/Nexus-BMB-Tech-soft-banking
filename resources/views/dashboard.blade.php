@@ -77,7 +77,7 @@
             ],
             [
                 'perm'  => 'EBEN-PER18',
-                'route' => 'comptes.liste',
+                'route' => 'comptes.index',
                 'icon'  => 'fas fa-piggy-bank',
                 'color' => 'success',
                 'label' => 'Comptes Clients',
@@ -93,7 +93,7 @@
             ],
             [
                 'perm'  => 'EBEN-PER6',
-                'route' => 'rh.services.liste',
+                'route' => 'agents.index',
                 'icon'  => 'fas fa-id-badge',
                 'color' => 'danger',
                 'label' => 'Ressources Humaines',
@@ -101,7 +101,7 @@
             ],
             [
                 'perm'  => 'EBEN-PER44',
-                'route' => 'tresorerie.coffre',
+                'route' => 'tresorerie.etat-coffre',
                 'icon'  => 'fas fa-vault',
                 'color' => 'secondary',
                 'label' => 'Tr&eacute;sorerie &amp; Coffre',
@@ -109,7 +109,7 @@
             ],
             [
                 'perm'  => 'EBEN-PER1',
-                'route' => 'admin.utilisateurs.liste',
+                'route' => 'administration.utilisateurs.liste',
                 'icon'  => 'fas fa-user-cog',
                 'color' => 'dark',
                 'label' => 'Administration',
@@ -121,7 +121,7 @@
 
     <div class="row justify-content-center">
         @foreach($modules as $mod)
-            @if(in_array($mod['perm'], $userPerms))
+            @if(in_array($mod['perm'], $userPerms) && \Illuminate\Support\Facades\Route::has($mod['route']))
             <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
                 <a href="{{ route($mod['route']) }}" class="text-decoration-none">
                     <div class="card card-outline card-{{ $mod['color'] }} elevation-2 h-100 text-center accueil-module-card">

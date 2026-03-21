@@ -261,11 +261,12 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0">
+                        <table class="table table-sm table-hover mb-0" id="tableOpsJour">
                             <thead class="thead-dark">
                                 <tr>
                                     <th style="width:30px;"></th>
                                     <th>Réf.</th>
+                                    <th>Client</th>
                                     <th>Montant</th>
                                     <th>Heure</th>
                                     <th>Statut</th>
@@ -291,8 +292,12 @@
                                         @if($op->compte_code)
                                         <br><small class="text-muted"><i class="fas fa-university fa-xs"></i> {{ $op->compte_code }}</small>
                                         @endif
+                                    </td>
+                                    <td>
                                         @if($op->compte && $op->compte->client)
-                                        <br><small class="text-info"><i class="fas fa-user fa-xs"></i> {{ $op->compte->client->full_name }}</small>
+                                            <span class="text-info client-name-text"><i class="fas fa-user fa-xs"></i> {{ $op->compte->client->full_name }}</span>
+                                        @else
+                                            <small class="text-muted">—</small>
                                         @endif
                                     </td>
                                     <td class="font-weight-bold">
@@ -359,7 +364,7 @@
                                 </tr>
                                 @empty
                                 <tr id="trVide">
-                                    <td colspan="7" class="text-center py-4 text-muted">
+                                    <td colspan="8" class="text-center py-4 text-muted">
                                         <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                                         Aucune opération aujourd'hui.
                                     </td>
@@ -519,8 +524,24 @@
 @push('css')
 <style>
     .solde-pill { transition: background .2s; }
-    .table-sm td { font-size: .88rem; vertical-align: middle; }
-    .table-sm th { font-size: .82rem; }
+    #tableOpsJour td {
+        font-size: .96rem;
+        line-height: 1.35;
+        padding-top: .55rem;
+        padding-bottom: .55rem;
+        vertical-align: middle;
+    }
+    #tableOpsJour th {
+        font-size: .90rem;
+        line-height: 1.25;
+        padding-top: .60rem;
+        padding-bottom: .60rem;
+    }
+    #tableOpsJour .client-name-text {
+        font-size: 1.08rem;
+        font-weight: 600;
+        line-height: 1.35;
+    }
     .badge-sm { font-size: .72rem; padding: .15em .45em; }
     .btn-xs { padding: .15rem .45rem; font-size: .78rem; }
     .gap-2 { gap: .5rem; }
@@ -975,7 +996,7 @@ $(document).ready(function () {
             $('#opCount').text(ops.length);
             var tbody = $('#tbodyOps');
             if (!ops.length) {
-                tbody.html('<tr id="trVide"><td colspan="7" class="text-center py-4 text-muted">'
+                tbody.html('<tr id="trVide"><td colspan="8" class="text-center py-4 text-muted">'
                     + '<i class="fas fa-inbox fa-2x mb-2 d-block"></i>Aucune opération aujourd\'hui.</td></tr>');
                 return;
             }
@@ -983,6 +1004,9 @@ $(document).ready(function () {
             $.each(ops, function(i, op) {
                 var montantExtra = op.montant_dest_fmt
                     ? '<br><small class="text-info">→ ' + op.montant_dest_fmt + '</small>' : '';
+                var clientCell = op.client_full_name
+                    ? '<span class="text-info client-name-text"><i class="fas fa-user fa-xs"></i> ' + $('<div>').text(op.client_full_name).html() + '</span>'
+                    : '<small class="text-muted">—</small>';
                 var hasPendingDemande = op.demande_statut === 'EN_ATTENTE';
                 var hasApprovedDemande = op.demande_statut === 'APPROUVEE';
                 var demandeBloquee = hasPendingDemande || hasApprovedDemande;
@@ -1025,6 +1049,7 @@ $(document).ready(function () {
                     + '<span class="badge badge-pill badge-sm ' + op.badge_class + '">' + op.type_label + '</span>'
                     + (op.compte_code ? '<br><small class="text-muted"><i class="fas fa-university fa-xs"></i> ' + op.compte_code + '</small>' : '')
                     + '</td>'
+                    + '<td>' + clientCell + '</td>'
                     + '<td class="font-weight-bold">' + op.montant_fmt + montantExtra + '</td>'
                     + '<td><small>' + (op.date ? op.date.substr(11,5) : '') + '</small></td>'
                     + '<td>' + statutBadge + '</td>'

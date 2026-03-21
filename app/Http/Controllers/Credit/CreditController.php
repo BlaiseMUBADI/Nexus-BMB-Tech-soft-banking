@@ -84,9 +84,28 @@ class CreditController extends Controller
     {
         $user       = Auth::user();
         $zonesCodes = $this->resolveZoneScope($user);
+        $creatorMatricule = $user?->agent?->matricule;
 
         $query = CreditDemande::with(['client', 'zone'])
-            ->when($zonesCodes !== null, fn($q) => $q->whereIn('code_zone', $zonesCodes));
+            ->when($zonesCodes !== null, function ($q) use ($zonesCodes, $creatorMatricule) {
+                $q->where(function ($scope) use ($zonesCodes, $creatorMatricule) {
+                    if (!empty($zonesCodes)) {
+                        $scope->whereIn('code_zone', $zonesCodes);
+                    }
+
+                    if ($creatorMatricule) {
+                        if (!empty($zonesCodes)) {
+                            $scope->orWhere('agent_createur_matricule', $creatorMatricule);
+                        } else {
+                            $scope->where('agent_createur_matricule', $creatorMatricule);
+                        }
+                    }
+
+                    if (empty($zonesCodes) && !$creatorMatricule) {
+                        $scope->whereRaw('1 = 0');
+                    }
+                });
+            });
 
         // Filtres
         if ($request->filled('statut')) {
@@ -119,16 +138,12 @@ class CreditController extends Controller
 
     public function create(Request $request)
     {
-        $user       = Auth::user();
-        $zonesCodes = $this->resolveZoneScope($user);
+        // Règle métier: toute personne habilitée à créer une demande peut sélectionner n'importe quel client.
+        $clients = Client::orderBy('nom')->get();
+        $zones = Zone::orderBy('nom')->get();
+        $selectedClientMatricule = $request->query('client_matricule');
 
-        $clients = Client::when($zonesCodes !== null, fn($q) => $q->whereIn('code_zone', $zonesCodes))
-            ->orderBy('nom')->get();
-
-        $zones = Zone::when($zonesCodes !== null, fn($q) => $q->whereIn('code_zone', $zonesCodes))
-            ->orderBy('nom')->get();
-
-        return view('credit.creation', compact('clients', 'zones'));
+        return view('credit.creation', compact('clients', 'zones', 'selectedClientMatricule'));
     }
 
     /**
@@ -167,7 +182,6 @@ class CreditController extends Controller
     {
         $validated = $request->validate([
             'client_matricule'     => 'required|string|exists:tb_clients,matricule',
-            'compte_id'            => 'required|string|exists:tb_comptes,code_compte',
             'montant_demande'      => 'required|numeric|min:1',
             'devise'               => 'required|in:CDF,USD,EUR',
             'duree_mois'           => 'required|integer|min:1|max:360',
@@ -180,25 +194,19 @@ class CreditController extends Controller
         $user  = Auth::user();
         $agent = $user->agent;
 
-        // Récupérer zone et portefeuille depuis le compte
-        $compte = Compte::with('portefeuille')->findOrFail($validated['compte_id']);
         $client = Client::findOrFail($validated['client_matricule']);
 
-        if (!$this->canAccessZone($user, $client->code_zone)) {
-            abort(403, 'Accès refusé à cette zone.');
-        }
-
-        $calcul = $this->amortissement->calculer(
+        $calcul = $this->amortissement->simuler(
             (float) $validated['montant_demande'],
             (float) $validated['taux_interet_mensuel'],
-            (int)   $validated['duree_mois']
+            (int) $validated['duree_mois']
         );
 
-        $demande = DB::transaction(function () use ($validated, $compte, $client, $agent, $calcul) {
+        $demande = DB::transaction(function () use ($validated, $client, $agent, $calcul) {
             $demande = CreditDemande::create([
                 'client_matricule'        => $validated['client_matricule'],
-                'compte_id'               => $validated['compte_id'],
-                'portefeuille_id'         => $compte->portefeuille_id,
+                'compte_id'               => null,
+                'portefeuille_id'         => null,
                 'code_zone'               => $client->code_zone,
                 'agent_createur_matricule'=> $agent?->matricule ?? 'SYSTEM',
                 'montant_demande'         => $validated['montant_demande'],
@@ -255,17 +263,25 @@ class CreditController extends Controller
 
     public function show(CreditDemande $dossier)
     {
-        $this->authorizeZoneAccess($dossier);
+        $this->authorizeDemandeAccess($dossier, true);
+
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+        $canViewAudit = $authUser?->hasPermission('EBEN-PER72') ?? false;
 
         $dossier->load([
             'client', 'compte', 'zone', 'portefeuille',
             'analyse', 'validations', 'pieces',
             'deblocage', 'echeancier.echeances',
-            'remboursements', 'audits',
+            'remboursements',
         ]);
 
+        if ($canViewAudit) {
+            $dossier->load('audits');
+        }
+
         $demande = $dossier;
-        return view('credit.show', compact('dossier', 'demande'));
+        return view('credit.show', compact('dossier', 'demande', 'canViewAudit'));
     }
 
     // ================================================================
@@ -274,7 +290,7 @@ class CreditController extends Controller
 
     public function soumettre(CreditDemande $dossier)
     {
-        $this->authorizeZoneAccess($dossier);
+        $this->authorizeDemandeAccess($dossier, true);
 
         if ($dossier->statut_global !== 'BROUILLON') {
             return back()->with('error', 'Ce dossier ne peut plus être soumis.');
@@ -327,8 +343,17 @@ class CreditController extends Controller
             'action'                 => 'required|in:SAUVER,COMPLETER',
         ]);
 
+        /** @var \App\Models\User|null $user */
         $user  = Auth::user();
+        if (!$user) {
+            abort(401, 'Utilisateur non authentifié.');
+        }
         $agent = $user->agent;
+
+        // Séparation des tâches: compléter l'analyse requiert explicitement PER59.
+        if (($validated['action'] ?? null) === 'COMPLETER' && !$user->hasPermission('EBEN-PER59')) {
+            abort(403, 'Vous n\'êtes pas autorisé à compléter l\'analyse.');
+        }
 
         DB::transaction(function () use ($validated, $dossier, $agent) {
             $statut    = $validated['action'] === 'COMPLETER' ? 'COMPLETE' : 'EN_COURS';
@@ -400,8 +425,24 @@ class CreditController extends Controller
             'conditions'      => 'nullable|string',
         ]);
 
+        /** @var \App\Models\User|null $user */
         $user  = Auth::user();
+        if (!$user) {
+            abort(401, 'Utilisateur non authentifié.');
+        }
         $agent = $user->agent;
+
+        // Vérification croisée : la permission doit correspondre au type_validateur soumis
+        $typeToPermission = [
+            'AGENT_CREDIT'      => 'EBEN-PER60',
+            'CHARGE_OPERATIONS' => 'EBEN-PER61',
+            'CONTROLEUR'        => 'EBEN-PER62',
+            'GERANT'            => 'EBEN-PER63',
+        ];
+        $requiredPerm = $typeToPermission[$validated['type_validateur']] ?? null;
+        if ($requiredPerm && !in_array($requiredPerm, $user->getPermissionCodes())) {
+            abort(403, "Vous n'êtes pas autorisé à valider en tant que {$validated['type_validateur']}.");
+        }
 
         DB::transaction(function () use ($validated, $dossier, $agent) {
             $validation = $dossier->validations()
@@ -477,10 +518,8 @@ class CreditController extends Controller
             ->get(['code_compte','type','devise','solde_reel']);
 
         $demande = $dossier;
-        $comptesClient = Compte::where('code_compte', $dossier->compte_id)
-            ->get(['code_compte','type as type_compte','devise','solde_reel']);
 
-        return view('credit.deblocage', compact('dossier', 'demande', 'comptesDebit', 'comptesClient'));
+        return view('credit.deblocage', compact('dossier', 'demande', 'comptesDebit'));
     }
 
     public function storeDeblocage(Request $request, CreditDemande $dossier)
@@ -492,44 +531,81 @@ class CreditController extends Controller
         }
 
         $validated = $request->validate([
-            'compte_debit_id'           => 'required|string|exists:tb_comptes,code_compte',
+            'compte_debit_id'            => 'required|string|exists:tb_comptes,code_compte',
+            'montant_debloque'           => 'required|numeric|min:1',
+            'date_deblocage'             => 'required|date',
             'date_premier_remboursement' => 'required|date|after:today',
             'frais_dossier'             => 'nullable|numeric|min:0',
+            'reference_comptable'        => 'nullable|string|max:100',
             'observations'              => 'nullable|string',
         ]);
 
         $user   = Auth::user();
         $agent  = $user->agent;
-        $montant = (float)($dossier->montant_approuve ?? $dossier->montant_demande);
+        $montant = (float)$validated['montant_debloque'];
         $frais   = (float)($validated['frais_dossier'] ?? 0);
 
         DB::transaction(function () use ($dossier, $validated, $agent, $montant, $frais) {
             $ancien = $dossier->statut_global;
+            $compteCredit = $this->resolveCompteCreditClient($dossier);
 
             CreditDeblocage::create([
                 'credit_demande_id'    => $dossier->id,
                 'agent_matricule'      => $agent?->matricule ?? 'SYSTEM',
                 'compte_debit_id'      => $validated['compte_debit_id'],
-                'compte_credit_id'     => $dossier->compte_id,
+                'compte_credit_id'     => $compteCredit->code_compte,
                 'montant_debloque'     => $montant,
                 'devise'               => $dossier->devise,
                 'frais_dossier'        => $frais,
                 'montant_net_verse'    => $montant - $frais,
+                'reference_transaction' => $validated['reference_comptable'],
                 'observations'         => $validated['observations'],
-                'debloque_le'          => now(),
+                'debloque_le'          => Carbon::parse($validated['date_deblocage']),
             ]);
 
             // Générer l'échéancier
             $datePremier = Carbon::parse($validated['date_premier_remboursement']);
             $this->amortissement->genererEtSauvegarder($dossier, $datePremier);
 
-            $dossier->update(['statut_global' => 'DEBLOQUE']);
+            $dossier->update([
+                'compte_id' => $compteCredit->code_compte,
+                'portefeuille_id' => $compteCredit->portefeuille_id,
+                'statut_global' => 'DEBLOQUE',
+            ]);
             $this->logAudit($dossier, 'DEBLOCAGE', $ancien, 'DEBLOQUE',
                 "Montant débloqué : {$montant} {$dossier->devise}");
         });
 
         return redirect()->route('credit.show', $dossier)
             ->with('success', "Déblocage de {$dossier->numero_dossier} effectué. Échéancier généré.");
+    }
+
+    private function resolveCompteCreditClient(CreditDemande $dossier): Compte
+    {
+        if (!empty($dossier->compte_id)) {
+            $compteExistant = Compte::find($dossier->compte_id);
+            if ($compteExistant) {
+                return $compteExistant;
+            }
+        }
+
+        $compteRmb = Compte::where('client_matricule', $dossier->client_matricule)
+            ->where('type', 'RMB')
+            ->where('devise', $dossier->devise)
+            ->first();
+
+        if ($compteRmb) {
+            return $compteRmb;
+        }
+
+        return Compte::create([
+            'client_matricule' => $dossier->client_matricule,
+            'type' => 'RMB',
+            'solde_reel' => 0,
+            'solde_bloque' => 0,
+            'devise' => $dossier->devise,
+            'portefeuille_id' => null,
+        ]);
     }
 
     // ================================================================
@@ -569,6 +645,7 @@ class CreditController extends Controller
             'dont_interet'        => 'required|numeric|min:0',
             'dont_penalite'       => 'nullable|numeric|min:0',
             'type_remboursement'  => 'required|in:ECHEANCE,PARTIEL,ANTICIPE,PENALITE',
+            'date_paiement'       => 'required|date',
             'reference_caisse'    => 'nullable|string|max:50',
             'observations'        => 'nullable|string',
         ]);
@@ -589,7 +666,7 @@ class CreditController extends Controller
                 'type_remboursement' => $validated['type_remboursement'],
                 'reference_caisse'   => $validated['reference_caisse'],
                 'observations'       => $validated['observations'],
-                'recu_le'            => now(),
+                'recu_le'            => Carbon::parse($validated['date_paiement']),
             ]);
 
             // Marquer l'échéance comme payée si spécifiée
@@ -601,7 +678,7 @@ class CreditController extends Controller
                     $echeance->update([
                         'montant_paye'           => $newMontant,
                         'statut'                 => $nouveau,
-                        'date_paiement_effectif' => now()->toDateString(),
+                        'date_paiement_effectif' => $validated['date_paiement'],
                     ]);
                 }
             }
@@ -847,7 +924,7 @@ class CreditController extends Controller
             return []; // Aucune zone
         }
 
-        $zones = Zone::where('agent_commercial_matricule', $agent->matricule)
+        $zones = Zone::assignedToAgent($agent->matricule)
             ->pluck('code_zone')
             ->toArray();
 
@@ -863,9 +940,32 @@ class CreditController extends Controller
         return in_array($codeZone, $zones);
     }
 
+    private function canAccessDemande(\App\Models\User $user, CreditDemande $dossier, bool $allowCreator = false): bool
+    {
+        if ($this->canAccessZone($user, $dossier->code_zone)) {
+            return true;
+        }
+
+        if ($allowCreator && $user->agent?->matricule) {
+            return $dossier->agent_createur_matricule === $user->agent->matricule;
+        }
+
+        return false;
+    }
+
     private function authorizeZoneAccess(CreditDemande $dossier): void
     {
         if (!$this->canAccessZone(Auth::user(), $dossier->code_zone)) {
+            abort(403, 'Accès refusé à ce dossier crédit.');
+        }
+    }
+
+    private function authorizeDemandeAccess(CreditDemande $dossier, bool $allowCreator = false): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (!$user || !$this->canAccessDemande($user, $dossier, $allowCreator)) {
             abort(403, 'Accès refusé à ce dossier crédit.');
         }
     }

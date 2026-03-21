@@ -96,6 +96,7 @@
                                 data-search="{{ strtolower(trim($client->matricule . ' ' . $client->full_name . ' ' . ($client->zone->nom ?? '') . ' ' . ($client->email ?? '') . ' ' . ($client->telephone ?? ''))) }}"
                                 data-show-url="{{ route('clients.show', $client->matricule) }}"
                                 data-edit-url="{{ route('clients.edit', $client->matricule) }}"
+                                data-credit-create-url="{{ route('credit.create', ['client_matricule' => $client->matricule]) }}"
                                 data-fiche-url="{{ route('clients.fiche.pdf', $client->matricule) }}"
                                 data-delete-url="{{ route('clients.destroy', $client->matricule) }}"
                             >
@@ -288,6 +289,9 @@
         <ul>
             <li><a href="#" class="ctx-item" id="ctxVoir"><i class="fas fa-eye"></i> Voir la fiche</a></li>
             <li><a href="#" class="ctx-item" id="ctxModif"><i class="fas fa-edit"></i> Modifier</a></li>
+            @if(in_array('EBEN-PER53', $userPermCodes ?? []) && in_array('EBEN-PER54', $userPermCodes ?? []))
+                <li><a href="#" class="ctx-item" id="ctxCredit"><i class="fas fa-hand-holding-usd"></i> Faire une demande crédit</a></li>
+            @endif
             @if($canPrintDocuments ?? true)
                 <li><a href="#" class="ctx-item" id="ctxFiche" target="_blank"><i class="fas fa-file-pdf"></i> Imprimer fiche PDF</a></li>
             @endif
@@ -461,6 +465,7 @@
 
             $('#ctxVoir').attr('href',  $ctxRow.data('show-url'));
             $('#ctxModif').attr('href', $ctxRow.data('edit-url'));
+            $('#ctxCredit').attr('href', $ctxRow.data('credit-create-url'));
             @if($canPrintDocuments ?? true)
                 $('#ctxFiche').attr('href', $ctxRow.data('fiche-url'));
             @endif

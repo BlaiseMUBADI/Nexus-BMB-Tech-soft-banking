@@ -48,6 +48,8 @@ class RolesPermissionsController extends Controller
         $permissions = \App\Models\RH\Permission::orderBy('code')->get();
         $users       = \App\Models\User::with('agent')->orderBy('name')->get();
         $moduleMap   = self::moduleMap();
+        $legacyPermissionMap = self::legacyCreditPermissionMap();
+        $legacyPermissionCodes = array_keys($legacyPermissionMap);
         $permissionsGrouped = $permissions->groupBy(fn($p) => self::moduleNum($p->code));
 
         $stats = [
@@ -57,7 +59,16 @@ class RolesPermissionsController extends Controller
             'users_avec_role'   => DB::table('tb_role_user')->distinct('user_id')->count('user_id'),
         ];
 
-        return view('administration.roles_permissions', compact('roles', 'permissions', 'permissionsGrouped', 'moduleMap', 'users', 'stats'));
+        return view('administration.roles_permissions', compact(
+            'roles',
+            'permissions',
+            'permissionsGrouped',
+            'moduleMap',
+            'users',
+            'stats',
+            'legacyPermissionMap',
+            'legacyPermissionCodes'
+        ));
     }
 
     public function store(Request $request)
@@ -170,6 +181,22 @@ class RolesPermissionsController extends Controller
         return 13;
     }
 
+    /**
+     * Permissions Crédit legacy conservées pour compatibilité historique.
+     * Elles ne doivent plus être attribuées pour les nouveaux rôles.
+     */
+    private static function legacyCreditPermissionMap(): array
+    {
+        return [
+            'EBEN-PER30' => 'EBEN-PER53', // Voir crédits -> Voir liste crédits
+            'EBEN-PER31' => 'EBEN-PER56', // Soumettre -> Soumettre demande crédit
+            'EBEN-PER32' => 'EBEN-PER58', // Instruire -> Saisir analyse crédit
+            'EBEN-PER33' => 'EBEN-PER63', // Approuver -> Validation finale gérant
+            'EBEN-PER34' => 'EBEN-PER65', // Gérer remboursements -> Enregistrer remboursement
+            'EBEN-PER35' => 'EBEN-PER72', // Clôturer crédit -> Historique/audit de clôture
+        ];
+    }
+
     public function rolePermissionsList($role_code)
     {
         $role           = \App\Models\RH\Role::where('code', $role_code)->first();
@@ -180,8 +207,18 @@ class RolesPermissionsController extends Controller
         $allPermissions = \App\Models\RH\Permission::orderBy('code')->get();
         $attached       = DB::table('tb_role_permission')->where('role_code', $role_code)->pluck('permission_code')->toArray();
         $moduleMap      = self::moduleMap();
+        $legacyPermissionMap = self::legacyCreditPermissionMap();
+        $legacyPermissionCodes = array_keys($legacyPermissionMap);
         $grouped        = $allPermissions->groupBy(fn($p) => self::moduleNum($p->code));
-        return view('administration.partials.role_permissions_list', compact('role', 'allPermissions', 'attached', 'grouped', 'moduleMap'))->render();
+        return view('administration.partials.role_permissions_list', compact(
+            'role',
+            'allPermissions',
+            'attached',
+            'grouped',
+            'moduleMap',
+            'legacyPermissionMap',
+            'legacyPermissionCodes'
+        ))->render();
     }
 
     public function attachPermission(Request $request)
@@ -191,6 +228,14 @@ class RolesPermissionsController extends Controller
                 'role_code'       => 'required|string|exists:tb_roles,code',
                 'permission_code' => 'required|string|exists:tb_permissions,code',
             ]);
+
+            if (array_key_exists($request->permission_code, self::legacyCreditPermissionMap())) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Permission legacy non autorisée pour une nouvelle attribution. Utilisez la permission crédit canonique.',
+                ], 422);
+            }
+
             DB::table('tb_role_permission')->updateOrInsert(
                 ['role_code' => $request->role_code, 'permission_code' => $request->permission_code],
                 ['created_at' => now(), 'updated_at' => now()]
@@ -232,13 +277,34 @@ class RolesPermissionsController extends Controller
         $user = \App\Models\User::with('agent')->findOrFail($user_id);
         $roles = \App\Models\RH\Role::orderBy('nom')->get();
         $permissions = \App\Models\RH\Permission::orderBy('nom')->get();
+        $legacyPermissionMap = self::legacyCreditPermissionMap();
+        $legacyPermissionCodes = array_keys($legacyPermissionMap);
         // Rôles attribués à l'utilisateur
         $userRoles = DB::table('tb_role_user')->where('user_id', $user_id)->pluck('role_code');
         // Permissions héritées via les rôles
         $userPermissions = DB::table('tb_role_permission')
             ->whereIn('role_code', $userRoles)
-            ->pluck('permission_code');
-        return view('administration.partials.user_roles_permissions_list', compact('user', 'roles', 'permissions', 'userRoles', 'userPermissions'))->render();
+            ->pluck('permission_code')
+            ->unique()
+            ->values();
+
+        $userLegacyPermissions = $userPermissions
+            ->filter(fn($code) => in_array($code, $legacyPermissionCodes, true))
+            ->values();
+
+        $userPermissions = $userPermissions
+            ->reject(fn($code) => in_array($code, $legacyPermissionCodes, true))
+            ->values();
+
+        return view('administration.partials.user_roles_permissions_list', compact(
+            'user',
+            'roles',
+            'permissions',
+            'userRoles',
+            'userPermissions',
+            'userLegacyPermissions',
+            'legacyPermissionMap'
+        ))->render();
     }
 
     // AJAX : attacher un rôle à un utilisateur

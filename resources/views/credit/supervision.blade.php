@@ -185,7 +185,7 @@
                     <a href="{{ route('credit.show', $d) }}" class="btn btn-xs btn-info">
                         <i class="fas fa-eye"></i>
                     </a>
-                    @if($d->statut === 'SUSPECT' && in_array('EBEN-PER71', $userPermCodes ?? []))
+                    @if($d->statut === 'SUSPECT' && in_array('EBEN-PER69', $userPermCodes ?? []))
                     <form method="POST" action="{{ route('credit.lever_suspicion', $d) }}" class="d-inline">
                         @csrf
                         <button class="btn btn-xs btn-outline-warning"
@@ -194,7 +194,7 @@
                         </button>
                     </form>
                     @endif
-                    @if($d->statut === 'SUSPENDU' && in_array('EBEN-PER70', $userPermCodes ?? []))
+                    @if($d->statut === 'SUSPENDU' && in_array('EBEN-PER69', $userPermCodes ?? []))
                     <form method="POST" action="{{ route('credit.lever_suspension', $d) }}" class="d-inline">
                         @csrf
                         <button class="btn btn-xs btn-outline-secondary"

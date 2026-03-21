@@ -2,7 +2,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use App\Models\RH\Agent;
+use App\Models\ZoneAffectation;
 
 class Zone extends Model
     
@@ -22,6 +24,33 @@ class Zone extends Model
     {
         return $this->belongsTo(Agent::class, 'agent_commercial_matricule', 'matricule');
     }
+
+    public function affectations()
+    {
+        return $this->hasMany(ZoneAffectation::class, 'code_zone', 'code_zone');
+    }
+
+    public function affectationActive()
+    {
+        $today = now()->toDateString();
+
+        return $this->hasOne(ZoneAffectation::class, 'code_zone', 'code_zone')
+            ->whereRaw('UPPER(Etat) = ?', ['ACTIF'])
+            ->whereDate('date_debut', '<=', $today)
+            ->where(function ($query) use ($today) {
+                $query->whereNull('date_fin')
+                    ->orWhereDate('date_fin', '>', $today);
+            })
+            ->latest('date_debut');
+    }
+
+    public function scopeAssignedToAgent(Builder $query, string $matricule): Builder
+    {
+        return $query->whereHas('affectationActive', function (Builder $q) use ($matricule): void {
+            $q->where('agent_matricule', $matricule);
+        });
+    }
+
     //public $timestamps = false;
     public static function boot()
     {

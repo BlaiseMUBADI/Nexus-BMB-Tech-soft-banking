@@ -82,6 +82,7 @@
                             <th>Référence</th>
                             <th>Type</th>
                             <th>Compte</th>
+                            <th>Client</th>
                             <th>Devise</th>
                             <th>Montant</th>
                             <th>Destination</th>
@@ -92,7 +93,7 @@
                     </thead>
                     <tbody id="tbodyJournal">
                         <tr>
-                            <td colspan="10" class="text-center py-4 text-muted">
+                            <td colspan="11" class="text-center py-4 text-muted">
                                 <i class="fas fa-spinner fa-spin mr-1"></i> Chargement…
                             </td>
                         </tr>
@@ -109,7 +110,24 @@
 
 @push('css')
 <style>
-    .table-sm td, .table-sm th { font-size: .88rem; vertical-align: middle; }
+    #tableJournal td, #tableJournal th { vertical-align: middle; }
+    #tableJournal td {
+        font-size: .95rem;
+        line-height: 1.35;
+        padding-top: .55rem;
+        padding-bottom: .55rem;
+    }
+    #tableJournal th {
+        font-size: .90rem;
+        line-height: 1.25;
+        padding-top: .60rem;
+        padding-bottom: .60rem;
+    }
+    #tableJournal .client-name-text {
+        font-size: 1.08rem;
+        font-weight: 600;
+        line-height: 1.35;
+    }
     .badge-sm { font-size: .72rem; padding: .15em .4em; }
     .btn-xs   { padding: .15rem .45rem; font-size: .78rem; }
     /* Stat mini-cards totaux */
@@ -185,7 +203,7 @@ $(document).ready(function () {
         })
         .fail(function (xhr) {
             logFrontendError('Erreur de chargement journal', 'Chargement journal caisse', xhr.status);
-            $('#tbodyJournal').html('<tr><td colspan="10" class="text-danger text-center py-3">Erreur de chargement.</td></tr>');
+            $('#tbodyJournal').html('<tr><td colspan="11" class="text-danger text-center py-3">Erreur de chargement.</td></tr>');
         })
         .always(function () {
             $('#btnRefreshJournal').find('i').removeClass('fa-spin');
@@ -196,7 +214,7 @@ $(document).ready(function () {
         $('#journalCount').text(ops.length);
         var tbody = $('#tbodyJournal');
         if (!ops.length) {
-            tbody.html('<tr><td colspan="10" class="text-center py-5 text-muted">'
+            tbody.html('<tr><td colspan="11" class="text-center py-5 text-muted">'
                 + '<i class="fas fa-inbox fa-2x mb-2 d-block"></i>Aucune opération.</td></tr>');
             return;
         }
@@ -210,12 +228,20 @@ $(document).ready(function () {
                 ? '<span class="text-info">→ ' + op.montant_dest_fmt + '</span>' : '—';
             var obs = op.observations
                 ? '<span title="' + $('<div>').text(op.observations).html() + '" style="cursor:help;"><i class="fas fa-comment-alt text-info fa-sm"></i></span>' : '';
+            var compteCell = '—';
+            if (op.compte_code) {
+                compteCell = '<small class="text-muted"><i class="fas fa-university fa-xs mr-1"></i>' + $('<div>').text(op.compte_code).html() + '</small>';
+            }
+            var clientCell = op.client_full_name
+                ? '<span class="text-info client-name-text"><i class="fas fa-user fa-xs mr-1"></i>' + $('<div>').text(op.client_full_name).html() + '</span>'
+                : '—';
             tbody.append(
                 '<tr' + rowClass + '>'
                 + '<td class="text-center"><i class="fas ' + op.icon + ' fa-sm"></i></td>'
                 + '<td><small class="text-monospace">' + op.reference + '</small></td>'
                 + '<td><span class="badge ' + op.badge_class + ' badge-sm">' + op.type_label + '</span></td>'
-                + '<td><small class="text-muted">' + (op.compte_code ? '<i class="fas fa-university fa-xs mr-1"></i>' + op.compte_code : '—') + '</small></td>'
+                + '<td>' + compteCell + '</td>'
+                + '<td>' + clientCell + '</td>'
                 + '<td>' + op.devise + '</td>'
                 + '<td class="font-weight-bold">' + op.montant_fmt + '</td>'
                 + '<td><small>' + dest + '</small></td>'
@@ -255,12 +281,13 @@ $(document).ready(function () {
     // ── Export CSV basique ────────────────────────────────────────
     $('#btnExportCSV').on('click', function () {
         if (!_currentData.length) { return; }
-        var csvLines = ['"Référence","Type","Compte","Devise","Montant","DeviseDest","MontantDest","Statut","Date"'];
+        var csvLines = ['"Référence","Type","Compte","Client","Devise","Montant","DeviseDest","MontantDest","Statut","Date"'];
         $.each(_currentData, function(i, op) {
             csvLines.push([
                 '"' + op.reference + '"',
                 '"' + op.type_label + '"',
                 '"' + (op.compte_code || '') + '"',
+                '"' + (op.client_full_name || '') + '"',
                 '"' + op.devise + '"',
                 '"' + op.montant + '"',
                 '"' + (op.devise_dest || '') + '"',
