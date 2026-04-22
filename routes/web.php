@@ -40,6 +40,13 @@ Route::post('log/client-error', [ClientLogController::class, 'store'])
     ->middleware('auth')
     ->name('log.clientError');
 
+// Heartbeat : prolonge la session en mettant à jour _last_activity
+Route::post('/session/heartbeat', function () {
+    session(['_last_activity' => time()]);
+    $remaining = (int) config('session.inactivity_timeout', 600);
+    return response()->json(['ok' => true, 'remaining' => $remaining]);
+})->middleware('auth')->name('session.heartbeat');
+
 Route::get('/', function () {
     return view('dashboard');
 })->middleware('auth');

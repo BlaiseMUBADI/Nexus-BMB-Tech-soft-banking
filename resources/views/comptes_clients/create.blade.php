@@ -49,7 +49,9 @@
                             <select name="portefeuille_id" id="portefeuille_id" class="form-control select2">
                                 <option value="">-- Sélectionner l'agent --</option>
                                 @foreach($portefeuilles as $pf)
-                                    @php($pfAgent = $pf->affectationActive->agent ?? $pf->agent)
+                                    @php
+                                        $pfAgent = $pf->affectationActive->agent ?? $pf->agent;
+                                    @endphp
                                     <option value="{{ $pf->id }}">
                                         @if($pfAgent)
                                             ({{ $pfAgent->matricule }}) {{ $pfAgent->nom }} {{ $pfAgent->prenom }}
@@ -108,7 +110,9 @@
                             </thead>
                             <tbody>
                                 @forelse($comptes as $compte)
-                                    @php($pfAgent = $compte->portefeuille?->affectationActive?->agent ?? $compte->portefeuille?->agent)
+                                    @php
+                                        $pfAgent = $compte->portefeuille?->affectationActive?->agent ?? $compte->portefeuille?->agent;
+                                    @endphp
                                     <tr data-search="{{ strtolower(trim($compte->code_compte . ' ' . ($compte->client?->full_name ?? '') . ' ' . $compte->type . ' ' . $compte->devise . ' ' . ($pfAgent?->full_name ?? '') . ' ' . ($pfAgent?->matricule ?? ''))) }}">
                                         <td>{{ $loop->iteration }}</td>
                                         <td><code>{{ $compte->code_compte }}</code></td>
@@ -120,18 +124,23 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @php
-                                                $typeLabels = [
-                                                    'CC'  => ['label' => 'Compte Courant',        'badge' => 'badge-info'],
-                                                    'RMB' => ['label' => 'Remboursement',          'badge' => 'badge-secondary'],
-                                                    'GTC' => ['label' => 'Caution',                'badge' => 'badge-primary'],
-                                                    'DAT' => ['label' => 'Dépôt à Terme',          'badge' => 'badge-warning'],
-                                                    'EAV' => ['label' => 'Épargne & Vie',          'badge' => 'badge-success'],
-                                                ];
-                                                $typeBadge = $typeLabels[$compte->type]['badge'] ?? 'badge-secondary';
-                                                $typeLabel = $typeLabels[$compte->type]['label'] ?? $compte->type;
-                                            @endphp
-                                            <span class="badge {{ $typeBadge }}">{{ $compte->type }} - {{ $typeLabel }}</span>
+                                            <span class="badge {{ match($compte->type) {
+                                                'CC' => 'badge-info',
+                                                'RMB' => 'badge-secondary',
+                                                'GTC' => 'badge-primary',
+                                                'DAT' => 'badge-warning',
+                                                'EAV' => 'badge-success',
+                                                default => 'badge-secondary',
+                                            } }}">
+                                                {{ $compte->type }} - {{ match($compte->type) {
+                                                    'CC' => 'Compte Courant',
+                                                    'RMB' => 'Remboursement',
+                                                    'GTC' => 'Caution',
+                                                    'DAT' => 'Dépôt à Terme',
+                                                    'EAV' => 'Épargne & Vie',
+                                                    default => $compte->type,
+                                                } }}
+                                            </span>
                                         </td>
                                         <td class="text-right">{{ number_format($compte->solde_reel, 2, ',', ' ') }}</td>
                                         <td><span class="badge badge-secondary">{{ $compte->devise }}</span></td>

@@ -152,7 +152,9 @@
                     </thead>
                     <tbody>
                         @forelse($comptes as $loopIndex => $compte)
-                        @php($pfAgent = $compte->portefeuille?->affectationActive?->agent ?? $compte->portefeuille?->agent)
+                        @php
+                            $pfAgent = $compte->portefeuille?->affectationActive?->agent ?? $compte->portefeuille?->agent;
+                        @endphp
                         <tr data-code="{{ $compte->code_compte }}"
                             data-search="{{ strtolower(trim($compte->code_compte . ' ' . ($compte->client?->full_name ?? '') . ' ' . $compte->type . ' ' . $compte->devise . ' ' . ($pfAgent?->full_name ?? '') . ' ' . ($pfAgent?->matricule ?? ''))) }}">
                             <td>{{ $loopIndex + 1 }}</td>
@@ -328,7 +330,9 @@
                                         <option value="tous">— Tous les portefeuilles —</option>
                                         <option value="aucun">Sans portefeuille assigné</option>
                                         @foreach($portefeuilles as $p)
-                                            @php($pfAgent = $p->affectationActive->agent ?? $p->agent)
+                                            @php
+                                                $pfAgent = $p->affectationActive->agent ?? $p->agent;
+                                            @endphp
                                             <option value="{{ $p->id }}">
                                                 {{ $p->nom_portefeuille }}
                                                 @if($pfAgent)

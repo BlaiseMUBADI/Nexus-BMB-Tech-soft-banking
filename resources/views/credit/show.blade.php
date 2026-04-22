@@ -33,20 +33,25 @@
             {{-- Action buttons --}}
             @if($demande->statut === 'BROUILLON')
                 @if(in_array('EBEN-PER56', $userPermCodes ?? []))
-                <form method="POST" action="{{ route('credit.soumettre', $demande) }}" class="d-inline">
-                    @csrf
-                    <button class="btn btn-sm btn-primary" onclick="return confirm('Soumettre ce dossier ?')">
-                        <i class="fas fa-paper-plane mr-1"></i>Soumettre
-                    </button>
-                </form>
+                <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalSoumettre">
+                    <i class="fas fa-paper-plane mr-1"></i>Soumettre
+                </button>
                 @endif
             @endif
 
             @if($demande->statut === 'SOUMIS')
+                @if(in_array('EBEN-PER61', $userPermCodes ?? []))
+                <button class="btn btn-sm btn-warning" data-toggle="modal" data-target="#modalAffecterAnalyse">
+                    <i class="fas fa-user-check mr-1"></i>Affecter agent crédit
+                </button>
+                @endif
+
                 @if(in_array('EBEN-PER58', $userPermCodes ?? []))
+                @if(($authUser?->agent?->matricule ?? null) === $demande->agent_analyse_matricule)
                 <a href="{{ route('credit.analyse', $demande) }}" class="btn btn-sm btn-info">
                     <i class="fas fa-search mr-1"></i>Analyser
                 </a>
+                @endif
                 @endif
             @endif
 
@@ -110,15 +115,18 @@
             @if($canViewAudit ?? false)
             <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab_audit">Journal</a></li>
             @endif
-            @if(in_array($demande->statut, ['DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD','SOLDE']) && in_array('EBEN-PER71', $userPermCodes ?? []))
+            @if($demande->echeancier && in_array($demande->statut, ['SOUMIS','EN_ANALYSE','EN_VALIDATION','PRET_A_DEBLOQUER','DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD','SOLDE']) && in_array('EBEN-PER71', $userPermCodes ?? []))
             <li class="nav-item ml-auto">
                 <a href="{{ route('credit.pdf.echeancier', $demande) }}" class="nav-link text-primary" target="_blank">
                     <i class="fas fa-print mr-1"></i>PDF Échéancier
                 </a>
             </li>
+            @endif
+
+            @if(in_array($demande->statut, ['SOUMIS','EN_ANALYSE','EN_VALIDATION','PRET_A_DEBLOQUER','DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD','SOLDE']) && in_array('EBEN-PER71', $userPermCodes ?? []))
             <li class="nav-item">
                 <a href="{{ route('credit.pdf.fiche', $demande) }}" class="nav-link text-danger" target="_blank">
-                    <i class="fas fa-file-pdf mr-1"></i>Fiche crédit
+                    <i class="fas fa-file-pdf mr-1"></i>Dossier + analyse PDF
                 </a>
             </li>
             @endif
@@ -131,19 +139,54 @@
         <div class="tab-pane active" id="tab_infos">
         <div class="row">
             <div class="col-md-6">
+                @php
+                    $clientFullName = trim(($demande->client->nom ?? '').' '.($demande->client->postnom ?? '').' '.($demande->client->prenom ?? ''));
+                    $clientPhotoUrl = !empty(optional($demande->client)->photo)
+                        ? route('clients.photo', basename($demande->client->photo))
+                        : asset('vendor/adminlte/dist/img/user2-160x160.jpg');
+                @endphp
+                <div class="d-flex align-items-start mb-3">
+                    <img src="{{ $clientPhotoUrl }}"
+                         alt="Photo client"
+                         class="img-thumbnail mr-3"
+                         style="width:96px;height:112px;object-fit:cover;border-radius:8px;">
+                    <div>
+                        <div class="small text-muted">Client bénéficiaire</div>
+                        <div class="font-weight-bold">{{ $clientFullName !== '' ? $clientFullName : $demande->client_matricule }}</div>
+                        <div class="small text-muted">{{ $demande->client_matricule }}</div>
+                    </div>
+                </div>
                 <table class="table table-sm table-borderless">
                     <tr><th width="40%">Numéro dossier</th><td><strong>{{ $demande->numero_dossier }}</strong></td></tr>
                     <tr><th>Statut</th><td>{!! $demande->badgeStatut() !!}</td></tr>
                     <tr><th>Type de crédit</th><td>{{ $demande->type_credit }}</td></tr>
                     <tr><th>Client</th><td>
                         @if($demande->client)
-                            {{ $demande->client->nom }} {{ $demande->client->prenom }}
+                            {{ trim(($demande->client->nom ?? '').' '.($demande->client->postnom ?? '').' '.($demande->client->prenom ?? '')) }}
                             <small class="text-muted">({{ $demande->client_matricule }})</small>
                         @else {{ $demande->client_matricule }}
                         @endif
                     </td></tr>
                     <tr><th>Zone</th><td>{{ $demande->code_zone ?? '–' }}</td></tr>
-                    <tr><th>Agent chargé</th><td>{{ optional($demande->agentCharge)->nom_complet ?? '–' }}</td></tr>
+                    <tr><th>Demande créée par</th><td>
+                        @if(!empty($demandeurMeta['nom_complet']))
+                            {{ $demandeurMeta['nom_complet'] }}
+                            <small class="text-muted">({{ $demandeurMeta['matricule'] ?? '-' }})</small>
+                        @else
+                            {{ $demande->agent_createur_matricule ?? '–' }}
+                        @endif
+                    </td></tr>
+                    <tr><th>Rôle du demandeur</th><td>
+                        {{ $demandeurMeta['role_nom'] ?? $demandeurMeta['role_code'] ?? '–' }}
+                    </td></tr>
+                    <tr><th>Agent crédit affecté</th><td>
+                        @if($demande->agentAnalyse)
+                            {{ $demande->agentAnalyse->full_name ?: trim(($demande->agentAnalyse->nom ?? '').' '.($demande->agentAnalyse->postnom ?? '').' '.($demande->agentAnalyse->prenom ?? '')) }}
+                            <small class="text-muted">({{ $demande->agent_analyse_matricule }})</small>
+                        @else
+                            <span class="text-muted">Non affecté</span>
+                        @endif
+                    </td></tr>
                 </table>
             </div>
             <div class="col-md-6">
@@ -455,4 +498,80 @@
     </div></div>
 </div>
 @endif
+
+@if($demande->statut === 'SOUMIS' && in_array('EBEN-PER61', $userPermCodes ?? []))
+<div class="modal fade" id="modalAffecterAnalyse" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+        <form method="POST" action="{{ route('credit.affecter_analyse', $demande) }}">@csrf
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">Affecter un agent de crédit</h5>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Agent de crédit <span class="text-danger">*</span></label>
+                    <select name="agent_analyse_matricule" id="selectAgentAnalyse" class="form-control select2-search" required>
+                        <option value="">-- Sélectionner un agent --</option>
+                        @foreach(($assignableAgents ?? collect()) as $a)
+                            <option value="{{ $a->matricule }}" {{ $demande->agent_analyse_matricule === $a->matricule ? 'selected' : '' }}>
+                                {{ trim(($a->nom ?? '').' '.($a->postnom ?? '').' '.($a->prenom ?? '')) }} ({{ $a->matricule }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <small class="text-muted"><i class="fas fa-info-circle mr-1"></i>Tapez pour chercher un agent</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                <button type="submit" class="btn btn-warning">Enregistrer</button>
+            </div>
+        </form>
+    </div></div>
+</div>
+@endif
+
+@if($demande->statut === 'BROUILLON' && in_array('EBEN-PER56', $userPermCodes ?? []))
+<div class="modal fade" id="modalSoumettre" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+        <form method="POST" action="{{ route('credit.soumettre', $demande) }}">@csrf
+        <div class="modal-header bg-primary text-white"><h5 class="modal-title"><i class="fas fa-paper-plane mr-2"></i>Soumettre le dossier</h5></div>
+        <div class="modal-body">
+            <p>Êtes-vous certain de vouloir <strong>soumettre ce dossier</strong> ? Une fois soumis, il sera envoyé aux opérationnels pour analyse.</p>
+            <p class="mb-0 text-muted small"><i class="fas fa-info-circle mr-1"></i>Cette action ne pourra pas être annulée directement.</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-primary">Confirmer la soumission</button>
+        </div>
+        </form>
+    </div></div>
+</div>
+@endif
 @endsection
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<style>
+    .select2-container .select2-selection--single { height: 38px !important; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 38px !important; padding-left: 12px; }
+    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 37px !important; right: 1px; }
+</style>
+
+@push('js')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#selectAgentAnalyse').select2({
+            placeholder: "Chercher par nom ou matricule...",
+            allowClear: true,
+            language: "fr",
+            width: '100%'
+        });
+        
+        // Déboucher Select2 quand le modal s'ouvre
+        $('#modalAffecterAnalyse').on('show.bs.modal', function() {
+            setTimeout(() => {
+                $('#selectAgentAnalyse').select2('open');
+            }, 100);
+        });
+    });
+</script>
+@endpush

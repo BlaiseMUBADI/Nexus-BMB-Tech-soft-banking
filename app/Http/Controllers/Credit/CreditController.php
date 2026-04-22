@@ -13,6 +13,7 @@ use App\Models\Credit\CreditRemboursement;
 use App\Models\Credit\CreditAudit;
 use App\Models\Clients\Client;
 use App\Models\Clients\Compte;
+use App\Models\RH\Agent;
 use App\Models\Zone;
 use App\Models\Tresorerie\Portefeuille;
 use App\Services\Credit\AmortissementService;
@@ -85,10 +86,11 @@ class CreditController extends Controller
         $user       = Auth::user();
         $zonesCodes = $this->resolveZoneScope($user);
         $creatorMatricule = $user?->agent?->matricule;
+        $currentAgentMatricule = $user?->agent?->matricule;
 
         $query = CreditDemande::with(['client', 'zone'])
-            ->when($zonesCodes !== null, function ($q) use ($zonesCodes, $creatorMatricule) {
-                $q->where(function ($scope) use ($zonesCodes, $creatorMatricule) {
+            ->when($zonesCodes !== null, function ($q) use ($zonesCodes, $creatorMatricule, $currentAgentMatricule) {
+                $q->where(function ($scope) use ($zonesCodes, $creatorMatricule, $currentAgentMatricule) {
                     if (!empty($zonesCodes)) {
                         $scope->whereIn('code_zone', $zonesCodes);
                     }
@@ -101,7 +103,15 @@ class CreditController extends Controller
                         }
                     }
 
-                    if (empty($zonesCodes) && !$creatorMatricule) {
+                    if ($currentAgentMatricule) {
+                        if (!empty($zonesCodes) || $creatorMatricule) {
+                            $scope->orWhere('agent_analyse_matricule', $currentAgentMatricule);
+                        } else {
+                            $scope->where('agent_analyse_matricule', $currentAgentMatricule);
+                        }
+                    }
+
+                    if (empty($zonesCodes) && !$creatorMatricule && !$currentAgentMatricule) {
                         $scope->whereRaw('1 = 0');
                     }
                 });
@@ -139,7 +149,7 @@ class CreditController extends Controller
     public function create(Request $request)
     {
         // Règle métier: toute personne habilitée à créer une demande peut sélectionner n'importe quel client.
-        $clients = Client::orderBy('nom')->get();
+        $clients = Client::orderBy('nom')->orderBy('postnom')->orderBy('prenom')->get();
         $zones = Zone::orderBy('nom')->get();
         $selectedClientMatricule = $request->query('client_matricule');
 
@@ -271,7 +281,7 @@ class CreditController extends Controller
 
         $dossier->load([
             'client', 'compte', 'zone', 'portefeuille',
-            'analyse', 'validations', 'pieces',
+            'analyse', 'validations', 'pieces', 'agentAnalyse',
             'deblocage', 'echeancier.echeances',
             'remboursements',
         ]);
@@ -280,8 +290,46 @@ class CreditController extends Controller
             $dossier->load('audits');
         }
 
+        $assignableAgents = collect();
+        if ($authUser?->hasPermission('EBEN-PER61') && $dossier->statut_global === 'SOUMIS') {
+            $assignableAgents = $this->resolveAssignableCreditAgents();
+        }
+
+        $demandeurMeta = $this->resolveDemandeurMeta($dossier->agent_createur_matricule);
+
         $demande = $dossier;
-        return view('credit.show', compact('dossier', 'demande', 'canViewAudit'));
+        return view('credit.show', compact('dossier', 'demande', 'canViewAudit', 'assignableAgents', 'demandeurMeta'));
+    }
+
+    public function affecterAnalyse(Request $request, CreditDemande $dossier)
+    {
+        $this->authorizeZoneAccess($dossier);
+
+        if ($dossier->statut_global !== 'SOUMIS') {
+            return back()->with('error', 'L\'affectation est autorisée uniquement pour un dossier soumis.');
+        }
+
+        $validated = $request->validate([
+            'agent_analyse_matricule' => 'required|string|exists:tb_agents,matricule',
+        ]);
+
+        if (!$this->isEligibleCreditAnalyst($validated['agent_analyse_matricule'])) {
+            return back()->with('error', 'L\'agent sélectionné n\'a pas le profil analyse crédit (PER58).');
+        }
+
+        $ancienAgent = $dossier->agent_analyse_matricule;
+
+        $dossier->update([
+            'agent_analyse_matricule' => $validated['agent_analyse_matricule'],
+        ]);
+
+        $details = $ancienAgent
+            ? "Réaffecté de {$ancienAgent} vers {$validated['agent_analyse_matricule']}"
+            : "Affecté à {$validated['agent_analyse_matricule']}";
+
+        $this->logAudit($dossier, 'AFFECTATION_ANALYSE', $dossier->statut_global, $dossier->statut_global, $details);
+
+        return back()->with('success', 'Agent de crédit affecté avec succès.');
     }
 
     // ================================================================
@@ -317,6 +365,18 @@ class CreditController extends Controller
     {
         $this->authorizeZoneAccess($dossier);
 
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+
+        if (empty($dossier->agent_analyse_matricule)) {
+            return back()->with('error', 'Le chargé des opérations doit d\'abord affecter un agent de crédit.');
+        }
+
+        $currentAgentMatricule = $authUser?->agent?->matricule;
+        if ($currentAgentMatricule !== $dossier->agent_analyse_matricule && !$authUser?->hasPermission('EBEN-PER1')) {
+            abort(403, 'Ce dossier est affecté à un autre agent de crédit.');
+        }
+
         if (!in_array($dossier->statut_global, ['SOUMIS','EN_ANALYSE'])) {
             return back()->with('error', 'Ce dossier ne peut pas être analysé dans son état actuel.');
         }
@@ -329,6 +389,10 @@ class CreditController extends Controller
     public function storeAnalyse(Request $request, CreditDemande $dossier)
     {
         $this->authorizeZoneAccess($dossier);
+
+        if (empty($dossier->agent_analyse_matricule)) {
+            return back()->with('error', 'Le chargé des opérations doit d\'abord affecter un agent de crédit.');
+        }
 
         $validated = $request->validate([
             'revenu_mensuel_verifie' => 'nullable|numeric|min:0',
@@ -349,6 +413,10 @@ class CreditController extends Controller
             abort(401, 'Utilisateur non authentifié.');
         }
         $agent = $user->agent;
+
+        if (($agent?->matricule ?? null) !== $dossier->agent_analyse_matricule && !$user->hasPermission('EBEN-PER1')) {
+            abort(403, 'Ce dossier est affecté à un autre agent de crédit.');
+        }
 
         // Séparation des tâches: compléter l'analyse requiert explicitement PER59.
         if (($validated['action'] ?? null) === 'COMPLETER' && !$user->hasPermission('EBEN-PER59')) {
@@ -899,14 +967,19 @@ class CreditController extends Controller
 
         $dossier->load(['client','compte','zone','analyse','validations','pieces','deblocage','echeancier.echeances']);
 
-        $demande = $dossier;
+        if (in_array($dossier->statut_global, ['BROUILLON', 'ANNULE'], true)) {
+            return back()->with('error', 'La fiche PDF est disponible à partir du statut SOUMIS.');
+        }
 
-        $pdf = Pdf::loadView('impressions.credit.fiche_credit', compact('dossier', 'demande'))
+        $demande = $dossier;
+        $demandeurMeta = $this->resolveDemandeurMeta($dossier->agent_createur_matricule);
+
+        $pdf = Pdf::loadView('impressions.credit.fiche_credit', compact('dossier', 'demande', 'demandeurMeta'))
             ->setPaper('A4', 'portrait');
 
-        $filename = 'fiche_credit_' . $dossier->numero_dossier . '_' . now()->format('Ymd') . '.pdf';
+        $filename = 'dossier_demande_credit_analyse_' . $dossier->numero_dossier . '_' . now()->format('Ymd') . '.pdf';
 
-        return $pdf->download($filename);
+        return $pdf->stream($filename);
     }
 
     // ================================================================
@@ -928,7 +1001,24 @@ class CreditController extends Controller
             ->pluck('code_zone')
             ->toArray();
 
-        return empty($zones) ? [] : $zones;
+        if (!empty($zones)) {
+            return $zones;
+        }
+
+        // Fallback métier: en configuration agence unique/tests, certains acteurs crédit
+        // n'ont pas de zone explicite. On ouvre alors le scope Crédit à toutes les zones.
+        $creditPermissions = [
+            'EBEN-PER53', 'EBEN-PER54', 'EBEN-PER56', 'EBEN-PER57', 'EBEN-PER58',
+            'EBEN-PER59', 'EBEN-PER60', 'EBEN-PER61', 'EBEN-PER62', 'EBEN-PER63',
+            'EBEN-PER64', 'EBEN-PER65', 'EBEN-PER66', 'EBEN-PER67', 'EBEN-PER68',
+            'EBEN-PER69', 'EBEN-PER70', 'EBEN-PER71', 'EBEN-PER72',
+        ];
+
+        if ($user->hasPermission($creditPermissions)) {
+            return null;
+        }
+
+        return [];
     }
 
     private function canAccessZone(\App\Models\User $user, string $codeZone): bool
@@ -947,7 +1037,11 @@ class CreditController extends Controller
         }
 
         if ($allowCreator && $user->agent?->matricule) {
-            return $dossier->agent_createur_matricule === $user->agent->matricule;
+            if ($dossier->agent_createur_matricule === $user->agent->matricule) {
+                return true;
+            }
+
+            return $dossier->agent_analyse_matricule === $user->agent->matricule;
         }
 
         return false;
@@ -968,6 +1062,91 @@ class CreditController extends Controller
         if (!$user || !$this->canAccessDemande($user, $dossier, $allowCreator)) {
             abort(403, 'Accès refusé à ce dossier crédit.');
         }
+    }
+
+    private function resolveAssignableCreditAgents()
+    {
+        return Agent::query()
+            ->whereIn('matricule', function ($q) {
+                $q->select('u.agent_matricule')
+                    ->from('users as u')
+                    ->join('tb_role_user as ru', 'ru.user_id', '=', 'u.id')
+                    ->join('tb_role_permission as rp', 'rp.role_code', '=', 'ru.role_code')
+                    ->where('rp.permission_code', 'EBEN-PER58')
+                    ->where('u.etat', 'actif')
+                    ->whereNotNull('u.agent_matricule');
+            })
+            ->where('statut', 'actif')
+            ->orderBy('nom')
+            ->orderBy('postnom')
+            ->orderBy('prenom')
+            ->get(['matricule', 'nom', 'postnom', 'prenom']);
+    }
+
+    private function resolveDemandeurMeta(?string $matricule): ?array
+    {
+        if (empty($matricule)) {
+            return null;
+        }
+
+        $user = DB::table('users as u')
+            ->leftJoin('tb_agents as a', 'a.matricule', '=', 'u.agent_matricule')
+            ->where('u.agent_matricule', $matricule)
+            ->select(
+                'u.id',
+                'u.email',
+                'u.agent_matricule',
+                'a.nom',
+                'a.postnom',
+                'a.prenom'
+            )
+            ->first();
+
+        if (!$user) {
+            return [
+                'matricule' => $matricule,
+                'nom_complet' => $matricule,
+                'role_code' => null,
+                'role_nom' => null,
+                'email' => null,
+            ];
+        }
+
+        $role = DB::table('tb_role_user as ru')
+            ->leftJoin('tb_roles as r', 'r.code', '=', 'ru.role_code')
+            ->where('ru.user_id', $user->id)
+            ->orderBy('ru.role_code')
+            ->select('ru.role_code', 'r.nom as role_nom')
+            ->first();
+
+        $nomComplet = trim(implode(' ', array_filter([
+            $user->nom ?? null,
+            $user->postnom ?? null,
+            $user->prenom ?? null,
+        ])));
+
+        if ($nomComplet === '') {
+            $nomComplet = $user->email ?: $user->agent_matricule;
+        }
+
+        return [
+            'matricule' => $user->agent_matricule,
+            'nom_complet' => $nomComplet,
+            'role_code' => $role->role_code ?? null,
+            'role_nom' => $role->role_nom ?? null,
+            'email' => $user->email,
+        ];
+    }
+
+    private function isEligibleCreditAnalyst(string $matricule): bool
+    {
+        return DB::table('users as u')
+            ->join('tb_role_user as ru', 'ru.user_id', '=', 'u.id')
+            ->join('tb_role_permission as rp', 'rp.role_code', '=', 'ru.role_code')
+            ->where('u.agent_matricule', $matricule)
+            ->where('u.etat', 'actif')
+            ->where('rp.permission_code', 'EBEN-PER58')
+            ->exists();
     }
 
     private function logAudit(

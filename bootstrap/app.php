@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Vérifier l'état utilisateur après le démarrage de la session web.
         $middleware->web(append: [
             \App\Http\Middleware\CheckUserStatus::class,
+            \App\Http\Middleware\CheckInactivity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

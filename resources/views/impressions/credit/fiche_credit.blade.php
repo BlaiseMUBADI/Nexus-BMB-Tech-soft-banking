@@ -4,9 +4,36 @@
 
 @section('contenu')
 
+@php
+    $client = optional($demande)->client;
+    $clientFullName = trim(($client->nom ?? '') . ' ' . ($client->postnom ?? '') . ' ' . ($client->prenom ?? ''));
+    $clientPhotoBase64 = null;
+
+    if (!empty($client?->photo)) {
+        $photoPath = base_path('images_projet/clients/' . basename($client->photo));
+        if (file_exists($photoPath)) {
+            $mime = mime_content_type($photoPath) ?: 'image/jpeg';
+            $clientPhotoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($photoPath));
+        }
+    }
+@endphp
+
+<style>
+    .pdf-keep {
+        page-break-inside: avoid;
+    }
+
+    .pdf-keep table,
+    .pdf-keep tr,
+    .pdf-keep td,
+    .pdf-keep th {
+        page-break-inside: avoid;
+    }
+</style>
+
 <div class="doc-title">Fiche complete du dossier de credit</div>
 
-<div class="section">
+<div class="section pdf-keep">
     <div class="section-title">Identification dossier</div>
     <table class="info-table">
         <tr>
@@ -30,14 +57,33 @@
     </table>
 </div>
 
-<div class="section">
+<div class="section pdf-keep">
     <div class="section-title">Client beneficiaire</div>
+    <table class="info-table" style="margin-bottom:8px;">
+        <tr>
+            <td class="label">Photo client</td>
+            <td>
+                @if($clientPhotoBase64)
+                    <img src="{{ $clientPhotoBase64 }}" alt="Photo client" style="width:90px;height:110px;object-fit:cover;border:1px solid #999;border-radius:6px;">
+                @else
+                    <span class="text-muted">Aucune photo</span>
+                @endif
+            </td>
+            <td class="label">Demande créée par</td>
+            <td>
+                {{ $demandeurMeta['nom_complet'] ?? ($demande->agent_createur_matricule ?? '-') }}
+                @if(!empty($demandeurMeta['role_nom']) || !empty($demandeurMeta['role_code']))
+                    <br><span class="text-muted">Rôle : {{ $demandeurMeta['role_nom'] ?? $demandeurMeta['role_code'] }}</span>
+                @endif
+            </td>
+        </tr>
+    </table>
     <table class="info-table">
         <tr>
             <td class="label">Matricule</td>
             <td>{{ $demande->client_matricule }}</td>
             <td class="label">Nom complet</td>
-            <td>{{ optional($demande->client)->nom }} {{ optional($demande->client)->prenom }}</td>
+            <td>{{ $clientFullName !== '' ? $clientFullName : '-' }}</td>
         </tr>
         <tr>
             <td class="label">Telephone</td>
@@ -48,7 +94,7 @@
     </table>
 </div>
 
-<div class="section">
+<div class="section pdf-keep">
     <div class="section-title">Parametres financiers</div>
     <table class="info-table">
         <tr>
@@ -72,7 +118,7 @@
     </table>
 </div>
 
-<div class="section">
+<div class="section pdf-keep">
     <div class="section-title">Objet et garanties</div>
     <table class="info-table">
         <tr>
@@ -99,7 +145,8 @@
 </div>
 
 @if($demande->analyse)
-<div class="section">
+<div style="page-break-before: always;"></div>
+<div class="section pdf-keep">
     <div class="section-title">Analyse credit</div>
     <table class="info-table" style="font-size:10px;">
         <tr>
@@ -107,6 +154,12 @@
             <td>{{ $demande->analyse->activite_principale ?? '-' }}</td>
             <td class="label">Recommandation</td>
             <td>{{ $demande->analyse->recommandation ?? '-' }}</td>
+        </tr>
+        <tr>
+            <td class="label">Analysé par</td>
+            <td>{{ optional($demande->analyse->analyseur)->nom_complet ?? ($demande->agent_analyse_matricule ?? '-') }}</td>
+            <td class="label">Date analyse</td>
+            <td>{{ optional($demande->analyse->date_analyse)->format('d/m/Y H:i') ?? '-' }}</td>
         </tr>
         <tr>
             <td class="label">Revenu mensuel net</td>
@@ -128,7 +181,7 @@
 </div>
 @endif
 
-<div class="section">
+<div class="section pdf-keep">
     <div class="section-title">Validation multicouche</div>
     <table class="info-table" style="font-size:10px;">
         <thead>
@@ -154,7 +207,7 @@
     </table>
 </div>
 
-<div class="section">
+<div class="section pdf-keep">
     <div class="section-title">Pieces justificatives</div>
     <table class="info-table" style="font-size:10px;">
         <thead>
@@ -179,7 +232,7 @@
 </div>
 
 @if($demande->deblocages->count())
-<div class="section">
+<div class="section pdf-keep">
     <div class="section-title">Deblocage et execution</div>
     @php $db = $demande->deblocages->first() @endphp
     <table class="info-table">
@@ -206,7 +259,7 @@
 @endif
 
 @if($demande->echeancier)
-<div class="section">
+<div class="section pdf-keep">
     <div class="section-title">Synthese echeancier</div>
     <table class="info-table" style="font-size:10px;">
         <tr>
@@ -224,5 +277,11 @@
     </table>
 </div>
 @endif
+
+<script type="text/php">
+if (isset($pdf)) {
+    $pdf->page_text(510, 816, 'Page {PAGE_NUM}/{PAGE_COUNT}', null, 8, [0.35, 0.35, 0.35]);
+}
+</script>
 
 @endsection

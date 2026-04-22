@@ -5,6 +5,7 @@ namespace App\Models\Credit;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Clients\Client;
 use App\Models\Clients\Compte;
+use App\Models\RH\Agent;
 use App\Models\Tresorerie\Portefeuille;
 use App\Models\Zone;
 
@@ -19,6 +20,7 @@ class CreditDemande extends Model
         'portefeuille_id',
         'code_zone',
         'agent_createur_matricule',
+        'agent_analyse_matricule',
         'montant_demande',
         'devise',
         'duree_mois',
@@ -155,6 +157,11 @@ class CreditDemande extends Model
         return $this->belongsTo(Zone::class, 'code_zone', 'code_zone');
     }
 
+    public function agentAnalyse()
+    {
+        return $this->belongsTo(Agent::class, 'agent_analyse_matricule', 'matricule');
+    }
+
     public function analyse()
     {
         return $this->hasOne(CreditAnalyse::class, 'credit_demande_id');
@@ -217,6 +224,11 @@ class CreditDemande extends Model
     public function getDateDeblocageAttribute()
     {
         return $this->deblocage?->debloque_le;
+    }
+
+    public function getAgentChargeAttribute()
+    {
+        return $this->agentAnalyse;
     }
 
     public function getFraisDossierAttribute(): ?string

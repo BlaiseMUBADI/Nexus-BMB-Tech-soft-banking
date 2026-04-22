@@ -49,11 +49,18 @@
                 <select name="client_matricule" id="sel_client" class="form-control select2" required>
                     <option value="">-- Sélectionner un client --</option>
                     @foreach($clients as $c)
-                    <option value="{{ $c->matricule }}" {{ $selectedClientValue == $c->matricule ? 'selected' : '' }}>
-                        {{ $c->nom }} {{ $c->prenom }} – {{ $c->matricule }}
+                    <option value="{{ $c->matricule }}"
+                            data-nom="{{ trim(($c->nom ?? '') . ' ' . ($c->postnom ?? '') . ' ' . ($c->prenom ?? '')) }}"
+                            data-prenom="{{ $c->prenom ?? '' }}"
+                            data-telephone="{{ $c->telephone ?? '' }}"
+                            data-photo="{{ $c->photo ? basename($c->photo) : '' }}"
+                            data-sexe="{{ $c->sexe ?? '' }}"
+                            {{ $selectedClientValue == $c->matricule ? 'selected' : '' }}>
+                        {{ trim(($c->nom ?? '') . ' ' . ($c->postnom ?? '') . ' ' . ($c->prenom ?? '')) }} – {{ $c->matricule }}
                     </option>
                     @endforeach
                 </select>
+                <input type="hidden" id="selectedClientMatriculeConfirmed" value="{{ $selectedClientValue }}">
             </div>
             <div class="form-group col-md-4">
                 <label>Type de crédit <span class="text-danger">*</span></label>
@@ -156,6 +163,58 @@
 </div>
 </div>
 </section>
+
+<div class="modal fade" id="modalIdentiteClientCredit" tabindex="-1" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content shadow-lg" style="border-radius:14px; overflow:hidden;">
+            <div class="modal-header py-2" style="background:linear-gradient(90deg,#2563eb 0%,#1d4ed8 100%);">
+                <h6 class="modal-title text-white mb-0">
+                    <i class="fas fa-user-check mr-2"></i>Confirmer l'identité du client
+                </h6>
+            </div>
+            <div class="modal-body p-0">
+                <div class="alert alert-warning mb-0 py-2 px-3 small rounded-0">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Vérifiez la photo et les informations avant de continuer la demande de crédit.
+                </div>
+                <div class="p-3 d-flex align-items-center">
+                    <div class="mr-3 flex-shrink-0">
+                        <img id="photoIdentiteClientCredit"
+                             src="{{ asset('vendor/adminlte/dist/img/user2-160x160.jpg') }}"
+                             alt="Photo client"
+                             style="width:110px;height:130px;object-fit:cover;border-radius:10px;border:3px solid #3b82f6;background:#e2e8f0;">
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="mb-1">
+                            <span class="badge badge-primary badge-pill px-2 py-1" id="badgeSexeClientCredit" style="font-size:.78rem;">—</span>
+                        </div>
+                        <h5 class="mb-1 font-weight-bold text-dark" id="nomCompletIdentiteCredit">—</h5>
+                        <div class="text-muted small mb-2" id="prenomIdentiteCredit">—</div>
+                        <table class="table table-sm table-borderless mb-0" style="font-size:.87rem;">
+                            <tr>
+                                <td class="py-0 text-muted pl-0" style="width:110px;"><i class="fas fa-id-badge mr-1 text-primary"></i>Matricule</td>
+                                <td class="py-0 font-weight-bold" id="matriculeIdentiteCredit">—</td>
+                            </tr>
+                            <tr>
+                                <td class="py-0 text-muted pl-0"><i class="fas fa-phone mr-1 text-primary"></i>Téléphone</td>
+                                <td class="py-0" id="telephoneIdentiteCredit">—</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer py-2 justify-content-between" style="border-top:1px solid #e2e8f0;">
+                <button type="button" class="btn btn-danger btn-sm" id="btnNonIdentiteClientCredit">
+                    <i class="fas fa-times mr-1"></i> Non
+                </button>
+                <button type="button" class="btn btn-success btn-sm" id="btnOuiIdentiteClientCredit">
+                    <i class="fas fa-check mr-1"></i> Oui, confirmer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('js')
@@ -212,6 +271,9 @@ function simuler() {
 
 // Pré-charger si valeur sauvegardée
 window.addEventListener('DOMContentLoaded', () => {
+    const urlClientPhoto = '{{ url("/clients/photo") }}';
+    let pendingClient = null;
+
     if (window.jQuery && $.fn.select2) {
         $('#sel_client').select2({
             theme: 'bootstrap4',
@@ -220,6 +282,71 @@ window.addEventListener('DOMContentLoaded', () => {
             allowClear: true,
             language: {
                 noResults: function () { return 'Aucun client trouvé'; }
+            }
+        });
+
+        $('#sel_client').on('select2:select', function() {
+            const opt = $(this).find('option:selected');
+            pendingClient = {
+                matricule: opt.val() || '',
+                nom: $.trim(opt.data('nom') || ''),
+                prenom: $.trim(opt.data('prenom') || ''),
+                telephone: $.trim(opt.data('telephone') || '') || '—',
+                photo: $.trim(opt.data('photo') || ''),
+                sexe: $.trim(opt.data('sexe') || ''),
+            };
+
+            $('#nomCompletIdentiteCredit').text(pendingClient.nom || '—');
+            $('#prenomIdentiteCredit').text(pendingClient.prenom || '—');
+            $('#matriculeIdentiteCredit').text(pendingClient.matricule || '—');
+            $('#telephoneIdentiteCredit').text(pendingClient.telephone);
+
+            const isF = pendingClient.sexe === 'F';
+            $('#badgeSexeClientCredit')
+                .removeClass('badge-primary badge-danger')
+                .addClass(isF ? 'badge-danger' : 'badge-primary')
+                .html(isF ? '<i class="fas fa-female mr-1"></i>Femme' : '<i class="fas fa-male mr-1"></i>Homme');
+
+            if (pendingClient.photo) {
+                $('#photoIdentiteClientCredit').attr('src', urlClientPhoto + '/' + encodeURIComponent(pendingClient.photo));
+            } else {
+                $('#photoIdentiteClientCredit').attr('src', '{{ asset("vendor/adminlte/dist/img/user2-160x160.jpg") }}');
+            }
+
+            $('#modalIdentiteClientCredit').modal('show');
+        });
+
+        $('#sel_client').on('select2:clear', function() {
+            pendingClient = null;
+            $('#selectedClientMatriculeConfirmed').val('');
+        });
+
+        $('#btnOuiIdentiteClientCredit').on('click', function() {
+            if (pendingClient && pendingClient.matricule) {
+                $('#selectedClientMatriculeConfirmed').val(pendingClient.matricule);
+            }
+            $('#modalIdentiteClientCredit').modal('hide');
+        });
+
+        $('#btnNonIdentiteClientCredit').on('click', function() {
+            pendingClient = null;
+            $('#selectedClientMatriculeConfirmed').val('');
+            $('#sel_client').val(null).trigger('change');
+            $('#modalIdentiteClientCredit').modal('hide');
+            if (typeof showSystemMessage === 'function') {
+                showSystemMessage('warning', 'Sélection annulée. Veuillez choisir le bon client.');
+            }
+        });
+
+        $('#formCreation').on('submit', function(e) {
+            const selected = $('#sel_client').val();
+            const confirmed = $('#selectedClientMatriculeConfirmed').val();
+
+            if (selected && selected !== confirmed) {
+                e.preventDefault();
+                if (typeof showSystemMessage === 'function') {
+                    showSystemMessage('error', 'Veuillez confirmer l\'identité du client sélectionné avant de créer la demande.');
+                }
             }
         });
     }

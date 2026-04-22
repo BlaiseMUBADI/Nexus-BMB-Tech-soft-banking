@@ -25,11 +25,11 @@
     <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
             <h5 class="card-title mb-0"><i class="fas fa-folder-open mr-2 text-warning"></i>Dossiers Crédit</h5>
-            @can_permission('EBEN-PER54')
+            @if(in_array('EBEN-PER54', $userPermCodes ?? []))
             <a href="{{ route('credit.create') }}" class="btn btn-success btn-sm">
                 <i class="fas fa-plus-circle mr-1"></i> Nouvelle demande
             </a>
-            @endcan_permission
+            @endif
         </div>
 
         {{-- ── Filtres ──────────────────────────────────────── --}}

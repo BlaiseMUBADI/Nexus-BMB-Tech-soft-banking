@@ -68,6 +68,10 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
             Route::post('/{dossier}/soumettre', [CreditController::class, 'soumettre'])->name('soumettre');
         });
 
+        Route::middleware('permission:EBEN-PER61')->group(function () {
+            Route::post('/{dossier}/affecter-analyse', [CreditController::class, 'affecterAnalyse'])->name('affecter_analyse');
+        });
+
         // ── Analyse ───────────────────────────────────────────────────
         Route::middleware('permission:EBEN-PER58')->group(function () {
             Route::get('/{dossier}/analyse', [CreditController::class, 'analyse'])->name('analyse');

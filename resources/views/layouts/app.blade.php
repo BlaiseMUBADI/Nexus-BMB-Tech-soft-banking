@@ -124,6 +124,44 @@
                 </div>
             </div>
 
+            {{-- Modal expiration de session --}}
+            <div class="modal fade" id="sessionExpiryModal" tabindex="-1" role="dialog"
+                 aria-labelledby="sessionExpiryModalLabel" aria-hidden="true"
+                 data-backdrop="static" data-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+                    <div class="modal-content border-0 shadow-lg">
+                        <div class="modal-header bg-warning text-dark rounded-top"
+                             style="border-bottom:none;">
+                            <div class="d-flex align-items-center">
+                                <span class="mr-2" style="font-size:1.4rem;">
+                                    <i class="fas fa-clock"></i>
+                                </span>
+                                <h5 class="modal-title mb-0 font-weight-bold" id="sessionExpiryModalLabel">
+                                    Session sur le point d&apos;expirer
+                                </h5>
+                            </div>
+                        </div>
+                        <div class="modal-body text-center py-3">
+                            <i class="fas fa-hourglass-half fa-3x text-warning mb-3"></i>
+                            <p class="mb-2" style="font-size:0.97rem; line-height:1.5;">
+                                Vous serez d&eacute;connect&eacute;(e) dans
+                            </p>
+                            <div id="sessionExpiryCountdown"
+                                 style="font-size:2.2rem; font-weight:bold; color:#e67e22;">60</div>
+                            <p class="mt-1 mb-0 text-muted" style="font-size:0.85rem;">
+                                seconde(s) pour inactivit&eacute;
+                            </p>
+                        </div>
+                        <div class="modal-footer justify-content-center" style="border-top:none;">
+                            <button type="button" class="btn btn-success btn-sm px-4"
+                                    id="sessionExpiryStayBtn">
+                                <i class="fas fa-check mr-1"></i> Rester connect&eacute;(e)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {{-- Emplacement pour les modals spécifiques aux pages --}}
             @stack('modals')
 
@@ -210,20 +248,88 @@
         });
 
         /*
-        * Gestion de l'inactivité : déconnexion après 2 minutes d'inactivité (POST)
+        * =============================================================
+        * GESTION DE L'INACTIVITÉ — architecture mixte serveur + client
+        * • Serveur  : middleware CheckInactivity (timeout configurable)
+        * • Client   : avertissement modal 60s avant expiration
+        *              bouton "Rester connecté" → appel heartbeat
+        *              décompte visible, déconnexion propre si aucune action
+        * =============================================================
         */
-        let inactivityTimeout;
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(function() {
+        (function () {
+            var TIMEOUT_MS    = {{ (int) config('session.inactivity_timeout', 600) }} * 1000;
+            var WARNING_MS    = 60 * 1000;   // avertir 60s avant
+            var ACTIVE_DELAY  = 20 * 1000;   // débounce événements activité
+
+            var warnTimer     = null;
+            var logoutTimer   = null;
+            var countdownInt  = null;
+            var lastActivity  = Date.now();
+            var warningActive = false;
+
+            function resetTimers() {
+                if (warningActive) return; // ne pas interrompre l'avertissement
+                lastActivity = Date.now();
+                clearTimeout(warnTimer);
+                clearTimeout(logoutTimer);
+                warnTimer   = setTimeout(showWarning,  TIMEOUT_MS - WARNING_MS);
+                logoutTimer = setTimeout(doLogout,     TIMEOUT_MS);
+            }
+
+            function showWarning() {
+                warningActive = true;
+                var secs = Math.round(WARNING_MS / 1000);
+                $('#sessionExpiryCountdown').text(secs);
+                $('#sessionExpiryModal').modal('show');
+                clearInterval(countdownInt);
+                countdownInt = setInterval(function () {
+                    secs--;
+                    $('#sessionExpiryCountdown').text(Math.max(secs, 0));
+                    if (secs <= 0) {
+                        clearInterval(countdownInt);
+                    }
+                }, 1000);
+            }
+
+            function doLogout() {
+                clearInterval(countdownInt);
+                $('#sessionExpiryModal').modal('hide');
                 document.getElementById('logout-form').submit();
-            }, 10 * 60 * 1000); // 10 minutes
-        }
-        window.onload = resetInactivityTimer;
-        document.onmousemove = resetInactivityTimer;
-        document.onkeypress = resetInactivityTimer;
-        document.onclick = resetInactivityTimer;
-        document.onscroll = resetInactivityTimer;
+            }
+
+            $('#sessionExpiryStayBtn').on('click', function () {
+                clearInterval(countdownInt);
+                $('#sessionExpiryModal').modal('hide');
+                // Appel heartbeat pour raffraîchir la session côté serveur
+                $.ajax({
+                    url  : '{{ route("session.heartbeat") }}',
+                    type : 'POST',
+                    data : { _token: '{{ csrf_token() }}' },
+                    success: function () {
+                        warningActive = false;
+                        resetTimers();
+                    },
+                    error: function () {
+                        // Si le heartbeat échoue, la session est probablement déjà expirée
+                        doLogout();
+                    }
+                });
+            });
+
+            // Surveiller l'activité utilisateur (débounce)
+            var activityDebounce = null;
+            function onActivity() {
+                if (warningActive) return;
+                clearTimeout(activityDebounce);
+                activityDebounce = setTimeout(resetTimers, ACTIVE_DELAY);
+            }
+            ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function (ev) {
+                document.addEventListener(ev, onActivity, { passive: true });
+            });
+
+            // Démarrage
+            resetTimers();
+        })();
 
         /**
          * ================================================================
