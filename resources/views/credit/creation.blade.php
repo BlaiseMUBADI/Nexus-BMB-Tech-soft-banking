@@ -128,6 +128,25 @@
             <textarea name="garantie_description" class="form-control" rows="2">{{ old('garantie_description') }}</textarea>
         </div>
 
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label>Service référent <small class="text-muted">(si le client a été envoyé par un service)</small></label>
+                    <input type="text" name="service_provenance" class="form-control"
+                           maxlength="100" placeholder="Ex: Service RH, Département Commercial…"
+                           value="{{ old('service_provenance') }}">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label>Nom du référent</label>
+                    <input type="text" name="referent_nom" class="form-control"
+                           maxlength="120" placeholder="Nom complet de la personne référente"
+                           value="{{ old('referent_nom') }}">
+                </div>
+            </div>
+        </div>
+
         <div class="mt-3 d-flex gap-2">
             <button type="submit" class="btn btn-success">
                 <i class="fas fa-save mr-1"></i> Créer le dossier en brouillon

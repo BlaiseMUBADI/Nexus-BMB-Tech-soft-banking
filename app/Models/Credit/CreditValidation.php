@@ -20,6 +20,9 @@ class CreditValidation extends Model
         'ordre_etape',
         'etape_precedente_ok',
         'valide_le',
+        'signature_agent',
+        'nom_signataire',
+        'ip_validation',
     ];
 
     protected $casts = [

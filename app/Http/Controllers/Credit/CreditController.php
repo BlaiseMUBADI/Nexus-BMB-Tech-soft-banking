@@ -199,6 +199,8 @@ class CreditController extends Controller
             'type_credit'          => 'required|in:INDIVIDUEL,SOLIDAIRE,PME',
             'objet_credit'         => 'required|string|max:500',
             'garantie_description' => 'nullable|string',
+            'service_provenance'   => 'nullable|string|max:100',
+            'referent_nom'         => 'nullable|string|max:120',
         ]);
 
         $user  = Auth::user();
@@ -226,6 +228,8 @@ class CreditController extends Controller
                 'type_credit'             => $validated['type_credit'],
                 'objet_credit'            => $validated['objet_credit'],
                 'garantie_description'    => $validated['garantie_description'],
+                'service_provenance'      => $validated['service_provenance'] ?? null,
+                'referent_nom'            => $validated['referent_nom'] ?? null,
                 'montant_total_echeances' => $calcul['total_general'],
                 'total_interets'          => $calcul['total_interets'],
                 'statut_global'           => 'BROUILLON',
@@ -291,7 +295,8 @@ class CreditController extends Controller
         }
 
         $assignableAgents = collect();
-        if ($authUser?->hasPermission('EBEN-PER61') && $dossier->statut_global === 'SOUMIS') {
+        $peutAffecter = ($authUser?->hasPermission('EBEN-PER61') || $authUser?->hasPermission('EBEN-PER62'));
+        if ($peutAffecter && $dossier->statut_global === 'SOUMIS') {
             $assignableAgents = $this->resolveAssignableCreditAgents();
         }
 
@@ -304,6 +309,11 @@ class CreditController extends Controller
     public function affecterAnalyse(Request $request, CreditDemande $dossier)
     {
         $this->authorizeZoneAccess($dossier);
+
+        $authUser = Auth::user();
+        if (!$authUser?->hasPermission('EBEN-PER61') && !$authUser?->hasPermission('EBEN-PER62')) {
+            abort(403, 'Vous n\'avez pas la permission d\'affecter un agent de crédit.');
+        }
 
         if ($dossier->statut_global !== 'SOUMIS') {
             return back()->with('error', 'L\'affectation est autorisée uniquement pour un dossier soumis.');
@@ -488,9 +498,16 @@ class CreditController extends Controller
         $validated = $request->validate([
             'type_validateur' => 'required|in:AGENT_CREDIT,CHARGE_OPERATIONS,CONTROLEUR,GERANT',
             'decision'        => 'required|in:APPROUVE,APPROUVE_AVEC_RESERVE,REJETE',
-            'montant_valide'  => 'nullable|numeric|min:0',
-            'observations'    => 'nullable|string',
+            'montant_valide'  => 'required_if:decision,APPROUVE,APPROUVE_AVEC_RESERVE|nullable|numeric|min:0.01',
+            'observations'    => 'required|string|min:8',
             'conditions'      => 'nullable|string',
+            'signature_confirm' => 'required|accepted',
+        ], [
+            'montant_valide.required_if' => 'Le montant validé est obligatoire pour une décision approuvée.',
+            'observations.required'      => 'Le commentaire du validateur est obligatoire.',
+            'observations.min'           => 'Le commentaire doit contenir au moins 8 caractères.',
+            'signature_confirm.required' => 'Vous devez confirmer la signature avec votre compte agent.',
+            'signature_confirm.accepted' => 'La confirmation de signature est invalide.',
         ]);
 
         /** @var \App\Models\User|null $user */
@@ -512,7 +529,7 @@ class CreditController extends Controller
             abort(403, "Vous n'êtes pas autorisé à valider en tant que {$validated['type_validateur']}.");
         }
 
-        DB::transaction(function () use ($validated, $dossier, $agent) {
+        DB::transaction(function () use ($validated, $dossier, $agent, $user) {
             $validation = $dossier->validations()
                 ->where('type_validateur', $validated['type_validateur'])
                 ->firstOrFail();
@@ -526,13 +543,26 @@ class CreditController extends Controller
 
             $ancien = $dossier->statut_global;
 
+            $signatureCompte = $agent?->matricule ?: ('USR-' . $user->id);
+            $signatureNom = trim(
+                ($agent?->nom ?? '') . ' ' .
+                ($agent?->postnom ?? '') . ' ' .
+                ($agent?->prenom ?? '')
+            ) ?: $user->name ?? null;
+            $montantValide = $validated['decision'] === 'REJETE'
+                ? null
+                : (float) $validated['montant_valide'];
+
             $validation->update([
                 'validateur_matricule' => $agent?->matricule ?? 'SYSTEM',
                 'decision'             => $validated['decision'],
-                'montant_valide'       => $validated['montant_valide'],
+                'montant_valide'       => $montantValide,
                 'observations'         => $validated['observations'],
                 'conditions'           => $validated['conditions'],
                 'valide_le'            => now(),
+                'signature_agent'      => $signatureCompte,
+                'nom_signataire'       => $signatureNom ?? null,
+                'ip_validation'        => request()->ip(),
             ]);
 
             if ($validated['decision'] === 'REJETE') {
@@ -540,7 +570,13 @@ class CreditController extends Controller
                     'motif_annulation' => 'Rejeté lors de la validation par '.$validated['type_validateur'],
                     'annule_par_matricule' => $agent?->matricule,
                     'annule_le' => now()]);
-                $this->logAudit($dossier, 'REJET', $ancien, 'ANNULE');
+                $this->logAudit(
+                    $dossier,
+                    'REJET',
+                    $ancien,
+                    'ANNULE',
+                    "Validation rejetée par {$validated['type_validateur']} | Signataire: {$signatureCompte}"
+                );
                 return;
             }
 
@@ -551,14 +587,20 @@ class CreditController extends Controller
             if ($prochaineValidation) {
                 $prochaineValidation->update(['etape_precedente_ok' => true]);
                 $this->logAudit($dossier, 'VALIDATION_PARTIELLE', $ancien, 'EN_VALIDATION',
-                    "Bloc {$validated['type_validateur']} validé.");
+                    "Bloc {$validated['type_validateur']} validé | Signataire: {$signatureCompte} | Montant: {$montantValide}");
             } else {
                 // Tous les blocs sont validés
-                if ($validated['montant_valide']) {
-                    $dossier->update(['montant_approuve' => $validated['montant_valide']]);
-                }
+                $dossier->update([
+                    'montant_approuve' => $montantValide ?? $dossier->montant_approuve ?? $dossier->montant_demande,
+                ]);
                 $dossier->update(['statut_global' => 'PRET_A_DEBLOQUER']);
-                $this->logAudit($dossier, 'VALIDATION_COMPLETE', $ancien, 'PRET_A_DEBLOQUER');
+                $this->logAudit(
+                    $dossier,
+                    'VALIDATION_COMPLETE',
+                    $ancien,
+                    'PRET_A_DEBLOQUER',
+                    "Validation finale signée par {$signatureCompte}"
+                );
             }
         });
 

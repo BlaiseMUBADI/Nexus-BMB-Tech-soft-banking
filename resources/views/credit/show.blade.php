@@ -40,7 +40,7 @@
             @endif
 
             @if($demande->statut === 'SOUMIS')
-                @if(in_array('EBEN-PER61', $userPermCodes ?? []))
+                @if(in_array('EBEN-PER61', $userPermCodes ?? []) || in_array('EBEN-PER62', $userPermCodes ?? []))
                 <button class="btn btn-sm btn-warning" data-toggle="modal" data-target="#modalAffecterAnalyse">
                     <i class="fas fa-user-check mr-1"></i>Affecter agent crédit
                 </button>
@@ -187,6 +187,14 @@
                             <span class="text-muted">Non affecté</span>
                         @endif
                     </td></tr>
+                    @if($demande->service_provenance)
+                    <tr><th>Service référent</th><td>
+                        <span class="badge badge-info"><i class="fas fa-building mr-1"></i>{{ $demande->service_provenance }}</span>
+                        @if($demande->referent_nom)
+                            <br><small class="text-muted">Référent : {{ $demande->referent_nom }}</small>
+                        @endif
+                    </td></tr>
+                    @endif
                 </table>
             </div>
             <div class="col-md-6">
@@ -499,7 +507,7 @@
 </div>
 @endif
 
-@if($demande->statut === 'SOUMIS' && in_array('EBEN-PER61', $userPermCodes ?? []))
+@if($demande->statut === 'SOUMIS' && (in_array('EBEN-PER61', $userPermCodes ?? []) || in_array('EBEN-PER62', $userPermCodes ?? [])))
 <div class="modal fade" id="modalAffecterAnalyse" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <form method="POST" action="{{ route('credit.affecter_analyse', $demande) }}">@csrf

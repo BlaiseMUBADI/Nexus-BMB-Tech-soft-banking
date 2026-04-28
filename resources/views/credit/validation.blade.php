@@ -47,6 +47,10 @@
 
 {{-- ── 4 blocs de validation --}}
 @php
+    $connectedUser = auth()->user();
+    $connectedAgent = $connectedUser?->agent;
+    $signatureCompte = $connectedAgent?->matricule ?: ('USR-' . ($connectedUser->id ?? 'INCONNU'));
+    $signatureNom = trim(($connectedAgent?->nom ?? '') . ' ' . ($connectedAgent?->postnom ?? '') . ' ' . ($connectedAgent?->prenom ?? ''));
     $types = [
         'AGENT_CREDIT'       => ['label'=>'Agent crédit',       'perm'=>'EBEN-PER60', 'color'=>'primary'],
         'CHARGE_OPERATIONS'  => ['label'=>'Chargé opérations',  'perm'=>'EBEN-PER61', 'color'=>'info'],
@@ -87,6 +91,7 @@
                 <table class="table table-xs table-borderless small mb-2">
                     <tr><th>Par</th><td>{{ optional($v->validateur)->nom_complet ?? '–' }}</td></tr>
                     <tr><th>Le</th><td>{{ optional($v->date_validation)->format('d/m/Y H:i') }}</td></tr>
+                    <tr><th>Signature</th><td><code>{{ $v->validateur_matricule ?? '—' }}</code></td></tr>
                     @if($v->montant_propose)
                     <tr><th>Montant</th><td>{{ number_format($v->montant_propose,2,',',' ') }}</td></tr>
                     @endif
@@ -129,21 +134,34 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="small">Montant proposé</label>
+                    <label class="small">Montant validé <span class="text-danger">*</span></label>
                     <input type="number" name="montant_valide" class="form-control form-control-sm"
                            step="0.01" min="0"
                            value="{{ old('montant_valide') }}"
                            placeholder="{{ number_format($demande->montant_demande,0,',',' ') }}">
+                    <small class="text-muted">Obligatoire pour <strong>Approuvé</strong> ou <strong>Approuvé avec réserve</strong>.</small>
                 </div>
 
                 <div class="form-group">
-                    <label class="small">Commentaire</label>
-                    <textarea name="observations" class="form-control form-control-sm" rows="2"></textarea>
+                    <label class="small">Commentaire du validateur <span class="text-danger">*</span></label>
+                    <textarea name="observations" class="form-control form-control-sm" rows="2" required>{{ old('observations') }}</textarea>
                 </div>
 
                 <div class="form-group">
                     <label class="small">Conditions particulières</label>
-                    <textarea name="conditions" class="form-control form-control-sm" rows="2"></textarea>
+                    <textarea name="conditions" class="form-control form-control-sm" rows="2">{{ old('conditions') }}</textarea>
+                </div>
+
+                <div class="border rounded p-2 mb-2 bg-light">
+                    <div class="small font-weight-bold mb-1">Signature électronique (compte agent)</div>
+                    <div class="small">Compte : <code>{{ $signatureCompte }}</code></div>
+                    <div class="small text-muted">Agent : {{ $signatureNom !== '' ? $signatureNom : 'Non renseigné' }}</div>
+                    <div class="custom-control custom-checkbox mt-2">
+                        <input class="custom-control-input" type="checkbox" id="signature_confirm_{{ $type }}" name="signature_confirm" value="1" required>
+                        <label for="signature_confirm_{{ $type }}" class="custom-control-label small">
+                            Je confirme signer cette validation avec mon compte agent
+                        </label>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn btn-sm btn-{{ $cfg['color'] }} btn-block">

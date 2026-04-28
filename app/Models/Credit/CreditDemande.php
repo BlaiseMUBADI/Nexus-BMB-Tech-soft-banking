@@ -45,6 +45,8 @@ class CreditDemande extends Model
         'signale_par_matricule',
         'signale_le',
         'soumis_le',
+        'service_provenance',
+        'referent_nom',
     ];
 
     protected $casts = [
