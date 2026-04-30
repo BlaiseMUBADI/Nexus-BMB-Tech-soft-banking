@@ -312,6 +312,12 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 
 				@php $hasCreditAccess = in_array('EBEN-PER53', $userPermCodes ?? []); @endphp
 				@if($hasCreditAccess)
+					@php
+						$creditStatutMenu = request('statut');
+						$creditVueMenu = request('vue');
+						$isCreditListBase = request()->routeIs('credit.index') && empty($creditStatutMenu);
+						$canCreditSupervision = count(array_intersect(['EBEN-PER61', 'EBEN-PER62', 'EBEN-PER63', 'EBEN-PER64', 'EBEN-PER65'], $userPermCodes ?? [])) > 0;
+					@endphp
 					<li class="nav-item {{ request()->is('credits*') ? 'menu-open' : '' }}">
 						<a href="#" class="nav-link parent-link {{ request()->is('credits*') ? 'active' : '' }}">
 							<i class="nav-icon fas fa-hand-holding-usd" style="color:#e67e22;"></i>
@@ -322,7 +328,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						</a>
 						<ul class="nav nav-treeview custom-sub-menu">
 
-							@if(in_array('EBEN-PER70', $userPermCodes ?? []))
+							@if($canCreditSupervision)
 								<li class="nav-item">
 									<a href="{{ route('credit.dashboard') }}"
 										class="nav-link sub-link {{ request()->routeIs('credit.dashboard') ? 'active' : '' }}">
@@ -334,7 +340,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 
 							<li class="nav-item">
 								<a href="{{ route('credit.index') }}"
-									class="nav-link sub-link {{ request()->routeIs('credit.index') ? 'active' : '' }}">
+									class="nav-link sub-link {{ $isCreditListBase ? 'active' : '' }}">
 									<i class="fas fa-list nav-icon"></i>
 									<p>Liste des dossiers</p>
 								</a>
@@ -352,8 +358,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 
 							@if(in_array('EBEN-PER58', $userPermCodes ?? []))
 								<li class="nav-item">
-									<a href="{{ route('credit.index') }}?statut=SOUMIS"
-										class="nav-link sub-link {{ request()->routeIs('credit.analyse') ? 'active' : '' }}">
+									<a href="{{ route('credit.index') }}?vue=analyse"
+										class="nav-link sub-link {{ request()->routeIs('credit.analyse') || (request()->routeIs('credit.index') && $creditVueMenu === 'analyse') ? 'active' : '' }}">
 										<i class="fas fa-search-dollar nav-icon text-primary"></i>
 										<p>Dossiers à analyser</p>
 									</a>
@@ -363,7 +369,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							@if(in_array('EBEN-PER60', $userPermCodes ?? []) || in_array('EBEN-PER61', $userPermCodes ?? []) || in_array('EBEN-PER62', $userPermCodes ?? []) || in_array('EBEN-PER63', $userPermCodes ?? []))
 								<li class="nav-item">
 									<a href="{{ route('credit.index') }}?statut=EN_VALIDATION"
-										class="nav-link sub-link {{ request()->routeIs('credit.validation') ? 'active' : '' }}">
+										class="nav-link sub-link {{ request()->routeIs('credit.validation') || (request()->routeIs('credit.index') && $creditStatutMenu === 'EN_VALIDATION') ? 'active' : '' }}">
 										<i class="fas fa-check-double nav-icon text-info"></i>
 										<p>Dossiers à valider</p>
 									</a>
@@ -373,7 +379,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							@if(in_array('EBEN-PER64', $userPermCodes ?? []))
 								<li class="nav-item">
 									<a href="{{ route('credit.index') }}?statut=PRET_A_DEBLOQUER"
-										class="nav-link sub-link {{ request()->routeIs('credit.deblocage') ? 'active' : '' }}">
+										class="nav-link sub-link {{ request()->routeIs('credit.deblocage') || (request()->routeIs('credit.index') && $creditStatutMenu === 'PRET_A_DEBLOQUER') ? 'active' : '' }}">
 										<i class="fas fa-unlock-alt nav-icon text-success"></i>
 										<p>Déblocage en attente</p>
 									</a>
@@ -383,14 +389,14 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							@if(in_array('EBEN-PER65', $userPermCodes ?? []))
 								<li class="nav-item">
 									<a href="{{ route('credit.index') }}?statut=EN_REMBOURSEMENT"
-										class="nav-link sub-link">
+										class="nav-link sub-link {{ request()->routeIs('credit.remboursement') || (request()->routeIs('credit.index') && $creditStatutMenu === 'EN_REMBOURSEMENT') ? 'active' : '' }}">
 										<i class="fas fa-money-bill-wave nav-icon text-primary"></i>
 										<p>Remboursements</p>
 									</a>
 								</li>
 							@endif
 
-							@if(in_array('EBEN-PER70', $userPermCodes ?? []))
+							@if($canCreditSupervision)
 								<li class="nav-item">
 									<a href="{{ route('credit.supervision') }}"
 										class="nav-link sub-link {{ request()->routeIs('credit.supervision') ? 'active' : '' }}">

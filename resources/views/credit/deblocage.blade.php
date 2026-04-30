@@ -56,21 +56,60 @@
                             {{ $demande->devise }}
                         </strong></td></tr>
                     <tr><th>Durée</th><td>{{ $demande->duree_mois }} mois</td></tr>
-                    <tr><th>Taux mensuel</th><td>{{ $demande->taux_interet_mensuel }} %</td></tr>
+                    <tr><th>Taux mensuel</th><td>{{ number_format((float) $demande->taux_interet_mensuel, 1, '.', '') }} %</td></tr>
                 </table>
             </div>
         </div>
 
         {{-- Validations synthèse --}}
+        @php
+            $vLabels = [
+                'AGENT_CREDIT'      => 'Agent crédit',
+                'CONTROLEUR'        => 'Contrôleur',
+                'CHARGE_OPERATIONS' => 'Chargé opérations',
+                'GERANT'            => 'Gérant',
+            ];
+            $vColors = ['APPROUVE'=>'success','APPROUVE_AVEC_RESERVE'=>'warning','REJETE'=>'danger','EN_ATTENTE'=>'secondary'];
+            $vMap = $demande->validations->keyBy('type_validateur');
+        @endphp
         <div class="border-top pt-2 mt-1">
-            <small class="text-muted font-weight-bold">Validations :</small>
-            <div class="d-flex flex-wrap gap-2 mt-1">
-                @foreach($demande->validations as $val)
-                @php $bdc=['APPROUVE'=>'success','APPROUVE_AVEC_RESERVE'=>'warning','REJETE'=>'danger','EN_ATTENTE'=>'secondary'] @endphp
-                <span class="badge badge-{{ $bdc[$val->decision] ?? 'secondary' }}">
-                    {{ str_replace('_',' ', $val->type_validateur) }}:
-                    {{ str_replace('_',' ', $val->decision) }}
-                </span>
+            <small class="text-muted font-weight-bold d-block mb-2">Validations :</small>
+            <div class="row">
+                @foreach($vLabels as $typeKey => $typeLabel)
+                @php $val = $vMap[$typeKey] ?? null @endphp
+                <div class="col-6 col-md-3 mb-2">
+                    <div class="card card-outline card-{{ $val ? ($vColors[$val->decision] ?? 'secondary') : 'secondary' }} mb-0 h-100">
+                        <div class="card-header py-1 px-2 bg-{{ $val ? ($vColors[$val->decision] ?? 'secondary') : 'secondary' }} text-white">
+                            <small class="font-weight-bold">{{ $typeLabel }}</small>
+                        </div>
+                        <div class="card-body py-1 px-2 small">
+                            @if($val && $val->decision !== 'EN_ATTENTE')
+                                <span class="badge badge-{{ $vColors[$val->decision] ?? 'secondary' }} mb-1">
+                                    {{ str_replace('_',' ', $val->decision) }}
+                                </span><br>
+                                <strong>Par :</strong>
+                                {{ optional($val->validateur)->nom_complet ?? $val->nom_signataire ?? $val->signature_agent ?? $val->validateur_matricule ?? '–' }}<br>
+                                <strong>Le :</strong>
+                                {{ optional($val->date_validation)->format('d/m/Y H:i') ?? '–' }}<br>
+                                @if($val->signature_agent ?? $val->validateur_matricule)
+                                <strong>Signature :</strong>
+                                <code>{{ $val->signature_agent ?? $val->validateur_matricule }}</code><br>
+                                @endif
+                                @if($val->montant_propose)
+                                <strong>Montant :</strong>
+                                {{ number_format($val->montant_propose, 2, ',', ' ') }} {{ $demande->devise }}<br>
+                                @endif
+                                @if($val->commentaire)
+                                <span class="text-muted"><em>{{ $val->commentaire }}</em></span>
+                                @endif
+                            @else
+                                <span class="badge badge-secondary">
+                                    {{ $val ? 'En attente' : 'Non commencé' }}
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
                 @endforeach
             </div>
         </div>
@@ -93,7 +132,12 @@
                 }
             }
 
-            $comptesDebitList = is_iterable($comptesDebit ?? null) ? $comptesDebit : [];
+            $deviseDemande = strtoupper((string) ($demande->devise ?? ''));
+            $comptesDebitList = collect(is_iterable($comptesDebit ?? null) ? $comptesDebit : []);
+            $comptesDebitEligibles = $comptesDebitList->filter(function ($c) use ($deviseDemande) {
+                return is_object($c)
+                    && strtoupper((string) ($c->devise_code ?? '')) === $deviseDemande;
+            });
         @endphp
         @if(count($formErrors))
             <div class="alert alert-danger">
@@ -103,63 +147,150 @@
 
         <form method="POST" action="{{ route('credit.deblocage.store', $demande) }}" id="formDeblocage">
         @csrf
+        {{-- Montants calculés côté serveur — non modifiables par l'utilisateur --}}
+        <input type="hidden" name="montant_debloque" value="{{ $montantTotal }}">
+        <input type="hidden" name="frais_dossier" value="{{ $fraisTotal }}">
+
+        {{-- Tableau récapitulatif automatique --}}
+        <div class="card card-outline card-primary mb-3 deblocage-breakdown-card">
+            <div class="card-header py-2">
+                <h6 class="mb-0"><i class="fas fa-calculator mr-1"></i>Répartition automatique du montant approuvé</h6>
+            </div>
+            <div class="card-body p-0 table-responsive">
+                <table class="table table-sm table-bordered mb-0 deblocage-breakdown-table">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Poste</th>
+                            <th class="text-right">%</th>
+                            <th class="text-right">Montant ({{ $demande->devise }})</th>
+                            <th>Destination</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="row-total">
+                            <td><strong>Montant approuvé (gérant)</strong></td>
+                            <td class="text-right">100%</td>
+                            <td class="text-right"><strong>{{ number_format($montantTotal, 2, ',', ' ') }}</strong></td>
+                            <td><span class="badge badge-light border text-dark">Coffre central → réparti</span></td>
+                        </tr>
+                        <tr class="row-net">
+                            <td><i class="fas fa-university mr-1"></i>Net versé client</td>
+                            <td class="text-right">80%</td>
+                            <td class="text-right amount-net"><strong>{{ number_format($netVerse, 2, ',', ' ') }}</strong></td>
+                            <td><span class="badge badge-light border text-success">Compte RMB client (disponible)</span></td>
+                        </tr>
+                        <tr class="row-caution">
+                            <td><i class="fas fa-lock mr-1"></i>Caution bloquée</td>
+                            <td class="text-right">20%</td>
+                            <td class="text-right amount-caution"><strong>{{ number_format($caution, 2, ',', ' ') }}</strong></td>
+                            <td><span class="badge badge-light border text-warning">Compte GTC client (bloqué)</span></td>
+                        </tr>
+                        <tr class="row-fees">
+                            <td><i class="fas fa-file-invoice-dollar mr-1"></i>Frais de dossier (1%)</td>
+                            <td class="text-right">1%</td>
+                            <td class="text-right amount-fees">{{ number_format($fraisDossier, 2, ',', ' ') }}</td>
+                            <td><span class="badge badge-light border text-danger">Prélevés sur RMB client</span></td>
+                        </tr>
+                        <tr class="row-fees">
+                            <td><i class="fas fa-search-dollar mr-1"></i>Frais d'étude (3%)</td>
+                            <td class="text-right">3%</td>
+                            <td class="text-right amount-fees">{{ number_format($fraisEtude, 2, ',', ' ') }}</td>
+                            <td><span class="badge badge-light border text-danger">Prélevés sur RMB client</span></td>
+                        </tr>
+                    </tbody>
+                    <tfoot class="thead-light">
+                        <tr>
+                            <td colspan="2"><small class="text-muted">À la fin de la dette → caution libérée vers RMB client</small></td>
+                            <td class="text-right"><strong>{{ number_format($montantTotal, 2, ',', ' ') }}</strong></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <div class="alert {{ ($rmbPreconditionOk ?? false) ? 'alert-success' : 'alert-danger' }} py-2 small mb-3">
+            <div><strong>Vérification préalable RMB (24%)</strong></div>
+            <div>
+                Compte RMB ({{ $demande->devise }}) :
+                <strong>{{ ($rmbCompteExiste ?? false) ? 'Oui' : 'Non' }}</strong>
+                @if($rmbCompteExiste ?? false)
+                    | Solde actuel : <strong>{{ number_format((float) ($rmbSoldeActuel ?? 0), 2, ',', ' ') }} {{ $demande->devise }}</strong>
+                @endif
+                | Dépôt minimum requis avant déblocage :
+                <strong>{{ number_format($provisionRmbMin, 2, ',', ' ') }} {{ $demande->devise }}</strong>
+            </div>
+            @if($rmbPreconditionOk ?? false)
+                <div class="mt-1"><i class="fas fa-check-circle mr-1"></i>Condition respectée: le dépôt minimum est déjà disponible.</div>
+            @else
+                <div class="mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>
+                    Condition non respectée:
+                    @if(!($rmbCompteExiste ?? false))
+                        créez d'abord le compte RMB du client, puis effectuez le dépôt initial.
+                    @else
+                        il manque <strong>{{ number_format((float) ($rmbMontantManquant ?? 0), 2, ',', ' ') }} {{ $demande->devise }}</strong> à déposer.
+                    @endif
+                </div>
+            @endif
+        </div>
 
         <div class="form-row">
-            <div class="form-group col-md-6">
-                <label>Montant à débloquer <span class="text-danger">*</span></label>
-                <div class="input-group">
-                    <input type="number" name="montant_debloque" class="form-control"
-                           step="0.01" min="1" required
-                           value="{{ old('montant_debloque', $demande->montant_accorde ?? $demande->montant_demande) }}">
-                    <div class="input-group-append"><span class="input-group-text">{{ $demande->devise }}</span></div>
-                </div>
-            </div>
             <div class="form-group col-md-6">
                 <label>Date de déblocage <span class="text-danger">*</span></label>
                 <input type="date" name="date_deblocage" class="form-control" required
                        value="{{ old('date_deblocage', date('Y-m-d')) }}">
+                <small class="text-muted">Précondition: RMB client doit contenir au moins {{ number_format($provisionRmbMin, 2, ',', ' ') }} {{ $demande->devise }} (20% caution + 4% frais).</small>
             </div>
-        </div>
-
-        <div class="form-group">
-            <label>Date du 1er remboursement <span class="text-danger">*</span></label>
-            <input type="date" name="date_premier_remboursement" class="form-control" required
-                   value="{{ old('date_premier_remboursement') }}"
-                   min="{{ date('Y-m-d', strtotime('+1 month')) }}">
-            <small class="text-muted">Le mois suivant la mise en place est recommandé.</small>
-        </div>
-
-        <div class="alert alert-info py-2 small">
-            <i class="fas fa-info-circle mr-1"></i>
-            Le compte RMB du client sera recherché automatiquement dans la devise du dossier, puis créé si aucun compte adapté n'existe encore.
+            <div class="form-group col-md-6">
+                <label>Date du 1er remboursement <span class="text-danger">*</span></label>
+                <input type="date" name="date_premier_remboursement" class="form-control" required
+                       value="{{ old('date_premier_remboursement') }}"
+                       min="{{ date('Y-m-d', strtotime('+1 month')) }}">
+                <small class="text-muted">Le mois suivant la mise en place est recommandé.</small>
+            </div>
         </div>
 
         <div class="form-row">
             <div class="form-group col-md-6">
-                <label>Compte à débiter (ressources) <span class="text-danger">*</span></label>
-                <select name="compte_debit_id" class="form-control" required>
-                    <option value="">-- Sélectionner --</option>
+                <label>Source des fonds — Coffre central <span class="text-danger">*</span></label>
+                @if($comptesDebitList->count() === 0)
+                <div class="alert alert-danger py-2 small mb-1">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Aucun solde suffisant dans le coffre central pour couvrir
+                    <strong>{{ number_format($montantTotal, 2, ',', ' ') }} {{ $demande->devise }}</strong>.
+                </div>
+                <select name="coffre_solde_id" class="form-control" required disabled>
+                    <option value="">-- Coffre insuffisant --</option>
+                </select>
+                @else
+                @if($comptesDebitEligibles->count() === 0)
+                <div class="alert alert-warning py-2 small mb-1">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Dossier en <strong>{{ $deviseDemande }}</strong> : seuls les coffres en <strong>{{ $deviseDemande }}</strong> sont sélectionnables.
+                    Les autres devises sont affichées en gris pour information.
+                </div>
+                @endif
+                <select name="coffre_solde_id" class="form-control" required>
+                    <option value="">-- Sélectionner un coffre en {{ $deviseDemande }} --</option>
                     @foreach($comptesDebitList as $c)
                     @if(is_object($c))
-                    <option value="{{ $c->code_compte }}" {{ old('compte_debit_id') == $c->code_compte ? 'selected' : '' }}>
-                        {{ $c->code_compte }} – {{ $c->type }}
-                        (Solde: {{ number_format($c->solde_reel, 0, ',', ' ') }} {{ $c->devise }})
+                    @php
+                        $deviseCoffre = strtoupper((string) ($c->devise_code ?? ''));
+                        $isDeviseEligible = $deviseCoffre === $deviseDemande;
+                    @endphp
+                    <option value="{{ $c->id }}"
+                            {{ old('coffre_solde_id') == $c->id && $isDeviseEligible ? 'selected' : '' }}
+                            {{ $isDeviseEligible ? '' : 'disabled' }}>
+                        {{ $c->guichet->intitule ?? 'Coffre' }} —
+                        {{ $c->devise_code }}
+                        (Solde : {{ number_format((float)$c->solde_en_caisse, 2, ',', ' ') }} {{ $c->devise_code }})
+                        {{ $isDeviseEligible ? '' : ' — non sélectionnable (devise différente du dossier)' }}
                     </option>
                     @endif
                     @endforeach
                 </select>
-            </div>
-        </div>
-
-        <div class="form-row">
-            <div class="form-group col-md-6">
-                <label>Frais de dossier</label>
-                <div class="input-group">
-                    <input type="number" name="frais_dossier" class="form-control"
-                           step="0.01" min="0"
-                           value="{{ old('frais_dossier', $demande->frais_dossier ?? 0) }}">
-                    <div class="input-group-append"><span class="input-group-text">{{ $demande->devise }}</span></div>
-                </div>
+                <small class="text-muted">Le coffre sera débité de <strong>{{ number_format($montantTotal, 2, ',', ' ') }} {{ $demande->devise }}</strong>. Seule la devise du dossier est autorisée.</small>
+                @endif
             </div>
             <div class="form-group col-md-6">
                 <label>Référence comptable</label>
@@ -177,15 +308,26 @@
 
         <div class="callout callout-warning">
             <h6><i class="fas fa-exclamation-triangle mr-1"></i>Confirmation</h6>
-            <p class="mb-1 small">En validant, vous confirmez débloquer les fonds et générer l'échéancier de remboursement. Cette opération est irréversible.</p>
+            <p class="mb-1 small">
+                En validant, le coffre sera débité de <strong>{{ number_format($montantTotal, 2, ',', ' ') }} {{ $demande->devise }}</strong> :
+                <strong>{{ number_format($netVerse, 2, ',', ' ') }}</strong> vers le compte RMB client (disponible),
+                <strong>{{ number_format($caution, 2, ',', ' ') }}</strong> vers le compte caution GTC (bloqué),
+                et <strong>{{ number_format($fraisTotal, 2, ',', ' ') }}</strong> seront retirés du RMB client avec un bordereau distinct (historique transaction).
+                Cette opération est irréversible.
+            </p>
             <div class="custom-control custom-checkbox mt-2">
-                <input type="checkbox" class="custom-control-input" id="chkConfirm" required>
+                <input type="checkbox" class="custom-control-input" id="chkConfirm" required {{ ($rmbPreconditionOk ?? false) ? '' : 'disabled' }}>
                 <label class="custom-control-label" for="chkConfirm">Je confirme cette opération de déblocage</label>
             </div>
+            @if(!($rmbPreconditionOk ?? false))
+                <small class="text-danger d-block mt-2">
+                    Validation bloquée tant que le compte RMB n'existe pas avec le dépôt minimum requis ({{ number_format($provisionRmbMin, 2, ',', ' ') }} {{ $demande->devise }}).
+                </small>
+            @endif
         </div>
 
         <div class="d-flex gap-2 mt-3">
-            <button type="submit" class="btn btn-success" id="btnValider" disabled>
+            <button type="submit" class="btn btn-success" id="btnValider" disabled {{ ($rmbPreconditionOk ?? false) ? '' : 'title=\"Précondition RMB non remplie\"' }}>
                 <i class="fas fa-unlock mr-1"></i>Valider le déblocage
             </button>
             <a href="{{ route('credit.show', $demande) }}" class="btn btn-secondary ml-2">
@@ -203,10 +345,64 @@
 </section>
 @endsection
 
-@section('scripts')
+@push('js')
+<style>
+    .deblocage-breakdown-table th,
+    .deblocage-breakdown-table td {
+        vertical-align: middle;
+    }
+
+    .deblocage-breakdown-table .row-total {
+        background-color: rgba(13, 110, 253, 0.12);
+    }
+
+    .deblocage-breakdown-table .row-net {
+        background-color: rgba(25, 135, 84, 0.14);
+    }
+
+    .deblocage-breakdown-table .row-caution {
+        background-color: rgba(255, 193, 7, 0.12);
+    }
+
+    .deblocage-breakdown-table .row-fees {
+        background-color: rgba(220, 53, 69, 0.12);
+    }
+
+    .deblocage-breakdown-table .amount-net {
+        color: #28a745;
+        font-weight: 700;
+    }
+
+    .deblocage-breakdown-table .amount-caution {
+        color: #d39e00;
+        font-weight: 700;
+    }
+
+    .deblocage-breakdown-table .amount-fees {
+        color: #dc3545;
+        font-weight: 700;
+    }
+</style>
 <script>
-document.getElementById('chkConfirm').addEventListener('change', function() {
-    document.getElementById('btnValider').disabled = !this.checked;
-});
+(() => {
+    const chk = document.getElementById('chkConfirm');
+    const btn = document.getElementById('btnValider');
+    const rmbPreconditionOk = @json((bool) ($rmbPreconditionOk ?? false));
+
+    if (!chk || !btn) {
+        return;
+    }
+
+    const syncState = () => {
+        if (!rmbPreconditionOk) {
+            btn.disabled = true;
+            return;
+        }
+        btn.disabled = !chk.checked;
+    };
+
+    chk.addEventListener('change', syncState);
+    syncState();
+})();
 </script>
-@endsection
+@endpush

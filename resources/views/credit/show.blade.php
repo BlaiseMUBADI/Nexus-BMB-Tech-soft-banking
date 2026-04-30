@@ -14,6 +14,18 @@
         <i class="fas fa-check-circle mr-1"></i> {{ session('success') }}
     </div>
 @endif
+@if(session('deblocage_refs'))
+    @php $refs = session('deblocage_refs'); @endphp
+    <div class="alert alert-info alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+        <i class="fas fa-receipt mr-1"></i>
+        Référence déblocage: <strong>{{ $refs['reference_deblocage'] ?? '-' }}</strong>
+        | Référence bordereau frais (4%): <strong>{{ $refs['reference_frais'] ?? '-' }}</strong>
+        @if(!empty($refs['transaction_frais_id']))
+            | <a href="{{ route('caisses.operations.bordereau', ['id' => $refs['transaction_frais_id']]) }}" target="_blank" rel="noopener">Imprimer le 2e bordereau</a>
+        @endif
+    </div>
+@endif
 @if(session('error'))
     <div class="alert alert-danger alert-dismissible">
         <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
@@ -32,18 +44,20 @@
         <div class="card-tools d-flex gap-1">
             {{-- Action buttons --}}
             @if($demande->statut === 'BROUILLON')
-                @if(in_array('EBEN-PER56', $userPermCodes ?? []))
+                @if(in_array('EBEN-PER56', $userPermCodes ?? []) || in_array('EBEN-PER53', $userPermCodes ?? []))
                 <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalSoumettre">
                     <i class="fas fa-paper-plane mr-1"></i>Soumettre
                 </button>
                 @endif
             @endif
 
-            @if($demande->statut === 'SOUMIS')
-                @if(in_array('EBEN-PER61', $userPermCodes ?? []) || in_array('EBEN-PER62', $userPermCodes ?? []))
+            @if(in_array($demande->statut, ['SOUMIS', 'EN_ANALYSE']))
+                @if(in_array('EBEN-PER61', $userPermCodes ?? []))
+                @if($demande->statut === 'SOUMIS')
                 <button class="btn btn-sm btn-warning" data-toggle="modal" data-target="#modalAffecterAnalyse">
                     <i class="fas fa-user-check mr-1"></i>Affecter agent crédit
                 </button>
+                @endif
                 @endif
 
                 @if(in_array('EBEN-PER58', $userPermCodes ?? []))
@@ -204,7 +218,7 @@
                     <tr><th>Montant accordé</th>
                         <td>{{ $demande->montant_accorde ? number_format($demande->montant_accorde, 2, ',', ' ').' '.$demande->devise : '–' }}</td></tr>
                     <tr><th>Durée</th><td>{{ $demande->duree_mois }} mois</td></tr>
-                    <tr><th>Taux mensuel</th><td>{{ $demande->taux_interet_mensuel }} %</td></tr>
+                    <tr><th>Taux mensuel</th><td>{{ number_format((float) $demande->taux_interet_mensuel, 1, '.', '') }} %</td></tr>
                     <tr><th>Frais de dossier</th>
                         <td>{{ $demande->frais_dossier ? number_format($demande->frais_dossier, 2, ',', ' ').' '.$demande->devise : '–' }}</td></tr>
                     <tr><th>Date soumission</th><td>{{ optional($demande->date_soumission)->format('d/m/Y') ?? '–' }}</td></tr>
@@ -235,9 +249,9 @@
                     <table class="table table-sm table-bordered">
                         <tr><th class="bg-light" colspan="2">Analyse économique</th></tr>
                         <tr><th>Activité principale</th><td>{{ $a->activite_principale ?? '–' }}</td></tr>
-                        <tr><th>Revenu mensuel net</th><td>{{ $a->revenu_mensuel_net ? number_format($a->revenu_mensuel_net,2,',',' ') : '–' }}</td></tr>
+                        <tr><th>Revenu mensuel net</th><td>{{ $a->revenu_mensuel_net ? number_format($a->revenu_mensuel_net,2,',',' ').' '.$demande->devise : '–' }}</td></tr>
                         <tr><th>Taux endettement</th><td>{{ $a->taux_endettement ?? '–' }} %</td></tr>
-                        <tr><th>Capacité remboursement</th><td>{{ $a->capacite_remboursement ? number_format($a->capacite_remboursement,2,',',' ') : '–' }}</td></tr>
+                        <tr><th>Capacité remboursement</th><td>{{ $a->capacite_remboursement ? number_format($a->capacite_remboursement,2,',',' ').' '.$demande->devise : '–' }}</td></tr>
                         <tr><th>Valeur garantie</th><td>{{ $a->valeur_garantie ? number_format($a->valeur_garantie,2,',',' ') : '–' }}</td></tr>
                         <tr><th>Score risque</th><td>{{ $a->score_risque ?? '–' }}/100</td></tr>
                     </table>
@@ -274,8 +288,8 @@
         <div class="row">
             @php
                 $vMap  = $demande->validations->keyBy('type_validateur');
-                $types = ['AGENT_CREDIT','CHARGE_OPERATIONS','CONTROLEUR','GERANT'];
-                $labels = ['AGENT_CREDIT'=>'Agent crédit','CHARGE_OPERATIONS'=>'Chargé opérations','CONTROLEUR'=>'Contrôleur','GERANT'=>'Gérant'];
+                $types = ['AGENT_CREDIT','CONTROLEUR','CHARGE_OPERATIONS','GERANT'];
+                $labels = ['AGENT_CREDIT'=>'Agent crédit','CONTROLEUR'=>'Contrôleur','CHARGE_OPERATIONS'=>'Chargé opérations','GERANT'=>'Gérant'];
                 $colors = ['APPROUVE'=>'success','APPROUVE_AVEC_RESERVE'=>'warning','REJETE'=>'danger','EN_ATTENTE'=>'secondary'];
             @endphp
             @foreach($types as $type)
@@ -293,11 +307,14 @@
                                     </span>
                                 </p>
                                 @if($v->decision !== 'EN_ATTENTE')
-                                    <small><strong>Par :</strong> {{ optional($v->validateur)->nom_complet ?? '–' }}</small><br>
+                                    <small><strong>Par :</strong> {{ optional($v->validateur)->nom_complet ?? $v->nom_signataire ?? $v->signature_agent ?? $v->validateur_matricule ?? '–' }}</small><br>
                                     <small><strong>Le :</strong> {{ optional($v->date_validation)->format('d/m/Y H:i') ?? '–' }}</small><br>
                                 @endif
                                 @if($v->montant_propose)
-                                    <small><strong>Montant proposé :</strong><br>{{ number_format($v->montant_propose,2,',',' ') }}</small><br>
+                                    <small><strong>Montant proposé :</strong><br>{{ number_format($v->montant_propose,2,',',' ') }} {{ $demande->devise }}</small><br>
+                                @endif
+                                @if($v->duree_mois_validee)
+                                    <small><strong>Durée validée :</strong><br>{{ $v->duree_mois_validee }} mois</small><br>
                                 @endif
                                 @if($v->commentaire)
                                     <p class="mt-1 mb-0 small text-muted">{{ $v->commentaire }}</p>
@@ -349,17 +366,46 @@
         @if($demande->deblocages->count())
         <div class="tab-pane" id="tab_deblocage">
             @foreach($demande->deblocages as $d)
+            @php
+                $operateurNom = optional($d->operateur)->nom_complet;
+                if (!$operateurNom) {
+                    $operateurNom = trim((optional($d->operateur)->prenom ?? '') . ' ' . (optional($d->operateur)->nom ?? ''));
+                }
+                if (!$operateurNom) {
+                    $operateurNom = optional($d->operateur)->matricule ?? $d->agent_matricule ?? 'Système';
+                }
+            @endphp
             <table class="table table-sm table-bordered" style="max-width:600px">
                 <tr><th>Montant débloqué</th><td><strong>{{ number_format($d->montant_debloque,2,',',' ') }} {{ $demande->devise }}</strong></td></tr>
                 <tr><th>Date déblocage</th><td>{{ optional($d->date_deblocage)->format('d/m/Y') }}</td></tr>
                 <tr><th>Date 1er remboursement</th><td>{{ optional($d->date_premier_remboursement)->format('d/m/Y') }}</td></tr>
-                <tr><th>Compte débit</th><td>{{ optional($d->compteDebit)->code_compte ?? '–' }}</td></tr>
+                <tr><th>Compte débit</th><td>{{ $d->compte_debit_id ?? '–' }}</td></tr>
                 <tr><th>Compte crédit client</th><td>{{ optional($d->compteCredit)->code_compte ?? '–' }}</td></tr>
-                <tr><th>Opéré par</th><td>{{ optional($d->operateur)->nom_complet ?? '–' }}</td></tr>
-                @if($d->reference_comptable)
-                <tr><th>Réf. comptable</th><td>{{ $d->reference_comptable }}</td></tr>
-                @endif
+                <tr><th>Opéré par</th><td>{{ $operateurNom }}</td></tr>
             </table>
+
+            <div class="card card-outline card-info mb-3" style="max-width:600px">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="fas fa-receipt mr-1"></i>Journal déblocage</h6>
+                </div>
+                <div class="card-body p-2">
+                    <div class="small mb-1">
+                        <strong>Référence déblocage :</strong>
+                        {{ $d->reference_transaction ?? $d->reference_comptable ?? '–' }}
+                    </div>
+                    <div class="small mb-1">
+                        <strong>Référence frais 4% (2e bordereau) :</strong>
+                        {{ $d->numero_ordre ?? '–' }}
+                    </div>
+                    <div class="small mb-1">
+                        <strong>Date/heure opération :</strong>
+                        {{ optional($d->debloque_le)->format('d/m/Y H:i') ?? optional($d->date_deblocage)->format('d/m/Y') ?? '–' }}
+                    </div>
+                    <div class="small mb-0">
+                        <strong>Agent opérateur :</strong> {{ $operateurNom }}
+                    </div>
+                </div>
+            </div>
             @endforeach
         </div>
         @endif
@@ -507,7 +553,7 @@
 </div>
 @endif
 
-@if($demande->statut === 'SOUMIS' && (in_array('EBEN-PER61', $userPermCodes ?? []) || in_array('EBEN-PER62', $userPermCodes ?? [])))
+@if($demande->statut === 'SOUMIS' && in_array('EBEN-PER61', $userPermCodes ?? []))
 <div class="modal fade" id="modalAffecterAnalyse" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <form method="POST" action="{{ route('credit.affecter_analyse', $demande) }}">@csrf
@@ -537,7 +583,7 @@
 </div>
 @endif
 
-@if($demande->statut === 'BROUILLON' && in_array('EBEN-PER56', $userPermCodes ?? []))
+@if($demande->statut === 'BROUILLON' && (in_array('EBEN-PER56', $userPermCodes ?? []) || in_array('EBEN-PER53', $userPermCodes ?? [])))
 <div class="modal fade" id="modalSoumettre" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <form method="POST" action="{{ route('credit.soumettre', $demande) }}">@csrf

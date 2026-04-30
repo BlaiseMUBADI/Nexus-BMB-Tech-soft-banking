@@ -37,7 +37,7 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
     ->group(function () {
 
         // ── Dashboard & Supervision ──────────────────────────────────
-        Route::middleware('permission:EBEN-PER70')->group(function () {
+        Route::middleware('permission:EBEN-PER61|EBEN-PER62|EBEN-PER63|EBEN-PER64|EBEN-PER65')->group(function () {
             Route::get('/dashboard',    [CreditController::class, 'dashboard'])->name('dashboard');
             Route::get('/supervision',  [CreditController::class, 'supervision'])->name('supervision');
         });
@@ -64,7 +64,8 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
         });
 
         // ── Soumission ────────────────────────────────────────────────
-        Route::middleware('permission:EBEN-PER56')->group(function () {
+        // PER56 = soumettre explicitement, PER53 = créateur peut aussi soumettre
+        Route::middleware('permission:EBEN-PER56|EBEN-PER53')->group(function () {
             Route::post('/{dossier}/soumettre', [CreditController::class, 'soumettre'])->name('soumettre');
         });
 

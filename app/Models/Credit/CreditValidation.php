@@ -15,6 +15,7 @@ class CreditValidation extends Model
         'validateur_matricule',
         'decision',
         'montant_valide',
+        'duree_mois_validee',
         'observations',
         'conditions',
         'ordre_etape',
@@ -27,6 +28,7 @@ class CreditValidation extends Model
 
     protected $casts = [
         'montant_valide'       => 'decimal:2',
+        'duree_mois_validee'   => 'integer',
         'etape_precedente_ok'  => 'boolean',
         'valide_le'            => 'datetime',
     ];

@@ -145,6 +145,7 @@
                             <th>Client</th>
                             <th>Type</th>
                             <th>Solde réel</th>
+                            <th>Bloqué</th>
                             <th>Devise</th>
                             <th>Portefeuille</th>
                             <th style="width:120px">Actions</th>
@@ -181,6 +182,9 @@
                                 <span class="badge {{ $typeBadge }}">{{ $compte->type }} - {{ $typeLabel }}</span>
                             </td>
                             <td class="text-right">{{ number_format($compte->solde_reel, 2, ',', ' ') }}</td>
+                            <td class="text-right {{ ($compte->solde_bloque ?? 0) > 0 ? 'text-warning font-weight-bold' : 'text-muted' }}">
+                                {{ ($compte->solde_bloque ?? 0) > 0 ? number_format($compte->solde_bloque, 2, ',', ' ') : '–' }}
+                            </td>
                             <td><span class="badge badge-secondary">{{ $compte->devise }}</span></td>
                             <td>
                                 @if($compte->portefeuille_id && $pfAgent)

@@ -16,17 +16,18 @@
 
         body {
             font-family: DejaVu Sans, Arial, sans-serif;
-            font-size: 12px;
+            font-size: 11px;
+            line-height: 1.2;
             color: #111;
             background: #fff;
-            margin: 16mm 15mm 24mm 15mm;
+            margin: 12mm 12mm 18mm 12mm;
         }
 
         /* ── En-tête banque ── */
         .doc-header {
             border-bottom: 3px solid #1a7a4a;
-            padding-bottom: 10px;
-            margin-bottom: 18px;
+            padding-bottom: 7px;
+            margin-bottom: 12px;
             display: table;
             width: 100%;
         }
@@ -76,29 +77,29 @@
         /* ── Titre document ── */
         .doc-title {
             text-align: center;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             color: #1a7a4a;
             text-transform: uppercase;
             letter-spacing: 2px;
-            margin: 14px 0 16px 0;
-            padding: 8px 0;
+            margin: 10px 0 12px 0;
+            padding: 6px 0;
             border-top: 1px solid #b2dfcb;
             border-bottom: 1px solid #b2dfcb;
         }
 
         /* ── Sections ── */
         .section {
-            margin-bottom: 14px;
+            margin-bottom: 9px;
         }
         .section-title {
             background: #1a7a4a;
             color: #fff;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
-            padding: 5px 10px;
+            padding: 4px 8px;
             margin-bottom: 0;
         }
         table.info-table {
@@ -107,7 +108,7 @@
         }
         table.info-table th {
             border: 2.5px solid #333333;
-            padding: 8px 10px;
+            padding: 5px 7px;
             vertical-align: middle;
             font-weight: bold;
             color: #fff;
@@ -115,7 +116,7 @@
         }
         table.info-table td {
             border: 2px solid #333333;
-            padding: 6px 10px;
+            padding: 4px 7px;
             vertical-align: top;
             color: #111;
         }
@@ -139,9 +140,9 @@
             background: #eef7f2;
             border: 2px solid #1a7a4a;
             border-radius: 4px;
-            padding: 10px 14px;
+            padding: 7px 10px;
             text-align: center;
-            margin: 12px 0;
+            margin: 8px 0;
         }
         .iban-label {
             font-size: 9px;
@@ -173,7 +174,7 @@
             left: 15mm;
             right: 15mm;
             border-top: 1px solid #b2dfcb;
-            padding: 5px 0;
+            padding: 3px 0;
             text-align: center;
             font-size: 7.5px;
             color: #777;

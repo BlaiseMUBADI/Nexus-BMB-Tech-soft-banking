@@ -112,6 +112,7 @@
                                 @foreach($comptes as $cpt)
                                 <option value="{{ $cpt->code_compte }}"
                                         data-devise="{{ $cpt->devise }}"
+                                        data-type="{{ $cpt->type }}"
                                         data-solde="{{ number_format($cpt->solde_reel ?? 0, 2, '.', '') }}"
                                         data-client="{{ optional($cpt->client)->nom }} {{ optional($cpt->client)->postnom }}"
                                         data-prenom="{{ optional($cpt->client)->prenom }}"
@@ -119,7 +120,7 @@
                                         data-telephone="{{ optional($cpt->client)->telephone }}"
                                         data-sexe="{{ optional($cpt->client)->sexe }}"
                                         data-photo="{{ optional($cpt->client)->photo ? basename(optional($cpt->client)->photo) : '' }}">
-                                    [{{ $cpt->devise }}] {{ optional($cpt->client)->nom }} {{ optional($cpt->client)->postnom }} — {{ $cpt->code_compte }}
+                                    [{{ $cpt->devise }}] {{ $cpt->type }} — {{ optional($cpt->client)->nom }} {{ optional($cpt->client)->postnom }} — {{ $cpt->code_compte }}
                                 </option>
                                 @endforeach
                             </select>
@@ -634,13 +635,49 @@ $(document).ready(function () {
     var canDeleteOperation = {{ $canDeleteOperation ? 'true' : 'false' }};
 
     // ── Select2 — Recherche compte client (chargé côté serveur) ──
+    var _typeColors = { CC: 'primary', RMB: 'success', GTC: 'warning', DAT: 'info', EAV: 'secondary' };
+
+    function _compteBadge(type) {
+        var color = _typeColors[type] || 'light';
+        return '<span class="badge badge-' + color + ' mr-1" style="font-size:.75em;vertical-align:middle">' + (type || '?') + '</span>';
+    }
+
+    function _compteMatcher(params, data) {
+        if (!params.term || params.term.trim() === '') return data;
+        var term = params.term.trim().toUpperCase();
+        var text  = (data.text || '').toUpperCase();
+        var $opt  = data.element ? $(data.element) : null;
+        var matricule = ($opt ? ($opt.data('matricule') || '') : '').toUpperCase();
+        if (text.indexOf(term) > -1 || matricule.indexOf(term) > -1) return data;
+        return null;
+    }
+
     $('#selCompte').select2({
         theme         : 'bootstrap4',
         width         : '100%',
         dropdownParent: $('body'),
         placeholder   : '— Sélectionner un compte —',
         allowClear    : true,
-        language      : { noResults: function () { return 'Aucun compte trouvé.'; } }
+        matcher       : _compteMatcher,
+        language      : { noResults: function () { return 'Aucun compte trouvé.'; } },
+        templateResult: function (data) {
+            if (!data.id) return data.text;
+            var $opt = data.element ? $(data.element) : null;
+            var type = $opt ? ($opt.data('type') || '') : '';
+            var parts = (data.text || '').split(' — ');
+            // parts[0] = "[USD] CC", parts[1] = nom, parts[2] = code_compte
+            var devise = '';
+            var nomPart = parts.length > 1 ? parts[1] : '';
+            var codePart = parts.length > 2 ? parts[2] : '';
+            var devisePart = parts[0] || '';
+            return $('<span>' + _compteBadge(type) + '<strong>' + devisePart + '</strong> ' + nomPart + (codePart ? ' <small class="text-muted">' + codePart + '</small>' : '') + '</span>');
+        },
+        templateSelection: function (data) {
+            if (!data.id) return data.text;
+            var $opt = data.element ? $(data.element) : null;
+            var type = $opt ? ($opt.data('type') || '') : '';
+            return $('<span>' + _compteBadge(type) + data.text + '</span>');
+        }
     });
 
     var _pendingCompteCode  = null;  // Code en attente de confirmation

@@ -47,85 +47,106 @@
         <li class="nav-item dropdown">
             <a class="nav-link" data-toggle="dropdown" href="#">
                 <i class="far fa-comments"></i>
-                <span class="badge badge-danger navbar-badge">3</span>
+                @if(($actionNotificationCount ?? 0) > 0)
+                    <span class="badge badge-danger navbar-badge">{{ min(($actionNotificationCount ?? 0), 99) }}</span>
+                @endif
             </a>
             <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-                <a href="#" class="dropdown-item">
-                    <!-- Message Start -->
-                    <div class="media">
-                        <img src="{{ asset('dist/img/user1-128x128.jpg') }}" alt="User Avatar" class="img-size-50 mr-3 img-circle">
-                        <div class="media-body">
-                            <h3 class="dropdown-item-title">
-                                Brad Diesel
-                                <span class="float-right text-sm text-danger"><i class="fas fa-star"></i></span>
-                            </h3>
-                            <p class="text-sm">Appelez-moi quand vous pouvez...</p>
-                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> Il y a 4 heures</p>
-                        </div>
-                    </div>
-                    <!-- Message End -->
-                </a>
+                @php
+                    $actionNotifications = collect($latestUnreadNotifications ?? [])->filter(function ($notification) {
+                        return in_array(data_get($notification->data, 'type'), ['warning', 'danger', 'action_required'], true);
+                    });
+                @endphp
+
+                <span class="dropdown-item dropdown-header">{{ min(($actionNotificationCount ?? 0), 99) }} Actions requises</span>
                 <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item">
-                    <!-- Message Start -->
-                    <div class="media">
-                        <img src="{{ asset('dist/img/user8-128x128.jpg') }}" alt="User Avatar" class="img-size-50 img-circle mr-3">
-                        <div class="media-body">
-                            <h3 class="dropdown-item-title">
-                                David KAYEMBE
-                                <span class="float-right text-sm text-muted"><i class="fas fa-star"></i></span>
-                            </h3>
-                            <p class="text-sm">J'ai reçu ton message, frère</p>
-                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> Il y a 4 heures</p>
+
+                @forelse($actionNotifications as $notification)
+                    @php
+                        $title = data_get($notification->data, 'title', 'Notification');
+                        $message = data_get($notification->data, 'message', '');
+                        $icon = data_get($notification->data, 'icon', 'fas fa-exclamation-circle');
+                        $actionUrl = data_get($notification->data, 'action_url');
+                    @endphp
+                    <div class="dropdown-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="pr-2">
+                                <h3 class="dropdown-item-title mb-1">
+                                    <i class="{{ $icon }} text-danger mr-1"></i>{{ \Illuminate\Support\Str::limit($title, 34) }}
+                                </h3>
+                                <p class="text-sm mb-1">{{ \Illuminate\Support\Str::limit($message, 56) }}</p>
+                                <p class="text-sm text-muted mb-0"><i class="far fa-clock mr-1"></i>{{ optional($notification->created_at)->diffForHumans() }}</p>
+                            </div>
+                            <form method="POST" action="{{ route('notifications.read', $notification->id) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-xs btn-outline-secondary">Lu</button>
+                            </form>
                         </div>
+                        @if($actionUrl)
+                            <a href="{{ $actionUrl }}" class="btn btn-link btn-sm p-0 mt-1">Ouvrir</a>
+                        @endif
                     </div>
-                    <!-- Message End -->
-                </a>
-                <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item">
-                    <!-- Message Start -->
-                    <div class="media">
-                        <img src="{{ asset('dist/img/user3-128x128.jpg') }}" alt="User Avatar" class="img-size-50 img-circle mr-3">
-                        <div class="media-body">
-                            <h3 class="dropdown-item-title">
-                                Nora Silvester
-                                <span class="float-right text-sm text-warning"><i class="fas fa-star"></i></span>
-                            </h3>
-                            <p class="text-sm">Le sujet va ici</p>
-                            <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> Il y a 4 heures</p>
-                        </div>
-                    </div>
-                    <!-- Message End -->
-                </a>
-                <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item dropdown-footer">Voir tous les messages</a>
+                    <div class="dropdown-divider"></div>
+                @empty
+                    <span class="dropdown-item text-muted">Aucune action requise pour le moment.</span>
+                    <div class="dropdown-divider"></div>
+                @endforelse
+
+                <a href="{{ route('notifications.index') }}" class="dropdown-item dropdown-footer">Voir le centre de notifications</a>
             </div>
         </li>
         <!-- Notifications Dropdown Menu -->
         <li class="nav-item dropdown">
             <a class="nav-link" data-toggle="dropdown" href="#">
                 <i class="far fa-bell"></i>
-                <span class="badge badge-warning navbar-badge">15</span>
+                @if(($unreadNotificationCount ?? 0) > 0)
+                    <span class="badge badge-warning navbar-badge">{{ min(($unreadNotificationCount ?? 0), 99) }}</span>
+                @endif
             </a>
             <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-                <span class="dropdown-item dropdown-header">15 Notifications</span>
+                <span class="dropdown-item dropdown-header">{{ min(($unreadNotificationCount ?? 0), 99) }} Notifications non lues</span>
                 <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item">
-                    <i class="fas fa-envelope mr-2"></i> 4 nouveaux messages
-                    <span class="float-right text-muted text-sm">3 minutes</span>
-                </a>
-                <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item">
-                    <i class="fas fa-users mr-2"></i> 8 demandes d'amis
-                    <span class="float-right text-muted text-sm">12 heures</span>
-                </a>
-                <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item">
-                    <i class="fas fa-file mr-2"></i> 3 nouveaux rapports
-                    <span class="float-right text-muted text-sm">2 jours</span>
-                </a>
-                <div class="dropdown-divider"></div>
-                <a href="#" class="dropdown-item dropdown-footer">Voir toutes les notifications</a>
+
+                @forelse(($latestUnreadNotifications ?? collect()) as $notification)
+                    @php
+                        $title = data_get($notification->data, 'title', 'Notification');
+                        $message = data_get($notification->data, 'message', '');
+                        $icon = data_get($notification->data, 'icon', 'fas fa-bell');
+                        $type = data_get($notification->data, 'type', 'info');
+                        $typeColor = $type === 'danger' ? 'danger' : ($type === 'warning' ? 'warning' : 'info');
+                        $actionUrl = data_get($notification->data, 'action_url');
+                    @endphp
+                    <div class="dropdown-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="pr-2">
+                                <h3 class="dropdown-item-title mb-1">
+                                    <i class="{{ $icon }} mr-1 text-{{ $typeColor }}"></i>{{ \Illuminate\Support\Str::limit($title, 34) }}
+                                </h3>
+                                <p class="text-sm mb-1">{{ \Illuminate\Support\Str::limit($message, 56) }}</p>
+                                <p class="text-sm text-muted mb-0"><i class="far fa-clock mr-1"></i>{{ optional($notification->created_at)->diffForHumans() }}</p>
+                            </div>
+                            <form method="POST" action="{{ route('notifications.read', $notification->id) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-xs btn-outline-secondary">Lu</button>
+                            </form>
+                        </div>
+                        @if($actionUrl)
+                            <a href="{{ $actionUrl }}" class="btn btn-link btn-sm p-0 mt-1">Ouvrir</a>
+                        @endif
+                    </div>
+                    <div class="dropdown-divider"></div>
+                @empty
+                    <span class="dropdown-item text-muted">Aucune notification non lue.</span>
+                    <div class="dropdown-divider"></div>
+                @endforelse
+
+                <div class="dropdown-item d-flex justify-content-between">
+                    <form method="POST" action="{{ route('notifications.read-all') }}">
+                        @csrf
+                        <button type="submit" class="btn btn-xs btn-outline-primary">Tout marquer comme lu</button>
+                    </form>
+                    <a href="{{ route('notifications.index') }}" class="btn btn-xs btn-light">Voir tout</a>
+                </div>
             </div>
         </li>
         <li class="nav-item">

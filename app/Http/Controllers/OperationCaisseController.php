@@ -16,6 +16,7 @@ use App\Models\Caisse\Transaction;
 use App\Models\Tresorerie\CommissionRule;
 use App\Services\Comptabilite\OhadaAccountingService;
 use App\Services\Commissions\CommissionEngine;
+use App\Services\Notifications\NotificationService;
 use App\Models\Zone;
 use Illuminate\Validation\Rule;
 
@@ -781,6 +782,17 @@ class OperationCaisseController extends Controller
                     'agent_matricule' => $user->agent_matricule,
                 ]);
             });
+
+            app(NotificationService::class)->notifyUsersWithPermission(
+                'EBEN-PER44',
+                'Operation annulee',
+                'L\'operation ' . $op->reference . ' a ete annulee au guichet ' . ($guichet->code_guichet ?? 'N/A') . '.',
+                [
+                    'type' => 'warning',
+                    'icon' => 'fas fa-ban',
+                    'action_url' => route('caisses.journal.page'),
+                ]
+            );
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1262,6 +1274,18 @@ class OperationCaisseController extends Controller
                     $refs[] = $ref;
                 }
             });
+
+            app(NotificationService::class)->notifyUsersWithPermission(
+                'EBEN-PER46',
+                'Demande de dotation mobile',
+                'Le guichet mobile ' . $guichet->code_guichet . ' a soumis ' . count($refs) . ' demande(s) de dotation.',
+                [
+                    'type' => 'action_required',
+                    'icon' => 'fas fa-shipping-fast',
+                    'action_url' => route('tresorerie.etat-coffre'),
+                    'meta' => ['references' => $refs],
+                ]
+            );
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1326,6 +1350,18 @@ class OperationCaisseController extends Controller
                     $refs[] = $ref;
                 }
             });
+
+            app(NotificationService::class)->notifyUsersWithPermission(
+                'EBEN-PER46',
+                'Reversement mobile declare',
+                'Le guichet mobile ' . $guichet->code_guichet . ' a declare un reversement en attente de confirmation.',
+                [
+                    'type' => 'action_required',
+                    'icon' => 'fas fa-undo-alt',
+                    'action_url' => route('tresorerie.etat-coffre'),
+                    'meta' => ['references' => $refs],
+                ]
+            );
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1514,7 +1550,7 @@ class OperationCaisseController extends Controller
             }
         }
 
-        DemandeModification::create([
+        $demande = DemandeModification::create([
             'transaction_id'         => $op->id,
             'reference_operation'    => $op->reference,
             'guichet_id'             => $guichet->id,
@@ -1531,6 +1567,17 @@ class OperationCaisseController extends Controller
             'nouvelles_observations' => $request->nouvelles_observations,
             'statut'                 => DemandeModification::EN_ATTENTE,
         ]);
+
+        app(NotificationService::class)->notifyUsersWithPermission(
+            'EBEN-PER44',
+            'Nouvelle demande de modification',
+            'Demande #' . $demande->id . ' (' . $demande->type_demande . ') sur l\'operation ' . $op->reference . ' en attente de traitement.',
+            [
+                'type' => 'warning',
+                'icon' => 'fas fa-edit',
+                'action_url' => route('caisses.demandes.modification.page'),
+            ]
+        );
 
         return response()->json([
             'success' => true,
@@ -1848,6 +1895,17 @@ class OperationCaisseController extends Controller
                     'traitee_le'              => now(),
                 ]);
             });
+
+            app(NotificationService::class)->notifyAgentMatricules(
+                [$demande->agent_matricule],
+                'Demande approuvee',
+                'Votre demande #' . $demande->id . ' concernant l\'operation ' . $demande->reference_operation . ' a ete approuvee.',
+                [
+                    'type' => 'info',
+                    'icon' => 'fas fa-check',
+                    'action_url' => route('caisses.journal.page'),
+                ]
+            );
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }
@@ -1883,6 +1941,17 @@ class OperationCaisseController extends Controller
             'commentaire_superviseur' => $request->commentaire,
             'traitee_le'              => now(),
         ]);
+
+        app(NotificationService::class)->notifyAgentMatricules(
+            [$demande->agent_matricule],
+            'Demande rejetee',
+            'Votre demande #' . $demande->id . ' concernant l\'operation ' . $demande->reference_operation . ' a ete rejetee. Motif: ' . $request->commentaire,
+            [
+                'type' => 'warning',
+                'icon' => 'fas fa-times',
+                'action_url' => route('caisses.journal.page'),
+            ]
+        );
 
         return response()->json([
             'success' => true,

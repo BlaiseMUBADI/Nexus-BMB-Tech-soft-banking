@@ -25,8 +25,32 @@ class AppServiceProvider extends ServiceProvider
             /** @var string[] $userPermCodes */
             $userPermCodes = $authUser ? $authUser->getPermissionCodes() : [];
 
+            $latestUnreadNotifications = collect();
+            $unreadNotificationCount = 0;
+            $actionNotificationCount = 0;
+
+            if ($authUser && Schema::hasTable('notifications')) {
+                $latestUnreadNotifications = $authUser->unreadNotifications()
+                    ->latest()
+                    ->limit(8)
+                    ->get();
+
+                $unreadNotificationCount = (int) $authUser->unreadNotifications()->count();
+                $actionNotificationCount = (int) $authUser->unreadNotifications()
+                    ->latest()
+                    ->limit(50)
+                    ->get()
+                    ->filter(function ($notification) {
+                        return in_array(data_get($notification->data, 'type'), ['warning', 'danger', 'action_required'], true);
+                    })
+                    ->count();
+            }
+
             $view->with('authUser', $authUser);
             $view->with('userPermCodes', $userPermCodes);
+            $view->with('latestUnreadNotifications', $latestUnreadNotifications);
+            $view->with('unreadNotificationCount', $unreadNotificationCount);
+            $view->with('actionNotificationCount', $actionNotificationCount);
         });
     }
 }

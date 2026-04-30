@@ -1,2 +1,0 @@
-﻿-- Structures du fichier LOCAL uniquement
--- (Pour comparer)

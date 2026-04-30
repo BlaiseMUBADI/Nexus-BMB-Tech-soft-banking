@@ -14,6 +14,7 @@ class CreditDeblocage extends Model
         'credit_demande_id',
         'agent_matricule',
         'compte_debit_id',
+        'guichet_solde_id',
         'compte_credit_id',
         'montant_debloque',
         'devise',
@@ -37,9 +38,9 @@ class CreditDeblocage extends Model
         return $this->belongsTo(CreditDemande::class, 'credit_demande_id');
     }
 
-    public function compteDebit()
+    public function guichetSolde()
     {
-        return $this->belongsTo(Compte::class, 'compte_debit_id', 'code_compte');
+        return $this->belongsTo(\App\Models\Caisse\CaissesGuichetSolde::class, 'guichet_solde_id');
     }
 
     public function compteCredit()

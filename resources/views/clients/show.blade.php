@@ -162,6 +162,94 @@
 
                 </div>{{-- /col-md-9 --}}
             </div>{{-- /row --}}
+
+            {{-- ===================== Section Comptes Bancaires ===================== --}}
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card card-primary card-outline mb-0">
+                        <div class="card-header py-2 d-flex align-items-center justify-content-between">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-wallet mr-2"></i>Comptes bancaires
+                                <span class="badge badge-primary ml-2">{{ $client->comptes->count() }}</span>
+                            </h5>
+                            @can('permission', 'EBEN-PER19')
+                            <a href="{{ route('comptes.create') }}?client={{ $client->matricule }}"
+                               class="btn btn-sm btn-primary">
+                                <i class="fas fa-plus mr-1"></i> Nouveau compte
+                            </a>
+                            @endcan
+                        </div>
+                        <div class="card-body p-0">
+                            @if($client->comptes->isEmpty())
+                                <div class="text-center text-muted py-4">
+                                    <i class="fas fa-folder-open fa-2x mb-2"></i>
+                                    <p class="mb-0">Aucun compte bancaire enregistré pour ce client.</p>
+                                </div>
+                            @else
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Code compte</th>
+                                                <th>Type</th>
+                                                <th>Devise</th>
+                                                <th class="text-right">Solde réel</th>
+                                                <th class="text-right">Solde bloqué</th>
+                                                <th>Ouvert le</th>
+                                                <th class="text-center">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($client->comptes as $compte)
+                                            <tr>
+                                                <td><code>{{ $compte->code_compte }}</code></td>
+                                                <td>
+                                                    @php
+                                                        $typeLabels = [
+                                                            'CC'  => ['label' => 'Compte Courant',   'class' => 'badge-primary'],
+                                                            'RMB' => ['label' => 'RMB',              'class' => 'badge-success'],
+                                                            'GTC' => ['label' => 'Caution (GTC)',    'class' => 'badge-warning'],
+                                                            'DAT' => ['label' => 'Dépôt à Terme',   'class' => 'badge-info'],
+                                                            'EAV' => ['label' => 'Épargne',          'class' => 'badge-secondary'],
+                                                        ];
+                                                        $t = $typeLabels[$compte->type] ?? ['label' => $compte->type, 'class' => 'badge-dark'];
+                                                    @endphp
+                                                    <span class="badge {{ $t['class'] }}">{{ $t['label'] }}</span>
+                                                </td>
+                                                <td>{{ $compte->devise ?? '—' }}</td>
+                                                <td class="text-right font-weight-bold">
+                                                    {{ number_format((float)($compte->solde_reel ?? 0), 2, ',', '.') }}
+                                                </td>
+                                                <td class="text-right {{ ($compte->solde_bloque ?? 0) > 0 ? 'text-warning font-weight-bold' : '' }}">
+                                                    {{ number_format((float)($compte->solde_bloque ?? 0), 2, ',', '.') }}
+                                                </td>
+                                                <td>{{ $compte->created_at ? \Carbon\Carbon::parse($compte->created_at)->format('d/m/Y') : '—' }}</td>
+                                                <td class="text-center">
+                                                    <a href="{{ route('comptes.show', $compte->code_compte) }}"
+                                                       class="btn btn-xs btn-info mr-1" title="Détail">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="{{ route('comptes.historique', $compte->code_compte) }}"
+                                                       class="btn btn-xs btn-secondary mr-1" title="Historique">
+                                                        <i class="fas fa-history"></i>
+                                                    </a>
+                                                    <a href="{{ route('comptes.rib', $compte->code_compte) }}"
+                                                       class="btn btn-xs btn-light" title="Imprimer RIB" target="_blank">
+                                                        <i class="fas fa-print"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{-- ==================== /Section Comptes Bancaires ==================== --}}
+
         </div>{{-- /card-body --}}
     </div>{{-- /card --}}
 </div>{{-- /container-fluid --}}

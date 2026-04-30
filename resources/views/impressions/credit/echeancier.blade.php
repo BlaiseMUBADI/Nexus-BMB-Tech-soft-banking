@@ -43,7 +43,7 @@
 
 <div class="section">
     <div class="section-title">Plan d'amortissement degressif</div>
-    <table class="info-table" style="font-size: 10px;">
+    <table class="info-table" style="font-size: 8.8px;">
         <thead>
             <tr style="background:#eef7f2;">
                 <td class="label" style="width:6%; text-align:center;">#</td>
@@ -74,7 +74,7 @@
                     <td class="text-right">{{ number_format($e->montant_interet, 2, ',', ' ') }}</td>
                     <td class="text-right"><strong>{{ number_format($e->montant_total, 2, ',', ' ') }}</strong></td>
                     <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }}</td>
-                    <td style="text-align:center; font-size:9px;">{{ str_replace('_',' ', $e->statut) }}</td>
+                    <td style="text-align:center; font-size:8px;">{{ str_replace('_',' ', $e->statut) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -94,14 +94,14 @@
 <div class="section">
     <div class="two-col">
         <div class="col">
-            <table class="info-table" style="font-size:10px;">
+            <table class="info-table" style="font-size:8.6px;">
                 <tr><td class="label">Total capital</td><td class="text-right">{{ number_format($sCap, 2, ',', ' ') }} {{ $demande->devise }}</td></tr>
                 <tr><td class="label">Total interets</td><td class="text-right">{{ number_format($sInt, 2, ',', ' ') }} {{ $demande->devise }}</td></tr>
                 <tr><td class="label">Montant global</td><td class="text-right"><strong>{{ number_format($sTot, 2, ',', ' ') }} {{ $demande->devise }}</strong></td></tr>
             </table>
         </div>
         <div class="col">
-            <table class="info-table" style="font-size:10px;">
+            <table class="info-table" style="font-size:8.6px;">
                 <tr><td class="label">Nombre d'echeances</td><td>{{ $echeancier->echeances->count() }}</td></tr>
                 <tr><td class="label">Periodicite</td><td>Mensuelle</td></tr>
                 <tr><td class="label">Methode</td><td>Amortissement degressif (capital constant)</td></tr>

@@ -116,9 +116,10 @@ class AmortissementService
             throw new \Exception("Un échéancier existe déjà pour le dossier {$demande->numero_dossier}.");
         }
 
-        $montant     = (float) $demande->montant_approuve ?? (float) $demande->montant_demande;
+        $conditionsRetenues = $demande->conditions_retenues;
+        $montant     = (float) $conditionsRetenues['montant'];
         $taux        = (float) $demande->taux_interet_mensuel;
-        $duree       = (int) $demande->duree_mois;
+        $duree       = (int) $conditionsRetenues['duree_mois'];
 
         $calcul = $this->calculer($montant, $taux, $duree, $datePremier);
 

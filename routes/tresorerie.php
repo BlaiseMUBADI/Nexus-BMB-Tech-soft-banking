@@ -25,27 +25,27 @@ Route::middleware(['auth', 'permission:EBEN-PER44'])->prefix('tresorerie')->grou
     
     Route::get('/coffre/demandes',                [TresorerieController::class, 'demandesJson'])->name('tresorerie.coffre.demandes');
     Route::post('/coffre/demandes/{id}/approuver',[TresorerieController::class, 'approuverDemande'])
-        ->middleware('permission:EBEN-PER46|EBEN-PER78')
+        ->middleware('permission:EBEN-PER46')
         ->name('tresorerie.coffre.demandes.approuver');
     Route::post('/coffre/demandes/{id}/rejeter',  [TresorerieController::class, 'rejeterDemande'])
-        ->middleware('permission:EBEN-PER46|EBEN-PER78')
+        ->middleware('permission:EBEN-PER46')
         ->name('tresorerie.coffre.demandes.rejeter');
     Route::get('/coffre/demandes/count',          [TresorerieController::class, 'demandesCount'])->name('tresorerie.coffre.demandes.count');
     
     Route::get('/coffre/clotures',                            [TresorerieController::class, 'cloturesEnVerification'])->name('tresorerie.coffre.clotures');
     Route::get('/coffre/clotures/count',                      [TresorerieController::class, 'cloturesCount'])->name('tresorerie.coffre.clotures.count');
     Route::post('/coffre/clotures/{guichetId}/approuver',     [TresorerieController::class, 'approuverCloture'])
-        ->middleware('permission:EBEN-PER46|EBEN-PER78')
+        ->middleware('permission:EBEN-PER46')
         ->name('tresorerie.coffre.clotures.approuver');
     Route::post('/coffre/clotures/{guichetId}/rejeter',       [TresorerieController::class, 'rejeterCloture'])
-        ->middleware('permission:EBEN-PER46|EBEN-PER78')
+        ->middleware('permission:EBEN-PER46')
         ->name('tresorerie.coffre.clotures.rejeter');
     
     Route::post('/coffre/clotures/ligne/{clotureId}/approuver',[TresorerieController::class, 'approuverLigneCloture'])
-        ->middleware('permission:EBEN-PER46|EBEN-PER78')
+        ->middleware('permission:EBEN-PER46')
         ->name('tresorerie.coffre.clotures.ligne.approuver');
     Route::post('/coffre/clotures/ligne/{clotureId}/rejeter',  [TresorerieController::class, 'rejeterLigneCloture'])
-        ->middleware('permission:EBEN-PER46|EBEN-PER78')
+        ->middleware('permission:EBEN-PER46')
         ->name('tresorerie.coffre.clotures.ligne.rejeter');
     
     

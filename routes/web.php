@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Profil\ProfileController;
+use App\Http\Controllers\Notifications\NotificationCenterController;
 use App\Http\Controllers\Utility\ClientLogController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,6 +55,13 @@ Route::get('/', function () {
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/notifications', [NotificationCenterController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [NotificationCenterController::class, 'markAllAsRead'])->name('notifications.read-all');
+    Route::post('/notifications/{id}/read', [NotificationCenterController::class, 'markAsRead'])->name('notifications.read');
+    Route::get('/notifications/latest', [NotificationCenterController::class, 'latest'])->name('notifications.latest');
+});
 
 
 

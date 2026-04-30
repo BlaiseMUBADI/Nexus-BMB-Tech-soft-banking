@@ -124,7 +124,7 @@
                             <td><span class="badge badge-secondary">{{ $d->type_credit }}</span></td>
                             <td class="text-right">{{ number_format($d->montant_demande, 2, ',', ' ') }}<small class="text-muted ml-1">{{ $d->devise }}</small></td>
                             <td class="text-center">{{ $d->duree_mois }} mois</td>
-                            <td class="text-center">{{ $d->taux_interet_mensuel }}%</td>
+                            <td class="text-center">{{ number_format((float) $d->taux_interet_mensuel, 1, '.', '') }}%</td>
                             <td>{!! $d->badgeStatut() !!}</td>
                             <td><small>{{ $d->zone?->nom ?? $d->zone?->nom_zone ?? $d->code_zone }}</small></td>
                             <td><small>{{ $d->created_at->format('d/m/Y') }}</small></td>
@@ -132,7 +132,7 @@
                                 <a href="{{ route('credit.show', $d) }}" class="btn btn-xs btn-info" title="Voir détail">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                @if($d->statut_global === 'SOUMIS')
+                                @if(in_array($d->statut_global, ['SOUMIS', 'EN_ANALYSE']))
                                     <a href="{{ route('credit.analyse', $d) }}" class="btn btn-xs btn-primary" title="Analyser">
                                         <i class="fas fa-search-dollar"></i>
                                     </a>

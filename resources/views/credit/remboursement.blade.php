@@ -52,7 +52,7 @@
                 <tr><th>Capital restant</th>
                     <td><strong class="text-danger">{{ number_format($demande->capital_restant ?? 0, 2, ',', ' ') }} {{ $demande->devise }}</strong></td></tr>
                 <tr><th>Taux mensuel</th>
-                    <td>{{ $demande->taux_interet_mensuel }} %</td></tr>
+                    <td>{{ number_format((float) $demande->taux_interet_mensuel, 1, '.', '') }} %</td></tr>
             </table>
         </div>
     </div>

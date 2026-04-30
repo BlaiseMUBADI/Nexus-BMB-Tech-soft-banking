@@ -12,6 +12,7 @@ use App\Models\Tresorerie\CommissionRule;
 use App\Models\Tresorerie\Devise;
 use App\Models\Tresorerie\Portefeuille;
 use App\Models\Zone;
+use App\Services\Notifications\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -304,6 +305,17 @@ class TresorerieController extends Controller
                 $soldeCoffre->increment('solde_en_caisse', (float) $request->montant);
                 $nouveauSolde = (float) $soldeCoffre->fresh()->solde_en_caisse;
             });
+
+            app(NotificationService::class)->notifyUsersWithPermission(
+                'EBEN-PER44',
+                'Coffre central ravitaille',
+                'Le coffre central a ete approvisionne de ' . number_format((float) $request->montant, 2, ',', ' ') . ' ' . $request->devise_code . '.',
+                [
+                    'type' => 'info',
+                    'icon' => 'fas fa-piggy-bank',
+                    'action_url' => route('tresorerie.etat-coffre'),
+                ]
+            );
         } catch (\Exception $e) {
             Log::error('[Trésorerie] Erreur approvisionnement coffre', [
                 'devise_code' => $request->devise_code,
@@ -426,6 +438,18 @@ class TresorerieController extends Controller
 
                 $nouveauSoldeCoffre = (float) $soldeCoffre->fresh()->solde_en_caisse;
             });
+
+            $matriculeAgentGuichet = optional($guichet->affectationActive)->agent_matricule;
+            app(NotificationService::class)->notifyAgentMatricules(
+                [$matriculeAgentGuichet],
+                'Ravitaillement recu',
+                'Le guichet ' . $guichet->code_guichet . ' a ete ravitaille de ' . number_format((float) $request->montant, 2, ',', ' ') . ' ' . $request->devise_code . '.',
+                [
+                    'type' => 'info',
+                    'icon' => 'fas fa-donate',
+                    'action_url' => route('caisses.ouverture'),
+                ]
+            );
         } catch (ValidationException $e) {
             $message = collect($e->errors())->flatten()->first() ?? 'Données invalides.';
             return response()->json(['success' => false, 'message' => $message], 422);
@@ -772,6 +796,17 @@ class TresorerieController extends Controller
                 $montantDemande = (float) $demandeVerrouillee->montant;
                 $deviseDemande  = $demandeVerrouillee->devise_code;
             });
+
+            app(NotificationService::class)->notifyAgentMatricules(
+                [$demande->agent_initiateur],
+                'Demande de ravitaillement approuvee',
+                'Votre demande #' . $demande->id . ' a ete approuvee: ' . number_format($montantDemande, 2, ',', ' ') . ' ' . $deviseDemande . '.',
+                [
+                    'type' => 'info',
+                    'icon' => 'fas fa-check-circle',
+                    'action_url' => route('caisses.mes.demandes'),
+                ]
+            );
         } catch (ValidationException $e) {
             $message = collect($e->errors())->flatten()->first() ?? 'Données invalides.';
             return response()->json(['success' => false, 'message' => $message], 422);
@@ -814,6 +849,17 @@ class TresorerieController extends Controller
             'observations'         => ($demande->observations ? $demande->observations . ' | ' : '')
                                      . 'Rejeté.: ' . $request->observations,
         ]);
+
+        app(NotificationService::class)->notifyAgentMatricules(
+            [$demande->agent_initiateur],
+            'Demande de ravitaillement rejetee',
+            'Votre demande #' . $demande->id . ' a ete rejetee. Motif: ' . $request->observations,
+            [
+                'type' => 'warning',
+                'icon' => 'fas fa-times-circle',
+                'action_url' => route('caisses.mes.demandes'),
+            ]
+        );
 
         return response()->json([
             'success' => true,
@@ -965,6 +1011,17 @@ class TresorerieController extends Controller
                 $guichet->statut_operationnel = 'FERME';
                 $guichet->save();
             });
+
+            app(NotificationService::class)->notifyAgentMatricules(
+                [$clotures->first()->agent_cloturant ?? null],
+                'Cloture guichet approuvee',
+                'La cloture du guichet ' . $guichet->code_guichet . ' a ete approuvee.',
+                [
+                    'type' => 'info',
+                    'icon' => 'fas fa-lock',
+                    'action_url' => route('caisses.ouverture'),
+                ]
+            );
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }
@@ -1015,6 +1072,19 @@ class TresorerieController extends Controller
                 $guichet->statut_operationnel = 'OUVERT';
                 $guichet->save();
             });
+
+            app(NotificationService::class)->notifyAgentMatricules(
+                [
+                    ClotureCaisse::where('guichet_id', $guichetId)->latest('id')->value('agent_cloturant'),
+                ],
+                'Cloture guichet rejetee',
+                'La cloture du guichet ' . $guichet->code_guichet . ' a ete rejetee. Motif: ' . $request->observations,
+                [
+                    'type' => 'warning',
+                    'icon' => 'fas fa-undo',
+                    'action_url' => route('caisses.ouverture'),
+                ]
+            );
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }
@@ -1116,6 +1186,17 @@ class TresorerieController extends Controller
             $message = 'Devise ' . $cloture->devise_code . ' validée. ' . $pendingCount . ' devise(s) restante(s) à valider.';
         }
 
+        app(NotificationService::class)->notifyAgentMatricules(
+            [$cloture->agent_cloturant],
+            'Cloture devise traitee',
+            $message,
+            [
+                'type' => 'info',
+                'icon' => 'fas fa-check-double',
+                'action_url' => route('caisses.ouverture'),
+            ]
+        );
+
         return response()->json([
             'success'       => true,
             'message'       => $message,
@@ -1171,6 +1252,17 @@ class TresorerieController extends Controller
                 $guichet->statut_operationnel = 'OUVERT';
                 $guichet->save();
             });
+
+            app(NotificationService::class)->notifyAgentMatricules(
+                [$cloture->agent_cloturant],
+                'Cloture devise rejetee',
+                'La devise ' . $cloture->devise_code . ' a ete rejetee pour le guichet ' . $guichet->code_guichet . '. Motif: ' . $request->observations,
+                [
+                    'type' => 'warning',
+                    'icon' => 'fas fa-exclamation-triangle',
+                    'action_url' => route('caisses.ouverture'),
+                ]
+            );
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }

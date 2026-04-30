@@ -71,7 +71,7 @@ Resultat attendu:
 
 ## 3.3 Tresorerie
 - Approvisionner / Alimenter: requiert `EBEN-PER45|EBEN-PER77` et `EBEN-PER47|EBEN-PER77`.
-- Approbation/Rejet demandes et clotures: requiert `EBEN-PER46|EBEN-PER78`.
+- Approbation/Rejet demandes et clotures: requiert `EBEN-PER46`.
 - Commissions:
   - create: `EBEN-PER77`
   - update: `EBEN-PER78`

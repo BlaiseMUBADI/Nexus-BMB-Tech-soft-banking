@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Administration;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\User;
 use App\Models\RH\Role;
+use App\Models\RH\Permission;
+use App\Services\Notifications\NotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 // Ajoutez le modèle Permission si besoin
@@ -240,6 +243,25 @@ class RolesPermissionsController extends Controller
                 ['role_code' => $request->role_code, 'permission_code' => $request->permission_code],
                 ['created_at' => now(), 'updated_at' => now()]
             );
+
+            $role = Role::where('code', $request->role_code)->first();
+            $permission = Permission::where('code', $request->permission_code)->first();
+
+            app(NotificationService::class)->notifyUsersWithRole(
+                $request->role_code,
+                'Nouvelle autorisation disponible',
+                sprintf(
+                    'La permission %s a ete ajoutee au role %s.',
+                    $permission?->nom ?? $request->permission_code,
+                    $role?->nom ?? $request->role_code
+                ),
+                [
+                    'type' => 'info',
+                    'icon' => 'fas fa-key',
+                    'action_url' => route('administration.roles_permissions'),
+                ]
+            );
+
             return response()->json(['success' => true, 'message' => 'Permission attribuée.']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $first = array_key_first($e->errors());
@@ -261,6 +283,25 @@ class RolesPermissionsController extends Controller
                 ->where('role_code', $request->role_code)
                 ->where('permission_code', $request->permission_code)
                 ->delete();
+
+            $role = Role::where('code', $request->role_code)->first();
+            $permission = Permission::where('code', $request->permission_code)->first();
+
+            app(NotificationService::class)->notifyUsersWithRole(
+                $request->role_code,
+                'Autorisation retiree',
+                sprintf(
+                    'La permission %s a ete retiree du role %s.',
+                    $permission?->nom ?? $request->permission_code,
+                    $role?->nom ?? $request->role_code
+                ),
+                [
+                    'type' => 'warning',
+                    'icon' => 'fas fa-user-lock',
+                    'action_url' => route('administration.roles_permissions'),
+                ]
+            );
+
             return response()->json(['success' => true, 'message' => 'Permission retirée.']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $first = array_key_first($e->errors());
@@ -318,6 +359,22 @@ class RolesPermissionsController extends Controller
             'user_id' => $request->user_id,
             'role_code' => $request->role_code
         ], []);
+
+        $user = User::find($request->user_id);
+        $role = Role::where('code', $request->role_code)->first();
+        if ($user) {
+            app(NotificationService::class)->notifyUser(
+                $user,
+                'Nouveau role attribue',
+                sprintf('Le role %s vous a ete attribue.', $role?->nom ?? $request->role_code),
+                [
+                    'type' => 'info',
+                    'icon' => 'fas fa-user-tag',
+                    'action_url' => route('profile.edit'),
+                ]
+            );
+        }
+
         return response()->json(['success' => true]);
     }
 
@@ -332,6 +389,22 @@ class RolesPermissionsController extends Controller
             ->where('user_id', $request->user_id)
             ->where('role_code', $request->role_code)
             ->delete();
+
+        $user = User::find($request->user_id);
+        $role = Role::where('code', $request->role_code)->first();
+        if ($user) {
+            app(NotificationService::class)->notifyUser(
+                $user,
+                'Role retire',
+                sprintf('Le role %s a ete retire de votre compte.', $role?->nom ?? $request->role_code),
+                [
+                    'type' => 'warning',
+                    'icon' => 'fas fa-user-minus',
+                    'action_url' => route('profile.edit'),
+                ]
+            );
+        }
+
         return response()->json(['success' => true]);
     }
 }

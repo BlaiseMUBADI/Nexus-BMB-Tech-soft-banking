@@ -9,6 +9,7 @@ use App\Models\RH\Affectation;
 use App\Models\Caisse\CaissesGuichet;
 use App\Models\Caisse\ClotureCaisse;
 use App\Models\Caisse\MouvementInterCaisse;
+use App\Services\Notifications\NotificationService;
 
 class CaisseController extends Controller
 {
@@ -68,6 +69,17 @@ class CaisseController extends Controller
         try {
             $guichet->statut_operationnel = $nouveauStatut;
             $guichet->save();
+
+            app(NotificationService::class)->notifyUsersWithPermission(
+                'EBEN-PER44',
+                'Statut guichet modifie',
+                'Le guichet ' . $guichet->code_guichet . ' est passe en statut ' . $nouveauStatut . '.',
+                [
+                    'type' => 'info',
+                    'icon' => 'fas fa-store',
+                    'action_url' => route('caisses.ouverture'),
+                ]
+            );
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }
@@ -219,6 +231,17 @@ class CaisseController extends Controller
                 $guichet->statut_operationnel = 'EN_VERIFICATION';
                 $guichet->save();
             });
+
+            app(NotificationService::class)->notifyUsersWithPermission(
+                'EBEN-PER46',
+                'Cloture guichet en attente',
+                'Le guichet ' . $guichet->code_guichet . ' a soumis une cloture et attend votre validation.',
+                [
+                    'type' => 'action_required',
+                    'icon' => 'fas fa-clipboard-check',
+                    'action_url' => route('tresorerie.etat-coffre'),
+                ]
+            );
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -324,7 +347,7 @@ class CaisseController extends Controller
 
         $reference = 'REQ-' . now()->format('Ymd-His') . '-' . strtoupper(substr($user->agent_matricule ?? 'XX', 0, 4));
 
-        MouvementInterCaisse::create([
+        $demande = MouvementInterCaisse::create([
             'guichet_source_id'   => null,           // sera renseigné (coffre) à l'approbation
             'guichet_dest_id'     => $guichet->id,
             'agent_initiateur'    => $user->agent_matricule,
@@ -336,6 +359,19 @@ class CaisseController extends Controller
             'statut'              => 'EN_ATTENTE',
             'observations'        => $request->motif,
         ]);
+
+        app(NotificationService::class)->notifyUsersWithPermission(
+            'EBEN-PER46',
+            'Nouvelle demande de ravitaillement',
+            'Une demande de ' . number_format((float) $request->montant, 2, ',', ' ') . ' ' . $request->devise_code
+                . ' a ete soumise pour le guichet ' . $guichet->code_guichet . '.',
+            [
+                'type' => 'action_required',
+                'icon' => 'fas fa-hand-holding-usd',
+                'action_url' => route('tresorerie.etat-coffre'),
+                'meta' => ['demande_id' => $demande->id],
+            ]
+        );
 
         return response()->json([
             'success'   => true,

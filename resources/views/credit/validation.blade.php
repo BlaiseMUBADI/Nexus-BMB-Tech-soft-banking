@@ -34,16 +34,97 @@
 @endif
 
 {{-- ── Mini-résumé --}}
-<div class="alert alert-light border mb-3 d-flex flex-wrap gap-3 align-items-center">
-    <span><strong>Dossier :</strong> {{ $demande->numero_dossier }}</span>
-    <span>{!! $demande->badgeStatut() !!}</span>
-    <span><strong>Client :</strong> {{ optional($demande->client)->nom }} {{ optional($demande->client)->prenom }}</span>
-    <span><strong>Montant :</strong> {{ number_format($demande->montant_demande,2,',',' ') }} {{ $demande->devise }}</span>
-    <span><strong>Durée :</strong> {{ $demande->duree_mois }} mois @ {{ $demande->taux_interet_mensuel }} %/mois</span>
-    <a href="{{ route('credit.show', $demande) }}" class="btn btn-xs btn-outline-secondary ml-auto">
-        <i class="fas fa-eye mr-1"></i>Détail complet
-    </a>
+<div class="card card-outline card-light mb-3">
+    <div class="card-body py-2 px-3">
+        <div class="row align-items-center">
+            <div class="col-12 col-md-6 col-lg-3 mb-2 mb-lg-0">
+                <div><strong>Dossier :</strong> {{ $demande->numero_dossier }}</div>
+                <div class="mt-1">{!! $demande->badgeStatut() !!}</div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-2 mb-lg-0">
+                <strong>Client :</strong><br>
+                {{ optional($demande->client)->nom }} {{ optional($demande->client)->prenom }}
+            </div>
+            <div class="col-12 col-md-6 col-lg-2 mb-2 mb-lg-0">
+                <strong>Montant demandé :</strong><br>
+                {{ number_format($demande->montant_demande,2,',',' ') }} {{ $demande->devise }}
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-2 mb-lg-0">
+                <strong>Conditions retenues :</strong><br>
+                {{ number_format($conditionsRetenues['montant'],2,',',' ') }} {{ $demande->devise }} / {{ $conditionsRetenues['duree_mois'] }} mois
+            </div>
+            <div class="col-12 col-lg-1 text-lg-right">
+                <div class="mb-2 mb-lg-1"><strong>Taux :</strong> {{ number_format((float) $demande->taux_interet_mensuel, 1, '.', '') }} %/mois</div>
+                <a href="{{ route('credit.show', $demande) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-eye mr-1"></i>Détail complet
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
+
+@if($previewEcheancier)
+<div class="card card-outline card-secondary mb-3 collapsed-card">
+    <div class="card-header py-2">
+        <h6 class="mb-0"><i class="fas fa-table mr-2"></i>Aperçu de l'échéancier retenu</h6>
+        <div class="card-tools">
+            <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Replier / déplier">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="px-3 py-2 small bg-light border-bottom">
+            <div class="row">
+                <div class="col-md-3 mb-2 mb-md-0">
+                    <strong>Montant retenu :</strong><br>
+                    {{ number_format($conditionsRetenues['montant'], 2, ',', ' ') }} {{ $demande->devise }}
+                </div>
+                <div class="col-md-2 mb-2 mb-md-0">
+                    <strong>Durée retenue :</strong><br>
+                    {{ $conditionsRetenues['duree_mois'] }} mois
+                </div>
+                <div class="col-md-3 mb-2 mb-md-0">
+                    <strong>Total intérêts :</strong><br>
+                    {{ number_format($previewEcheancier['total_interets'], 2, ',', ' ') }} {{ $demande->devise }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Total général :</strong><br>
+                    {{ number_format($previewEcheancier['total_general'], 2, ',', ' ') }} {{ $demande->devise }}
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-bordered mb-0 small">
+                <thead class="thead-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Capital début</th>
+                        <th>Capital</th>
+                        <th>Intérêt</th>
+                        <th>Total</th>
+                        <th>Capital fin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach($previewEcheancier['echeances'] as $ligne)
+                    <tr>
+                        <td>{{ $ligne['numero'] }}</td>
+                        <td>{{ $ligne['date']->format('d/m/Y') }}</td>
+                        <td class="text-right">{{ number_format($ligne['capital_restant_debut'], 2, ',', ' ') }}</td>
+                        <td class="text-right">{{ number_format($ligne['capital'], 2, ',', ' ') }}</td>
+                        <td class="text-right">{{ number_format($ligne['interet'], 2, ',', ' ') }}</td>
+                        <td class="text-right font-weight-bold">{{ number_format($ligne['total'], 2, ',', ' ') }}</td>
+                        <td class="text-right">{{ number_format($ligne['capital_restant_fin'], 2, ',', ' ') }}</td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+@endif
 
 {{-- ── 4 blocs de validation --}}
 @php
@@ -53,8 +134,8 @@
     $signatureNom = trim(($connectedAgent?->nom ?? '') . ' ' . ($connectedAgent?->postnom ?? '') . ' ' . ($connectedAgent?->prenom ?? ''));
     $types = [
         'AGENT_CREDIT'       => ['label'=>'Agent crédit',       'perm'=>'EBEN-PER60', 'color'=>'primary'],
-        'CHARGE_OPERATIONS'  => ['label'=>'Chargé opérations',  'perm'=>'EBEN-PER61', 'color'=>'info'],
         'CONTROLEUR'         => ['label'=>'Contrôleur',         'perm'=>'EBEN-PER62', 'color'=>'warning'],
+        'CHARGE_OPERATIONS'  => ['label'=>'Chargé opérations',  'perm'=>'EBEN-PER61', 'color'=>'info'],
         'GERANT'             => ['label'=>'Gérant',             'perm'=>'EBEN-PER63', 'color'=>'success'],
     ];
     $vMap  = $demande->validations->keyBy('type_validateur');
@@ -89,11 +170,14 @@
             @if($v && $v->decision !== 'EN_ATTENTE')
                 {{-- Décision enregistrée --}}
                 <table class="table table-xs table-borderless small mb-2">
-                    <tr><th>Par</th><td>{{ optional($v->validateur)->nom_complet ?? '–' }}</td></tr>
+                    <tr><th>Par</th><td>{{ optional($v->validateur)->nom_complet ?? $v->nom_signataire ?? $v->signature_agent ?? $v->validateur_matricule ?? '–' }}</td></tr>
                     <tr><th>Le</th><td>{{ optional($v->date_validation)->format('d/m/Y H:i') }}</td></tr>
-                    <tr><th>Signature</th><td><code>{{ $v->validateur_matricule ?? '—' }}</code></td></tr>
+                    <tr><th>Signature</th><td><code>{{ $v->signature_agent ?? $v->validateur_matricule ?? '—' }}</code></td></tr>
                     @if($v->montant_propose)
-                    <tr><th>Montant</th><td>{{ number_format($v->montant_propose,2,',',' ') }}</td></tr>
+                    <tr><th>Montant</th><td>{{ number_format($v->montant_propose,2,',',' ') }} {{ $demande->devise }}</td></tr>
+                    @endif
+                    @if($v->duree_mois_validee)
+                    <tr><th>Durée</th><td>{{ $v->duree_mois_validee }} mois</td></tr>
                     @endif
                 </table>
                 @if($v->commentaire)
@@ -134,13 +218,27 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="small">Montant validé <span class="text-danger">*</span></label>
-                    <input type="number" name="montant_valide" class="form-control form-control-sm"
-                           step="0.01" min="0"
-                           value="{{ old('montant_valide') }}"
-                           placeholder="{{ number_format($demande->montant_demande,0,',',' ') }}">
+                    <label class="small">Montant validé ({{ $demande->devise }}) <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" name="montant_valide" class="form-control form-control-sm"
+                               step="0.01" min="0"
+                               value="{{ old('montant_valide') }}"
+                               placeholder="{{ number_format($conditionsRetenues['montant'],0,',',' ') }}">
+                        <div class="input-group-append"><span class="input-group-text">{{ $demande->devise }}</span></div>
+                    </div>
                     <small class="text-muted">Obligatoire pour <strong>Approuvé</strong> ou <strong>Approuvé avec réserve</strong>.</small>
                 </div>
+
+                @if($type === 'GERANT')
+                <div class="form-group">
+                    <label class="small">Durée validée (mois)</label>
+                    <input type="number" name="duree_mois_validee" class="form-control form-control-sm"
+                           min="1" max="360"
+                           value="{{ old('duree_mois_validee', $conditionsRetenues['duree_mois']) }}"
+                           placeholder="{{ $conditionsRetenues['duree_mois'] }}">
+                    <small class="text-muted">Le gérant peut ajuster la durée; cette trace restera liée à sa décision.</small>
+                </div>
+                @endif
 
                 <div class="form-group">
                     <label class="small">Commentaire du validateur <span class="text-danger">*</span></label>

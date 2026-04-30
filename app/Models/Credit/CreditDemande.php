@@ -218,6 +218,31 @@ class CreditDemande extends Model
         return $this->montant_approuve;
     }
 
+    public function getConditionsRetenuesAttribute(): array
+    {
+        $validations = $this->relationLoaded('validations')
+            ? $this->validations
+            : $this->validations()->get();
+
+        $approvedValidations = $validations
+            ->filter(fn (CreditValidation $validation) => in_array($validation->decision, ['APPROUVE', 'APPROUVE_AVEC_RESERVE'], true))
+            ->sortByDesc('ordre_etape')
+            ->values();
+
+        $latestApproved = $approvedValidations->first();
+        $latestAmount = $approvedValidations->first(fn (CreditValidation $validation) => $validation->montant_valide !== null);
+        $latestDuration = $approvedValidations->first(fn (CreditValidation $validation) => $validation->duree_mois_validee !== null);
+
+        return [
+            'montant' => (float) ($latestAmount?->montant_valide
+                ?? $this->montant_approuve
+                ?? $this->analyse?->montant_recommande
+                ?? $this->montant_demande),
+            'duree_mois' => (int) ($latestDuration?->duree_mois_validee ?? $this->duree_mois),
+            'source' => $latestApproved?->type_validateur ?? ($this->analyse?->montant_recommande ? 'ANALYSE' : 'DEMANDE'),
+        ];
+    }
+
     public function getDateSoumissionAttribute()
     {
         return $this->soumis_le;

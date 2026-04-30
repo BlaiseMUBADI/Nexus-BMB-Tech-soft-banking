@@ -46,7 +46,7 @@
                     <strong>{{ number_format($demande->montant_demande, 2, ',', ' ') }} {{ $demande->devise }}</strong>
                 </td></tr>
                 <tr><th>Durée</th><td>{{ $demande->duree_mois }} mois</td></tr>
-                <tr><th>Taux</th><td>{{ $demande->taux_interet_mensuel }} % / mois</td></tr>
+                <tr><th>Taux</th><td>{{ number_format((float) $demande->taux_interet_mensuel, 1, '.', '') }} % / mois</td></tr>
             </table>
             <div class="mt-2 p-2 bg-light rounded">
                 <strong class="small">Objet :</strong><br>
@@ -117,8 +117,12 @@
             </div>
             <div class="form-group col-md-3">
                 <label>Revenu mensuel net</label>
-                <input type="number" name="revenu_mensuel_verifie" class="form-control" step="0.01" min="0"
-                       value="{{ old('revenu_mensuel_verifie', optional($a)->revenu_mensuel_verifie) }}">
+                <small class="text-muted d-block">Même devise que la demande de crédit</small>
+                <div class="input-group">
+                    <input type="number" name="revenu_mensuel_verifie" class="form-control" step="0.01" min="0"
+                           value="{{ old('revenu_mensuel_verifie', optional($a)->revenu_mensuel_verifie) }}">
+                    <div class="input-group-append"><span class="input-group-text">{{ $demande->devise }}</span></div>
+                </div>
             </div>
             <div class="form-group col-md-3">
                 <label>Taux d'endettement (%)</label>
@@ -133,8 +137,12 @@
         <div class="form-row">
             <div class="form-group col-md-4">
                 <label>Capacité de remboursement</label>
-                <input type="number" name="capacite_remboursement" class="form-control" step="0.01" min="0"
-                       value="{{ old('capacite_remboursement', optional($a)->capacite_remboursement) }}">
+                <small class="text-muted d-block">Même devise que la demande de crédit</small>
+                <div class="input-group">
+                    <input type="number" name="capacite_remboursement" class="form-control" step="0.01" min="0"
+                           value="{{ old('capacite_remboursement', optional($a)->capacite_remboursement) }}">
+                    <div class="input-group-append"><span class="input-group-text">{{ $demande->devise }}</span></div>
+                </div>
                 <small class="text-muted">Montant max mensuel supportable</small>
             </div>
             <div class="form-group col-md-4">
@@ -181,9 +189,13 @@
 
         <div class="form-row">
             <div class="form-group col-md-6">
-                <label>Montant proposé (si différent)</label>
-                  <input type="number" name="montant_recommande" class="form-control" step="0.01" min="0"
-                      value="{{ old('montant_recommande', optional($a)->montant_recommande) }}">
+                <label>Montant proposé ({{ $demande->devise }})</label>
+                                <small class="text-muted d-block">Même devise que la demande de crédit</small>
+                                <div class="input-group">
+                                    <input type="number" name="montant_recommande" class="form-control" step="0.01" min="0"
+                                            value="{{ old('montant_recommande', optional($a)->montant_recommande) }}">
+                                        <div class="input-group-append"><span class="input-group-text">{{ $demande->devise }}</span></div>
+                                </div>
             </div>
             <div class="form-group col-md-6">
                   <label>État de l'analyse</label>
@@ -221,6 +233,71 @@
 
         </form>
     </div>
+
+    @if($previewEcheancier)
+    <div class="card card-outline card-secondary mt-3 collapsed-card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-table mr-2"></i>Aperçu de l'échéancier
+            </h5>
+            <div class="card-tools">
+                <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Replier / déplier">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="px-3 py-2 small bg-light border-bottom">
+                <div class="row">
+                    <div class="col-md-3 mb-2 mb-md-0">
+                        <strong>Montant retenu :</strong><br>
+                        {{ number_format($conditionsRetenues['montant'], 2, ',', ' ') }} {{ $demande->devise }}
+                    </div>
+                    <div class="col-md-2 mb-2 mb-md-0">
+                        <strong>Durée retenue :</strong><br>
+                        {{ $conditionsRetenues['duree_mois'] }} mois
+                    </div>
+                    <div class="col-md-3 mb-2 mb-md-0">
+                        <strong>Total intérêts :</strong><br>
+                        {{ number_format($previewEcheancier['total_interets'], 2, ',', ' ') }} {{ $demande->devise }}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Total général :</strong><br>
+                        {{ number_format($previewEcheancier['total_general'], 2, ',', ' ') }} {{ $demande->devise }}
+                    </div>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-bordered mb-0 small">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Capital début</th>
+                            <th>Capital</th>
+                            <th>Intérêt</th>
+                            <th>Total</th>
+                            <th>Capital fin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($previewEcheancier['echeances'] as $ligne)
+                        <tr>
+                            <td>{{ $ligne['numero'] }}</td>
+                            <td>{{ $ligne['date']->format('d/m/Y') }}</td>
+                            <td class="text-right">{{ number_format($ligne['capital_restant_debut'], 2, ',', ' ') }}</td>
+                            <td class="text-right">{{ number_format($ligne['capital'], 2, ',', ' ') }}</td>
+                            <td class="text-right">{{ number_format($ligne['interet'], 2, ',', ' ') }}</td>
+                            <td class="text-right font-weight-bold">{{ number_format($ligne['total'], 2, ',', ' ') }}</td>
+                            <td class="text-right">{{ number_format($ligne['capital_restant_fin'], 2, ',', ' ') }}</td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @endif
 </div>
 </div>
 

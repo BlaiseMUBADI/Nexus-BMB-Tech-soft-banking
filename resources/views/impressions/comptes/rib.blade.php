@@ -100,11 +100,11 @@
 </div>
 
 {{-- ── Note d'utilisation ── --}}
-<div class="section" style="margin-top:10px;">
+<div class="section" style="margin-top:6px;">
     <div class="section-title">Comment utiliser ce RIB ?</div>
     <table class="info-table">
         <tr>
-            <td style="padding:8px 10px; color:#444; line-height:1.6;">
+            <td style="padding:5px 7px; color:#444; line-height:1.25; font-size:8.5px;">
                 Ce Relevé d'Identité Bancaire vous permet de :
                 <br>
                 &bull; Communiquer vos coordonnées bancaires pour <strong>recevoir des virements</strong><br>
@@ -117,14 +117,14 @@
 </div>
 
 {{-- Espace pour signature --}}
-<div style="margin-top: 30px; display:table; width:100%;">
+<div style="margin-top: 16px; display:table; width:100%;">
     <div style="display:table-cell; text-align:center; width:50%;">
-        <div style="border-top:1px solid #999; width:140px; margin:0 auto; padding-top:4px; font-size:9px; color:#666;">
+        <div style="border-top:1px solid #999; width:120px; margin:0 auto; padding-top:3px; font-size:8px; color:#666;">
             Signature du titulaire
         </div>
     </div>
     <div style="display:table-cell; text-align:center; width:50%;">
-        <div style="border-top:1px solid #999; width:140px; margin:0 auto; padding-top:4px; font-size:9px; color:#666;">
+        <div style="border-top:1px solid #999; width:120px; margin:0 auto; padding-top:3px; font-size:8px; color:#666;">
             Cachet &amp; Signature COOPEC EBEN
         </div>
     </div>
