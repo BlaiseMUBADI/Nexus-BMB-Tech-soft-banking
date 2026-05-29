@@ -76,6 +76,7 @@ class CaisseController extends Controller
                 'Le guichet ' . $guichet->code_guichet . ' est passe en statut ' . $nouveauStatut . '.',
                 [
                     'type' => 'info',
+                    'category' => 'caisse',
                     'icon' => 'fas fa-store',
                     'action_url' => route('caisses.ouverture'),
                 ]
@@ -238,6 +239,7 @@ class CaisseController extends Controller
                 'Le guichet ' . $guichet->code_guichet . ' a soumis une cloture et attend votre validation.',
                 [
                     'type' => 'action_required',
+                    'category' => 'caisse',
                     'icon' => 'fas fa-clipboard-check',
                     'action_url' => route('tresorerie.etat-coffre'),
                 ]
@@ -367,6 +369,7 @@ class CaisseController extends Controller
                 . ' a ete soumise pour le guichet ' . $guichet->code_guichet . '.',
             [
                 'type' => 'action_required',
+                'category' => 'caisse',
                 'icon' => 'fas fa-hand-holding-usd',
                 'action_url' => route('tresorerie.etat-coffre'),
                 'meta' => ['demande_id' => $demande->id],

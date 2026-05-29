@@ -1,0 +1,2054 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Manuel Utilisateur — Coopec EBEN</title>
+<style>@page {
+    size: A4;
+    margin: 22mm 18mm 24mm 18mm;
+}
+@page {
+    /* Pied de page avec numéro courant / total */
+    @bottom-right {
+        content: "Page " counter(page) " / " counter(pages);
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 9pt;
+        color: #6b7280;
+    }
+    @bottom-left {
+        content: "Manuel Utilisateur — Coopec EBEN";
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 9pt;
+        color: #6b7280;
+        font-style: italic;
+    }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 11pt;
+    color: #1f2937;
+    line-height: 1.55;
+    background: #ffffff;
+}
+
+/* === COUVERTURE === */
+.cover {
+    height: 247mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    page-break-after: always;
+    background: linear-gradient(160deg, #1e3a8a 0%, #1e40af 50%, #0c2d6b 100%);
+    color: #ffffff;
+    border-radius: 4px;
+    padding: 30mm;
+    position: relative;
+}
+.cover .brand {
+    font-size: 14pt;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    opacity: 0.9;
+    margin-bottom: 14mm;
+}
+.cover h1 {
+    font-size: 38pt;
+    line-height: 1.1;
+    margin: 0 0 6mm 0;
+    font-weight: 700;
+    border: none;
+    color: #ffffff;
+    page-break-before: avoid;
+}
+.cover .sub {
+    font-size: 17pt;
+    font-weight: 300;
+    margin-bottom: 6mm;
+    opacity: 0.95;
+}
+.cover .institution {
+    font-size: 13pt;
+    font-weight: 600;
+    margin-bottom: 18mm;
+    opacity: 0.95;
+    letter-spacing: 2px;
+}
+.cover .meta {
+    font-size: 11pt;
+    opacity: 0.9;
+    border-top: 1px solid rgba(255,255,255,0.3);
+    border-bottom: 1px solid rgba(255,255,255,0.3);
+    padding: 6mm 0;
+    width: 70%;
+    line-height: 1.9;
+}
+.cover .site {
+    margin-top: 10mm;
+    font-size: 11pt;
+    opacity: 0.9;
+}
+.cover .site a { color: #ffffff; text-decoration: none; border-bottom: 1px dotted #ffffff; }
+.cover .footer-cover {
+    position: absolute;
+    bottom: 18mm;
+    font-size: 9pt;
+    opacity: 0.75;
+    width: 100%;
+    left: 0;
+    text-align: center;
+}
+
+/* === SOMMAIRE / contenu === */
+.content { padding: 0; }
+h1, h2, h3, h4 {
+    color: #1e3a8a;
+    page-break-after: avoid;
+    margin-top: 1.4em;
+    margin-bottom: 0.5em;
+    line-height: 1.25;
+}
+h1 {
+    font-size: 24pt;
+    border-bottom: 3px solid #1e3a8a;
+    padding-bottom: 4mm;
+    margin-top: 0;
+    page-break-before: always;
+}
+h1:first-of-type { page-break-before: avoid; }
+h2 {
+    font-size: 17pt;
+    border-bottom: 1px solid #d1d5db;
+    padding-bottom: 2mm;
+}
+h3 { font-size: 13pt; color: #1e40af; }
+h4 { font-size: 11pt; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; }
+p { margin: 0 0 0.7em 0; text-align: justify; }
+a { color: #1e3a8a; text-decoration: none; }
+ul, ol { margin: 0 0 0.8em 1.5em; padding: 0; }
+li { margin: 0.15em 0; }
+strong { color: #0f172a; }
+em { color: #334155; }
+code {
+    font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+    font-size: 9.5pt;
+    background: #f1f5f9;
+    color: #be185d;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 4mm 5mm;
+    border-radius: 4px;
+    font-size: 9pt;
+    line-height: 1.45;
+    overflow-x: auto;
+    page-break-inside: avoid;
+    margin: 0.6em 0 1em 0;
+}
+pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: 9pt;
+}
+blockquote {
+    margin: 0.6em 0 1em 0;
+    padding: 3mm 5mm;
+    background: #eff6ff;
+    border-left: 4px solid #1e3a8a;
+    color: #0c2d6b;
+    border-radius: 0 4px 4px 0;
+    page-break-inside: avoid;
+}
+blockquote p { margin: 0.2em 0; }
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.8em 0 1.2em 0;
+    font-size: 10pt;
+    page-break-inside: avoid;
+}
+th, td {
+    border: 1px solid #d1d5db;
+    padding: 5px 8px;
+    text-align: left;
+    vertical-align: top;
+}
+th {
+    background: #1e3a8a;
+    color: #ffffff;
+    font-weight: 600;
+}
+tbody tr:nth-child(even) { background: #f8fafc; }
+hr {
+    border: none;
+    border-top: 1px dashed #cbd5e1;
+    margin: 1.5em 0;
+}
+img { max-width: 100%; height: auto; }
+
+/* Sommaire (le premier <ol>/<ul> du document après le titre h1) */
+.toc-wrap {
+    page-break-after: always;
+}
+.toc-wrap h2 {
+    border-bottom: 3px solid #1e3a8a;
+    padding-bottom: 3mm;
+}
+.toc-wrap ol {
+    list-style: none;
+    counter-reset: toc;
+    margin: 0;
+    padding: 0;
+}
+.toc-wrap ol > li {
+    counter-increment: toc;
+    margin: 4mm 0;
+    padding: 2mm 4mm;
+    border-bottom: 1px dotted #cbd5e1;
+    font-size: 11pt;
+}
+.toc-wrap ol > li::before {
+    content: counter(toc, decimal-leading-zero) ".";
+    color: #1e3a8a;
+    font-weight: 700;
+    margin-right: 4mm;
+}
+.toc-wrap a {
+    color: #1f2937;
+    text-decoration: none;
+}
+
+.footer-doc {
+    text-align: center;
+    font-size: 8.5pt;
+    color: #6b7280;
+    font-style: italic;
+    margin-top: 4em;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 6mm;
+}</style>
+</head>
+<body>
+<section class="cover">
+  <div class="brand">Nexus BMB Tech</div>
+  <h1>Manuel Utilisateur</h1>
+  <div class="sub">Système de gestion bancaire et financier</div>
+  <div class="institution">COOPEC EBEN</div>
+  <div class="meta">
+    <div><strong>Version</strong> : 3.0.0</div>
+    <div><strong>Date</strong> : Mai 2026</div>
+    <div><strong>Public visé</strong> : Caissiers, Chargés de crédit, Trésoriers,<br>Comptables, Administrateurs &amp; Direction</div>
+  </div>
+  <div class="site">Site officiel : <a href="https://coopaeben.info/">https://coopaeben.info/</a></div>
+  <div class="footer-cover">&copy; 2026 Nexus BMB Tech &mdash; Tous droits r&eacute;serv&eacute;s</div>
+</section>
+<main class="content">
+<h1>Manuel Utilisateur — Coopec EBEN</h1>
+<p><strong>Logiciel</strong> : Nexus BMB Tech Soft Banking — Système de gestion bancaire et financier
+<strong>Édition</strong> : Coopérative d'Épargne et de Crédit EBEN (Coopec EBEN)
+<strong>Site institutionnel</strong> : <a href="https://coopaeben.info/">https://coopaeben.info/</a>
+<strong>Version</strong> : 3.0.0
+<strong>Date</strong> : Mai 2026
+<strong>Éditeur</strong> : Nexus BMB Tech
+<strong>Public visé</strong> : Caissiers, Agents commerciaux, Chargés de crédit, Analystes, Validateurs, Chargés des opérations, Trésoriers, Comptables, Gestionnaires RH, Administrateurs système.</p>
+<hr />
+<div class="toc-wrap"><h2>Sommaire</h2>
+<ol>
+<li><a href="#1-introduction">Introduction</a></li>
+<li><a href="#2-pr%C3%A9requis--acc%C3%A8s">Prérequis &amp; accès</a></li>
+<li><a href="#3-premiers-pas--connexion--d%C3%A9connexion">Premiers pas — Connexion &amp; déconnexion</a></li>
+<li><a href="#4-pr%C3%A9sentation-de-linterface">Présentation de l'interface</a></li>
+<li><a href="#5-tableau-de-bord">Tableau de bord</a></li>
+<li><a href="#6-module-comptes-clients">Module Comptes Clients</a></li>
+<li><a href="#7-module-caisse--guichet">Module Caisse &amp; Guichet</a></li>
+<li><a href="#8-module-tr%C3%A9sorerie--coffre-central">Module Trésorerie &amp; Coffre central</a></li>
+<li><a href="#9-module-cr%C3%A9dit">Module Crédit</a></li>
+<li><a href="#10-module-comptabilit%C3%A9-ohada">Module Comptabilité OHADA</a></li>
+<li><a href="#11-module-ressources-humaines">Module Ressources Humaines</a></li>
+<li><a href="#12-module-administration--rbac">Module Administration &amp; RBAC</a></li>
+<li><a href="#13-centre-de-notifications">Centre de notifications</a></li>
+<li><a href="#14-mon-profil">Mon profil</a></li>
+<li><a href="#15-proc%C3%A9dures-types-par-r%C3%B4le">Procédures types par rôle</a></li>
+<li><a href="#16-bonnes-pratiques--s%C3%A9curit%C3%A9">Bonnes pratiques &amp; sécurité</a></li>
+<li><a href="#17-d%C3%A9pannage-faq">Dépannage (FAQ)</a></li>
+<li><a href="#18-glossaire-m%C3%A9tier">Glossaire métier</a></li>
+<li><a href="#19-annexes">Annexes</a></li>
+</ol></div>
+<hr />
+<h2>1. Introduction</h2>
+<h3>1.1 Objet du logiciel</h3>
+<p><strong>Nexus BMB Tech Soft Banking</strong> est une plateforme web complète de gestion bancaire conçue pour les institutions de microfinance et les coopératives d'épargne et de crédit (COOPEC). Déployée pour la <strong>Coopec EBEN</strong>, elle couvre l'ensemble des opérations métier d'une agence :</p>
+<ul>
+<li>Gestion centralisée des <strong>membres</strong> (clients) et de leurs <strong>comptes</strong> (Courant, DAT, Épargne, Garantie, Remboursement).</li>
+<li>Opérations de <strong>guichet</strong> multi-devises : dépôts, retraits, change, paiements, remboursements, avec calcul automatique des <strong>commissions</strong>.</li>
+<li>Gestion du <strong>coffre central</strong>, des <strong>alimentations de guichets</strong> et des <strong>clôtures de caisse</strong> validées par la trésorerie.</li>
+<li>Cycle complet du <strong>crédit</strong> : demande → analyse → validation à 4 niveaux → déblocage → remboursement, avec traçabilité totale.</li>
+<li><strong>Comptabilité OHADA</strong> intégrée : chaque opération produit ses écritures (journal, grand-livre, plan comptable).</li>
+<li><strong>Ressources humaines</strong> : agents, services, postes, affectations zones / guichets / portefeuilles historisées.</li>
+<li><strong>Administration &amp; RBAC</strong> dynamique : utilisateurs, rôles, permissions atomiques (≈ 100 permissions), zones, devises, taux de change.</li>
+<li><strong>Centre de notifications</strong> persistantes pour suivre les flux métiers en temps réel.</li>
+</ul>
+<h3>1.2 Architecture résumée</h3>
+<table>
+<thead>
+<tr>
+<th>Composant</th>
+<th>Détail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cadriciel</td>
+<td>Laravel 13.x</td>
+</tr>
+<tr>
+<td>PHP</td>
+<td>8.3+</td>
+</tr>
+<tr>
+<td>Base de données</td>
+<td>MySQL 8 (<code>coopa2747247</code> / <code>bdd_nexus_bmb_tech_soft_baking</code>) — tables préfixées <code>tb_*</code></td>
+</tr>
+<tr>
+<td>Interface</td>
+<td>AdminLTE 3 + Tailwind utilitaires</td>
+</tr>
+<tr>
+<td>Authentification</td>
+<td>Laravel Breeze (sessions + vérification e-mail)</td>
+</tr>
+<tr>
+<td>Notifications</td>
+<td>Laravel database notifications (<code>SystemDatabaseNotification</code>)</td>
+</tr>
+<tr>
+<td>Comptabilité</td>
+<td>OHADA — plan comptable normalisé</td>
+</tr>
+<tr>
+<td>PDF</td>
+<td>Dompdf + Barryvdh PDF</td>
+</tr>
+</tbody>
+</table>
+<h3>1.3 Principes fondateurs</h3>
+<ul>
+<li><strong>Séparation stricte des rôles</strong> : aucun utilisateur ne peut accéder à un module sans la permission correspondante.</li>
+<li><strong>Traçabilité exhaustive</strong> : chaque opération est horodatée et attribuée à un agent.</li>
+<li><strong>Multi-devises</strong> : toutes les opérations sont rattachées à une devise et à un taux de change historisé.</li>
+<li><strong>Multi-guichets</strong> : guichets FIXE (bureau), MOBILE (terrain) et CENTRAL (coffre-fort).</li>
+<li><strong>Scoping géographique</strong> : les agents commerciaux ne voient que les membres et comptes de <strong>leurs zones d'affectation</strong>.</li>
+<li><strong>Immuabilité comptable</strong> : les écritures et les commissions sont versionnées et <strong>non modifiables</strong> après validation.</li>
+</ul>
+<blockquote>
+<p><strong>Note</strong> : ce manuel décrit l'usage <strong>fonctionnel</strong> de l'application. Pour la mise en place technique (installation, déploiement, migrations, sauvegardes), reportez-vous au fichier <code>README.md</code> du projet.</p>
+</blockquote>
+<hr />
+<h2>2. Prérequis &amp; accès</h2>
+<h3>2.1 Matériel recommandé</h3>
+<ul>
+<li><strong>Poste caissier / guichet</strong> : PC ou tablette 14&quot; minimum, clavier physique, souris ou écran tactile, imprimante ticket optionnelle (format A4 pour bordereaux PDF).</li>
+<li><strong>Poste chargé de crédit / analyste</strong> : PC avec écran 22&quot; recommandé.</li>
+<li><strong>Poste trésorier / administrateur</strong> : PC avec écran 24&quot;, double écran recommandé pour le suivi des flux.</li>
+<li><strong>Imprimante</strong> : laser A4 noir &amp; blanc pour les bordereaux, fiches client, échéanciers et relevés.</li>
+<li><strong>Réseau</strong> : connexion internet stable (fibre / 4G) pour l'accès distant à <code>https://coopaeben.info/</code>.</li>
+</ul>
+<h3>2.2 Navigateur</h3>
+<table>
+<thead>
+<tr>
+<th>Navigateur</th>
+<th>Version minimale</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Microsoft Edge</td>
+<td>110+</td>
+<td>Recommandé</td>
+</tr>
+<tr>
+<td>Google Chrome</td>
+<td>110+</td>
+<td>Recommandé</td>
+</tr>
+<tr>
+<td>Mozilla Firefox</td>
+<td>110+</td>
+<td>Supporté</td>
+</tr>
+<tr>
+<td>Safari</td>
+<td>16+</td>
+<td>Supporté</td>
+</tr>
+<tr>
+<td>Internet Explorer</td>
+<td>toutes</td>
+<td><strong>Non supporté</strong></td>
+</tr>
+</tbody>
+</table>
+<p>JavaScript, cookies et fenêtres modales doivent être autorisés. La résolution minimale conseillée est <strong>1366 × 768</strong>.</p>
+<h3>2.3 URL d'accès</h3>
+<p>L'application est accessible à l'adresse suivante :</p>
+<pre><code>https://coopaeben.info/login
+</code></pre>
+<p>En environnement local de formation ou de test :</p>
+<pre><code>http://localhost/Nexus-BMB-Tech-soft-banking/public/login
+</code></pre>
+<blockquote>
+<p><strong>Conseil</strong> : créez un raccourci sur le bureau pointant directement vers <code>/login</code> et épinglez l'onglet dans votre navigateur.</p>
+</blockquote>
+<h3>2.4 Comptes et rôles</h3>
+<p>Chaque utilisateur dispose d'<strong>un compte personnel</strong> (e-mail + mot de passe) rattaché à un membre du personnel (<strong>agent</strong>) via son <strong>matricule</strong>. Le compte se voit attribuer un ou plusieurs <strong>rôles</strong>, chacun regroupant un ensemble de <strong>permissions atomiques</strong> (codifiées <code>EBEN-PER01</code> à <code>EBEN-PER108</code>).</p>
+<p>Les rôles typiques sont :</p>
+<ul>
+<li><strong>Super Admin</strong> — accès intégral, gestion RBAC.</li>
+<li><strong>Administrateur système</strong> — utilisateurs, zones, devises, paramétrage.</li>
+<li><strong>Caissier / Guichetier</strong> — opérations courantes (dépôt, retrait, change).</li>
+<li><strong>Chef de caisse / Trésorier</strong> — approbations clôtures, alimentations guichets, gestion coffre.</li>
+<li><strong>Comptable</strong> — consultation journal, grand-livre, plan comptable.</li>
+<li><strong>Chargé de crédit</strong> — création des dossiers, suivi.</li>
+<li><strong>Analyste crédit</strong> — analyse des dossiers.</li>
+<li><strong>Validateur crédit L1 / L2 / L3 / L4</strong> — validation hiérarchique.</li>
+<li><strong>Chargé des opérations crédit</strong> — affectation, déblocage.</li>
+<li><strong>Chargé clientèle / Agent commercial</strong> — gestion des membres et comptes.</li>
+<li><strong>Agent mobile</strong> — opérations sur le terrain, accès restreint à ses zones.</li>
+<li><strong>Gestionnaire RH</strong> — agents, services, postes, affectations.</li>
+</ul>
+<hr />
+<h2>3. Premiers pas — Connexion &amp; déconnexion</h2>
+<h3>3.1 Se connecter</h3>
+<ol>
+<li>Ouvrez votre navigateur et saisissez l'URL d'accès.</li>
+<li>La page <strong>Connexion</strong> s'affiche avec le logo Coopec EBEN.</li>
+<li>Saisissez votre <strong>adresse e-mail</strong> professionnelle.</li>
+<li>Saisissez votre <strong>mot de passe</strong>.</li>
+<li>Cochez éventuellement <strong>Se souvenir de moi</strong> (déconseillé sur un poste partagé).</li>
+<li>Cliquez sur <strong>Se connecter</strong>.</li>
+</ol>
+<p><strong>En cas d'échec</strong> : un message rouge s'affiche. Vérifiez :</p>
+<ul>
+<li>la casse du mot de passe (verrouillage majuscule désactivé) ;</li>
+<li>que votre compte est <strong>actif</strong> (un compte désactivé refuse la connexion) ;</li>
+<li>que votre adresse e-mail a bien été <strong>vérifiée</strong> (lien dans le premier e-mail reçu).</li>
+</ul>
+<p>Après 6 tentatives infructueuses en moins d'une minute, le compte est temporairement bloqué. Patientez ou contactez l'administrateur.</p>
+<h3>3.2 Vérification de l'e-mail</h3>
+<p>À la première connexion (ou si l'administrateur l'a exigé), le système vous demande de <strong>vérifier votre adresse e-mail</strong> :</p>
+<ol>
+<li>Cliquez sur <strong>Renvoyer le lien de vérification</strong>.</li>
+<li>Ouvrez votre boîte mail et cliquez sur le lien reçu.</li>
+<li>Reconnectez-vous : vous accédez au tableau de bord.</li>
+</ol>
+<h3>3.3 Se déconnecter</h3>
+<ul>
+<li>Cliquez sur votre <strong>avatar</strong> en haut à droite → <strong>Déconnexion</strong>.</li>
+<li>Une déconnexion automatique se produit après <strong>10 minutes d'inactivité</strong> (paramètre <code>session.inactivity_timeout</code>, modifiable par l'administrateur).</li>
+<li>Un <strong>heartbeat</strong> AJAX prolonge automatiquement la session tant que vous interagissez avec l'application.</li>
+</ul>
+<h3>3.4 Réinitialiser le mot de passe</h3>
+<ul>
+<li>Page de connexion → <strong>Mot de passe oublié ?</strong></li>
+<li>Saisissez votre e-mail → un lien signé vous est envoyé (validité 60 minutes).</li>
+<li>Cliquez sur le lien, choisissez un nouveau mot de passe (8 caractères minimum, mixte recommandé).</li>
+<li>L'administrateur peut également réinitialiser le mot de passe depuis <strong>Administration → Utilisateurs</strong>.</li>
+</ul>
+<hr />
+<h2>4. Présentation de l'interface</h2>
+<p>L'interface est structurée en quatre zones standard AdminLTE :</p>
+<pre><code>+---------------------------------------------------------+
+|  Top Navbar  : logo . recherche . cloche notifs . avatar|
++----------+----------------------------------------------+
+|          |                                              |
+| Sidebar  |           Zone de contenu (modules)          |
+| (menu)   |                                              |
+|          |                                              |
++----------+----------------------------------------------+
+|                  Footer · © Coopec EBEN                 |
++---------------------------------------------------------+
+</code></pre>
+<h3>4.1 La barre supérieure (navbar)</h3>
+<ul>
+<li><strong>Logo Coopec EBEN</strong> à gauche : plie / déplie la sidebar.</li>
+<li><strong>Cloche de notifications</strong> : affiche en rouge le compteur de notifications non lues, et en orange un second badge pour les notifications <strong>nécessitant une action</strong> (<code>action_required</code>). Un clic ouvre un menu déroulant des 5 dernières notifications.</li>
+<li><strong>Avatar utilisateur</strong> : menu <em>Mon profil · Mes notifications · Déconnexion</em>.</li>
+</ul>
+<h3>4.2 La sidebar (menu latéral)</h3>
+<p>Le menu liste <strong>uniquement les modules autorisés</strong> par vos permissions. Les entrées peuvent contenir des sous-menus (cliquer pour développer). L'élément actif est surligné. Les sections principales :</p>
+<ul>
+<li>Tableau de bord</li>
+<li>Comptes Clients (Membres · Comptes · Mobilité)</li>
+<li>Caisse (Ouverture · Opérations · Mes demandes · Journal)</li>
+<li>Trésorerie (Coffre · Alimentations · Demandes · Clôtures · Commissions)</li>
+<li>Crédit (Dossiers · Analyse · Validation · Déblocage · Remboursement · Supervision)</li>
+<li>Comptabilité (Dashboard · Plan OHADA · Journal · Grand-livre)</li>
+<li>Ressources Humaines (Agents · Services · Postes · Affectations)</li>
+<li>Administration (Utilisateurs · Rôles &amp; Permissions · Zones · Guichets · Devises)</li>
+<li>Notifications</li>
+</ul>
+<h3>4.3 Les fenêtres modales</h3>
+<p>Toutes les opérations de création ou de modification (créer un membre, enregistrer une opération, créer un dossier de crédit, etc.) s'ouvrent dans une <strong>fenêtre modale</strong> par-dessus la page courante. Cliquez sur la croix ou en dehors de la modale pour fermer <strong>sans enregistrer</strong>.</p>
+<h3>4.4 Les messages système</h3>
+<ul>
+<li><strong>Vert</strong> : opération réussie (« Enregistré avec succès »).</li>
+<li><strong>Bleu</strong> : information neutre (« Demande transmise au trésorier »).</li>
+<li><strong>Orange</strong> : avertissement (« Solde du guichet faible »).</li>
+<li><strong>Rouge</strong> : erreur (« Solde insuffisant », « Champ obligatoire manquant »).</li>
+</ul>
+<p>Les messages disparaissent automatiquement après 5 secondes. Cliquez dessus pour les masquer immédiatement.</p>
+<h3>4.5 Tableaux et recherches</h3>
+<p>Tous les tableaux disposent de :</p>
+<ul>
+<li>une <strong>barre de recherche</strong> en haut à droite ;</li>
+<li>des <strong>filtres</strong> par colonne (zone, statut, devise, période) ;</li>
+<li>la <strong>pagination</strong> en bas (10, 25, 50 ou 100 lignes par page) ;</li>
+<li>l'<strong>export</strong> PDF lorsque la permission est accordée.</li>
+</ul>
+<hr />
+<h2>5. Tableau de bord</h2>
+<p><strong>Route</strong> : <code>/dashboard</code>
+<strong>Accès</strong> : tous les utilisateurs authentifiés et vérifiés.</p>
+<p>C'est la page d'accueil affichée après connexion. Elle présente :</p>
+<ul>
+<li>Un <strong>bandeau de bienvenue</strong> personnalisé (prénom, nom, postnom).</li>
+<li>La liste de vos <strong>rôles</strong> et <strong>permissions</strong> en cours.</li>
+<li>Des <strong>vignettes d'accès rapide</strong> vers les modules autorisés.</li>
+<li>Des <strong>indicateurs clés</strong> (KPI) selon votre rôle :
+<ul>
+<li>Caissier : statut de votre guichet, solde par devise, nombre d'opérations du jour.</li>
+<li>Trésorier : solde du coffre central, demandes en attente, clôtures à valider.</li>
+<li>Chargé de crédit : dossiers en cours, à analyser, à valider.</li>
+<li>Administrateur : nombre d'utilisateurs actifs, alertes système.</li>
+</ul>
+</li>
+<li>Un bloc <strong>Dernières notifications</strong> (5 plus récentes non lues).</li>
+</ul>
+<blockquote>
+<p><strong>Astuce</strong> : vos vignettes d'accès sont calculées dynamiquement selon vos permissions. Si une vignette est absente, c'est qu'elle n'est pas autorisée par votre rôle — contactez votre administrateur.</p>
+</blockquote>
+<hr />
+<h2>6. Module Comptes Clients</h2>
+<p>Ce module gère les <strong>membres</strong> (clients) de la coopérative et leurs <strong>comptes bancaires</strong>.</p>
+<h3>6.1 Sous-module Membres (Clients)</h3>
+<p><strong>Route</strong> : <code>/comptes-clients/clients</code>
+<strong>Permission de base</strong> : <code>EBEN-PER15</code> (Voir clients).</p>
+<h4>6.1.1 Lister les membres</h4>
+<p>À l'ouverture, le tableau affiche tous les membres visibles selon votre <strong>scoping de zone</strong> :</p>
+<ul>
+<li>Un <strong>agent commercial mobile</strong> ne voit que les membres affectés à ses zones (via <code>tb_affectations_zones</code>).</li>
+<li>Un <strong>administrateur</strong> ou un <strong>caissier de bureau</strong> voit l'ensemble des membres.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Colonne</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Matricule</td>
+<td>Identifiant unique (<code>CL-EBENKGA-YY-XXXXX</code>) auto-généré</td>
+</tr>
+<tr>
+<td>Photo</td>
+<td>Miniature de la photo d'identité</td>
+</tr>
+<tr>
+<td>Nom · Postnom · Prénom</td>
+<td>État civil</td>
+</tr>
+<tr>
+<td>Téléphone</td>
+<td>Numéro principal</td>
+</tr>
+<tr>
+<td>Zone</td>
+<td>Code zone d'affectation</td>
+</tr>
+<tr>
+<td>Date inscription</td>
+<td>Date de création</td>
+</tr>
+<tr>
+<td>Actions</td>
+<td>Voir · Éditer · Imprimer fiche · Supprimer</td>
+</tr>
+</tbody>
+</table>
+<h4>6.1.2 Créer un membre</h4>
+<p><strong>Permission</strong> : <code>EBEN-PER15</code> (accès formulaire) + <code>EBEN-PER16</code> (enregistrement).</p>
+<ol>
+<li>Cliquez sur <strong>+ Nouveau membre</strong>.</li>
+<li>Renseignez l'<strong>état civil</strong> : nom, postnom, prénom, sexe, date et lieu de naissance, état civil, nom du conjoint le cas échéant.</li>
+<li>Renseignez les <strong>coordonnées</strong> : téléphone, e-mail, adresse complète.</li>
+<li>Renseignez la <strong>pièce d'identité</strong> : type (CNI, Passeport, Permis…), numéro, date d'émission.</li>
+<li>Renseignez le <strong>profil socio-économique</strong> : secteur d'activité, revenu mensuel estimé.</li>
+<li>Choisissez la <strong>zone</strong> d'affectation (obligatoire).</li>
+<li>Téléversez la <strong>photo d'identité</strong> (formats JPG / PNG, ≤ 2 Mo).</li>
+<li>Cliquez <strong>Enregistrer</strong>.</li>
+</ol>
+<p>Le système :</p>
+<ul>
+<li>Génère automatiquement le <strong>matricule</strong> au format <code>CL-EBENKGA-YY-XXXXX</code>.</li>
+<li>Vérifie l'<strong>unicité</strong> du matricule, du numéro de pièce et de l'e-mail.</li>
+<li>Enregistre la photo dans <code>images_projet/clients/</code>.</li>
+</ul>
+<blockquote>
+<p><strong>Important</strong> : le matricule est la <strong>clé primaire</strong> logique du membre. Il ne peut être ni modifié ni réutilisé. En cas de doublon détecté à l'enregistrement, le système rejette l'opération avec un message clair.</p>
+</blockquote>
+<h4>6.1.3 Consulter ou modifier un membre</h4>
+<ul>
+<li><strong>Voir</strong> (PER15) : icône œil → fiche complète avec onglets <em>État civil · Comptes · Crédits · Historique</em>.</li>
+<li><strong>Éditer</strong> (PER17) : icône crayon → formulaire de modification.</li>
+<li><strong>Supprimer</strong> (PER107) : action restreinte, soumise à confirmation et tracée dans le journal.</li>
+</ul>
+<h4>6.1.4 Impressions</h4>
+<table>
+<thead>
+<tr>
+<th>Impression</th>
+<th>Route</th>
+<th>Permission</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fiche membre individuelle (PDF)</td>
+<td><code>/comptes-clients/clients/{matricule}/fiche-pdf</code></td>
+<td>PER15</td>
+</tr>
+<tr>
+<td>Liste complète des membres (PDF)</td>
+<td><code>/comptes-clients/clients-liste-pdf</code></td>
+<td>PER15</td>
+</tr>
+<tr>
+<td>Liste des agents de terrain</td>
+<td><code>/comptes-clients/clients/agents-terrain-pdf</code></td>
+<td>PER76</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Restriction mobile</strong> : les utilisateurs en mode <strong>mobile guichet</strong> ne peuvent <strong>pas imprimer</strong> les fiches membres ni les listes (protection des données en mobilité). La protection est appliquée à la fois côté interface et côté serveur (403).</p>
+</blockquote>
+<h3>6.2 Sous-module Comptes</h3>
+<p><strong>Route</strong> : <code>/comptes-clients/comptes</code>
+<strong>Permission de base</strong> : <code>EBEN-PER18</code> (Voir comptes).</p>
+<h4>6.2.1 Types de comptes</h4>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Libellé</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CC</code></td>
+<td>Compte Courant</td>
+<td>Compte principal de dépôt / retrait</td>
+</tr>
+<tr>
+<td><code>RMB</code></td>
+<td>Remboursement</td>
+<td>Compte de remboursement de crédit</td>
+</tr>
+<tr>
+<td><code>GTC</code></td>
+<td>Garantie / Caution</td>
+<td>Caution bloquée pour un crédit</td>
+</tr>
+<tr>
+<td><code>DAT</code></td>
+<td>Dépôt à Terme</td>
+<td>Épargne à terme rémunérée</td>
+</tr>
+<tr>
+<td><code>EAV</code></td>
+<td>Épargne &amp; Avantages</td>
+<td>Épargne libre</td>
+</tr>
+</tbody>
+</table>
+<h4>6.2.2 Créer un compte</h4>
+<p><strong>Permission</strong> : <code>EBEN-PER18</code> (accès formulaire) + <code>EBEN-PER19</code> (enregistrement).</p>
+<ol>
+<li>Cliquez sur <strong>+ Nouveau compte</strong>.</li>
+<li>Recherchez le <strong>membre titulaire</strong> par matricule, nom ou téléphone.</li>
+<li>Choisissez le <strong>type de compte</strong> (<code>CC</code>, <code>RMB</code>, <code>GTC</code>, <code>DAT</code>, <code>EAV</code>).</li>
+<li>Choisissez la <strong>devise</strong> (CDF, USD, EUR…).</li>
+<li>Choisissez le <strong>portefeuille</strong> d'affectation.</li>
+<li>Saisissez le <strong>dépôt initial</strong> (peut être 0).</li>
+<li>Cliquez <strong>Enregistrer</strong>.</li>
+</ol>
+<p>Le système :</p>
+<ul>
+<li>Génère automatiquement le <strong>code compte</strong> (clé primaire).</li>
+<li>Initialise les soldes : solde réel + solde bloqué.</li>
+<li>Crée la première écriture comptable si un dépôt initial est saisi.</li>
+</ul>
+<blockquote>
+<p><strong>Information technique</strong> : la clé primaire d'un compte est <code>code_compte</code> (chaîne) et <strong>non un identifiant numérique</strong>. Tous les modules (crédit, caisse, etc.) référencent les comptes par ce code.</p>
+</blockquote>
+<h4>6.2.3 Documents d'un compte</h4>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Route</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>RIB / IBAN</strong></td>
+<td><code>/comptes-clients/comptes/{code}/rib</code></td>
+<td>Document officiel d'identification bancaire</td>
+</tr>
+<tr>
+<td><strong>Relevé de compte</strong></td>
+<td><code>/comptes-clients/comptes/{code}/releve-pdf</code></td>
+<td>Historique des mouvements sur période</td>
+</tr>
+<tr>
+<td><strong>Historique transactions</strong></td>
+<td><code>/comptes-clients/comptes/{code}/historique</code></td>
+<td>Vue en ligne des opérations</td>
+</tr>
+<tr>
+<td><strong>Liste de tous les comptes</strong></td>
+<td><code>/comptes-clients/comptes-liste-pdf</code></td>
+<td>Export PDF global</td>
+</tr>
+</tbody>
+</table>
+<h4>6.2.4 Solde et blocages</h4>
+<ul>
+<li><strong>Solde réel</strong> : montant disponible.</li>
+<li><strong>Solde bloqué</strong> : montant immobilisé (caution crédit, opération en cours).</li>
+<li><strong>Solde disponible</strong> = Solde réel − Solde bloqué.</li>
+</ul>
+<p>Le solde disponible est vérifié à chaque retrait ou paiement. En cas d'insuffisance, l'opération est refusée.</p>
+<hr />
+<h2>7. Module Caisse &amp; Guichet</h2>
+<p>Ce module gère le quotidien d'un <strong>caissier</strong> : ouverture du guichet, opérations courantes, demandes d'approvisionnement et clôture de caisse.</p>
+<h3>7.1 Concepts clés</h3>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Guichet</strong></td>
+<td>Point physique de service. Trois types : <code>FIXE</code> (bureau), <code>MOBILE</code> (terrain), <code>CENTRAL</code> (coffre-fort).</td>
+</tr>
+<tr>
+<td><strong>Affectation</strong></td>
+<td>Lien entre un agent et un guichet, historisé dans <code>tb_affectations</code>.</td>
+</tr>
+<tr>
+<td><strong>Solde guichet</strong></td>
+<td>Solde par devise (multi-devises possibles sur un même guichet).</td>
+</tr>
+<tr>
+<td><strong>Statut guichet</strong></td>
+<td><code>FERMÉ</code>, <code>OUVERT</code>, <code>SUSPENDU</code>, <code>CLÔTURÉ</code>.</td>
+</tr>
+<tr>
+<td><strong>Opération</strong></td>
+<td>Transaction : <code>DEPOT</code>, <code>RETRAIT</code>, <code>CHANGE</code>, <code>PAIEMENT</code>, <code>REMBOURSEMENT</code>.</td>
+</tr>
+<tr>
+<td><strong>Commission</strong></td>
+<td>Frais bancaires calculés selon des règles versionnées (<code>tb_commission_rules</code>) et figés par opération (<code>tb_transaction_commissions</code>).</td>
+</tr>
+</tbody>
+</table>
+<h3>7.2 Ouvrir un guichet</h3>
+<p><strong>Route</strong> : <code>/caisses/ouverture</code> (PER10) puis <code>/caisses/changer-statut/{id}</code> (PER11).</p>
+<ol>
+<li>Allez dans <strong>Caisse → Ouverture</strong>.</li>
+<li>Le système affiche votre <strong>guichet affecté</strong> (selon <code>tb_affectations</code> actives), avec :
+<ul>
+<li>le <strong>type</strong> (FIXE, MOBILE, CENTRAL) ;</li>
+<li>le <strong>statut courant</strong> ;</li>
+<li>les <strong>soldes par devise</strong>.</li>
+</ul>
+</li>
+<li>Cliquez sur <strong>Ouvrir le guichet</strong>.</li>
+<li>Saisissez une <strong>observation</strong> si requis.</li>
+<li>Validez.</li>
+</ol>
+<p>Le guichet passe au statut <strong>OUVERT</strong>. Vous pouvez désormais enregistrer des opérations.</p>
+<blockquote>
+<p><strong>Avertissement</strong> : un guichet <code>FERMÉ</code> ou <code>SUSPENDU</code> ne permet <strong>aucune opération</strong>. Les routes serveur refusent l'enregistrement même en cas de contournement de l'interface.</p>
+</blockquote>
+<h3>7.3 Effectuer une opération de guichet</h3>
+<p><strong>Route</strong> : <code>/caisses/operations</code> (PER10 pour voir, PER11 pour créer).</p>
+<h4>7.3.1 Étapes générales</h4>
+<ol>
+<li>Ouvrez <strong>Caisse → Opérations</strong>.</li>
+<li>Cliquez <strong>+ Nouvelle opération</strong>.</li>
+<li>Choisissez le <strong>type</strong> :
+<ul>
+<li><code>DEPOT</code> — dépôt d'espèces sur un compte.</li>
+<li><code>RETRAIT</code> — retrait d'espèces.</li>
+<li><code>CHANGE</code> — change manuel devise A → devise B.</li>
+<li><code>PAIEMENT</code> — paiement d'une facture / frais.</li>
+<li><code>REMBOURSEMENT</code> — remboursement d'échéance de crédit.</li>
+</ul>
+</li>
+<li>Selon le type, sélectionnez le <strong>compte client</strong> (recherche AJAX par matricule / nom / numéro de compte).</li>
+<li>Saisissez le <strong>montant</strong> et la <strong>devise</strong>.</li>
+<li>Le système affiche en temps réel :
+<ul>
+<li>la <strong>commission</strong> calculée (<code>CommissionEngine</code>) ;</li>
+<li>le <strong>total débit / crédit</strong> ;</li>
+<li>le <strong>solde projeté</strong> du compte client ;</li>
+<li>le <strong>solde projeté</strong> du guichet.</li>
+</ul>
+</li>
+<li>Cliquez <strong>Valider l'opération</strong>.</li>
+</ol>
+<p>Le système :</p>
+<ul>
+<li>Crée l'opération (<code>tb_caisses_transactions</code>).</li>
+<li>Met à jour le <strong>solde du compte</strong> et le <strong>solde du guichet</strong>.</li>
+<li><strong>Snapshot</strong> la règle de commission appliquée (immuable).</li>
+<li>Génère les <strong>écritures comptables OHADA</strong> automatiquement.</li>
+<li>Émet une <strong>notification</strong> au trésorier en cas de seuil critique.</li>
+<li>Vous propose d'<strong>imprimer le bordereau</strong> PDF.</li>
+</ul>
+<h4>7.3.2 Cas particuliers</h4>
+<p><strong>Change devise A → devise B</strong> : saisir la devise source, le montant source, la devise cible. Le <strong>taux du jour</strong> (<code>tb_taux_change</code>) est appliqué automatiquement.</p>
+<p><strong>Remboursement de crédit</strong> : sélectionner l'<strong>échéance</strong> à régler. Le système ventile automatiquement entre <strong>capital</strong> et <strong>intérêts</strong>.</p>
+<h4>7.3.3 Imprimer un bordereau</h4>
+<p>À tout moment, depuis le journal des opérations : icône <strong>imprimante</strong> sur la ligne → bordereau PDF officiel téléchargé.</p>
+<h3>7.4 Annuler ou modifier une opération</h3>
+<p><strong>Annulation directe</strong> (<code>PER25</code>) : un caissier peut annuler une opération <strong>du jour</strong> dans les minutes suivant la saisie. L'annulation est tracée et notifie le trésorier (<code>PER44</code>).</p>
+<p><strong>Demande de modification</strong> (workflow contrôlé) :</p>
+<ol>
+<li>Caisse → Mes opérations → ligne concernée → <strong>Demander modification / suppression</strong>.</li>
+<li>Saisissez le <strong>motif obligatoire</strong>.</li>
+<li>La demande est transmise au <strong>responsable</strong> (<code>PER44</code>).</li>
+<li>Vous suivez le statut dans <strong>Caisse → Mes demandes</strong>.</li>
+</ol>
+<p><strong>Côté responsable</strong> (<code>PER44</code>) :</p>
+<ul>
+<li>Page <strong>Caisse → Demandes de modification</strong>.</li>
+<li>Liste des demandes en attente avec compteur dans le navbar.</li>
+<li>Boutons <strong>Approuver</strong> / <strong>Rejeter</strong> (motif requis).</li>
+<li>Notifications automatiques au demandeur.</li>
+</ul>
+<h3>7.5 Demander une dotation (approvisionnement)</h3>
+<p><strong>Route</strong> : <code>/caisses/demande-appro</code> (PER10).</p>
+<ol>
+<li>Caisse → <strong>Demander une dotation</strong>.</li>
+<li>Saisissez la <strong>devise</strong>, le <strong>montant souhaité</strong> et un <strong>motif</strong>.</li>
+<li>Validez.</li>
+</ol>
+<p>La demande est transmise au <strong>trésorier</strong> (<code>PER46</code>). Vous suivez son traitement dans <strong>Caisse → Mes demandes</strong>. Une notification vous prévient en cas d'approbation ou de rejet.</p>
+<h3>7.6 Guichet mobile</h3>
+<p>Pour les <strong>guichets MOBILES</strong> (collecte sur le terrain) :</p>
+<ol>
+<li><strong>Départ</strong> (PER11) : <code>/caisses/mobile/depart</code> — vous recevez une <strong>dotation initiale</strong> du coffre (espèces + carnet de reçus).</li>
+<li><strong>Opérations</strong> : identiques au guichet fixe, mais limitées à votre <strong>scoping de zone</strong> (vous ne voyez que les membres de vos zones).</li>
+<li><strong>Retour</strong> (PER11) : <code>/caisses/mobile/retour</code> — vous <strong>reversez</strong> les espèces collectées au coffre et clôturez votre tournée.</li>
+</ol>
+<blockquote>
+<p><strong>Sécurité</strong> : les agents mobiles n'ont <strong>aucun droit d'impression</strong> des documents membres ; ils n'utilisent que l'application sur tablette ou téléphone.</p>
+</blockquote>
+<h3>7.7 Clôturer le guichet</h3>
+<p><strong>Routes</strong> :</p>
+<ul>
+<li>Initier : <code>/caisses/fermeture/initier/{id}</code> (PER11)</li>
+<li>Confirmer : <code>/caisses/fermeture/confirmer/{id}</code> (PER11)</li>
+<li>Page d'attente : <code>/caisses/fermeture/pendante</code> (PER11)</li>
+</ul>
+<h4>7.7.1 Procédure</h4>
+<ol>
+<li>À la fin de votre journée, allez dans <strong>Caisse → Clôture</strong>.</li>
+<li>Cliquez <strong>Initier la clôture</strong>.</li>
+<li>Pour <strong>chaque devise</strong> présente dans le guichet :
+<ul>
+<li>le système affiche le <strong>solde comptable</strong> (calculé) ;</li>
+<li>saisissez le <strong>billetage</strong> physique : nombre de billets / pièces par coupure ;</li>
+<li>le <strong>solde physique</strong> est calculé automatiquement ;</li>
+<li>l'<strong>écart de caisse</strong> s'affiche : <code>Écart = Physique − Comptable</code>.</li>
+</ul>
+</li>
+<li>Si l'écart dépasse la <strong>tolérance</strong> définie par règle, un <strong>motif obligatoire</strong> est requis.</li>
+<li>Cliquez <strong>Confirmer la clôture</strong>.</li>
+</ol>
+<h4>7.7.2 Validation par la trésorerie</h4>
+<p>La clôture passe en statut <strong>EN ATTENTE</strong>. Le trésorier (<code>PER46</code>) la vérifie ligne par ligne (devise par devise) :</p>
+<ul>
+<li><strong>Approuver</strong> : la clôture passe en <code>VALIDE</code>, le guichet en <code>CLÔTURÉ</code>.</li>
+<li><strong>Rejeter</strong> : motif obligatoire, le guichet reste en attente, vous êtes notifié.</li>
+</ul>
+<blockquote>
+<p><strong>Important</strong> : un écart <strong>positif</strong> (excédent) doit faire l'objet d'une enquête immédiate. Un écart <strong>négatif</strong> (déficit) est imputable au caissier sauf justification validée par le gérant.</p>
+</blockquote>
+<h3>7.8 Journal et rapports</h3>
+<table>
+<thead>
+<tr>
+<th>Vue</th>
+<th>Route</th>
+<th>Permission</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Journal de la journée</td>
+<td><code>/caisses/operations/journal</code></td>
+<td>PER10</td>
+</tr>
+<tr>
+<td>Rapport fin de journée</td>
+<td><code>/caisses/operations/rapport</code></td>
+<td>PER10</td>
+</tr>
+<tr>
+<td>Bordereau d'opération</td>
+<td><code>/caisses/operations/{id}/bordereau</code></td>
+<td>PER11</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>8. Module Trésorerie &amp; Coffre central</h2>
+<p>Ce module est le <strong>cœur financier</strong> de l'institution. Il gère le <strong>coffre central</strong> (<code>COFFRE_01</code>, type <code>CENTRAL</code>) et toutes les circulations de fonds entre la banque externe, le coffre et les guichets.</p>
+<p><strong>Permissions clés</strong> :</p>
+<ul>
+<li><code>EBEN-PER44</code> — Voir trésorerie (consultation).</li>
+<li><code>EBEN-PER45</code> — Approvisionner le coffre.</li>
+<li><code>EBEN-PER46</code> — <strong>Approuver les décisions trésor</strong> (demandes, clôtures).</li>
+<li><code>EBEN-PER47</code> — Alimenter un guichet.</li>
+<li><code>EBEN-PER77</code> — Gérer les commissions (création).</li>
+<li><code>EBEN-PER78</code> — Modifier / activer-désactiver les commissions.</li>
+</ul>
+<h3>8.1 État du coffre central</h3>
+<p><strong>Route</strong> : <code>/tresorerie/etat-coffre</code>.</p>
+<p>Vue d'ensemble du coffre-fort :</p>
+<ul>
+<li><strong>Soldes par devise</strong> (CDF, USD, EUR…).</li>
+<li>Onglets : <em>Mouvements · Alimentations · Balances · Statistiques</em>.</li>
+<li>Compteurs de demandes et de clôtures en attente.</li>
+<li>Graphiques d'évolution des soldes.</li>
+</ul>
+<h3>8.2 Approvisionner le coffre (banque externe → coffre)</h3>
+<p><strong>Route</strong> : <code>/tresorerie/coffre/approvisionner</code> (PER45 ou PER77).</p>
+<p>Lorsque la coopérative reçoit du <strong>cash</strong> d'une banque externe ou d'une opération de retrait :</p>
+<ol>
+<li>Trésorerie → <strong>Approvisionner le coffre</strong>.</li>
+<li>Saisissez <strong>devise</strong>, <strong>montant</strong>, <strong>source</strong> (banque externe, retrait BCEAO, transfert interne…).</li>
+<li>Renseignez le <strong>bordereau / référence bancaire</strong> et un <strong>commentaire</strong>.</li>
+<li>Validez.</li>
+</ol>
+<p>Le système :</p>
+<ul>
+<li>Crée un mouvement de coffre type <code>ENTREE</code>.</li>
+<li>Incrémente le solde <code>COFFRE_01</code> dans la devise concernée.</li>
+<li>Notifie les utilisateurs avec <code>PER44</code>.</li>
+</ul>
+<h3>8.3 Alimenter un guichet (coffre → guichet)</h3>
+<p><strong>Route</strong> : <code>/tresorerie/coffre/alimenter</code> (PER47 ou PER77).</p>
+<ol>
+<li>Trésorerie → <strong>Alimenter un guichet</strong>.</li>
+<li>Sélectionnez le <strong>guichet</strong> destinataire.</li>
+<li>Saisissez <strong>devise</strong>, <strong>montant</strong>, <strong>commentaire</strong>.</li>
+<li>Validez.</li>
+</ol>
+<p>Le système :</p>
+<ul>
+<li>Débite <code>COFFRE_01</code> et crédite le <strong>solde du guichet</strong> dans la devise concernée.</li>
+<li>Crée un mouvement <code>MouvementInterCaisse</code>.</li>
+<li>Notifie l'<strong>agent du guichet</strong>.</li>
+</ul>
+<h3>8.4 Traiter les demandes d'approvisionnement</h3>
+<p>Lorsque les caissiers demandent une dotation, vous (rôle <code>PER46</code>) les voyez dans :</p>
+<p><strong>Route</strong> : <code>/tresorerie/coffre/demandes</code>.</p>
+<ol>
+<li>Liste des demandes en attente, avec :
+<ul>
+<li>identité du guichet et de l'agent demandeur ;</li>
+<li>devise et montant demandé ;</li>
+<li>motif et date de la demande.</li>
+</ul>
+</li>
+<li>Pour chaque demande, choisissez :
+<ul>
+<li><strong>Approuver</strong> → déclenche automatiquement l'alimentation et notifie l'agent.</li>
+<li><strong>Rejeter</strong> → motif obligatoire, notifie l'agent.</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p><strong>Note</strong> : les permissions sont strictes. Seul un utilisateur avec <code>EBEN-PER46</code> peut approuver ou rejeter ; les anciennes permissions héritées (<code>EBEN-PER78</code> notamment) ont été retirées de ce flux.</p>
+</blockquote>
+<h3>8.5 Valider les clôtures de guichets</h3>
+<p><strong>Route</strong> : <code>/tresorerie/coffre/clotures</code> (PER44) et endpoints d'approbation (PER46).</p>
+<p>Les clôtures soumises par les caissiers s'accumulent ici. La validation se fait <strong>ligne par ligne</strong> (une ligne par devise) :</p>
+<ol>
+<li>Sélectionnez la clôture.</li>
+<li>Vérifiez pour chaque devise :
+<ul>
+<li>solde comptable ;</li>
+<li>solde physique déclaré ;</li>
+<li>écart constaté ;</li>
+<li>motif éventuel.</li>
+</ul>
+</li>
+<li><strong>Approuver</strong> la ligne ou <strong>Rejeter</strong> (motif).</li>
+<li>Lorsque toutes les lignes sont approuvées, la clôture globale est validée.</li>
+</ol>
+<h3>8.6 Gérer les règles de commissions</h3>
+<p><strong>Route</strong> : <code>/tresorerie/commissions</code> (PER44 voir, PER77 créer, PER78 modifier).</p>
+<p>La table des règles permet de définir <strong>comment</strong> sont facturées les opérations.</p>
+<h4>8.6.1 Structure d'une règle</h4>
+<table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Libellé</td>
+<td>Nom métier de la règle</td>
+</tr>
+<tr>
+<td>Code opération</td>
+<td><code>DEPOT</code>, <code>RETRAIT</code>, <code>CHANGE</code>, <code>PAIEMENT</code>, <code>REMBOURSEMENT</code></td>
+</tr>
+<tr>
+<td>Type guichet</td>
+<td><code>FIXE</code>, <code>MOBILE</code>, <code>CENTRAL</code> (vide = tous)</td>
+</tr>
+<tr>
+<td>Type compte</td>
+<td><code>CC</code>, <code>RMB</code>, <code>GTC</code>, <code>DAT</code>, <code>EAV</code> (vide = tous)</td>
+</tr>
+<tr>
+<td>Devise</td>
+<td>Code ISO (vide = toutes)</td>
+</tr>
+<tr>
+<td>Code zone</td>
+<td>Optionnel</td>
+</tr>
+<tr>
+<td>Portefeuille</td>
+<td>Optionnel</td>
+</tr>
+<tr>
+<td>Montant</td>
+<td>Fixe (montant) ou pourcentage</td>
+</tr>
+<tr>
+<td>Période</td>
+<td>Date début / date fin</td>
+</tr>
+<tr>
+<td>Active</td>
+<td>Oui / Non</td>
+</tr>
+<tr>
+<td>Priorité</td>
+<td>1 = plus haute</td>
+</tr>
+</tbody>
+</table>
+<h4>8.6.2 Création / modification</h4>
+<ol>
+<li>Trésorerie → Commissions → <strong>+ Nouvelle règle</strong>.</li>
+<li>Remplissez les champs (les champs vides signifient <em>applicable à tout</em>).</li>
+<li>Validez.</li>
+</ol>
+<h4>8.6.3 Application des règles</h4>
+<p>À chaque opération, le moteur <code>CommissionEngine</code> :</p>
+<ol>
+<li>Sélectionne <strong>toutes les règles actives</strong> qui matchent le contexte (opération, guichet, compte, devise, zone, portefeuille, période).</li>
+<li>Applique la règle de <strong>priorité la plus haute</strong>.</li>
+<li><strong>Snapshot</strong> la règle dans <code>tb_transaction_commissions</code> (montant, paramètres figés).</li>
+<li>L'historique reste <strong>immuable</strong> : modifier ou désactiver une règle n'affecte <strong>pas</strong> les opérations passées.</li>
+</ol>
+<blockquote>
+<p><strong>Bonne pratique</strong> : ne jamais supprimer une règle ; préférer la désactiver (<code>Active = Non</code>) pour préserver l'historique.</p>
+</blockquote>
+<hr />
+<h2>9. Module Crédit</h2>
+<p>Le module Crédit gère le <strong>cycle de vie complet</strong> d'un dossier, de la demande au remboursement final. Le workflow est strictement séquentiel et chaque transition est contrôlée par une permission dédiée.</p>
+<p><strong>Permissions principales</strong> :</p>
+<ul>
+<li><code>EBEN-PER53</code> — Voir liste crédits.</li>
+<li><code>EBEN-PER54</code> — Créer une demande.</li>
+<li><code>EBEN-PER56</code> — Soumettre la demande.</li>
+<li><code>EBEN-PER57</code> — Voir le détail d'un dossier.</li>
+<li><code>EBEN-PER58</code> — Analyser.</li>
+<li><code>EBEN-PER60..63</code> — Valider niveau L1 / L2 / L3 / L4.</li>
+<li><code>EBEN-PER61</code> — Chargé des opérations (affectation analyse).</li>
+<li><code>EBEN-PER64</code> — Débloquer (décaissement).</li>
+<li><code>EBEN-PER65</code> — Enregistrer un remboursement.</li>
+<li><code>EBEN-PER66..69</code> — Annuler / Suspendre / Lever / Signaler suspect.</li>
+<li><code>EBEN-PER70</code> — Rapport frais de déblocage.</li>
+<li><code>EBEN-PER71</code> — Imprimer fiches / échéanciers.</li>
+</ul>
+<h3>9.1 Vue d'ensemble du workflow</h3>
+<pre><code>Brouillon → Soumis → En analyse → Validation L1 → L2 → L3 → L4
+        → Prêt à débloquer → Déblocage effectué → Remboursement en cours → Soldé
+</code></pre>
+<p>Actions transverses possibles à tout moment :</p>
+<ul>
+<li><strong>Annuler</strong> (motif obligatoire).</li>
+<li><strong>Suspendre</strong> / <strong>Lever suspension</strong>.</li>
+<li><strong>Signaler suspect</strong> (fraude présumée) / <strong>Lever la suspicion</strong>.</li>
+</ul>
+<h3>9.2 Créer une demande de crédit</h3>
+<p><strong>Route</strong> : <code>/credits/nouveau</code> (PER54) puis <code>POST /credits</code> (PER54).</p>
+<ol>
+<li>Crédit → <strong>+ Nouvelle demande</strong>.</li>
+<li>Recherchez le <strong>membre</strong> par matricule ou nom.</li>
+<li>Sélectionnez le <strong>compte de décaissement</strong> (généralement <code>CC</code>).</li>
+<li>Renseignez :
+<ul>
+<li><strong>Type de crédit</strong> (commercial, agricole, scolaire, social…).</li>
+<li><strong>Objet du crédit</strong> (texte libre).</li>
+<li><strong>Montant demandé</strong> et <strong>devise</strong>.</li>
+<li><strong>Durée</strong> en mois.</li>
+<li><strong>Taux d'intérêt mensuel</strong> (selon barème).</li>
+<li><strong>Garantie</strong> : description, caution, hypothèque…</li>
+</ul>
+</li>
+<li>Joignez les <strong>pièces</strong> (CNI, attestation revenus, devis…).</li>
+<li>Cliquez <strong>Enregistrer comme brouillon</strong>.</li>
+</ol>
+<p>Le dossier est créé avec un <strong>numéro unique</strong> et le statut <strong>Brouillon</strong>.</p>
+<h3>9.3 Soumettre la demande</h3>
+<p><strong>Route</strong> : <code>POST /credits/{dossier}/soumettre</code> (PER56 ou PER53).</p>
+<p>Une fois les pièces complètes :</p>
+<ol>
+<li>Ouvrez le dossier brouillon.</li>
+<li>Cliquez <strong>Soumettre</strong>.</li>
+<li>Le dossier passe en statut <strong>Soumis</strong>.</li>
+<li>Une <strong>notification</strong> est envoyée au <strong>chargé des opérations</strong> (<code>PER61</code>).</li>
+</ol>
+<h3>9.4 Affecter le dossier à un analyste</h3>
+<p><strong>Route</strong> : <code>POST /credits/{dossier}/affecter-analyse</code> (PER61).</p>
+<p>Côté chargé des opérations :</p>
+<ol>
+<li>Crédit → <strong>Dashboard</strong> ou <strong>Supervision</strong>.</li>
+<li>Sélectionnez le dossier soumis.</li>
+<li>Cliquez <strong>Affecter à l'analyse</strong> → choisissez l'<strong>agent analyste</strong>.</li>
+<li>Validez.</li>
+</ol>
+<p>L'analyste et le demandeur reçoivent chacun une notification.</p>
+<h3>9.5 Analyser le dossier</h3>
+<p><strong>Route</strong> : <code>/credits/{dossier}/analyse</code> (PER58).</p>
+<p>L'analyste produit son <strong>rapport d'analyse</strong> :</p>
+<ol>
+<li>Crédit → mon dossier → <strong>Onglet Analyse</strong>.</li>
+<li>Remplissez :
+<ul>
+<li>capacité de remboursement ;</li>
+<li>exposition risque ;</li>
+<li>solidité de la garantie ;</li>
+<li>avis et recommandation (favorable / défavorable / sous conditions).</li>
+</ul>
+</li>
+<li>Soumettez.</li>
+</ol>
+<p>Le dossier passe à <strong>Validation L1</strong>. Le validateur L1 (<code>PER60</code>) est notifié.</p>
+<h3>9.6 Valider le dossier (4 niveaux)</h3>
+<p><strong>Route</strong> : <code>/credits/{dossier}/validation</code> (PER60 / PER61 / PER62 / PER63).</p>
+<p>Chaque niveau peut <strong>approuver</strong> ou <strong>rejeter</strong> :</p>
+<table>
+<thead>
+<tr>
+<th>Niveau</th>
+<th>Permission</th>
+<th>Rôle typique</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L1</td>
+<td>PER60</td>
+<td>Validateur opérationnel</td>
+</tr>
+<tr>
+<td>L2</td>
+<td>PER61</td>
+<td>Chef d'agence</td>
+</tr>
+<tr>
+<td>L3</td>
+<td>PER62</td>
+<td>Comité de crédit</td>
+</tr>
+<tr>
+<td>L4</td>
+<td>PER63</td>
+<td>Direction</td>
+</tr>
+</tbody>
+</table>
+<p>À l'approbation L4, le dossier passe à <strong>Prêt à débloquer</strong> et le <strong>chargé du déblocage</strong> (<code>PER64</code>) est notifié. En cas de rejet, le dossier est marqué rejeté et le demandeur est notifié.</p>
+<h3>9.7 Débloquer (décaisser) le crédit</h3>
+<p><strong>Route</strong> : <code>/credits/{dossier}/deblocage</code> (PER64).</p>
+<ol>
+<li>Crédit → <strong>Déblocage</strong> → dossier prêt.</li>
+<li>Vérifiez le <strong>montant approuvé</strong> et la <strong>date prévue</strong>.</li>
+<li>Saisissez les <strong>frais de déblocage</strong> (selon barème).</li>
+<li>Confirmez le <strong>mode de décaissement</strong> : virement compte membre, espèces guichet.</li>
+<li>Validez le <strong>déblocage</strong>.</li>
+</ol>
+<p>Le système :</p>
+<ul>
+<li>Crédite le <strong>compte du membre</strong> du montant net (montant approuvé − frais).</li>
+<li>Génère automatiquement l'<strong>échéancier</strong> complet (<code>CreditEcheancier</code> + <code>CreditEcheance</code>).</li>
+<li>Crée les <strong>écritures comptables OHADA</strong> correspondantes.</li>
+<li>Émet le <strong>bordereau de déblocage</strong> PDF.</li>
+<li>Notifie le demandeur.</li>
+</ul>
+<p><strong>Rapport des frais de déblocage</strong> : <code>/credits/rapport-frais</code> (PER70).</p>
+<h3>9.8 Suivre les remboursements</h3>
+<p><strong>Route</strong> : <code>/credits/{dossier}/remboursement</code> (PER65).</p>
+<p>Le système maintient un <strong>échéancier</strong> ligne par ligne : date prévue, capital, intérêts, solde restant.</p>
+<h4>9.8.1 Enregistrer un paiement</h4>
+<ol>
+<li>Crédit → dossier → <strong>Remboursement</strong>.</li>
+<li>Sélectionnez l'<strong>échéance</strong> à payer (ou plusieurs).</li>
+<li>Saisissez le <strong>montant payé</strong> et le <strong>mode</strong> (espèces guichet, virement, mobile money).</li>
+<li>Validez.</li>
+</ol>
+<p>Le système :</p>
+<ul>
+<li>Met à jour l'échéance (totalement / partiellement payée).</li>
+<li>Crédite la <strong>comptabilisation des intérêts</strong> (compte 7001).</li>
+<li>Met à jour le <strong>solde restant dû</strong> du dossier.</li>
+<li>Lorsque tout est soldé, passe le dossier au statut <strong>Soldé</strong>.</li>
+</ul>
+<h4>9.8.2 Cas de retard</h4>
+<p>Une échéance impayée à la date prévue est marquée <strong>En retard</strong>. Des <strong>pénalités</strong> peuvent être appliquées selon la règle de commission <code>RETARD_CREDIT</code>.</p>
+<h3>9.9 Actions de contrôle</h3>
+<ul>
+<li><strong>Annuler le dossier</strong> (<code>POST /credits/{dossier}/annuler</code>, PER66) : motif obligatoire. Tracé.</li>
+<li><strong>Suspendre</strong> (<code>POST /credits/{dossier}/suspendre</code>, PER67) : suspension temporaire (litige, vérification). Levable via PER69.</li>
+<li><strong>Signaler suspect</strong> (<code>POST /credits/{dossier}/signaler-suspect</code>, PER68) : fraude présumée. Levable via PER69.</li>
+</ul>
+<h3>9.10 Supervision &amp; rapports</h3>
+<ul>
+<li><strong>Dashboard crédits</strong> : <code>/credits/dashboard</code> (PER61..PER65) — vue agrégée.</li>
+<li><strong>Supervision</strong> : <code>/credits/supervision</code> — tous les dossiers en cours par statut.</li>
+<li><strong>Échéancier PDF</strong> : <code>/credits/{dossier}/pdf/echeancier</code> (PER71).</li>
+<li><strong>Fiche dossier PDF</strong> : <code>/credits/{dossier}/pdf/fiche</code> (PER71).</li>
+</ul>
+<h3>9.11 Référence : matrice de notifications</h3>
+<p>Toutes les étapes émettent des <strong>notifications</strong> ciblées par rôle ou par agent. La matrice complète figure dans <code>docs/MATRICE_NOTIFICATIONS_CREDIT_2026-05-03.md</code>.</p>
+<hr />
+<h2>10. Module Comptabilité OHADA</h2>
+<p>Ce module fournit la <strong>vision comptable</strong> normalisée selon le plan OHADA. Toutes les écritures sont <strong>générées automatiquement</strong> par les modules opérationnels (Caisse, Crédit, Trésorerie) ; <strong>aucune saisie manuelle</strong> n'est possible depuis l'interface (immuabilité comptable).</p>
+<p><strong>Permissions</strong> :</p>
+<ul>
+<li><code>EBEN-PER49</code> — Voir dashboard comptabilité.</li>
+<li><code>EBEN-PER50</code> — Voir le journal.</li>
+<li><code>EBEN-PER51</code> — Voir le plan comptable OHADA.</li>
+<li><code>EBEN-PER52</code> — Voir le grand-livre.</li>
+</ul>
+<h3>10.1 Dashboard</h3>
+<p><strong>Route</strong> : <code>/comptabilite</code> (PER49).</p>
+<p>Vue d'ensemble :</p>
+<ul>
+<li>nombre d'écritures du jour / du mois ;</li>
+<li>soldes des principaux comptes (caisse, dépôts, intérêts) ;</li>
+<li>alertes (équilibre débit/crédit, écritures suspectes).</li>
+</ul>
+<h3>10.2 Plan comptable</h3>
+<p><strong>Route</strong> : <code>/comptabilite/plan-ohada</code> (PER51).</p>
+<p>Liste hiérarchique des comptes :</p>
+<ul>
+<li><strong>Classe 1</strong> — Comptes de ressources durables (capital).</li>
+<li><strong>Classe 2</strong> — Comptes d'actif immobilisé.</li>
+<li><strong>Classe 3</strong> — Comptes de stocks.</li>
+<li><strong>Classe 4</strong> — Comptes de tiers (clients, fournisseurs).</li>
+<li><strong>Classe 5</strong> — Comptes financiers (caisse, banque).
+<ul>
+<li><code>5701</code> Caisse CDF, <code>5702</code> Caisse USD…</li>
+</ul>
+</li>
+<li><strong>Classe 6</strong> — Charges.</li>
+<li><strong>Classe 7</strong> — Produits.
+<ul>
+<li><code>7001</code> Intérêts sur crédits, <code>7061</code> Commissions perçues.</li>
+</ul>
+</li>
+</ul>
+<h3>10.3 Journal comptable</h3>
+<p><strong>Route</strong> : <code>/comptabilite/journal</code> (PER50).</p>
+<p>Liste chronologique de toutes les écritures :</p>
+<ul>
+<li>date et numéro d'écriture ;</li>
+<li>libellé ;</li>
+<li>compte débité / crédité ;</li>
+<li>montant ;</li>
+<li>référence à l'opération source (transaction caisse, déblocage crédit, etc.).</li>
+</ul>
+<p>Filtres : période, compte, agent, devise.</p>
+<h3>10.4 Grand-livre</h3>
+<p><strong>Route</strong> : <code>/comptabilite/grand-livre</code> (PER52).</p>
+<p>Pour chaque compte :</p>
+<ul>
+<li>solde initial de la période ;</li>
+<li>liste des mouvements (débit / crédit) ;</li>
+<li>solde final.</li>
+</ul>
+<h3>10.5 Règles fondamentales</h3>
+<ul>
+<li><strong>Double entrée</strong> : Σ Débits = Σ Crédits pour chaque écriture.</li>
+<li><strong>Immuabilité</strong> : aucune écriture ne peut être modifiée ou supprimée a posteriori. Une correction se fait par <strong>contre-passation</strong>.</li>
+<li><strong>Comptabilisation des commissions</strong> : débit du compte de dépôt client, crédit du compte produit <code>7061</code>.</li>
+<li><strong>Comptabilisation des dépôts / retraits</strong> : impacte le compte client et le compte caisse correspondant, <strong>sans incrémenter automatiquement</strong> le coffre central.</li>
+</ul>
+<hr />
+<h2>11. Module Ressources Humaines</h2>
+<p>Ce module gère le <strong>personnel</strong> de la coopérative : agents, services, postes et affectations.</p>
+<p><strong>Permissions</strong> :</p>
+<ul>
+<li><code>EBEN-PER6</code> — Voir RH (agents, services, postes).</li>
+<li><code>EBEN-PER7</code> — Créer un agent.</li>
+<li><code>EBEN-PER8</code> — Créer service / poste.</li>
+<li><code>EBEN-PER9</code> — Voir / créer affectations.</li>
+<li><code>EBEN-PER103</code> — Modifier agent / service / poste.</li>
+<li><code>EBEN-PER104</code> — Supprimer agent / service / poste.</li>
+<li><code>EBEN-PER105</code> — Changer l'état d'une affectation.</li>
+<li><code>EBEN-PER106</code> — Supprimer une affectation.</li>
+</ul>
+<h3>11.1 Agents</h3>
+<p><strong>Route</strong> : <code>/rh/agents</code> (PER6).</p>
+<h4>Données d'un agent</h4>
+<table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Matricule</td>
+<td>Identifiant unique auto-généré (<code>AG-EBENKGA-YY-XXXXX</code>), <strong>clé primaire</strong></td>
+</tr>
+<tr>
+<td>Nom · Postnom · Prénom</td>
+<td>État civil</td>
+</tr>
+<tr>
+<td>Sexe, date de naissance</td>
+<td>Informations personnelles</td>
+</tr>
+<tr>
+<td>Téléphone, e-mail, adresse</td>
+<td>Coordonnées</td>
+</tr>
+<tr>
+<td>Photo</td>
+<td>Stockée dans <code>images_projet/agents/</code></td>
+</tr>
+<tr>
+<td>Date d'embauche</td>
+<td>Date d'entrée</td>
+</tr>
+<tr>
+<td>Statut</td>
+<td><code>ACTIF</code>, <code>SUSPENDU</code>, <code>RETRAITÉ</code></td>
+</tr>
+</tbody>
+</table>
+<h4>Créer un agent</h4>
+<ol>
+<li>RH → Agents → <strong>+ Nouvel agent</strong>.</li>
+<li>Renseignez les informations.</li>
+<li>Téléversez la photo.</li>
+<li>Validez. Le matricule est généré automatiquement.</li>
+</ol>
+<blockquote>
+<p><strong>Lien avec les utilisateurs</strong> : un agent <strong>peut</strong> (ou non) être lié à un <strong>compte utilisateur</strong> (login). L'association se fait depuis Administration → Utilisateurs en saisissant le matricule.</p>
+</blockquote>
+<h3>11.2 Services et postes</h3>
+<p><strong>Routes</strong> :</p>
+<ul>
+<li>Services : <code>/rh/services</code> (PER6, PER8 créer, PER103 éditer).</li>
+<li>Postes : <code>/rh/services/{service}/postes</code> (PER6, PER8 créer).</li>
+</ul>
+<p>Un <strong>service</strong> est un département (Caisse, Crédit, Comptabilité, Direction…) qui regroupe des <strong>postes</strong> (fonctions : Caissier, Chargé de crédit, Analyste, Comptable…).</p>
+<p>Création :</p>
+<ol>
+<li>RH → Services → <strong>+ Nouveau service</strong>.</li>
+<li>Cliquez sur le service → <strong>+ Nouveau poste</strong> (modale AJAX).</li>
+<li>Nom, description.</li>
+<li>Validez.</li>
+</ol>
+<h3>11.3 Affectations</h3>
+<p><strong>Route</strong> : <code>/rh/affectations</code> (PER9).</p>
+<p>Une <strong>affectation</strong> lie un <strong>agent</strong> à une <strong>ressource</strong> (guichet, zone, portefeuille).</p>
+<h4>Caractéristiques</h4>
+<ul>
+<li><strong>Historisée</strong> : <code>tb_affectations</code>, <code>tb_affectations_zones</code>, <code>tb_affectations_portefeuilles</code>.</li>
+<li>Une seule affectation <strong>ACTIVE</strong> par couple (agent, ressource) à un instant donné.</li>
+<li>Trois états : <code>ACTIF</code>, <code>SUSPENDU</code>, <code>CLÔTURÉ</code> (<code>date_fin</code> renseignée).</li>
+<li>Toute modification crée une <strong>nouvelle ligne</strong> d'historique.</li>
+</ul>
+<h4>Créer une affectation</h4>
+<ol>
+<li>RH → Affectations → <strong>+ Nouvelle affectation</strong>.</li>
+<li>Sélectionnez l'<strong>agent</strong>.</li>
+<li>Choisissez la <strong>ressource</strong> (guichet OU zone OU portefeuille).</li>
+<li>Indiquez la <strong>date de début</strong>.</li>
+<li>Validez. L'affectation passe en <code>ACTIF</code>.</li>
+</ol>
+<h4>Changer l'état (PER105)</h4>
+<p>Bouton <strong>Suspendre</strong> ou <strong>Clôturer</strong> sur la ligne. Renseignez la date de fin et le motif.</p>
+<blockquote>
+<p><strong>Important</strong> : le <strong>scoping</strong> des données pour les agents mobiles repose sur les affectations zones actives. La clôture d'une affectation retire <strong>immédiatement</strong> l'accès aux membres de cette zone.</p>
+</blockquote>
+<hr />
+<h2>12. Module Administration &amp; RBAC</h2>
+<p>Module réservé aux <strong>administrateurs système</strong>. Il regroupe la gestion des <strong>utilisateurs</strong>, des <strong>rôles</strong>, des <strong>permissions</strong>, des <strong>zones</strong>, des <strong>portefeuilles</strong>, des <strong>guichets</strong>, des <strong>devises</strong> et des <strong>taux de change</strong>.</p>
+<h3>12.1 Gestion des utilisateurs</h3>
+<p><strong>Route</strong> : <code>/administration/utilisateurs</code> (PER1).</p>
+<h4>Créer un utilisateur</h4>
+<ol>
+<li>Administration → Utilisateurs → <strong>+ Nouvel utilisateur</strong>.</li>
+<li>Saisissez l'<strong>e-mail</strong> et le <strong>mot de passe initial</strong>.</li>
+<li>Saisissez le <strong>matricule agent</strong> : le système récupère automatiquement (AJAX) les informations de l'agent.</li>
+<li>Attribuez un ou plusieurs <strong>rôles</strong>.</li>
+<li>Validez.</li>
+</ol>
+<p>L'utilisateur reçoit un e-mail de vérification et doit changer son mot de passe à la première connexion.</p>
+<h4>Actions</h4>
+<ul>
+<li><strong>Modifier</strong> : ajuster e-mail, rôles, statut actif.</li>
+<li><strong>Réinitialiser mot de passe</strong> : envoie un nouveau mot de passe temporaire.</li>
+<li><strong>Désactiver</strong> : bloque la connexion sans supprimer l'historique.</li>
+<li><strong>Supprimer</strong> : irréversible, refusée si l'utilisateur a des écritures comptables.</li>
+</ul>
+<h3>12.2 Gestion des rôles et permissions (RBAC)</h3>
+<p><strong>Route</strong> : <code>/administration/roles-permissions</code> (PER2 voir, PER3 gérer, PER5 attacher permissions).</p>
+<h4>12.2.1 Onglet Rôles</h4>
+<ul>
+<li>Liste des rôles avec le nombre de permissions et le nombre d'utilisateurs rattachés.</li>
+<li><strong>+ Nouveau rôle</strong> : code, nom, description.</li>
+<li>Pour chaque rôle, bouton <strong>Permissions</strong> ouvre une modale avec les ≈ 100 permissions atomiques regroupées par module : cocher / décocher pour attacher / détacher.</li>
+</ul>
+<h4>12.2.2 Onglet Permissions (lecture seule)</h4>
+<p>Liste des permissions atomiques avec leur <strong>code</strong> (<code>EBEN-PER01</code> à <code>EBEN-PER108</code>) et leur description. Les permissions sont <strong>statiques</strong> (définies par le développeur via migration) ; seul leur rattachement à des rôles est paramétrable depuis l'interface.</p>
+<h4>12.2.3 Onglet Utilisateurs</h4>
+<ul>
+<li>Liste des comptes avec leurs rôles.</li>
+<li>Bouton <strong>Rôles</strong> sur chaque utilisateur : modale d'attachement / détachement multiple.</li>
+</ul>
+<blockquote>
+<p><strong>Principe RBAC</strong> : un utilisateur hérite des permissions de <strong>tous ses rôles</strong> (union). La vérification <code>Auth::user()-&gt;hasPermissionTo('EBEN-PER10')</code> est appliquée à chaque route protégée. Aucun fallback générique n'existe — la permission <strong>précise</strong> est exigée.</p>
+</blockquote>
+<h3>12.3 Référentiel des permissions (extrait)</h3>
+<table>
+<thead>
+<tr>
+<th>Groupe</th>
+<th>Codes</th>
+<th>Domaine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Administration</td>
+<td>PER01–05</td>
+<td>Utilisateurs, rôles, permissions, zones, guichets</td>
+</tr>
+<tr>
+<td>RH</td>
+<td>PER06–09, PER103–106</td>
+<td>Agents, services, postes, affectations</td>
+</tr>
+<tr>
+<td>Caisse</td>
+<td>PER10–14, PER25, PER44</td>
+<td>Guichet, opérations, demandes modification</td>
+</tr>
+<tr>
+<td>Clients</td>
+<td>PER15–17, PER107</td>
+<td>Membres</td>
+</tr>
+<tr>
+<td>Comptes</td>
+<td>PER18–19, PER108</td>
+<td>Comptes clients</td>
+</tr>
+<tr>
+<td>Devises</td>
+<td>PER20–21</td>
+<td>Devises et taux de change</td>
+</tr>
+<tr>
+<td>Trésorerie</td>
+<td>PER44–48, PER76–78</td>
+<td>Coffre, alimentations, commissions</td>
+</tr>
+<tr>
+<td>Comptabilité</td>
+<td>PER49–52</td>
+<td>Plan, journal, grand-livre</td>
+</tr>
+<tr>
+<td>Crédit</td>
+<td>PER53–72</td>
+<td>Cycle complet du crédit</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>La liste complète et le détail métier figurent dans <code>docs/permissions_referentiel.md</code> et <code>docs/structure_roles_permissions.md</code>.</p>
+</blockquote>
+<h3>12.4 Gestion des zones et portefeuilles</h3>
+<p><strong>Route</strong> : <code>/administration/zones-portfeuille</code> (PER1, onglets <em>Zones</em> / <em>Portefeuilles</em>).</p>
+<h4>Zones</h4>
+<ul>
+<li>Code zone unique (ex : <code>Z-KIN-01</code>).</li>
+<li>Nom, description, périmètre géographique.</li>
+<li>Création / modification / suppression.</li>
+<li><strong>Affectation à un agent</strong> : crée une ligne <code>tb_affectations_zones</code> active (historisée).</li>
+</ul>
+<h4>Portefeuilles</h4>
+<ul>
+<li>Création possible <strong>sans agent</strong> ; affectation ultérieure.</li>
+<li>Historisation dans <code>tb_affectations_portefeuilles</code> et <code>tb_portefeuille_historiques</code>.</li>
+<li>Réaffectation possible — toutes les anciennes assignations sont conservées pour l'audit.</li>
+</ul>
+<h3>12.5 Gestion des guichets</h3>
+<p><strong>Route</strong> : <code>/administration/guichets</code> (PER1).</p>
+<p>CRUD complet :</p>
+<ul>
+<li>Code guichet (<code>GUI_01</code>, <code>MOB_KIN_03</code>, <code>COFFRE_01</code>…).</li>
+<li>Libellé.</li>
+<li>Type (<code>FIXE</code>, <code>MOBILE</code>, <code>CENTRAL</code>).</li>
+<li>Devises supportées (ajout via bouton dédié).</li>
+<li>Statut.</li>
+</ul>
+<p>Pages annexes :</p>
+<ul>
+<li><strong>Historique des alimentations</strong> : <code>/administration/guichets/alimentations</code>.</li>
+<li><strong>Balances du coffre</strong> : <code>/administration/guichets/coffre-balances</code>.</li>
+</ul>
+<h3>12.6 Gestion des devises et taux de change</h3>
+<p><strong>Route</strong> : <code>/administration/devises-taux</code> (PER20 voir, PER21 gérer).</p>
+<h4>Onglet Devises</h4>
+<p>CRUD : <strong>code ISO</strong> (CDF, USD, EUR, XAF…), libellé, symbole, devise par défaut.</p>
+<h4>Onglet Taux de change</h4>
+<ul>
+<li>Saisie du taux du jour : devise source → devise cible, taux, date d'effet.</li>
+<li>Le <strong>taux le plus récent</strong> est appliqué automatiquement aux nouvelles opérations.</li>
+<li>Historique intégral conservé (jamais supprimé).</li>
+</ul>
+<blockquote>
+<p><strong>Important</strong> : modifier un taux n'affecte <strong>pas</strong> les opérations passées. Les commissions et conversions sont <strong>snapshotées</strong> au moment de la transaction.</p>
+</blockquote>
+<hr />
+<h2>13. Centre de notifications</h2>
+<p><strong>Route principale</strong> : <code>/notifications</code> (auth requis).</p>
+<p>Le centre de notifications est une <strong>boîte de réception métier</strong> : il regroupe tous les événements qui vous concernent personnellement ou qui requièrent une action de votre rôle.</p>
+<h3>13.1 Accès rapide</h3>
+<ul>
+<li><strong>Cloche</strong> dans la navbar :
+<ul>
+<li>badge <strong>rouge</strong> = nombre total non lu ;</li>
+<li>badge <strong>orange</strong> = sous-ensemble nécessitant une <strong>action</strong> (<code>action_required</code>).</li>
+</ul>
+</li>
+<li>Clic → menu déroulant des 5 dernières notifications + lien <strong>Voir tout</strong>.</li>
+</ul>
+<h3>13.2 Page complète</h3>
+<ul>
+<li>Liste paginée avec filtres (Toutes · Non lues · Action requise).</li>
+<li>Chaque notification affiche : icône typée, titre, contexte, date, agent / module source.</li>
+<li>Cliquer sur une notification : la marque comme <strong>lue</strong> et redirige vers la page d'action correspondante.</li>
+<li>Bouton <strong>Marquer tout comme lu</strong> disponible en haut de la liste.</li>
+</ul>
+<h3>13.3 Types de notifications</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Couleur</th>
+<th>Exemple</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>info</code></td>
+<td>Bleu</td>
+<td>« Coffre approvisionné de 5 000 USD »</td>
+</tr>
+<tr>
+<td><code>warning</code></td>
+<td>Orange</td>
+<td>« Demande de modification d'opération »</td>
+</tr>
+<tr>
+<td><code>action_required</code></td>
+<td>Rouge</td>
+<td>« Dossier crédit en attente de validation L2 »</td>
+</tr>
+<tr>
+<td><code>danger</code></td>
+<td>Rouge foncé</td>
+<td>« Suspicion de fraude signalée »</td>
+</tr>
+</tbody>
+</table>
+<h3>13.4 Origines des notifications</h3>
+<p>Les notifications sont émises automatiquement par les services métier. Les principales sources :</p>
+<ul>
+<li><strong>Crédit</strong> (<code>CreditController</code>) : soumission, affectation, analyse, validation, déblocage, annulation, suspension, suspicion.</li>
+<li><strong>Caisse</strong> (<code>CaisseController</code>, <code>OperationCaisseController</code>) : changement de statut guichet, clôture, demande d'approvisionnement, demande de modification, annulation, mobile départ/retour.</li>
+<li><strong>Trésorerie</strong> (<code>TresorerieController</code>) : approvisionnement coffre, alimentation guichet, approbation/rejet de demande, approbation/rejet de clôture (globale ou ligne).</li>
+<li><strong>Administration</strong> (<code>RolesPermissionsController</code>) : attachement / détachement de permissions ou de rôles.</li>
+</ul>
+<h3>13.5 Ciblage des destinataires</h3>
+<p>Le <code>NotificationService</code> permet de cibler :</p>
+<ul>
+<li>un <strong>utilisateur</strong> précis ;</li>
+<li>tous les utilisateurs ayant une <strong>permission</strong> donnée (par exemple tous les <code>PER46</code> pour les décisions trésor) ;</li>
+<li>un ou plusieurs <strong>agents</strong> par leurs matricules (utile pour notifier l'agent demandeur).</li>
+</ul>
+<h3>13.6 Référence</h3>
+<p>Les matrices complètes des flux et destinataires figurent dans :</p>
+<ul>
+<li><code>docs/MATRICE_NOTIFICATIONS_SYSTEME_COMPLET_2026-04-28.md</code></li>
+<li><code>docs/MATRICE_NOTIFICATIONS_CREDIT_2026-05-03.md</code></li>
+<li><code>docs/MATRICE_NOTIFICATIONS_TRESORERIE_CAISSE_2026-05-03.md</code></li>
+</ul>
+<hr />
+<h2>14. Mon profil</h2>
+<p><strong>Route</strong> : <code>/profile</code> (auth).</p>
+<p>Chaque utilisateur peut gérer son propre profil :</p>
+<ul>
+<li><strong>Informations personnelles</strong> : nom affiché, e-mail (sous réserve d'une nouvelle vérification).</li>
+<li><strong>Mot de passe</strong> : changement avec confirmation du mot de passe actuel.</li>
+<li><strong>Préférences</strong> : thème clair / sombre (mémorisé).</li>
+<li><strong>Suppression de compte</strong> : action irréversible, requiert confirmation par mot de passe ; refusée si l'utilisateur a des écritures comptables liées.</li>
+</ul>
+<blockquote>
+<p><strong>Bonne pratique</strong> : changez votre mot de passe initial dès la première connexion et tous les 90 jours minimum.</p>
+</blockquote>
+<hr />
+<h2>15. Procédures types par rôle</h2>
+<h3>15.1 Caissier — Journée type</h3>
+<ol>
+<li><strong>Connexion</strong> au matin.</li>
+<li><strong>Ouvrir</strong> le guichet (Caisse → Ouverture).</li>
+<li>Si solde insuffisant : <strong>Demander une dotation</strong> (Caisse → Demander appro).</li>
+<li>Enregistrer les <strong>opérations</strong> au fil de la journée (dépôts, retraits, change, paiements, remboursements).</li>
+<li><strong>Imprimer les bordereaux</strong> à chaque opération sur demande du client.</li>
+<li>En cas d'erreur : <strong>annuler</strong> ou <strong>demander modification</strong>.</li>
+<li>En fin de journée : <strong>Clôturer</strong> le guichet, billetage par devise.</li>
+<li>Attendre la <strong>validation</strong> par le trésorier.</li>
+<li><strong>Déconnexion</strong>.</li>
+</ol>
+<h3>15.2 Trésorier — Journée type</h3>
+<ol>
+<li><strong>Connexion</strong>.</li>
+<li>Consulter l'<strong>état du coffre</strong> et les compteurs (demandes, clôtures).</li>
+<li><strong>Approvisionner le coffre</strong> si arrivée de cash externe.</li>
+<li><strong>Traiter les demandes d'approvisionnement</strong> des guichets.</li>
+<li><strong>Valider les clôtures</strong> soumises par les caissiers.</li>
+<li>Suivre l'évolution des <strong>soldes par devise</strong> et des <strong>commissions</strong>.</li>
+<li>Ajuster les <strong>règles de commission</strong> si nécessaire.</li>
+</ol>
+<h3>15.3 Chargé de crédit — Journée type</h3>
+<ol>
+<li><strong>Connexion</strong>.</li>
+<li>Recevoir un membre : <strong>créer une demande de crédit</strong>.</li>
+<li>Vérifier les pièces, <strong>soumettre</strong> la demande.</li>
+<li>Suivre l'avancement via le <strong>dashboard crédits</strong>.</li>
+<li>Recevoir les notifications de validation / rejet.</li>
+<li>Lors du déblocage : remettre le <strong>bordereau</strong> au membre.</li>
+<li>Suivre les <strong>remboursements</strong> et relancer les retards.</li>
+</ol>
+<h3>15.4 Administrateur — Tâches récurrentes</h3>
+<ul>
+<li>Créer / désactiver des <strong>utilisateurs</strong> au gré des arrivées et départs.</li>
+<li>Mettre à jour les <strong>rôles</strong> et leurs permissions.</li>
+<li>Saisir les <strong>taux de change</strong> quotidiens.</li>
+<li>Créer les <strong>zones</strong>, <strong>portefeuilles</strong> et <strong>guichets</strong> au fil de l'expansion.</li>
+<li>Suivre le <strong>centre de notifications</strong> pour les alertes système.</li>
+</ul>
+<h3>15.5 Matrice synthétique des rôles</h3>
+<table>
+<thead>
+<tr>
+<th>Rôle</th>
+<th>Modules principaux</th>
+<th>Permissions clés</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Super Admin</td>
+<td>Tous</td>
+<td>Toutes</td>
+</tr>
+<tr>
+<td>Administrateur</td>
+<td>Administration, RH</td>
+<td>PER01–09, PER103–106</td>
+</tr>
+<tr>
+<td>Caissier</td>
+<td>Caisse</td>
+<td>PER10–14</td>
+</tr>
+<tr>
+<td>Trésorier</td>
+<td>Trésorerie</td>
+<td>PER44–48, PER76–78</td>
+</tr>
+<tr>
+<td>Chargé clientèle</td>
+<td>Comptes Clients</td>
+<td>PER15–19</td>
+</tr>
+<tr>
+<td>Chargé de crédit</td>
+<td>Crédit</td>
+<td>PER53–57, PER65</td>
+</tr>
+<tr>
+<td>Analyste crédit</td>
+<td>Crédit</td>
+<td>PER57, PER58</td>
+</tr>
+<tr>
+<td>Validateur L1/L2/L3/L4</td>
+<td>Crédit</td>
+<td>PER60 / PER61 / PER62 / PER63</td>
+</tr>
+<tr>
+<td>Chargé déblocage</td>
+<td>Crédit</td>
+<td>PER64, PER70</td>
+</tr>
+<tr>
+<td>Comptable</td>
+<td>Comptabilité</td>
+<td>PER49–52</td>
+</tr>
+<tr>
+<td>Gestionnaire RH</td>
+<td>RH</td>
+<td>PER06–09, PER103–106</td>
+</tr>
+<tr>
+<td>Agent mobile</td>
+<td>Comptes Clients, Caisse</td>
+<td>PER10–11, PER15 (scopé zone)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>16. Bonnes pratiques &amp; sécurité</h2>
+<h3>16.1 Sécurité des accès</h3>
+<ul>
+<li><strong>Mot de passe fort</strong> : 8 caractères minimum, mixte (lettres, chiffres, symboles).</li>
+<li><strong>Ne jamais partager</strong> son compte. Chaque opération est tracée nominativement.</li>
+<li><strong>Se déconnecter</strong> systématiquement en quittant son poste.</li>
+<li><strong>Vérifier l'URL</strong> : <code>https://coopaeben.info/</code> exclusivement. Ne jamais saisir ses identifiants sur une URL différente.</li>
+</ul>
+<h3>16.2 Sécurité opérationnelle</h3>
+<ul>
+<li><strong>Vérifier deux fois</strong> chaque montant avant validation : les opérations sont difficiles à annuler après transmission à la comptabilité.</li>
+<li><strong>Garder un trace papier</strong> des bordereaux jusqu'à la clôture de la journée.</li>
+<li><strong>Compter physiquement</strong> la caisse à l'ouverture et à la clôture.</li>
+<li><strong>Signaler immédiatement</strong> tout écart inexpliqué, toute opération suspecte ou tout dysfonctionnement.</li>
+</ul>
+<h3>16.3 Protection des données membres</h3>
+<ul>
+<li>Les informations personnelles des membres sont <strong>confidentielles</strong>.</li>
+<li><strong>Ne jamais imprimer</strong> un document membre sans nécessité opérationnelle.</li>
+<li><strong>Détruire</strong> les bordereaux annulés à l'aide d'un destructeur.</li>
+<li>Les agents <strong>mobiles</strong> ne disposent <strong>pas</strong> des fonctions d'impression : c'est volontaire.</li>
+</ul>
+<h3>16.4 Discipline comptable</h3>
+<ul>
+<li>Les écritures sont <strong>immuables</strong>. Une erreur se corrige par <strong>contre-passation</strong>, jamais par modification.</li>
+<li>Les règles de commission ne doivent <strong>jamais être supprimées</strong> : préférer la désactivation.</li>
+<li>Les <strong>taux de change</strong> doivent être saisis chaque jour ouvré, idéalement avant l'ouverture des guichets.</li>
+</ul>
+<hr />
+<h2>17. Dépannage (FAQ)</h2>
+<h3>17.1 Je n'arrive pas à me connecter</h3>
+<ul>
+<li>Vérifiez la <strong>casse</strong> du mot de passe.</li>
+<li>Vérifiez que votre compte est <strong>actif</strong> (sinon contactez l'administrateur).</li>
+<li>Vérifiez que votre e-mail est <strong>vérifié</strong> (lien envoyé à la création).</li>
+<li>Après 6 tentatives échouées, attendez quelques minutes.</li>
+</ul>
+<h3>17.2 Le menu ne montre pas le module attendu</h3>
+<ul>
+<li>Votre rôle ne dispose pas de la <strong>permission</strong> requise. Demandez à l'administrateur d'ajuster votre rôle.</li>
+</ul>
+<h3>17.3 « Aucun guichet ouvert » lors d'une opération</h3>
+<ul>
+<li>Vous n'avez pas <strong>ouvert</strong> votre guichet, ou il a été <strong>suspendu / clôturé</strong>.</li>
+<li>Allez dans <strong>Caisse → Ouverture</strong> et ouvrez-le.</li>
+</ul>
+<h3>17.4 « Solde insuffisant »</h3>
+<ul>
+<li>Pour un <strong>retrait</strong> : le solde disponible du compte (solde réel − bloqué) est inférieur au montant demandé.</li>
+<li>Pour un <strong>paiement guichet</strong> : le solde du guichet dans la devise est insuffisant ; demandez une dotation au trésorier.</li>
+</ul>
+<h3>17.5 Une commission n'apparaît pas</h3>
+<ul>
+<li>Vérifiez la règle dans <strong>Trésorerie → Commissions</strong> : statut Active, période valide, scope correspondant à l'opération.</li>
+<li>L'aperçu temps réel sur l'écran d'opération doit afficher la commission <strong>avant</strong> validation.</li>
+</ul>
+<h3>17.6 Mon dossier de crédit est bloqué</h3>
+<ul>
+<li>Vérifiez son <strong>statut</strong> dans le détail (analyse en cours, attente validation Lx, suspendu, signalé suspect…).</li>
+<li>Les notifications indiquent le <strong>prochain acteur</strong> attendu. Contactez-le si besoin.</li>
+</ul>
+<h3>17.7 Je vois moins de membres que mon collègue</h3>
+<ul>
+<li>Vous êtes en <strong>mobile guichet</strong> et votre périmètre est <strong>scopé</strong> par vos zones d'affectation actives.</li>
+<li>Demandez à votre gestionnaire RH de mettre à jour vos <strong>affectations zones</strong>.</li>
+</ul>
+<h3>17.8 La session se ferme tout le temps</h3>
+<ul>
+<li>La session expire après <strong>10 minutes d'inactivité</strong> (paramètre <code>session.inactivity_timeout</code>). Tant que vous interagissez, le <strong>heartbeat</strong> maintient la session active.</li>
+<li>Demandez à l'administrateur d'augmenter le paramètre si nécessaire.</li>
+</ul>
+<h3>17.9 Un PDF ne se génère pas</h3>
+<ul>
+<li>Cause fréquente : permission <code>dompdf</code> insuffisante sur <code>storage/</code>.</li>
+<li>Voir <code>PHP_CONFIG_DOMPDF.conf</code> et le script <code>VERIFY_PDF_FIX.sh</code>.</li>
+<li>Contactez l'administrateur.</li>
+</ul>
+<hr />
+<h2>18. Glossaire métier</h2>
+<ul>
+<li><strong>Coopec</strong> — Coopérative d'Épargne et de Crédit.</li>
+<li><strong>Membre</strong> — Adhérent de la coopérative ; équivalent du client.</li>
+<li><strong>Matricule</strong> — Identifiant unique attribué à chaque membre ou agent.</li>
+<li><strong>Compte</strong> — Compte bancaire d'un membre, identifié par <code>code_compte</code>.</li>
+<li><strong>CC / DAT / EAV / RMB / GTC</strong> — Types de comptes (Courant, Dépôt À Terme, Épargne &amp; Avantages, Remboursement, Garantie).</li>
+<li><strong>Guichet</strong> — Point de service (FIXE, MOBILE, CENTRAL).</li>
+<li><strong>Coffre central</strong> — Guichet de type <code>CENTRAL</code> qui centralise les fonds (<code>COFFRE_01</code>).</li>
+<li><strong>Dotation / Approvisionnement</strong> — Transfert de fonds du coffre vers un guichet.</li>
+<li><strong>Clôture de caisse</strong> — Vérification et arrêt des comptes en fin de journée pour un guichet, devise par devise.</li>
+<li><strong>Écart de caisse</strong> — Différence entre solde physique compté et solde comptable.</li>
+<li><strong>Commission</strong> — Frais bancaires facturés sur une opération.</li>
+<li><strong>OHADA</strong> — Organisation pour l'Harmonisation en Afrique du Droit des Affaires ; définit le plan comptable utilisé.</li>
+<li><strong>Plan comptable</strong> — Liste structurée des comptes de la comptabilité.</li>
+<li><strong>Écriture comptable</strong> — Enregistrement d'un mouvement comptable (débit / crédit).</li>
+<li><strong>Grand-livre</strong> — Récapitulatif des écritures par compte.</li>
+<li><strong>Dossier de crédit</strong> — Demande de prêt avec tout son cycle de vie.</li>
+<li><strong>Échéancier</strong> — Plan de remboursement d'un crédit, ligne par échéance.</li>
+<li><strong>Validation L1 / L2 / L3 / L4</strong> — Quatre niveaux hiérarchiques d'approbation d'un dossier de crédit.</li>
+<li><strong>Déblocage / Décaissement</strong> — Mise à disposition du montant approuvé sur le compte du membre.</li>
+<li><strong>Zone</strong> — Découpage géographique pour la gestion commerciale.</li>
+<li><strong>Portefeuille</strong> — Groupe de membres/comptes gérés par un agent.</li>
+<li><strong>Affectation</strong> — Lien historisé entre un agent et une ressource (zone, guichet, portefeuille).</li>
+<li><strong>RBAC</strong> — <em>Role-Based Access Control</em>, contrôle d'accès basé sur les rôles.</li>
+<li><strong>Permission</strong> — Droit atomique d'effectuer une action (<code>EBEN-PERxx</code>).</li>
+<li><strong>Rôle</strong> — Groupe nommé de permissions, attribué à un utilisateur.</li>
+<li><strong>Snapshot</strong> — Photo immuable d'un paramètre (commission, taux) au moment d'une opération.</li>
+</ul>
+<hr />
+<h2>19. Annexes</h2>
+<h3>19.1 Index des routes principales</h3>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Préfixe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Authentification</td>
+<td><code>/login</code>, <code>/register</code>, <code>/forgot-password</code></td>
+</tr>
+<tr>
+<td>Tableau de bord</td>
+<td><code>/dashboard</code></td>
+</tr>
+<tr>
+<td>Comptes Clients</td>
+<td><code>/comptes-clients/clients</code>, <code>/comptes-clients/comptes</code></td>
+</tr>
+<tr>
+<td>Caisse</td>
+<td><code>/caisses/*</code></td>
+</tr>
+<tr>
+<td>Trésorerie</td>
+<td><code>/tresorerie/*</code></td>
+</tr>
+<tr>
+<td>Crédit</td>
+<td><code>/credits/*</code></td>
+</tr>
+<tr>
+<td>Comptabilité</td>
+<td><code>/comptabilite/*</code></td>
+</tr>
+<tr>
+<td>RH</td>
+<td><code>/rh/*</code></td>
+</tr>
+<tr>
+<td>Administration</td>
+<td><code>/administration/*</code></td>
+</tr>
+<tr>
+<td>Notifications</td>
+<td><code>/notifications</code></td>
+</tr>
+<tr>
+<td>Profil</td>
+<td><code>/profile</code></td>
+</tr>
+</tbody>
+</table>
+<h3>19.2 Index des permissions clés</h3>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EBEN-PER01</td>
+<td>Administration des utilisateurs</td>
+</tr>
+<tr>
+<td>EBEN-PER02..05</td>
+<td>RBAC : voir, gérer rôles &amp; permissions</td>
+</tr>
+<tr>
+<td>EBEN-PER06..09</td>
+<td>RH : agents, services, postes, affectations</td>
+</tr>
+<tr>
+<td>EBEN-PER10</td>
+<td>Voir caisse</td>
+</tr>
+<tr>
+<td>EBEN-PER11</td>
+<td>Opérer la caisse</td>
+</tr>
+<tr>
+<td>EBEN-PER15..17</td>
+<td>Membres : voir, créer, modifier</td>
+</tr>
+<tr>
+<td>EBEN-PER18..19</td>
+<td>Comptes clients : voir, gérer</td>
+</tr>
+<tr>
+<td>EBEN-PER20..21</td>
+<td>Devises et taux</td>
+</tr>
+<tr>
+<td>EBEN-PER25</td>
+<td>Annulation transactions</td>
+</tr>
+<tr>
+<td>EBEN-PER44</td>
+<td>Voir trésorerie / approuver demandes modif</td>
+</tr>
+<tr>
+<td>EBEN-PER45</td>
+<td>Approvisionner coffre</td>
+</tr>
+<tr>
+<td>EBEN-PER46</td>
+<td>Approuver décisions trésor (clôtures, demandes)</td>
+</tr>
+<tr>
+<td>EBEN-PER47</td>
+<td>Alimenter un guichet</td>
+</tr>
+<tr>
+<td>EBEN-PER49..52</td>
+<td>Comptabilité OHADA</td>
+</tr>
+<tr>
+<td>EBEN-PER53..72</td>
+<td>Crédit (cycle complet)</td>
+</tr>
+<tr>
+<td>EBEN-PER76</td>
+<td>Voir agents de terrain</td>
+</tr>
+<tr>
+<td>EBEN-PER77</td>
+<td>Créer règles de commission</td>
+</tr>
+<tr>
+<td>EBEN-PER78</td>
+<td>Modifier règles de commission</td>
+</tr>
+<tr>
+<td>EBEN-PER103..108</td>
+<td>Modifier / supprimer (RH, clients, comptes)</td>
+</tr>
+</tbody>
+</table>
+<h3>19.3 Documentation interne complémentaire</h3>
+<ul>
+<li><code>README.md</code> — Installation et déploiement.</li>
+<li><code>SCHEDULER_SETUP.md</code> — Configuration des tâches planifiées.</li>
+<li><code>docs/permissions_referentiel.md</code> — Référentiel complet des permissions.</li>
+<li><code>docs/structure_roles_permissions.md</code> — Structure et matrice rôles/permissions.</li>
+<li><code>docs/rbac_dynamique_exemple.md</code> — Exemples d'utilisation du RBAC.</li>
+<li><code>docs/DEPLOIEMENT_ZONES_PORTEFEUILLES_2026-03-21.md</code> — Déploiement des zones et portefeuilles.</li>
+<li><code>docs/MATRICE_NOTIFICATIONS_SYSTEME_COMPLET_2026-04-28.md</code> — Matrice générale des notifications.</li>
+<li><code>docs/MATRICE_NOTIFICATIONS_CREDIT_2026-05-03.md</code> — Notifications du module Crédit.</li>
+<li><code>docs/MATRICE_NOTIFICATIONS_TRESORERIE_CAISSE_2026-05-03.md</code> — Notifications Trésorerie / Caisse.</li>
+</ul>
+<h3>19.4 Contact &amp; support</h3>
+<ul>
+<li><strong>Site institutionnel</strong> : <a href="https://coopaeben.info/">https://coopaeben.info/</a></li>
+<li><strong>Éditeur</strong> : Nexus BMB Tech</li>
+<li><strong>Support</strong> : selon le canal défini avec l'institution (e-mail support, hotline interne).</li>
+</ul>
+<hr />
+<p><em>Fin du manuel.</em></p>
+<p><em>Manuel Utilisateur — Coopec EBEN · v3.0.0 · © 2026 Nexus BMB Tech — Tous droits réservés.</em></p>
+
+</main>
+<div class="footer-doc">Manuel Utilisateur &mdash; Coopec EBEN &middot; v3.0.0 &middot; &copy; 2026 Nexus BMB Tech</div>
+</body>
+</html>

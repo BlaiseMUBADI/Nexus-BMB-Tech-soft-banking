@@ -405,12 +405,13 @@ class OperationCaisseController extends Controller
         // Pour un RETRAIT : vérifier aussi le solde du compte client (montant + commission)
         if ($type === Transaction::RETRAIT && $request->filled('compte_code')) {
             $totalDebiteClient = (float) $compteImpact['total_client'];
-            if ((float) $compteOperation->solde_reel < $totalDebiteClient) {
+            $soldeDisponibleClient = round((float) $compteOperation->solde_reel - (float) ($compteOperation->solde_bloque ?? 0), 2);
+            if ($soldeDisponibleClient < $totalDebiteClient) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Solde compte insuffisant. Disponible sur le compte '
                                . $compteOperation->code_compte . ' : '
-                               . number_format((float)$compteOperation->solde_reel, 2, ',', ' ')
+                               . number_format($soldeDisponibleClient, 2, ',', ' ')
                                . ' ' . $compteOperation->devise . '. Montant total debite (avec commission) : '
                                . number_format($totalDebiteClient, 2, ',', ' ')
                                . ' ' . $compteOperation->devise . '.',
@@ -789,6 +790,7 @@ class OperationCaisseController extends Controller
                 'L\'operation ' . $op->reference . ' a ete annulee au guichet ' . ($guichet->code_guichet ?? 'N/A') . '.',
                 [
                     'type' => 'warning',
+                    'category' => 'caisse',
                     'icon' => 'fas fa-ban',
                     'action_url' => route('caisses.journal.page'),
                 ]
@@ -1281,6 +1283,7 @@ class OperationCaisseController extends Controller
                 'Le guichet mobile ' . $guichet->code_guichet . ' a soumis ' . count($refs) . ' demande(s) de dotation.',
                 [
                     'type' => 'action_required',
+                    'category' => 'caisse',
                     'icon' => 'fas fa-shipping-fast',
                     'action_url' => route('tresorerie.etat-coffre'),
                     'meta' => ['references' => $refs],
@@ -1357,6 +1360,7 @@ class OperationCaisseController extends Controller
                 'Le guichet mobile ' . $guichet->code_guichet . ' a declare un reversement en attente de confirmation.',
                 [
                     'type' => 'action_required',
+                    'category' => 'caisse',
                     'icon' => 'fas fa-undo-alt',
                     'action_url' => route('tresorerie.etat-coffre'),
                     'meta' => ['references' => $refs],
@@ -1574,6 +1578,7 @@ class OperationCaisseController extends Controller
             'Demande #' . $demande->id . ' (' . $demande->type_demande . ') sur l\'operation ' . $op->reference . ' en attente de traitement.',
             [
                 'type' => 'warning',
+                'category' => 'caisse',
                 'icon' => 'fas fa-edit',
                 'action_url' => route('caisses.demandes.modification.page'),
             ]
@@ -1902,6 +1907,7 @@ class OperationCaisseController extends Controller
                 'Votre demande #' . $demande->id . ' concernant l\'operation ' . $demande->reference_operation . ' a ete approuvee.',
                 [
                     'type' => 'info',
+                    'category' => 'caisse',
                     'icon' => 'fas fa-check',
                     'action_url' => route('caisses.journal.page'),
                 ]
@@ -1948,6 +1954,7 @@ class OperationCaisseController extends Controller
             'Votre demande #' . $demande->id . ' concernant l\'operation ' . $demande->reference_operation . ' a ete rejetee. Motif: ' . $request->commentaire,
             [
                 'type' => 'warning',
+                'category' => 'caisse',
                 'icon' => 'fas fa-times',
                 'action_url' => route('caisses.journal.page'),
             ]

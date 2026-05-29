@@ -19,10 +19,21 @@
     <div class="alert alert-info alert-dismissible">
         <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
         <i class="fas fa-receipt mr-1"></i>
-        Référence déblocage: <strong>{{ $refs['reference_deblocage'] ?? '-' }}</strong>
-        | Référence bordereau frais (4%): <strong>{{ $refs['reference_frais'] ?? '-' }}</strong>
+        Réf. déblocage 100% RMB: <strong>{{ $refs['reference_deblocage'] ?? '-' }}</strong>
+        | Réf. transfert caution 20% RMB → GTC: <strong>{{ $refs['reference_caution'] ?? '-' }}</strong>
+        | Réf. dépôt GTC 20% (bloqué): <strong>{{ $refs['reference_transfert_gtc'] ?? '-' }}</strong>
+        | Réf. frais 4% non remboursables: <strong>{{ $refs['reference_frais'] ?? '-' }}</strong>
+        @if(!empty($refs['transaction_deblocage_id']))
+            | <a href="{{ route('caisses.operations.bordereau', ['id' => $refs['transaction_deblocage_id']]) }}" target="_blank" rel="noopener">Imprimer bordereau 100%</a>
+        @endif
+        @if(!empty($refs['transaction_gtc_id']))
+            | <a href="{{ route('caisses.operations.bordereau', ['id' => $refs['transaction_gtc_id']]) }}" target="_blank" rel="noopener">Imprimer bordereau transfert RMB → GTC</a>
+        @endif
+        @if(!empty($refs['transaction_gtc_depot_id']))
+            | <a href="{{ route('caisses.operations.bordereau', ['id' => $refs['transaction_gtc_depot_id']]) }}" target="_blank" rel="noopener">Imprimer bordereau dépôt GTC</a>
+        @endif
         @if(!empty($refs['transaction_frais_id']))
-            | <a href="{{ route('caisses.operations.bordereau', ['id' => $refs['transaction_frais_id']]) }}" target="_blank" rel="noopener">Imprimer le 2e bordereau</a>
+            | <a href="{{ route('caisses.operations.bordereau', ['id' => $refs['transaction_frais_id']]) }}" target="_blank" rel="noopener">Imprimer bordereau frais 4%</a>
         @endif
     </div>
 @endif
@@ -199,6 +210,16 @@
                             <small class="text-muted">({{ $demande->agent_analyse_matricule }})</small>
                         @else
                             <span class="text-muted">Non affecté</span>
+                        @endif
+                    </td></tr>
+                    <tr><th>Portefeuille crédit</th><td>
+                        @if($demande->portefeuille)
+                            {{ $demande->portefeuille->nom_portefeuille }}
+                            <small class="text-muted">(#{{ $demande->portefeuille_id }})</small>
+                        @elseif($demande->portefeuille_id)
+                            <span class="text-muted">Portefeuille #{{ $demande->portefeuille_id }}</span>
+                        @else
+                            <span class="text-muted">Non défini</span>
                         @endif
                     </td></tr>
                     @if($demande->service_provenance)
@@ -391,10 +412,10 @@
                 <div class="card-body p-2">
                     <div class="small mb-1">
                         <strong>Référence déblocage :</strong>
-                        {{ $d->reference_transaction ?? $d->reference_comptable ?? '–' }}
+                            {{ $d->reference_transaction ?? '–' }}
                     </div>
                     <div class="small mb-1">
-                        <strong>Référence frais 4% (2e bordereau) :</strong>
+                            <strong>Référence transfert 20% RMB → GTC :</strong>
                         {{ $d->numero_ordre ?? '–' }}
                     </div>
                     <div class="small mb-1">
@@ -403,6 +424,14 @@
                     </div>
                     <div class="small mb-0">
                         <strong>Agent opérateur :</strong> {{ $operateurNom }}
+                    </div>
+                    <div class="small mt-2">
+                        <strong>Impression / réimpression :</strong>
+                        @if($d->reference_transaction && optional($d->compteCredit)->code_compte)
+                            <a href="{{ route('comptes.historique', optional($d->compteCredit)->code_compte) }}" target="_blank" rel="noopener">voir l'historique du compte et réimprimer les bordereaux</a>
+                        @else
+                            <span class="text-muted">Références indisponibles</span>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -566,11 +595,26 @@
                     <select name="agent_analyse_matricule" id="selectAgentAnalyse" class="form-control select2-search" required>
                         <option value="">-- Sélectionner un agent --</option>
                         @foreach(($assignableAgents ?? collect()) as $a)
-                            <option value="{{ $a->matricule }}" {{ $demande->agent_analyse_matricule === $a->matricule ? 'selected' : '' }}>
+                            <option value="{{ $a->matricule }}"
+                                data-portefeuilles='@json($a->portefeuilles_actifs ?? [])'
+                                data-default-portefeuille="{{ $a->portefeuille_actif_unique_id ?? '' }}"
+                                {{ $demande->agent_analyse_matricule === $a->matricule ? 'selected' : '' }}>
                                 {{ trim(($a->nom ?? '').' '.($a->postnom ?? '').' '.($a->prenom ?? '')) }} ({{ $a->matricule }})
+                                @if(!empty($a->portefeuille_actif_resume))
+                                    — {{ $a->portefeuille_actif_resume }}
+                                @endif
                             </option>
                         @endforeach
                     </select>
+                </div>
+                <div class="form-group">
+                    <label>Portefeuille du dossier <span class="text-danger">*</span></label>
+                    <select name="portefeuille_id" id="selectPortefeuilleAnalyse" class="form-control" required disabled>
+                        <option value="">-- Sélectionner d'abord un agent --</option>
+                    </select>
+                    <small id="hintPortefeuilleAnalyse" class="text-muted d-block mt-1">
+                        <i class="fas fa-info-circle mr-1"></i>Le dossier sera rattaché au portefeuille actif sélectionné.
+                    </small>
                 </div>
                 <small class="text-muted"><i class="fas fa-info-circle mr-1"></i>Tapez pour chercher un agent</small>
             </div>
@@ -613,17 +657,70 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
-        $('#selectAgentAnalyse').select2({
+        const $agentSelect = $('#selectAgentAnalyse');
+        const $pfSelect = $('#selectPortefeuilleAnalyse');
+        const $pfHint = $('#hintPortefeuilleAnalyse');
+
+        const renderPortefeuilles = function() {
+            if (!$agentSelect.length || !$pfSelect.length) {
+                return;
+            }
+
+            const selected = $agentSelect.find('option:selected');
+            const payload = selected.attr('data-portefeuilles');
+            let portefeuilles = [];
+
+            if (payload) {
+                try {
+                    portefeuilles = JSON.parse(payload);
+                } catch (e) {
+                    portefeuilles = [];
+                }
+            }
+
+            $pfSelect.empty();
+
+            if (!selected.val()) {
+                $pfSelect.append('<option value="">-- Sélectionner d\'abord un agent --</option>');
+                $pfSelect.prop('disabled', true);
+                $pfHint.text('Le dossier sera rattaché au portefeuille actif sélectionné.');
+                return;
+            }
+
+            if (!Array.isArray(portefeuilles) || portefeuilles.length === 0) {
+                $pfSelect.append('<option value="">-- Aucun portefeuille actif trouvé --</option>');
+                $pfSelect.prop('disabled', true);
+                $pfHint.text('Cet agent n\'a pas de portefeuille actif.');
+                return;
+            }
+
+            $pfSelect.append('<option value="">-- Choisir un portefeuille --</option>');
+            portefeuilles.forEach(function(pf) {
+                $pfSelect.append(`<option value="${pf.id}">${pf.nom_portefeuille} (#${pf.id})</option>`);
+            });
+            $pfSelect.prop('disabled', false);
+
+            const defPf = selected.attr('data-default-portefeuille');
+            if (defPf) {
+                $pfSelect.val(defPf);
+            }
+
+            $pfHint.text('Portefeuille actif obligatoire pour rattacher le dossier.');
+        };
+
+        $agentSelect.select2({
             placeholder: "Chercher par nom ou matricule...",
             allowClear: true,
             language: "fr",
             width: '100%'
         });
-        
-        // Déboucher Select2 quand le modal s'ouvre
+
+        $agentSelect.on('change', renderPortefeuilles);
+
         $('#modalAffecterAnalyse').on('show.bs.modal', function() {
+            renderPortefeuilles();
             setTimeout(() => {
-                $('#selectAgentAnalyse').select2('open');
+                $agentSelect.select2('open');
             }, 100);
         });
     });

@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('tb_affectations_portefeuilles')) {
+            return;
+        }
+
         Schema::create('tb_affectations_portefeuilles', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('portefeuille_id');

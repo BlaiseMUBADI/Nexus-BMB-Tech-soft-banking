@@ -16,11 +16,17 @@ return new class extends Migration
     {
         Schema::table('tb_credit_deblocages', function (Blueprint $table) {
             // Montant de référence validé par le gérant (base de calcul)
-            $table->decimal('montant_valide_gerant', 15, 2)->nullable()->after('montant_debloque');
+            if (!Schema::hasColumn('tb_credit_deblocages', 'montant_valide_gerant')) {
+                $table->decimal('montant_valide_gerant', 15, 2)->nullable()->after('montant_debloque');
+            }
             // Caution 20% bloquée dans le compte RMB client
-            $table->decimal('montant_caution', 15, 2)->default(0)->after('montant_valide_gerant');
+            if (!Schema::hasColumn('tb_credit_deblocages', 'montant_caution')) {
+                $table->decimal('montant_caution', 15, 2)->default(0)->after('montant_valide_gerant');
+            }
             // Frais 3% étude de dossier (non remboursable)
-            $table->decimal('frais_etude', 15, 2)->default(0)->after('montant_caution');
+            if (!Schema::hasColumn('tb_credit_deblocages', 'frais_etude')) {
+                $table->decimal('frais_etude', 15, 2)->default(0)->after('montant_caution');
+            }
             // frais_dossier existant = 1% frais de dossier (non remboursable)
         });
     }

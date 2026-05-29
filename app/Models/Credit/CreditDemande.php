@@ -234,10 +234,10 @@ class CreditDemande extends Model
         $latestDuration = $approvedValidations->first(fn (CreditValidation $validation) => $validation->duree_mois_validee !== null);
 
         return [
-            'montant' => (float) ($latestAmount?->montant_valide
+            'montant' => round((float) ($latestAmount?->montant_valide
                 ?? $this->montant_approuve
                 ?? $this->analyse?->montant_recommande
-                ?? $this->montant_demande),
+                ?? $this->montant_demande), 2),
             'duree_mois' => (int) ($latestDuration?->duree_mois_validee ?? $this->duree_mois),
             'source' => $latestApproved?->type_validateur ?? ($this->analyse?->montant_recommande ? 'ANALYSE' : 'DEMANDE'),
         ];

@@ -174,35 +174,35 @@
                             <td><span class="badge badge-light border text-dark">Coffre central → réparti</span></td>
                         </tr>
                         <tr class="row-net">
-                            <td><i class="fas fa-university mr-1"></i>Net versé client</td>
-                            <td class="text-right">80%</td>
-                            <td class="text-right amount-net"><strong>{{ number_format($netVerse, 2, ',', ' ') }}</strong></td>
-                            <td><span class="badge badge-light border text-success">Compte RMB client (disponible)</span></td>
+                            <td><i class="fas fa-university mr-1"></i>Entrée brute déblocage sur RMB</td>
+                            <td class="text-right">100%</td>
+                            <td class="text-right amount-net"><strong>{{ number_format($montantTotal, 2, ',', ' ') }}</strong></td>
+                            <td><span class="badge badge-light border text-success">Compte RMB client (crédit initial)</span></td>
                         </tr>
                         <tr class="row-caution">
-                            <td><i class="fas fa-lock mr-1"></i>Caution bloquée</td>
+                            <td><i class="fas fa-lock mr-1"></i>Transfert caution RMB → GTC (bloquée)</td>
                             <td class="text-right">20%</td>
                             <td class="text-right amount-caution"><strong>{{ number_format($caution, 2, ',', ' ') }}</strong></td>
-                            <td><span class="badge badge-light border text-warning">Compte GTC client (bloqué)</span></td>
+                            <td><span class="badge badge-light border text-warning">Retrait RMB + dépôt GTC (bordereau imprimable)</span></td>
                         </tr>
                         <tr class="row-fees">
                             <td><i class="fas fa-file-invoice-dollar mr-1"></i>Frais de dossier (1%)</td>
                             <td class="text-right">1%</td>
                             <td class="text-right amount-fees">{{ number_format($fraisDossier, 2, ',', ' ') }}</td>
-                            <td><span class="badge badge-light border text-danger">Prélevés sur RMB client</span></td>
+                            <td><span class="badge badge-light border text-danger">Prélevés sur RMB client (non remboursables)</span></td>
                         </tr>
                         <tr class="row-fees">
                             <td><i class="fas fa-search-dollar mr-1"></i>Frais d'étude (3%)</td>
                             <td class="text-right">3%</td>
                             <td class="text-right amount-fees">{{ number_format($fraisEtude, 2, ',', ' ') }}</td>
-                            <td><span class="badge badge-light border text-danger">Prélevés sur RMB client</span></td>
+                            <td><span class="badge badge-light border text-danger">Prélevés sur RMB client (non remboursables)</span></td>
                         </tr>
                     </tbody>
                     <tfoot class="thead-light">
                         <tr>
-                            <td colspan="2"><small class="text-muted">À la fin de la dette → caution libérée vers RMB client</small></td>
-                            <td class="text-right"><strong>{{ number_format($montantTotal, 2, ',', ' ') }}</strong></td>
-                            <td></td>
+                            <td colspan="2"><small class="text-muted">Net disponible RMB après transfert 20% et frais 4% (frais non remboursables)</small></td>
+                            <td class="text-right"><strong>{{ number_format($netVerse, 2, ',', ' ') }}</strong></td>
+                            <td><small class="text-muted">La caution 20% est remboursable en fin de crédit selon conditions</small></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -310,9 +310,9 @@
             <h6><i class="fas fa-exclamation-triangle mr-1"></i>Confirmation</h6>
             <p class="mb-1 small">
                 En validant, le coffre sera débité de <strong>{{ number_format($montantTotal, 2, ',', ' ') }} {{ $demande->devise }}</strong> :
-                <strong>{{ number_format($netVerse, 2, ',', ' ') }}</strong> vers le compte RMB client (disponible),
-                <strong>{{ number_format($caution, 2, ',', ' ') }}</strong> vers le compte caution GTC (bloqué),
-                et <strong>{{ number_format($fraisTotal, 2, ',', ' ') }}</strong> seront retirés du RMB client avec un bordereau distinct (historique transaction).
+                <strong>{{ number_format($montantTotal, 2, ',', ' ') }}</strong> entrera d'abord sur RMB,
+                puis <strong>{{ number_format($caution, 2, ',', ' ') }}</strong> seront transférés vers GTC (20% caution bloquée, bordereau imprimable),
+                et <strong>{{ number_format($fraisTotal, 2, ',', ' ') }}</strong> seront retirés du RMB comme frais <strong>non remboursables</strong> (bordereau imprimable).
                 Cette opération est irréversible.
             </p>
             <div class="custom-control custom-checkbox mt-2">

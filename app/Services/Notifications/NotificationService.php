@@ -10,6 +10,36 @@ use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
+    public function resolveCategory(string $title, string $message, array $options = []): string
+    {
+        $category = $options['category'] ?? null;
+        if (is_string($category) && $category !== '') {
+            return $category;
+        }
+
+        $haystack = strtolower(implode(' ', array_filter([
+            $title,
+            $message,
+            (string) ($options['action_url'] ?? ''),
+            (string) ($options['action_label'] ?? ''),
+        ])));
+
+        return match (true) {
+            str_contains($haystack, 'credit') => 'credit',
+            str_contains($haystack, 'tresorerie') || str_contains($haystack, 'coffre') || str_contains($haystack, 'ravitail') => 'tresorerie',
+            str_contains($haystack, 'guichet') || str_contains($haystack, 'caisse') || str_contains($haystack, 'operation') || str_contains($haystack, 'dotation') || str_contains($haystack, 'reversement') => 'caisse',
+            str_contains($haystack, 'role') || str_contains($haystack, 'permission') || str_contains($haystack, 'administration') || str_contains($haystack, 'autorisation') => 'administration',
+            default => 'systeme',
+        };
+    }
+
+    public function buildOptions(string $title, string $message, array $options = []): array
+    {
+        $options['category'] = $this->resolveCategory($title, $message, $options);
+
+        return $options;
+    }
+
     public function notifyUser(
         User $user,
         string $title,
@@ -17,7 +47,7 @@ class NotificationService
         array $options = []
     ): void {
         try {
-            $user->notify(new SystemDatabaseNotification($title, $message, $options));
+            $user->notify(new SystemDatabaseNotification($title, $message, $this->buildOptions($title, $message, $options)));
         } catch (\Throwable $e) {
             Log::warning('Impossible d\'envoyer une notification utilisateur.', [
                 'user_id' => $user->id,

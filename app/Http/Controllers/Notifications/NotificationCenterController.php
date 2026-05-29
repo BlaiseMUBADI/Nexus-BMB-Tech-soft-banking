@@ -11,13 +11,43 @@ use Illuminate\View\View;
 
 class NotificationCenterController extends Controller
 {
+    private function applyCategoryFilter($query, ?string $category)
+    {
+        $category = is_string($category) ? trim($category) : null;
+        if (!$category || $category === 'tous') {
+            return $query;
+        }
+
+        return $query->where('data', 'like', '%"category":"' . $category . '"%');
+    }
+
     public function index(Request $request): View
     {
         $user = $request->user();
+        $selectedCategory = (string) $request->input('category', 'tous');
+
+        $unreadNotifications = $this->applyCategoryFilter($user->unreadNotifications()->latest(), $selectedCategory)
+            ->paginate(15, ['*'], 'unread_page')
+            ->appends(['category' => $selectedCategory]);
+
+        $readNotifications = $this->applyCategoryFilter($user->readNotifications()->latest(), $selectedCategory)
+            ->paginate(15, ['*'], 'read_page')
+            ->appends(['category' => $selectedCategory]);
+
+        $categoryCounts = $user->notifications()
+            ->latest()
+            ->limit(200)
+            ->get()
+            ->map(function (DatabaseNotification $notification) {
+                return data_get($notification->data, 'category', 'systeme');
+            })
+            ->countBy();
 
         return view('notifications.index', [
-            'unreadNotifications' => $user->unreadNotifications()->latest()->paginate(15, ['*'], 'unread_page'),
-            'readNotifications' => $user->readNotifications()->latest()->paginate(15, ['*'], 'read_page'),
+            'unreadNotifications' => $unreadNotifications,
+            'readNotifications' => $readNotifications,
+            'notificationCategoryCounts' => $categoryCounts,
+            'selectedNotificationCategory' => $selectedCategory,
         ]);
     }
 
@@ -60,14 +90,25 @@ class NotificationCenterController extends Controller
                     'title' => data_get($notification->data, 'title', 'Notification'),
                     'message' => data_get($notification->data, 'message', ''),
                     'type' => data_get($notification->data, 'type', 'info'),
+                    'category' => data_get($notification->data, 'category', 'systeme'),
                     'icon' => data_get($notification->data, 'icon', 'fas fa-bell'),
                     'action_url' => data_get($notification->data, 'action_url'),
                     'created_at_human' => optional($notification->created_at)->diffForHumans(),
                 ];
             });
 
+        $categoryCounts = $user->unreadNotifications()
+            ->latest()
+            ->limit(100)
+            ->get()
+            ->map(function (DatabaseNotification $notification) {
+                return data_get($notification->data, 'category', 'systeme');
+            })
+            ->countBy();
+
         return response()->json([
             'count' => $user->unreadNotifications()->count(),
+            'category_counts' => $categoryCounts,
             'items' => $latest,
         ]);
     }

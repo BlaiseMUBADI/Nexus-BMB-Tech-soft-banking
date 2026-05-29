@@ -312,6 +312,7 @@ class TresorerieController extends Controller
                 'Le coffre central a ete approvisionne de ' . number_format((float) $request->montant, 2, ',', ' ') . ' ' . $request->devise_code . '.',
                 [
                     'type' => 'info',
+                    'category' => 'tresorerie',
                     'icon' => 'fas fa-piggy-bank',
                     'action_url' => route('tresorerie.etat-coffre'),
                 ]
@@ -446,6 +447,7 @@ class TresorerieController extends Controller
                 'Le guichet ' . $guichet->code_guichet . ' a ete ravitaille de ' . number_format((float) $request->montant, 2, ',', ' ') . ' ' . $request->devise_code . '.',
                 [
                     'type' => 'info',
+                    'category' => 'tresorerie',
                     'icon' => 'fas fa-donate',
                     'action_url' => route('caisses.ouverture'),
                 ]
@@ -803,6 +805,7 @@ class TresorerieController extends Controller
                 'Votre demande #' . $demande->id . ' a ete approuvee: ' . number_format($montantDemande, 2, ',', ' ') . ' ' . $deviseDemande . '.',
                 [
                     'type' => 'info',
+                    'category' => 'tresorerie',
                     'icon' => 'fas fa-check-circle',
                     'action_url' => route('caisses.mes.demandes'),
                 ]
@@ -856,6 +859,7 @@ class TresorerieController extends Controller
             'Votre demande #' . $demande->id . ' a ete rejetee. Motif: ' . $request->observations,
             [
                 'type' => 'warning',
+                'category' => 'tresorerie',
                 'icon' => 'fas fa-times-circle',
                 'action_url' => route('caisses.mes.demandes'),
             ]
@@ -870,58 +874,90 @@ class TresorerieController extends Controller
    
     /**
      * Retourne JSON des guichets EN_VERIFICATION en attente superviseur.
+     * En mode historique : inclut également les guichets FERMÉ, avec filtre date.
      */
-    public function cloturesEnVerification()
+    public function cloturesEnVerification(Request $request)
     {
+        $includeHistory = $request->boolean('include_history', false);
+
+        // Date range (utilisé uniquement en mode historique)
+        $dateDebut = $includeHistory
+            ? ($request->input('date_debut') ?: now()->subDays(30)->toDateString())
+            : null;
+        $dateFin = $includeHistory
+            ? ($request->input('date_fin') ?: now()->toDateString())
+            : null;
+
+        $statutsGuichet = $includeHistory
+            ? ['EN_VERIFICATION', 'FERME']
+            : ['EN_VERIFICATION'];
+
         $guichets = CaissesGuichet::with(['soldes.devise', 'affectations' => function ($q) {
                 $q->where('Etat', 'ACTIF')->with('agent');
             }])
-            ->where('statut_operationnel', 'EN_VERIFICATION')
-            ->orderBy('updated_at')
+            ->whereIn('statut_operationnel', $statutsGuichet)
+            ->orderByDesc('updated_at')
             ->get()
-            ->map(function ($g) {
-                // Toutes les lignes de clôture (EN_ATTENTE + déjà traitées)
-                // pour affichage complet dans la carte superviseur
-                $clotures   = ClotureCaisse::where('guichet_id', $g->id)
-                    ->whereIn('statut_validation', [
-                        ClotureCaisse::VALIDATION_EN_ATTENTE,
-                        ClotureCaisse::VALIDATION_VALIDE,
-                        ClotureCaisse::VALIDATION_REJETE,
-                    ])
-                    ->orderBy('date_cloture')
-                    ->get();
+            ->map(function ($g) use ($includeHistory, $dateDebut, $dateFin) {
+                $cloturesQuery = ClotureCaisse::where('guichet_id', $g->id);
 
-                $pendingCount = $clotures->where('statut_validation', ClotureCaisse::VALIDATION_EN_ATTENTE)->count();
+                if ($includeHistory && $dateDebut && $dateFin) {
+                    $cloturesQuery->whereDate('date_cloture', '>=', $dateDebut)
+                                  ->whereDate('date_cloture', '<=', $dateFin);
+                }
+
+                $allClotures = $cloturesQuery->orderByDesc('date_cloture')->get();
+
+                $pendingCount = $allClotures
+                    ->where('statut_validation', ClotureCaisse::VALIDATION_EN_ATTENTE)
+                    ->count();
+
+                $clotures = $allClotures
+                    ->when(!$includeHistory, function ($collection) {
+                        return $collection->where('statut_validation', ClotureCaisse::VALIDATION_EN_ATTENTE);
+                    })
+                    ->values();
 
                 $agentActif = $g->affectations->first();
                 $agentNom   = $agentActif && $agentActif->agent
                     ? ($agentActif->agent->prenoms . ' ' . $agentActif->agent->nom)
-                    : ($clotures->first()?->agent_cloturant ?? 'Inconnu');
+                    : ($allClotures->first()?->agent_cloturant ?? 'Inconnu');
 
                 $montants = $clotures->map(fn($c) => [
-                    'cloture_id'       => $c->id,
-                    'devise_code'      => $c->devise_code,
-                    'solde_physique'   => number_format($c->solde_physique, 2, ',', ' ') . ' ' . $c->devise_code,
-                    'solde_comptable'  => number_format($c->solde_comptable, 2, ',', ' ') . ' ' . $c->devise_code,
-                    'ecart'            => number_format($c->ecart_caisse, 2, ',', ' ') . ' ' . $c->devise_code,
-                    'statut_ecart'     => $c->statut_ecart,
-                    'statut_validation'=> $c->statut_validation,
-                    'motif_ecart'      => $c->motif_ecart,
-                    'date'             => $c->date_cloture?->format('d/m/Y H:i'),
+                    'cloture_id'              => $c->id,
+                    'devise_code'             => $c->devise_code,
+                    'solde_physique'          => number_format((float) $c->solde_physique, 2, ',', ' ') . ' ' . $c->devise_code,
+                    'solde_comptable'         => number_format((float) $c->solde_comptable, 2, ',', ' ') . ' ' . $c->devise_code,
+                    'ecart'                   => number_format((float) $c->ecart_caisse, 2, ',', ' ') . ' ' . $c->devise_code,
+                    'statut_ecart'            => $c->statut_ecart,
+                    'statut_validation'       => $c->statut_validation,
+                    'motif_ecart'             => $c->motif_ecart,
+                    'date'                    => $c->date_cloture?->format('d/m/Y H:i'),
+                    'date_validation'         => $c->date_validation?->format('d/m/Y H:i'),
+                    'validateur_matricule'    => $c->validateur_matricule,
+                    'observations_superviseur'=> $c->observations_superviseur,
                 ]);
 
                 return [
-                    'guichet_id'    => $g->id,
-                    'code_guichet'  => $g->code_guichet,
-                    'intitule'      => $g->intitule,
-                    'agent_nom'     => $agentNom,
-                    'agent_matric'  => $agentActif?->agent_matricule ?? $clotures->first()?->agent_cloturant,
-                    'montants'      => $montants,
-                    'nb_lignes'     => $clotures->count(),
-                    'pending_count' => $pendingCount,
+                    'guichet_id'     => $g->id,
+                    'code_guichet'   => $g->code_guichet,
+                    'intitule'       => $g->intitule,
+                    'statut_guichet' => $g->statut_operationnel,
+                    'agent_nom'      => $agentNom,
+                    'agent_matric'   => $agentActif?->agent_matricule ?? $allClotures->first()?->agent_cloturant,
+                    'montants'       => $montants,
+                    'nb_lignes'      => $clotures->count(),
+                    'pending_count'  => $pendingCount,
+                    'total_count'    => $allClotures->count(),
                 ];
             })
-            ->filter(fn($g) => $g['pending_count'] > 0)
+            ->filter(function ($g) use ($includeHistory) {
+                if ($includeHistory) {
+                    return $g['total_count'] > 0;
+                }
+
+                return $g['pending_count'] > 0;
+            })
             ->values();
 
         return response()->json($guichets);
@@ -1018,6 +1054,7 @@ class TresorerieController extends Controller
                 'La cloture du guichet ' . $guichet->code_guichet . ' a ete approuvee.',
                 [
                     'type' => 'info',
+                    'category' => 'tresorerie',
                     'icon' => 'fas fa-lock',
                     'action_url' => route('caisses.ouverture'),
                 ]
@@ -1081,6 +1118,7 @@ class TresorerieController extends Controller
                 'La cloture du guichet ' . $guichet->code_guichet . ' a ete rejetee. Motif: ' . $request->observations,
                 [
                     'type' => 'warning',
+                    'category' => 'tresorerie',
                     'icon' => 'fas fa-undo',
                     'action_url' => route('caisses.ouverture'),
                 ]
@@ -1192,6 +1230,7 @@ class TresorerieController extends Controller
             $message,
             [
                 'type' => 'info',
+                'category' => 'tresorerie',
                 'icon' => 'fas fa-check-double',
                 'action_url' => route('caisses.ouverture'),
             ]
@@ -1259,6 +1298,7 @@ class TresorerieController extends Controller
                 'La devise ' . $cloture->devise_code . ' a ete rejetee pour le guichet ' . $guichet->code_guichet . '. Motif: ' . $request->observations,
                 [
                     'type' => 'warning',
+                    'category' => 'tresorerie',
                     'icon' => 'fas fa-exclamation-triangle',
                     'action_url' => route('caisses.ouverture'),
                 ]

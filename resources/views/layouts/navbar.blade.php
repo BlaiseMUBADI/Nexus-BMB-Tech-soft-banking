@@ -3,6 +3,42 @@
     Rôle : Affiche la barre de navigation supérieure (navbar) de l’interface AdminLTE.
 --}}
 
+@php
+    /** @var \App\Models\User|null $typedAuthUser */
+    $typedAuthUser = $authUser instanceof \App\Models\User ? $authUser : null;
+    $authAgent = $typedAuthUser?->agent;
+
+    $resolveNotificationCategory = function ($notification) {
+        $category = data_get($notification->data, 'category');
+        if ($category) {
+            return $category;
+        }
+
+        $actionUrl = (string) data_get($notification->data, 'action_url', '');
+        $title = strtolower((string) data_get($notification->data, 'title', ''));
+        $message = strtolower((string) data_get($notification->data, 'message', ''));
+        $haystack = $actionUrl . ' ' . $title . ' ' . $message;
+
+        return match (true) {
+            str_contains($haystack, 'credit') => 'credit',
+            str_contains($haystack, 'tresorerie') || str_contains($haystack, 'coffre') => 'tresorerie',
+            str_contains($haystack, 'caisses') || str_contains($haystack, 'guichet') || str_contains($haystack, 'operation') => 'caisse',
+            str_contains($haystack, 'role') || str_contains($haystack, 'permission') || str_contains($haystack, 'administration') => 'administration',
+            default => 'systeme',
+        };
+    };
+
+    $notificationCategoryUi = function (string $category) {
+        return match ($category) {
+            'credit' => ['label' => 'Credit', 'badge' => 'success'],
+            'tresorerie' => ['label' => 'Tresorerie', 'badge' => 'warning'],
+            'caisse' => ['label' => 'Caisse', 'badge' => 'info'],
+            'administration' => ['label' => 'Administration', 'badge' => 'secondary'],
+            default => ['label' => 'Systeme', 'badge' => 'dark'],
+        };
+    };
+@endphp
+
 
 <!-- Navbar -->
 <nav class="main-header navbar navbar-expand navbar-dark">
@@ -67,6 +103,8 @@
                         $message = data_get($notification->data, 'message', '');
                         $icon = data_get($notification->data, 'icon', 'fas fa-exclamation-circle');
                         $actionUrl = data_get($notification->data, 'action_url');
+                        $category = $resolveNotificationCategory($notification);
+                        $categoryUi = $notificationCategoryUi($category);
                     @endphp
                     <div class="dropdown-item">
                         <div class="d-flex justify-content-between align-items-start">
@@ -74,6 +112,7 @@
                                 <h3 class="dropdown-item-title mb-1">
                                     <i class="{{ $icon }} text-danger mr-1"></i>{{ \Illuminate\Support\Str::limit($title, 34) }}
                                 </h3>
+                                <p class="mb-1"><span class="badge badge-{{ $categoryUi['badge'] }}">{{ $categoryUi['label'] }}</span></p>
                                 <p class="text-sm mb-1">{{ \Illuminate\Support\Str::limit($message, 56) }}</p>
                                 <p class="text-sm text-muted mb-0"><i class="far fa-clock mr-1"></i>{{ optional($notification->created_at)->diffForHumans() }}</p>
                             </div>
@@ -107,6 +146,20 @@
                 <span class="dropdown-item dropdown-header">{{ min(($unreadNotificationCount ?? 0), 99) }} Notifications non lues</span>
                 <div class="dropdown-divider"></div>
 
+                @if(($unreadNotificationCategoryCounts ?? collect())->isNotEmpty())
+                    <div class="dropdown-item text-sm">
+                        <div class="d-flex flex-wrap" style="gap: 6px;">
+                            @foreach(($unreadNotificationCategoryCounts ?? collect()) as $category => $count)
+                                @php
+                                    $categoryUi = $notificationCategoryUi((string) $category);
+                                @endphp
+                                <span class="badge badge-{{ $categoryUi['badge'] }}">{{ $categoryUi['label'] }}: {{ $count }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                @endif
+
                 @forelse(($latestUnreadNotifications ?? collect()) as $notification)
                     @php
                         $title = data_get($notification->data, 'title', 'Notification');
@@ -115,6 +168,8 @@
                         $type = data_get($notification->data, 'type', 'info');
                         $typeColor = $type === 'danger' ? 'danger' : ($type === 'warning' ? 'warning' : 'info');
                         $actionUrl = data_get($notification->data, 'action_url');
+                        $category = $resolveNotificationCategory($notification);
+                        $categoryUi = $notificationCategoryUi($category);
                     @endphp
                     <div class="dropdown-item">
                         <div class="d-flex justify-content-between align-items-start">
@@ -122,6 +177,7 @@
                                 <h3 class="dropdown-item-title mb-1">
                                     <i class="{{ $icon }} mr-1 text-{{ $typeColor }}"></i>{{ \Illuminate\Support\Str::limit($title, 34) }}
                                 </h3>
+                                <p class="mb-1"><span class="badge badge-{{ $categoryUi['badge'] }}">{{ $categoryUi['label'] }}</span></p>
                                 <p class="text-sm mb-1">{{ \Illuminate\Support\Str::limit($message, 56) }}</p>
                                 <p class="text-sm text-muted mb-0"><i class="far fa-clock mr-1"></i>{{ optional($notification->created_at)->diffForHumans() }}</p>
                             </div>
@@ -140,12 +196,28 @@
                     <div class="dropdown-divider"></div>
                 @endforelse
 
-                <div class="dropdown-item d-flex justify-content-between">
-                    <form method="POST" action="{{ route('notifications.read-all') }}">
-                        @csrf
-                        <button type="submit" class="btn btn-xs btn-outline-primary">Tout marquer comme lu</button>
-                    </form>
-                    <a href="{{ route('notifications.index') }}" class="btn btn-xs btn-light">Voir tout</a>
+                <div class="dropdown-item">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <form method="POST" action="{{ route('notifications.read-all') }}">
+                            @csrf
+                            <button type="submit" class="btn btn-xs btn-outline-primary">Tout marquer lu</button>
+                        </form>
+                        <a href="{{ route('notifications.index') }}" class="btn btn-xs btn-light">Voir tout</a>
+                    </div>
+                    @if(($unreadNotificationCategoryCounts ?? collect())->isNotEmpty())
+                    <div class="d-flex flex-wrap" style="gap:4px;">
+                        @foreach(($unreadNotificationCategoryCounts ?? collect()) as $cat => $cnt)
+                            @php
+                                $ui = $notificationCategoryUi((string) $cat);
+                            @endphp
+                            <a href="{{ route('notifications.index', ['category' => $cat]) }}"
+                               class="badge badge-{{ $ui['badge'] }}"
+                               style="text-decoration:none;">
+                                {{ $ui['label'] }} <span class="badge badge-light">{{ $cnt }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                    @endif
                 </div>
             </div>
         </li>
@@ -162,8 +234,8 @@
         <!-- User Dropdown -->
         <li class="nav-item dropdown">
             <a class="nav-link" data-toggle="dropdown" href="#" aria-expanded="false">
-                @if($authUser && $authUser->agent && $authUser->agent->photo)
-                    <img src="{{ route('agents.photo', basename($authUser->agent->photo)) }}?v={{ time() }}"
+                @if($authAgent && $authAgent->photo)
+                    <img src="{{ route('agents.photo', basename($authAgent->photo)) }}?v={{ time() }}"
                          alt="Photo de profil"
                          class="img-size-32 img-circle mr-2"
                          style="height:32px;width:32px;object-fit:cover;">
@@ -171,8 +243,8 @@
                     <img src="{{ asset('dist/img/user2-160x160.jpg') }}" alt="User Image" class="img-size-32 img-circle mr-2" style="height:32px;width:32px;object-fit:cover;">
                 @endif
                 <span class="d-none d-md-inline">
-                    @if($authUser && $authUser->agent)
-                        {{ $authUser->agent->prenom ?? '' }} {{ $authUser->agent->nom ?? 'Agent' }}
+                    @if($authAgent)
+                        {{ $authAgent->prenom ?? '' }} {{ $authAgent->nom ?? 'Agent' }}
                     @else
                         Agent
                     @endif

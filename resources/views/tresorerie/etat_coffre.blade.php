@@ -173,6 +173,14 @@
                         <span class="badge badge-info ml-2" id="badgeCloturesCount" style="display:none"></span>
                     </h5>
                     <div class="d-flex align-items-center">
+                    <div class="btn-group btn-group-sm mr-2 stop-card-toggle" role="group" aria-label="Affichage clôtures">
+                        <button type="button" class="btn btn-xs btn-info btn-clotures-mode active" data-mode="pending">
+                            En attente
+                        </button>
+                        <button type="button" class="btn btn-xs btn-outline-info btn-clotures-mode" data-mode="history">
+                            Historique
+                        </button>
+                    </div>
                     <button class="btn btn-xs btn-outline-info stop-card-toggle" id="btnRefreshClotures" title="Actualiser">
                         <i class="fas fa-sync-alt"></i>
                     </button>
@@ -180,6 +188,30 @@
                     </div>
                 </div>
                 <div class="collapse show" id="coffreCloturesSection">
+                {{-- Barre filtre date — visible uniquement en mode Historique --}}
+                <div class="px-3 py-2 border-bottom d-none" id="cloturesHistoriqueFiltre" style="background:rgba(23,162,184,.07)">
+                    <div class="form-row align-items-end">
+                        <div class="col-6 col-md-3 mb-2 mb-md-0">
+                            <label class="small text-muted mb-1">Du</label>
+                            <input type="date" class="form-control form-control-sm" id="clotureHistDateDebut">
+                        </div>
+                        <div class="col-6 col-md-3 mb-2 mb-md-0">
+                            <label class="small text-muted mb-1">Au</label>
+                            <input type="date" class="form-control form-control-sm" id="clotureHistDateFin">
+                        </div>
+                        <div class="col-12 col-md-3 d-flex align-items-end">
+                            <button class="btn btn-sm btn-info mr-1" id="btnAppliquerFiltreHist">
+                                <i class="fas fa-search mr-1"></i>Rechercher
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" id="btnResetFiltreHist" title="30 derniers jours">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        </div>
+                        <div class="col-12 col-md-3 d-flex align-items-end">
+                            <small class="text-muted"><i class="fas fa-info-circle mr-1"></i>Inclut les guichets fermés</small>
+                        </div>
+                    </div>
+                </div>
                 <div class="card-body p-0" id="cloturePanelBody">
                     <div class="text-center py-4 text-muted">
                         <i class="fas fa-spinner fa-spin mr-1"></i> Chargement…
@@ -660,7 +692,19 @@ $(document).ready(function () {
     var urlClotureAction  = '{{ url("tresorerie/coffre/clotures") }}';
     var urlLigneAction    = '{{ url("tresorerie/coffre/clotures/ligne") }}';
     var urlStats          = '{{ route("tresorerie.coffre.stats") }}';
+    var cloturesMode  = 'pending';
     var filtreActif   = '';
+
+    function initHistDateFilters() {
+        var today = todayIso();
+        var d30   = (function() {
+            var d = new Date(); d.setDate(d.getDate() - 30);
+            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        })();
+        $('#clotureHistDateDebut').val(d30);
+        $('#clotureHistDateFin').val(today);
+    }
+    initHistDateFilters();
     var toutesLesDemandes = [];
     var toutesLesDemandesTx = [];
     var demandesChargees = false;
@@ -717,10 +761,13 @@ $(document).ready(function () {
     function renderClotures(data) {
         var $panel = $('#cloturePanelBody');
         if (!data.length) {
+            var messageVide = (cloturesMode === 'history')
+                ? 'Aucun historique de clôture disponible.'
+                : 'Aucun guichet en attente de validation.';
             $panel.html(
                 '<div class="py-4 text-center text-muted">'
                 + '<i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>'
-                + 'Aucun guichet en attente de validation.'
+                + messageVide
                 + '</div>'
             );
             $('#badgeCloturesCount').hide();
@@ -738,9 +785,15 @@ $(document).ready(function () {
                   + '<h6 class="mb-0 font-weight-bold"><i class="fas fa-cash-register mr-1 text-info"></i> ' + g.code_guichet + '</h6>'
                   + '<small class="text-muted">' + g.intitule + '</small><br>'
                   + '<small><i class="fas fa-user mr-1"></i>' + g.agent_nom + ' <span class="text-muted">(' + (g.agent_matric || '') + ')</span></small>'
-                  + '</div>'
-                  + '<span class="badge badge-warning badge-pill py-1 px-2"><i class="fas fa-clock mr-1"></i>En vérification</span>'
+                  + '<br><small class="text-info">Affiché: ' + g.nb_lignes + ' ligne(s)' + (cloturesMode === 'history' ? ' / En attente: ' + (g.pending_count || 0) : '') + '</small>'
                   + '</div>';
+
+            if (g.statut_guichet === 'FERME') {
+                html += '<span class="badge badge-secondary badge-pill py-1 px-2"><i class="fas fa-lock mr-1"></i>Fermé</span>';
+            } else {
+                html += '<span class="badge badge-warning badge-pill py-1 px-2"><i class="fas fa-clock mr-1"></i>En vérification</span>';
+            }
+            html += '</div>';
 
             // Tableau des devises
             html += '<div class="table-responsive"><table class="table table-sm table-bordered mb-0" style="font-size:.85rem">'
@@ -781,6 +834,12 @@ $(document).ready(function () {
                 if (m.motif_ecart) {
                     html += '<tr class="table-warning"><td colspan="5" class="small py-1"><i class="fas fa-comment mr-1"></i><em>' + $('<div>').text(m.motif_ecart).html() + '</em></td></tr>';
                 }
+                if (cloturesMode === 'history' && m.statut_validation !== 'EN_ATTENTE' && (m.validateur_matricule || m.date_validation)) {
+                    var obsHtml = m.observations_superviseur ? ' — <em>' + $('<div>').text(m.observations_superviseur).html() + '</em>' : '';
+                    html += '<tr class="table-active"><td colspan="5" class="small py-1 text-muted">'
+                          + '<i class="fas fa-user-check mr-1"></i>' + (m.validateur_matricule || '') + ' · ' + (m.date_validation || '') + obsHtml
+                          + '</td></tr>';
+                }
             });
 
             html += '</tbody></table></div>';
@@ -795,6 +854,11 @@ $(document).ready(function () {
         $.ajax({
             url     : urlClotures,
             method  : 'GET',
+            data    : {
+                include_history: cloturesMode === 'history' ? 1 : 0,
+                date_debut     : cloturesMode === 'history' ? ($('#clotureHistDateDebut').val() || '') : '',
+                date_fin       : cloturesMode === 'history' ? ($('#clotureHistDateFin').val() || '') : ''
+            },
             dataType: 'json',
             headers : { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
         }).done(function(data) {
@@ -814,6 +878,26 @@ $(document).ready(function () {
             );
         });
     }
+
+    $(document).on('click', '.btn-clotures-mode', function () {
+        var mode = $(this).data('mode');
+        if (mode === cloturesMode) {
+            return;
+        }
+
+        cloturesMode = mode;
+        $('.btn-clotures-mode').removeClass('active btn-info').addClass('btn-outline-info');
+        $(this).addClass('active btn-info').removeClass('btn-outline-info');
+
+        if (mode === 'history') {
+            $('#cloturesHistoriqueFiltre').removeClass('d-none');
+            initHistDateFilters();
+        } else {
+            $('#cloturesHistoriqueFiltre').addClass('d-none');
+        }
+
+        rafraichirClotures();
+    });
 
     // Approuver clôture
     $(document).on('click', '.btn-approuver-cloture', function () {
@@ -995,6 +1079,11 @@ $(document).ready(function () {
     });
 
     $('#btnRefreshClotures').on('click', rafraichirClotures);
+    $('#btnAppliquerFiltreHist').on('click', rafraichirClotures);
+    $('#btnResetFiltreHist').on('click', function() {
+        initHistDateFilters();
+        rafraichirClotures();
+    });
     rafraichirClotures();
     setInterval(rafraichirClotures, 45000);
 

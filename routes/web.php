@@ -49,8 +49,8 @@ Route::post('/session/heartbeat', function () {
 })->middleware('auth')->name('session.heartbeat');
 
 Route::get('/', function () {
-    return view('dashboard');
-})->middleware('auth');
+    return redirect()->route('dashboard');
+});
 
 Route::get('/dashboard', function () {
     return view('dashboard');

@@ -16,14 +16,20 @@ return new class extends Migration
     {
         Schema::table('tb_credit_deblocages', function (Blueprint $table) {
             // Supprimer la FK erronée (coffre ≠ compte client)
-            $table->dropForeign(['compte_debit_id']);
+            try {
+                $table->dropForeign(['compte_debit_id']);
+            } catch (\Throwable $e) {
+                // La FK peut ne pas exister selon l'historique de la base.
+            }
 
             // Ajouter la référence correcte vers le solde du coffre débité
-            $table->unsignedBigInteger('guichet_solde_id')->nullable()->after('compte_debit_id');
-            $table->foreign('guichet_solde_id')
-                  ->references('id')
-                  ->on('tb_caisses_guichets_soldes')
-                  ->nullOnDelete();
+            if (!Schema::hasColumn('tb_credit_deblocages', 'guichet_solde_id')) {
+                $table->unsignedBigInteger('guichet_solde_id')->nullable()->after('compte_debit_id');
+                $table->foreign('guichet_solde_id')
+                      ->references('id')
+                      ->on('tb_caisses_guichets_soldes')
+                      ->nullOnDelete();
+            }
         });
     }
 

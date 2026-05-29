@@ -27,6 +27,7 @@ class SystemDatabaseNotification extends Notification
             'title' => $this->title,
             'message' => $this->message,
             'type' => $this->options['type'] ?? 'info',
+            'category' => $this->options['category'] ?? null,
             'icon' => $this->options['icon'] ?? 'fas fa-bell',
             'action_url' => $this->options['action_url'] ?? null,
             'action_label' => $this->options['action_label'] ?? null,

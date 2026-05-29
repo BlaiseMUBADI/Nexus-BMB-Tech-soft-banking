@@ -1,0 +1,1311 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Manuel Utilisateur — Station BOPEL</title>
+<style>@page { size: A4; margin: 22mm 18mm 22mm 18mm; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 11pt;
+  color: #1f2937;
+  line-height: 1.55;
+  background: #ffffff;
+}
+.cover {
+  height: 247mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  page-break-after: always;
+  background: linear-gradient(160deg, #0f766e 0%, #134e4a 100%);
+  color: #ffffff;
+  border-radius: 4px;
+  padding: 30mm;
+}
+.cover .brand {
+  font-size: 14pt;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-bottom: 18mm;
+}
+.cover h1 {
+  font-size: 36pt;
+  line-height: 1.1;
+  margin: 0 0 6mm 0;
+  font-weight: 700;
+  border: none;
+  color: #ffffff;
+}
+.cover .sub {
+  font-size: 16pt;
+  font-weight: 300;
+  margin-bottom: 18mm;
+  opacity: 0.9;
+}
+.cover .meta {
+  font-size: 11pt;
+  opacity: 0.85;
+  border-top: 1px solid rgba(255,255,255,0.25);
+  border-bottom: 1px solid rgba(255,255,255,0.25);
+  padding: 6mm 0;
+  width: 60%;
+}
+.cover .footer-cover {
+  position: absolute;
+  bottom: 20mm;
+  font-size: 9pt;
+  opacity: 0.75;
+}
+.content { padding: 0; }
+h1, h2, h3, h4 {
+  color: #0f766e;
+  page-break-after: avoid;
+  margin-top: 1.4em;
+  margin-bottom: 0.5em;
+  line-height: 1.25;
+}
+h1 {
+  font-size: 24pt;
+  border-bottom: 3px solid #0f766e;
+  padding-bottom: 4mm;
+  margin-top: 0;
+  page-break-before: always;
+}
+h1:first-of-type { page-break-before: avoid; }
+h2 {
+  font-size: 17pt;
+  border-bottom: 1px solid #d1d5db;
+  padding-bottom: 2mm;
+}
+h3 { font-size: 13pt; color: #134e4a; }
+h4 { font-size: 11pt; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; }
+p { margin: 0 0 0.7em 0; text-align: justify; }
+a { color: #0f766e; text-decoration: none; }
+ul, ol { margin: 0 0 0.8em 1.5em; padding: 0; }
+li { margin: 0.15em 0; }
+strong { color: #0f172a; }
+em { color: #334155; }
+code {
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 9.5pt;
+  background: #f1f5f9;
+  color: #be185d;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 4mm 5mm;
+  border-radius: 4px;
+  font-size: 9pt;
+  line-height: 1.45;
+  overflow-x: auto;
+  page-break-inside: avoid;
+  margin: 0.6em 0 1em 0;
+}
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 9pt;
+}
+blockquote {
+  margin: 0.6em 0 1em 0;
+  padding: 3mm 5mm;
+  background: #ecfdf5;
+  border-left: 4px solid #10b981;
+  color: #064e3b;
+  border-radius: 0 4px 4px 0;
+  page-break-inside: avoid;
+}
+blockquote p { margin: 0.2em 0; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.8em 0 1.2em 0;
+  font-size: 10pt;
+  page-break-inside: avoid;
+}
+th, td {
+  border: 1px solid #d1d5db;
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: #0f766e;
+  color: #ffffff;
+  font-weight: 600;
+}
+tbody tr:nth-child(even) { background: #f8fafc; }
+hr {
+  border: none;
+  border-top: 1px dashed #cbd5e1;
+  margin: 1.5em 0;
+}
+img { max-width: 100%; height: auto; }
+.toc-block { page-break-after: always; }
+.footer-doc {
+  text-align: center;
+  font-size: 8.5pt;
+  color: #6b7280;
+  font-style: italic;
+  margin-top: 4em;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 6mm;
+}</style>
+</head>
+<body>
+<section class="cover">
+  <div class="brand">Nexus BMB Tech</div>
+  <h1>Manuel Utilisateur</h1>
+  <div class="sub">Station BOPEL — Gestion de station-service</div>
+  <div class="meta">
+    <div><strong>Version</strong> : 1.0.0</div>
+    <div><strong>Date</strong> : Mai 2026</div>
+    <div><strong>Public visé</strong> : Pompistes, Caissiers, Magasiniers, Gérants, Administrateurs</div>
+  </div>
+  <div class="footer-cover">&copy; 2026 Nexus BMB Tech — Tous droits réservés</div>
+</section>
+<main class="content">
+<h1>Manuel Utilisateur — Station BOPEL</h1>
+<p><strong>Logiciel</strong> : Nexus BMB Tech Petro — Gestion de station-service
+<strong>Version</strong> : 1.0.0
+<strong>Date</strong> : Mai 2026
+<strong>Éditeur</strong> : Nexus BMB Tech
+<strong>Public visé</strong> : Pompistes, Caissiers, Magasiniers, Techniciens, Gérants, Super Administrateurs</p>
+<hr />
+<h2>Sommaire</h2>
+<ol>
+<li><a href="#1-introduction">Introduction</a></li>
+<li><a href="#2-pr%C3%A9requis--acc%C3%A8s">Prérequis &amp; accès</a></li>
+<li><a href="#3-premiers-pas--connexion--d%C3%A9connexion">Premiers pas — Connexion &amp; déconnexion</a></li>
+<li><a href="#4-pr%C3%A9sentation-de-linterface">Présentation de l'interface</a></li>
+<li><a href="#5-tableau-de-bord">Tableau de bord</a></li>
+<li><a href="#6-module-piste">Module Piste</a></li>
+<li><a href="#7-module-shifts-caisse-pompiste">Module Shifts (caisse pompiste)</a></li>
+<li><a href="#8-module-pos-boutique">Module POS (boutique)</a></li>
+<li><a href="#9-module-stocks">Module Stocks</a></li>
+<li><a href="#10-module-tiers">Module Tiers</a></li>
+<li><a href="#11-module-comptabilit%C3%A9">Module Comptabilité</a></li>
+<li><a href="#12-module-administration">Module Administration</a></li>
+<li><a href="#13-centre-de-notifications">Centre de notifications</a></li>
+<li><a href="#14-mon-profil">Mon profil</a></li>
+<li><a href="#15-proc%C3%A9dures-types-par-r%C3%B4le">Procédures types par rôle</a></li>
+<li><a href="#16-bonnes-pratiques--s%C3%A9curit%C3%A9">Bonnes pratiques &amp; sécurité</a></li>
+<li><a href="#17-d%C3%A9pannage-faq">Dépannage (FAQ)</a></li>
+<li><a href="#18-glossaire-m%C3%A9tier">Glossaire métier</a></li>
+<li><a href="#19-annexes">Annexes</a></li>
+</ol>
+<hr />
+<h2>1. Introduction</h2>
+<h3>1.1 Objet du logiciel</h3>
+<p><strong>Nexus BMB Tech Petro</strong> est une application web complète de gestion pour les stations-service. Elle couvre l'ensemble du cycle d'exploitation :</p>
+<ul>
+<li>Suivi des <strong>pompes</strong>, des <strong>cuves</strong> et des <strong>stocks de carburant</strong> (FIFO par lot, COGS automatique).</li>
+<li>Gestion des <strong>shifts</strong> (postes) des pompistes avec calcul d'écart de caisse.</li>
+<li>Point de vente <strong>(POS)</strong> pour la boutique.</li>
+<li><strong>Stocks boutique</strong> (produits, mouvements, ajustements).</li>
+<li><strong>Tiers</strong> : clients, véhicules, bons carburant B2B, fournisseurs.</li>
+<li><strong>Comptabilité</strong> : dépenses, trésorerie, marges, rapports.</li>
+<li><strong>Administration</strong> : rôles &amp; permissions (RBAC), prix, devises, personnel, maintenance, journal d'audit complet.</li>
+</ul>
+<h3>1.2 Architecture résumée</h3>
+<table>
+<thead>
+<tr>
+<th>Composant</th>
+<th>Détail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cadriciel</td>
+<td>Laravel 13.x</td>
+</tr>
+<tr>
+<td>PHP</td>
+<td>8.3.28</td>
+</tr>
+<tr>
+<td>Base de données</td>
+<td>MySQL 8.4 (<code>bdd_nexus_bmb_tech_petro</code>) — toutes les tables préfixées <code>tb_*</code></td>
+</tr>
+<tr>
+<td>Interface</td>
+<td>AdminLTE 3 + Tailwind utilitaires</td>
+</tr>
+<tr>
+<td>Authentification</td>
+<td>Laravel Breeze (sessions)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Note</strong> : ce manuel décrit l'usage fonctionnel. Pour la mise en place technique (installation, déploiement, migrations), reportez-vous au <code>README.md</code> du projet.</p>
+</blockquote>
+<hr />
+<h2>2. Prérequis &amp; accès</h2>
+<h3>2.1 Matériel recommandé</h3>
+<ul>
+<li><strong>Poste pompiste / caissier</strong> : tablette tactile 10&quot; ou PC avec écran ≥ 15&quot;, clavier physique pour la saisie d'index.</li>
+<li><strong>Poste gérant</strong> : PC avec écran 22&quot;, souris.</li>
+<li><strong>Imprimante ticket</strong> (optionnel) : USB ou réseau, format 80 mm.</li>
+<li><strong>Réseau</strong> : WiFi local stable ou Ethernet ; la station doit avoir accès au serveur WAMP/Apache.</li>
+</ul>
+<h3>2.2 Navigateur</h3>
+<table>
+<thead>
+<tr>
+<th>Navigateur</th>
+<th>Version minimale</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Microsoft Edge</td>
+<td>110+</td>
+<td>Recommandé</td>
+</tr>
+<tr>
+<td>Google Chrome</td>
+<td>110+</td>
+<td>Recommandé</td>
+</tr>
+<tr>
+<td>Mozilla Firefox</td>
+<td>110+</td>
+<td>Supporté</td>
+</tr>
+<tr>
+<td>Internet Explorer</td>
+<td>toutes</td>
+<td>Non supporté</td>
+</tr>
+</tbody>
+</table>
+<p>JavaScript et les cookies doivent être activés.</p>
+<h3>2.3 URL d'accès</h3>
+<p>L'application est accessible à l'adresse suivante (à adapter selon votre installation) :</p>
+<pre><code>http://localhost/Nexus-BMB-Tech-Petro/public/login
+</code></pre>
+<blockquote>
+<p><strong>Conseil</strong> : créez un raccourci sur le bureau pointant directement vers <code>/login</code> pour les postes opérationnels.</p>
+</blockquote>
+<h3>2.4 Comptes et rôles</h3>
+<p>Chaque utilisateur possède <strong>un compte</strong> rattaché à un ou plusieurs <strong>rôles</strong> (Pompiste, Caissier, Magasinier, Technicien, Auditeur, Gérant, Super Admin). Les permissions sont strictement filtrées par rôle (voir matrice § 15.1).</p>
+<hr />
+<h2>3. Premiers pas — Connexion &amp; déconnexion</h2>
+<h3>3.1 Se connecter</h3>
+<ol>
+<li>Ouvrez votre navigateur et saisissez l'URL d'accès.</li>
+<li>La page <strong>Connexion</strong> s'affiche.</li>
+<li>Renseignez <strong>soit votre nom d'utilisateur, soit votre adresse e-mail</strong>.</li>
+<li>Saisissez votre <strong>mot de passe</strong>.</li>
+<li>Cochez éventuellement <em>Se souvenir de moi</em>.</li>
+<li>Cliquez sur <strong>Se connecter</strong>.</li>
+</ol>
+<blockquote>
+<p><img src="images/01-login.png" alt="Capture : page de connexion" /></p>
+</blockquote>
+<p><strong>En cas d'échec</strong> : un message rouge s'affiche. Vérifiez la casse du mot de passe, l'absence de verrouillage majuscule, et contactez votre gérant si trois tentatives consécutives échouent.</p>
+<h3>3.2 Se déconnecter</h3>
+<ul>
+<li>Cliquez sur votre <strong>avatar</strong> en haut à droite → <strong>Déconnexion</strong>.</li>
+<li>Une déconnexion automatique se produit après <strong>120 minutes d'inactivité</strong> (configurable).</li>
+</ul>
+<h3>3.3 Réinitialiser le mot de passe</h3>
+<p>Seul le <strong>Super Admin</strong> peut réinitialiser un mot de passe utilisateur depuis le module <em>Administration → RBAC</em>. Contactez-le en cas d'oubli.</p>
+<hr />
+<h2>4. Présentation de l'interface</h2>
+<p>L'interface est structurée en quatre zones :</p>
+<pre><code>+---------------------------------------------------------+
+|  Top Navbar  : recherche . cloche notifs . avatar       |
++----------+----------------------------------------------+
+|          |                                              |
+| Sidebar  |           Zone de contenu (modules)          |
+| (menu)   |                                              |
+|          |                                              |
++----------+----------------------------------------------+
+|                  Footer . (c) Nexus BMB Tech            |
++---------------------------------------------------------+
+</code></pre>
+<h3>4.1 La barre supérieure (navbar)</h3>
+<ul>
+<li><strong>Logo BOPEL</strong> à gauche, replie ou déplie la sidebar.</li>
+<li><strong>Recherche</strong> globale (à venir).</li>
+<li><strong>Cloche de notifications</strong> : affiche en rouge le nombre de messages non lus. Cliquez pour voir les 5 derniers.</li>
+<li><strong>Avatar utilisateur</strong> : menu déroulant <em>Profil · Déconnexion</em>.</li>
+</ul>
+<h3>4.2 La sidebar (menu latéral)</h3>
+<p>Le menu liste <strong>uniquement les modules autorisés</strong> par votre rôle. Chaque entrée principale peut contenir des sous-entrées (cliquez pour développer). L'élément actif est surligné en couleur primaire.</p>
+<h3>4.3 Le thème clair / sombre</h3>
+<ul>
+<li>L'application supporte le mode <strong>clair</strong> (par défaut) et le mode <strong>sombre</strong>.</li>
+<li>Le mode peut être basculé manuellement depuis votre <strong>Profil</strong>.</li>
+<li>L'application mémorise votre choix.</li>
+</ul>
+<h3>4.4 Les fenêtres modales</h3>
+<p>Toutes les opérations de création / modification (ajouter une pompe, créer un bon, etc.) s'ouvrent dans une <strong>fenêtre modale</strong> par-dessus la page courante. Cliquez en dehors ou sur la croix pour fermer sans enregistrer.</p>
+<h3>4.5 Les messages système</h3>
+<ul>
+<li><strong>Vert</strong> : opération réussie (« Enregistré avec succès »).</li>
+<li><strong>Orange</strong> : avertissement (« Stock critique »).</li>
+<li><strong>Rouge</strong> : erreur (« Champ obligatoire manquant »).</li>
+<li>Les messages disparaissent automatiquement après 5 secondes.</li>
+</ul>
+<hr />
+<h2>5. Tableau de bord</h2>
+<p><strong>Route</strong> : <code>/dashboard</code>
+<strong>Accès</strong> : tous les rôles connectés.</p>
+<p>Le tableau de bord est la page d'accueil après connexion. Il affiche :</p>
+<ul>
+<li><strong>KPIs du jour</strong> : ventes carburant, ventes boutique, encaissements, marge brute.</li>
+<li><strong>Indicateurs cuves</strong> : niveau en pourcentage, alertes seuil bas.</li>
+<li><strong>Shifts actifs</strong> : pompistes en poste.</li>
+<li><strong>Bons carburant</strong> émis du jour.</li>
+<li><strong>Dernières activités</strong> (extrait du journal d'audit).</li>
+</ul>
+<blockquote>
+<p><img src="images/02-dashboard.png" alt="Capture : tableau de bord" /></p>
+</blockquote>
+<blockquote>
+<p><strong>Astuce</strong> : tous les graphiques sont <strong>interactifs</strong> — survolez pour voir les détails, cliquez pour filtrer.</p>
+</blockquote>
+<hr />
+<h2>6. Module Piste</h2>
+<p>Le module Piste regroupe la gestion physique des <strong>pompes</strong> et des <strong>jauges manuelles</strong> sur cuves.</p>
+<h3>6.1 Sous-module Pompes</h3>
+<p><strong>Route</strong> : <code>/piste/pompes</code></p>
+<h4>6.1.1 Lister les pompes</h4>
+<p>À l'ouverture, vous voyez un tableau listant toutes les pompes :</p>
+<table>
+<thead>
+<tr>
+<th>Colonne</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>N° pompe</td>
+<td>Numéro physique (1, 2, 3…)</td>
+</tr>
+<tr>
+<td>Cuve rattachée</td>
+<td>Identifiant de la cuve alimentant la pompe</td>
+</tr>
+<tr>
+<td>Type carburant</td>
+<td>Gasoil, Essence, Pétrole lampant…</td>
+</tr>
+<tr>
+<td>Statut</td>
+<td>Active · En panne · Hors service</td>
+</tr>
+<tr>
+<td>Dernier index</td>
+<td>Dernier relevé connu</td>
+</tr>
+<tr>
+<td>Actions</td>
+<td>Modifier · Activer/Désactiver</td>
+</tr>
+</tbody>
+</table>
+<h4>6.1.2 Créer une pompe</h4>
+<ol>
+<li>Cliquez sur <strong>+ Nouvelle pompe</strong> en haut à droite.</li>
+<li>Renseignez : numéro, cuve, type carburant, index initial.</li>
+<li>Cliquez <strong>Enregistrer</strong>.</li>
+</ol>
+<blockquote>
+<p><strong>Important</strong> : l'index initial doit correspondre à la valeur affichée physiquement sur le compteur de la pompe au moment de la mise en service.</p>
+</blockquote>
+<h4>6.1.3 Modifier ou désactiver une pompe</h4>
+<ul>
+<li><strong>Modifier</strong> : icône crayon → ajustez les informations → Enregistrer.</li>
+<li><strong>Basculer le statut</strong> : interrupteur dans la colonne <em>Statut</em>. Une pompe <strong>En panne</strong> ou <strong>Hors service</strong> ne peut plus être sélectionnée lors d'un shift.</li>
+</ul>
+<h3>6.2 Sous-module Jaugeage manuel</h3>
+<p><strong>Route</strong> : <code>/piste/jaugeage</code></p>
+<p>Permet de saisir un relevé physique à la perche (contrôle hebdomadaire ou réception de carburant).</p>
+<h4>Procédure</h4>
+<ol>
+<li>Cliquez sur <strong>+ Nouveau jaugeage</strong>.</li>
+<li>Sélectionnez la <strong>cuve</strong>.</li>
+<li>Saisissez la <strong>hauteur mesurée en centimètres</strong>.</li>
+<li>Renseignez la <strong>température</strong> (°C) et une <strong>observation</strong> (optionnel).</li>
+<li>Cliquez <strong>Enregistrer</strong>.</li>
+</ol>
+<p>Le système :</p>
+<ul>
+<li>Convertit automatiquement la hauteur en <strong>litres</strong> via la table de barème (<code>tb_bareme_cuves</code>).</li>
+<li>Calcule <strong>l'écart</strong> par rapport au stock théorique (ventes – réceptions).</li>
+<li>Stocke l'historique des 50 derniers jaugeages.</li>
+</ul>
+<blockquote>
+<p><strong>Note</strong> : un écart &gt; 1,5 % doit déclencher une enquête (fuite, erreur d'index, vol).</p>
+</blockquote>
+<hr />
+<h2>7. Module Shifts (caisse pompiste)</h2>
+<p><strong>Route principale</strong> : <code>/shifts</code></p>
+<p>Un <strong>shift</strong> représente un poste de travail (matin / soir / nuit) d'un pompiste, avec ouverture, ventes et clôture.</p>
+<h3>7.1 Vue d'ensemble</h3>
+<table>
+<thead>
+<tr>
+<th>Vue</th>
+<th>Route</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Liste historique</td>
+<td><code>/shifts</code></td>
+<td>Tous les shifts paginés</td>
+</tr>
+<tr>
+<td>Shifts actifs</td>
+<td><code>/shifts/actifs</code></td>
+<td>Cartes des shifts en cours</td>
+</tr>
+<tr>
+<td>Ouvrir un shift</td>
+<td><code>/shifts/create</code></td>
+<td>Formulaire d'ouverture</td>
+</tr>
+<tr>
+<td>Détails</td>
+<td><code>/shifts/{id}</code></td>
+<td>KPIs + relevés + ventes</td>
+</tr>
+<tr>
+<td>Clôturer</td>
+<td><code>/shifts/{id}/close</code></td>
+<td>Formulaire de clôture</td>
+</tr>
+</tbody>
+</table>
+<h3>7.2 Ouvrir un shift</h3>
+<ol>
+<li>Allez dans <strong>Shifts → Ouvrir un shift</strong>.</li>
+<li>Sélectionnez votre <strong>nom dans la liste Personnel</strong>.</li>
+<li>Saisissez le <strong>fond de caisse</strong> (montant et devise).</li>
+<li>Pour <strong>chaque pompe</strong>, saisissez <strong>l'index physique au début de poste</strong>.</li>
+<li>Cliquez <strong>Démarrer le shift</strong>.</li>
+</ol>
+<blockquote>
+<p><strong>Avertissement</strong> : un index incorrect fausse tout le calcul théorique. Vérifiez deux fois avant de valider.</p>
+</blockquote>
+<p>Le shift passe au statut <strong>Ouvert</strong>. Vous pouvez désormais enregistrer des ventes.</p>
+<h3>7.3 Pendant le shift</h3>
+<ul>
+<li>Toutes les <strong>ventes carburant</strong> (relevés) sont rattachées à votre shift ouvert.</li>
+<li>Toutes les <strong>ventes boutique</strong> au POS sont également rattachées.</li>
+<li>Vous pouvez consulter les détails à tout moment via <em>Shifts actifs</em>.</li>
+</ul>
+<h3>7.4 Clôturer un shift</h3>
+<ol>
+<li>À la fin de votre poste, allez dans <strong>Shifts → Shifts actifs</strong>.</li>
+<li>Cliquez <strong>Clôturer</strong> sur votre carte.</li>
+<li>Saisissez pour chaque pompe <strong>l'index physique final</strong>.</li>
+<li>Saisissez les <strong>encaissements réels</strong> :
+<ul>
+<li>Espèces (par devise)</li>
+<li>Mobile money</li>
+<li>Carte bancaire</li>
+<li>Bons carburant utilisés</li>
+</ul>
+</li>
+<li>Cliquez <strong>Clôturer définitivement</strong>.</li>
+</ol>
+<p>Le système calcule automatiquement :</p>
+<pre><code>Volume vendu  = index_final - index_ouverture
+Theorique     = Somme (volume * prix actuel)
+Ecart caisse  = Rapporte - Theorique
+</code></pre>
+<blockquote>
+<p>Si l'écart dépasse le seuil toléré (par défaut ± 2 %), une <strong>notification est envoyée au gérant</strong>.</p>
+</blockquote>
+<h3>7.5 Statuts possibles</h3>
+<table>
+<thead>
+<tr>
+<th>Statut</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ouvert</td>
+<td>En cours d'exploitation</td>
+</tr>
+<tr>
+<td>Cloture</td>
+<td>Clôturé, intangible</td>
+</tr>
+<tr>
+<td>Annule</td>
+<td>Annulé par le gérant (motif requis, audit)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>8. Module POS (boutique)</h2>
+<p><strong>Route</strong> : <code>/pos</code>
+<strong>Accès</strong> : Pompiste, Caissier, Gérant, Super Admin (sous condition d'un shift ouvert).</p>
+<h3>8.1 Interface</h3>
+<p>L'écran POS est conçu pour <strong>tablette tactile</strong> :</p>
+<ul>
+<li><strong>À gauche</strong> : grille de produits avec image, nom, prix. Filtre par recherche en haut.</li>
+<li><strong>À droite</strong> : le <strong>panier</strong> (liste des lignes), le total, les modes de paiement, le bouton <strong>Encaisser</strong>.</li>
+</ul>
+<blockquote>
+<p><img src="images/03-pos.png" alt="Capture : POS" /></p>
+</blockquote>
+<h3>8.2 Effectuer une vente</h3>
+<ol>
+<li><strong>Filtrez</strong> un produit en tapant son nom dans la barre de recherche.</li>
+<li><strong>Cliquez</strong> sur le produit : il s'ajoute au panier (quantité = 1).</li>
+<li><strong>Ajustez la quantité</strong> dans le panier (boutons + / -, ou saisie directe).</li>
+<li>Sélectionnez la <strong>devise</strong> et le <strong>mode de paiement</strong> :
+<ul>
+<li>Espèces</li>
+<li>Mobile money</li>
+<li>Carte bancaire</li>
+<li>Bon carburant (sélectionnez le bon dans la liste)</li>
+</ul>
+</li>
+<li>Cliquez sur <strong>Encaisser</strong>.</li>
+</ol>
+<p>Le système :</p>
+<ul>
+<li>Crée la vente et ses lignes.</li>
+<li>Décrémente le stock des produits.</li>
+<li>Crée un <strong>mouvement de stock</strong> type <em>Sortie</em>.</li>
+<li>Affiche un <strong>ticket</strong> imprimable.</li>
+</ul>
+<h3>8.3 Consulter mes ventes du jour</h3>
+<p><strong>Route</strong> : <code>/pos/mes-ventes</code></p>
+<p>Liste les ventes effectuées par votre compte sur le shift en cours, avec total cumulé.</p>
+<h3>8.4 Cas d'erreur fréquents</h3>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>Cause</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>« Aucun shift ouvert »</td>
+<td>Vous n'avez pas ouvert de shift</td>
+<td>Allez dans Shifts → Ouvrir</td>
+</tr>
+<tr>
+<td>« Stock insuffisant »</td>
+<td>Quantité demandée &gt; stock</td>
+<td>Faire une réception ou ajustement</td>
+</tr>
+<tr>
+<td>« Bon déjà utilisé »</td>
+<td>Le bon a déjà servi</td>
+<td>Sélectionner un autre bon</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>9. Module Stocks</h2>
+<h3>9.1 Stocks Carburants</h3>
+<p><strong>Route</strong> : <code>/stocks/carburants</code></p>
+<p>Affiche pour chaque cuve :</p>
+<ul>
+<li>Un <strong>indicateur visuel</strong> (jauge en %) du niveau actuel.</li>
+<li>Le <strong>volume théorique</strong> (litres).</li>
+<li>Les <strong>lots FIFO restants</strong> avec date de réception, coût unitaire, taux de change.</li>
+<li>Une alerte rouge si le niveau passe sous le <strong>seuil minimal</strong>.</li>
+</ul>
+<blockquote>
+<p><strong>Concept FIFO</strong> : chaque réception crée un <em>lot</em> indépendant. Les ventes consomment les lots du plus ancien au plus récent, ce qui permet de calculer la <strong>marge brute exacte</strong> (COGS = coût d'achat réel).</p>
+</blockquote>
+<h3>9.2 Stocks Boutique</h3>
+<p><strong>Route</strong> : <code>/stocks/boutique</code></p>
+<h4>9.2.1 Lister les produits</h4>
+<p>Tableau des produits avec : code, nom, catégorie, prix, stock actuel, seuil min, statut.</p>
+<h4>9.2.2 Créer un produit</h4>
+<ol>
+<li>Cliquez <strong>+ Nouveau produit</strong>.</li>
+<li>Renseignez : code, nom, catégorie, prix d'achat, prix de vente, seuil minimal, stock initial.</li>
+<li><strong>Enregistrer</strong>.</li>
+</ol>
+<h4>9.2.3 Ajuster le stock</h4>
+<p>L'ajustement sert lors d'un inventaire physique ou de la constatation d'une perte.</p>
+<ol>
+<li>Sur la ligne du produit, cliquez <strong>Ajuster (+/-)</strong>.</li>
+<li>Saisissez la <strong>quantité</strong> (positive ou négative) et un <strong>motif obligatoire</strong>.</li>
+<li><strong>Valider</strong>.</li>
+</ol>
+<p>Un mouvement de type <em>Ajust</em> est créé et tracé dans le journal d'audit.</p>
+<h3>9.3 Réception de carburant</h3>
+<p><strong>Route</strong> : <code>/stocks/reception</code></p>
+<p>À chaque livraison de citerne :</p>
+<ol>
+<li>Sélectionnez la <strong>cuve</strong> destinataire.</li>
+<li>Sélectionnez le <strong>fournisseur</strong>.</li>
+<li>Saisissez : <strong>quantité reçue (litres)</strong>, <strong>coût unitaire</strong>, <strong>devise</strong>, <strong>taux de change</strong> (rempli automatiquement avec le taux du jour, modifiable).</li>
+<li>Numéro <strong>bon de livraison fournisseur</strong> + observations.</li>
+<li><strong>Enregistrer</strong>.</li>
+</ol>
+<p>Le système :</p>
+<ul>
+<li>Crée un <strong>lot de carburant</strong> (<code>tb_lots_carburant</code>).</li>
+<li>Incrémente le stock théorique de la cuve.</li>
+<li>Crée un mouvement de stock type <em>Entrée</em>.</li>
+</ul>
+<h3>9.4 Journal des mouvements</h3>
+<p><strong>Route</strong> : <code>/stocks/mouvements</code></p>
+<p>Liste paginée filtrable de tous les mouvements (Entrée, Sortie, Ajust). Colonnes : date, type, produit/cuve, quantité, motif, utilisateur.</p>
+<hr />
+<h2>10. Module Tiers</h2>
+<h3>10.1 Clients</h3>
+<p><strong>Route</strong> : <code>/tiers/clients</code></p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Champs principaux</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Particulier</td>
+<td>Nom, prénom, téléphone, plafond crédit</td>
+</tr>
+<tr>
+<td>Entreprise</td>
+<td>Raison sociale, NIF, contact, plafond crédit</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Solde calculé en temps réel</strong> : somme des bons utilisés non payés. Si solde &gt; plafond → blocage des nouveaux bons.</p>
+<h4>Créer un client</h4>
+<ol>
+<li><strong>+ Nouveau client</strong>.</li>
+<li>Choisir le <strong>type</strong>.</li>
+<li>Compléter les champs.</li>
+<li>Définir le <strong>plafond crédit</strong> (0 = paiement comptant uniquement).</li>
+<li><strong>Enregistrer</strong>.</li>
+</ol>
+<h3>10.2 Véhicules clients</h3>
+<p><strong>Route</strong> : <code>/tiers/vehicules</code></p>
+<ul>
+<li>Plaque d'immatriculation <strong>unique</strong> (vérifiée automatiquement).</li>
+<li>Rattaché à un <strong>client</strong>.</li>
+<li>Type de carburant compatible.</li>
+<li>Interrupteur <strong>Actif / Inactif</strong>.</li>
+</ul>
+<h3>10.3 Bons carburant</h3>
+<p><strong>Route</strong> : <code>/tiers/bons</code></p>
+<p>Les bons permettent à un client B2B de payer à crédit ou à l'avance.</p>
+<h4>Émettre un bon</h4>
+<ol>
+<li><strong>+ Nouveau bon</strong>.</li>
+<li>Sélectionner <strong>client</strong> + <strong>véhicule</strong> (optionnel).</li>
+<li>Choisir le <strong>type</strong> :
+<ul>
+<li><strong>Volume max</strong> (litres)</li>
+<li><strong>Montant max</strong> (devise)</li>
+</ul>
+</li>
+<li>Date d'émission, date d'expiration.</li>
+<li><strong>Enregistrer</strong>.</li>
+</ol>
+<p>Le système attribue un <strong>numéro automatique</strong> au format <code>BC-yymmdd-NNNN</code> (ex : <code>BC-260522-0007</code>).</p>
+<h4>Utiliser un bon</h4>
+<p>Le bon est sélectionnable au moment de la vente (carburant ou POS). Une fois consommé, le statut passe à <strong>Utilisé</strong>.</p>
+<h4>Annuler un bon</h4>
+<p>Bouton <strong>Annuler</strong> sur la ligne. <strong>Motif obligatoire</strong>. Tracé dans le journal d'audit.</p>
+<h4>Statuts</h4>
+<table>
+<thead>
+<tr>
+<th>Statut</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Émis</td>
+<td>Disponible</td>
+</tr>
+<tr>
+<td>Utilisé</td>
+<td>Consommé totalement</td>
+</tr>
+<tr>
+<td>Annulé</td>
+<td>Invalide, motif requis</td>
+</tr>
+<tr>
+<td>Expiré</td>
+<td>Date d'expiration dépassée</td>
+</tr>
+</tbody>
+</table>
+<h3>10.4 Fournisseurs</h3>
+<p><strong>Route</strong> : <code>/tiers/fournisseurs</code></p>
+<p>CRUD standard : raison sociale, NIF, téléphone, e-mail, adresse, solde compte.</p>
+<hr />
+<h2>11. Module Comptabilité</h2>
+<h3>11.1 Dépenses</h3>
+<p><strong>Route</strong> : <code>/compta/depenses</code></p>
+<p>Saisie des dépenses d'exploitation (électricité, salaires, fournitures, carburant…).</p>
+<h4>Créer une dépense</h4>
+<ol>
+<li><strong>+ Nouvelle dépense</strong>.</li>
+<li>Sélectionner <strong>catégorie</strong> (Loyer, Salaires, Énergie, Maintenance, Autres…).</li>
+<li>Renseigner <strong>fournisseur</strong> (optionnel), <strong>montant</strong>, <strong>devise</strong>, <strong>mode de paiement</strong>.</li>
+<li><strong>Date</strong> + <strong>observation</strong>.</li>
+<li><strong>Enregistrer</strong>.</li>
+</ol>
+<p>Toutes les dépenses sont <strong>horodatées</strong> et <strong>non modifiables</strong> après 24h (verrouillage comptable).</p>
+<h3>11.2 Trésorerie</h3>
+<p><strong>Route</strong> : <code>/compta/tresorerie</code></p>
+<p>Vue agrégée :</p>
+<ul>
+<li><strong>Recettes</strong> (ventes encaissées) par jour / semaine / mois.</li>
+<li><strong>Dépenses</strong> par catégorie.</li>
+<li><strong>Solde net</strong> par devise.</li>
+<li><strong>Flux journalier</strong> (graphique).</li>
+</ul>
+<h3>11.3 Marges</h3>
+<p><strong>Route</strong> : <code>/compta/marges</code></p>
+<p>Tableau d'analyse 30 jours par carburant :</p>
+<ul>
+<li>Volume vendu.</li>
+<li>Chiffre d'affaires.</li>
+<li>Coût (COGS via FIFO).</li>
+<li><strong>Marge brute</strong> (montant + %).</li>
+<li>Prix de vente moyen pondéré.</li>
+</ul>
+<h3>11.4 Rapports</h3>
+<p><strong>Route</strong> : <code>/compta/rapports</code></p>
+<p>Tableau de bord d'accès aux différents rapports (à venir : export PDF / Excel).</p>
+<hr />
+<h2>12. Module Administration</h2>
+<blockquote>
+<p><strong>Accès restreint</strong> : ce module est <strong>uniquement accessible au Super Admin</strong>. Les autres rôles ne voient pas l'entrée dans la sidebar.</p>
+</blockquote>
+<h3>12.1 Personnel</h3>
+<p><strong>Route</strong> : <code>/administration/personnel</code></p>
+<p>CRUD complet de la table Personnel :</p>
+<ul>
+<li>Nom, prénom, matricule, fonction (Pompiste, Caissier, Gérant…).</li>
+<li>Téléphone, adresse, date d'embauche.</li>
+<li>Statut <strong>Actif / Inactif</strong>.</li>
+</ul>
+<p>Un membre du personnel peut (ou non) être lié à un <strong>compte utilisateur</strong> pour ouvrir une session.</p>
+<h3>12.2 Maintenance</h3>
+<p><strong>Route</strong> : <code>/administration/maintenance</code></p>
+<p>Suivi des interventions techniques sur pompes / cuves :</p>
+<ul>
+<li>Type : Réparation · Entretien · Calibration.</li>
+<li>Date, technicien, durée, coût, observations.</li>
+<li>Statut : Planifiée · En cours · Terminée.</li>
+</ul>
+<h3>12.3 RBAC (Rôles &amp; permissions)</h3>
+<p><strong>Route</strong> : <code>/administration/rbac</code></p>
+<h4>12.3.1 Onglet Rôles</h4>
+<ul>
+<li>Liste des rôles avec nombre de permissions et nombre d'utilisateurs.</li>
+<li>Bouton <strong>+ Nouveau rôle</strong>.</li>
+<li>Pour chaque rôle, bouton <strong>Permissions</strong> : ouvre une modal avec les checkboxes des 32 permissions disponibles regroupées par module.</li>
+</ul>
+<h4>12.3.2 Onglet Permissions</h4>
+<p>Lecture seule. Liste des permissions atomiques (<code>dashboard.voir</code>, <code>pompes.gerer</code>, <code>shifts.cloturer</code>, etc.) avec leur clé interne.</p>
+<h4>12.3.3 Onglet Utilisateurs</h4>
+<ul>
+<li>Liste des comptes avec rôles attribués.</li>
+<li><strong>+ Nouvel utilisateur</strong> : nom, e-mail, mot de passe initial, rôle(s).</li>
+<li>Actions : <strong>Modifier · Réinitialiser mot de passe · Désactiver · Supprimer</strong>.</li>
+<li>Bouton <strong>Rôles</strong> : modal pour attacher / détacher plusieurs rôles à un compte.</li>
+</ul>
+<h3>12.4 Prix &amp; devises</h3>
+<p><strong>Route</strong> : <code>/administration/prix-devises</code></p>
+<h4>Onglet Devises</h4>
+<p>CRUD : code (XAF, USD, EUR…), libellé, symbole, devise par défaut.</p>
+<h4>Onglet Taux de change</h4>
+<ul>
+<li>Saisie d'un taux du jour : devise source, devise cible, taux, date d'effet.</li>
+<li>Le <strong>taux le plus récent</strong> est appliqué automatiquement aux nouvelles opérations.</li>
+<li>Historique conservé.</li>
+</ul>
+<h4>Onglet Prix carburants</h4>
+<ul>
+<li>Saisie du <strong>prix de vente</strong> par carburant et par devise, avec date d'effet.</li>
+<li>L'ancien prix est archivé dans <code>tb_historique_prix_carburant</code>.</li>
+</ul>
+<blockquote>
+<p><strong>Important</strong> : modifier un prix n'affecte <strong>pas</strong> les shifts déjà ouverts. Le nouveau prix s'applique aux nouvelles ventes uniquement.</p>
+</blockquote>
+<h3>12.5 Journal d'audit</h3>
+<p><strong>Route</strong> : <code>/administration/audit</code></p>
+<p>Lecture seule. Trace <strong>automatique</strong> de toutes les actions sensibles :</p>
+<ul>
+<li>Création / modification / suppression d'entités.</li>
+<li>Ouverture / clôture / annulation de shift.</li>
+<li>Émission / utilisation / annulation de bon.</li>
+<li>Modification de prix / taux / permissions.</li>
+</ul>
+<h4>Filtres disponibles</h4>
+<ul>
+<li>Par <strong>utilisateur</strong>.</li>
+<li>Par <strong>action</strong> (create, update, delete, login, cloture_shift…).</li>
+<li>Par <strong>table</strong> cible.</li>
+<li>Par <strong>plage de dates</strong>.</li>
+</ul>
+<hr />
+<h2>13. Centre de notifications</h2>
+<h3>13.1 La cloche dans la navbar</h3>
+<p>Affiche en rouge le <strong>nombre de notifications non lues</strong>. Un effet pulsé attire l'attention.</p>
+<h3>13.2 Aperçu rapide</h3>
+<p>Cliquez sur la cloche → liste déroulante des <strong>5 dernières notifications</strong> avec titre, contenu court et heure.</p>
+<h3>13.3 Page complète</h3>
+<p><strong>Route</strong> : <code>/notifications</code></p>
+<p>Toutes vos notifications, paginées, filtrables. Bouton <strong>Tout marquer comme lu</strong>.</p>
+<h3>13.4 Types de notifications</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Émetteur</th>
+<th>Exemple</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Système</td>
+<td>Auto</td>
+<td>« Cuve 2 sous le seuil critique (8 %) »</td>
+</tr>
+<tr>
+<td>Shift</td>
+<td>Auto</td>
+<td>« Écart caisse de -3,2 % sur le shift #142 »</td>
+</tr>
+<tr>
+<td>Stock</td>
+<td>Auto</td>
+<td>« Produit Coca 33cl en rupture »</td>
+</tr>
+<tr>
+<td>Audit</td>
+<td>Manuel</td>
+<td>« Bon BC-260522-0007 annulé »</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>14. Mon profil</h2>
+<p><strong>Route</strong> : <code>/profile</code></p>
+<p>Page personnelle :</p>
+<ul>
+<li>Modifier <strong>nom</strong>, <strong>e-mail</strong>.</li>
+<li>Changer le <strong>mot de passe</strong> (saisie de l'ancien + 2× le nouveau).</li>
+<li>Choisir le <strong>thème</strong> (clair / sombre).</li>
+<li><strong>Supprimer mon compte</strong> (zone de danger, mot de passe requis ; non disponible pour le Super Admin).</li>
+</ul>
+<hr />
+<h2>15. Procédures types par rôle</h2>
+<h3>15.1 Matrice des permissions</h3>
+<table>
+<thead>
+<tr>
+<th>Rôle</th>
+<th>Nb perms</th>
+<th>Couverture résumée</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Super Admin</td>
+<td>32</td>
+<td>Tout</td>
+</tr>
+<tr>
+<td>Gérant</td>
+<td>31</td>
+<td>Tout sauf gérer le personnel</td>
+</tr>
+<tr>
+<td>Pompiste</td>
+<td>7</td>
+<td>Dashboard, pompes (voir), jaugeage, ouvrir/clôturer shift, POS</td>
+</tr>
+<tr>
+<td>Caissier</td>
+<td>5</td>
+<td>Dashboard, POS, voir shifts, voir clients, voir pompes</td>
+</tr>
+<tr>
+<td>Magasinier</td>
+<td>5</td>
+<td>Stocks (voir, gérer, réceptionner, inventaire)</td>
+</tr>
+<tr>
+<td>Technicien</td>
+<td>4</td>
+<td>Pompes (voir), maintenance (voir + saisir)</td>
+</tr>
+<tr>
+<td>Auditeur</td>
+<td>13</td>
+<td>Lecture seule sur tous les modules</td>
+</tr>
+</tbody>
+</table>
+<p>Détail complet : voir <code>database/seeders/PermissionsSpecSeeder.php</code>.</p>
+<h3>15.2 Journée type d'un Pompiste</h3>
+<ol>
+<li><strong>Arrivée</strong> : se connecter avec son compte.</li>
+<li><strong>Ouvrir son shift</strong> : <em>Shifts → Ouvrir</em> → saisir fond de caisse + index pompes.</li>
+<li><strong>Vendre</strong> : saisir un nouvel index après chaque vente carburant ; effectuer les ventes boutique au POS.</li>
+<li><strong>Surveiller</strong> : niveau des cuves (alertes orange / rouge), bons carburant.</li>
+<li><strong>Fin de poste</strong> : <em>Shifts actifs → Clôturer</em> → saisir index final + encaissements réels.</li>
+<li><strong>Déposer</strong> la caisse au gérant + signer le rapport de clôture imprimé.</li>
+<li><strong>Se déconnecter</strong>.</li>
+</ol>
+<h3>15.3 Journée type d'un Caissier (boutique)</h3>
+<ol>
+<li>Se connecter, ouvrir un shift.</li>
+<li>Toute la journée : enregistrer les ventes au POS.</li>
+<li>Consulter régulièrement <em>Mes ventes</em> pour le total intermédiaire.</li>
+<li>Clôturer le shift en fin de poste.</li>
+</ol>
+<h3>15.4 Journée type d'un Magasinier</h3>
+<ol>
+<li>Réceptionner les livraisons (carburant + boutique) → <em>Stocks → Réception</em>.</li>
+<li>Effectuer un inventaire tournant → <em>Stocks boutique → Ajuster</em>.</li>
+<li>Surveiller les seuils d'alerte → préparer les commandes fournisseurs.</li>
+</ol>
+<h3>15.5 Routine quotidienne du Gérant</h3>
+<ul>
+<li>Matin : consulter le <strong>dashboard</strong>, vérifier les <strong>shifts clôturés de la veille</strong>, valider les <strong>écarts caisse</strong>.</li>
+<li>Saisir les <strong>dépenses</strong> du jour.</li>
+<li>Vérifier le <strong>journal d'audit</strong> (10 minutes).</li>
+<li>Soir : suivre les <strong>shifts actifs</strong> et les <strong>alertes</strong>.</li>
+</ul>
+<h3>15.6 Routine hebdomadaire du Gérant</h3>
+<ul>
+<li><strong>Jaugeage manuel</strong> complet de toutes les cuves → comparer à la théorie.</li>
+<li>Revue des <strong>marges carburant</strong> sur 7 jours.</li>
+<li>Inventaire physique partiel de la boutique.</li>
+<li>Pointage des <strong>bons carburant</strong> non utilisés / non payés.</li>
+</ul>
+<h3>15.7 Routine mensuelle</h3>
+<ul>
+<li><strong>Marges 30 jours</strong> par carburant et par produit.</li>
+<li><strong>Trésorerie</strong> mensuelle, rapprochement bancaire.</li>
+<li>Audit RBAC : vérifier qu'aucun compte inactif ne reste activé.</li>
+<li>Mise à jour des <strong>prix carburant</strong> si nécessaire.</li>
+</ul>
+<hr />
+<h2>16. Bonnes pratiques &amp; sécurité</h2>
+<h3>16.1 Mots de passe</h3>
+<ul>
+<li><strong>Minimum 8 caractères</strong> avec majuscule, minuscule, chiffre et caractère spécial.</li>
+<li><strong>Ne jamais</strong> partager son mot de passe.</li>
+<li>Changement recommandé tous les <strong>90 jours</strong>.</li>
+</ul>
+<h3>16.2 Sessions</h3>
+<ul>
+<li><strong>Toujours se déconnecter</strong> en quittant son poste, même pour quelques minutes.</li>
+<li>Ne pas laisser une session ouverte sur un PC partagé.</li>
+</ul>
+<h3>16.3 Saisie</h3>
+<ul>
+<li><strong>Vérifier les index</strong> des pompes deux fois avant de valider ouverture et clôture.</li>
+<li>En cas de doute sur un montant : ne pas valider, appeler le gérant.</li>
+</ul>
+<h3>16.4 Sauvegardes</h3>
+<ul>
+<li>La base de données doit être sauvegardée <strong>quotidiennement</strong> (responsabilité du gérant / DSI).</li>
+<li>Conserver les sauvegardes pendant au moins <strong>6 mois</strong> sur un support externe.</li>
+</ul>
+<h3>16.5 Confidentialité</h3>
+<ul>
+<li>Les données clients (numéros de téléphone, NIF, soldes) sont <strong>confidentielles</strong>.</li>
+<li>Aucune capture d'écran de comptes clients ne doit être diffusée.</li>
+</ul>
+<hr />
+<h2>17. Dépannage (FAQ)</h2>
+<h3>Je ne peux pas me connecter</h3>
+<ul>
+<li>Vérifiez la <strong>casse</strong> du mot de passe.</li>
+<li>Vérifiez l'<strong>URL</strong> (doit se terminer par <code>/login</code>).</li>
+<li>Si trois échecs : contactez le Super Admin.</li>
+</ul>
+<h3>Je n'ai pas accès à un module</h3>
+<ul>
+<li>Votre rôle n'a pas la permission requise. Demandez au Super Admin de revoir vos droits dans <em>RBAC → Utilisateurs</em>.</li>
+</ul>
+<h3>« Aucun shift ouvert » lors d'une vente</h3>
+<ul>
+<li>Ouvrez un shift avant : <em>Shifts → Ouvrir</em>.</li>
+</ul>
+<h3>Le total ne correspond pas à mes calculs</h3>
+<ul>
+<li>Vérifiez que la <strong>devise</strong> sélectionnée est correcte.</li>
+<li>Vérifiez le <strong>taux de change</strong> appliqué (peut être un ancien taux si la session est restée longtemps ouverte).</li>
+<li>Rechargez la page (F5).</li>
+</ul>
+<h3>La cloche notifications reste rouge</h3>
+<ul>
+<li>Allez sur <code>/notifications</code> et cliquez <strong>Tout marquer comme lu</strong>.</li>
+</ul>
+<h3>Le thème ne change pas</h3>
+<ul>
+<li>Allez dans <em>Mon profil</em>, sélectionnez le thème souhaité, <strong>Enregistrer</strong>, puis rafraîchissez la page (Ctrl+F5).</li>
+</ul>
+<h3>Erreur 419 (Page Expired)</h3>
+<ul>
+<li>Votre session a expiré. <strong>Reconnectez-vous</strong>.</li>
+</ul>
+<h3>Erreur 500 / page blanche</h3>
+<ul>
+<li>Notez l'<strong>URL</strong> et l'<strong>heure</strong> de l'erreur, puis contactez le support technique.</li>
+</ul>
+<h3>La page de connexion bloque sur Internet Explorer</h3>
+<ul>
+<li>IE n'est pas supporté. Utilisez <strong>Edge</strong> ou <strong>Chrome</strong>.</li>
+</ul>
+<hr />
+<h2>18. Glossaire métier</h2>
+<table>
+<thead>
+<tr>
+<th>Terme</th>
+<th>Définition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Bareme cuve</strong></td>
+<td>Table de correspondance hauteur (cm) ↔ volume (L), propre à chaque cuve</td>
+</tr>
+<tr>
+<td><strong>Bon carburant (BC)</strong></td>
+<td>Titre de paiement émis pour un client B2B, consommable au POS / Piste</td>
+</tr>
+<tr>
+<td><strong>COGS</strong></td>
+<td><em>Cost Of Goods Sold</em> — coût des marchandises vendues</td>
+</tr>
+<tr>
+<td><strong>Cuve</strong></td>
+<td>Réservoir enterré ou aérien stockant un carburant</td>
+</tr>
+<tr>
+<td><strong>Écart caisse</strong></td>
+<td>Différence entre l'encaissement réel et le théorique calculé</td>
+</tr>
+<tr>
+<td><strong>FIFO</strong></td>
+<td><em>First In, First Out</em> — consommation des plus anciens lots en premier</td>
+</tr>
+<tr>
+<td><strong>Index pompe</strong></td>
+<td>Compteur cumulé en litres affiché sur la pompe</td>
+</tr>
+<tr>
+<td><strong>Jaugeage</strong></td>
+<td>Mesure physique du niveau de carburant dans une cuve</td>
+</tr>
+<tr>
+<td><strong>Lot carburant</strong></td>
+<td>Quantité reçue lors d'une livraison, avec son coût propre</td>
+</tr>
+<tr>
+<td><strong>Marge brute</strong></td>
+<td>Chiffre d'affaires − COGS</td>
+</tr>
+<tr>
+<td><strong>Mouvement de stock</strong></td>
+<td>Entrée, Sortie ou Ajustement journalisé</td>
+</tr>
+<tr>
+<td><strong>POS</strong></td>
+<td><em>Point Of Sale</em> — caisse boutique</td>
+</tr>
+<tr>
+<td><strong>RBAC</strong></td>
+<td><em>Role-Based Access Control</em> — contrôle d'accès par rôle</td>
+</tr>
+<tr>
+<td><strong>Relevé pompe</strong></td>
+<td>Snapshot d'index pris en début ou fin de shift</td>
+</tr>
+<tr>
+<td><strong>Seuil minimal</strong></td>
+<td>Stock en deçà duquel une alerte est déclenchée</td>
+</tr>
+<tr>
+<td><strong>Shift</strong></td>
+<td>Poste de travail d'un pompiste, borné par ouverture et clôture</td>
+</tr>
+<tr>
+<td><strong>Taux de change</strong></td>
+<td>Conversion d'une devise vers une autre à une date donnée</td>
+</tr>
+<tr>
+<td><strong>Théorique</strong></td>
+<td>Montant calculé attendu (par opposition au rapporté)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>19. Annexes</h2>
+<h3>19.1 Comptes de démonstration</h3>
+<blockquote>
+<p>Le formulaire de connexion accepte <strong>soit le nom</strong>, <strong>soit l'e-mail</strong>.</p>
+</blockquote>
+<p><strong>Super Admin (production)</strong> : <code>bmb</code> / <code>Bmb@2026</code></p>
+<p>Comptes démo (mot de passe : <code>Petro@2026</code>) :</p>
+<table>
+<thead>
+<tr>
+<th>Login</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gerant@nexus.local</code></td>
+<td>Gérant</td>
+</tr>
+<tr>
+<td><code>pompiste1@nexus.local</code></td>
+<td>Pompiste</td>
+</tr>
+<tr>
+<td><code>pompiste2@nexus.local</code></td>
+<td>Pompiste</td>
+</tr>
+<tr>
+<td><code>caissier@nexus.local</code></td>
+<td>Caissier</td>
+</tr>
+<tr>
+<td><code>magasinier@nexus.local</code></td>
+<td>Magasinier</td>
+</tr>
+<tr>
+<td><code>technicien@nexus.local</code></td>
+<td>Technicien</td>
+</tr>
+<tr>
+<td><code>auditeur@nexus.local</code></td>
+<td>Auditeur</td>
+</tr>
+<tr>
+<td><code>invite@nexus.local</code></td>
+<td>(sans rôle)</td>
+</tr>
+</tbody>
+</table>
+<h3>19.2 Raccourcis clavier utiles</h3>
+<table>
+<thead>
+<tr>
+<th>Touche</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F5</td>
+<td>Rafraîchir la page</td>
+</tr>
+<tr>
+<td>Ctrl + F5</td>
+<td>Rafraîchir en ignorant le cache</td>
+</tr>
+<tr>
+<td>Esc</td>
+<td>Fermer la fenêtre modale active</td>
+</tr>
+<tr>
+<td>Tab</td>
+<td>Champ suivant</td>
+</tr>
+<tr>
+<td>Enter (dans recherche POS)</td>
+<td>Ajouter le premier produit filtré</td>
+</tr>
+</tbody>
+</table>
+<h3>19.3 Conventions techniques (référence)</h3>
+<ul>
+<li>Tables MySQL préfixées <code>tb_*</code> (ex : <code>tb_pompes</code>, <code>tb_shifts</code>).</li>
+<li>Clés primaires nommées <code>id_&lt;entité&gt;</code> (ex : <code>id_pompe</code>).</li>
+<li>Champs en français, snake_case (ex : <code>montant_total_lc</code>).</li>
+<li>Suffixe <code>_lc</code> = montant en devise locale.</li>
+<li>Toute action sensible est tracée par <code>AuditLog::trace(...)</code>.</li>
+</ul>
+<h3>19.4 Structure de base de données (vue d'ensemble)</h3>
+<pre><code>roles, permissions, role_permission, user_role, utilisateurs, personnel
+devises, taux_change, carburants, historique_prix_carburant
+cuves, pompes, bareme_cuves, jaugeages_cuves, lots_carburant
+shifts, releves_pompes, caisses
+ventes, vente_details_carburant, vente_details_boutique
+produits, categories, mouvements_stock
+clients, vehicules_client, bons_carburant
+fournisseurs, comptabilite, categories_depenses, maintenance
+audit_logs, notifications
+</code></pre>
+<h3>19.5 Commandes utiles (administrateur système)</h3>
+<pre><code class="language-powershell"># Préparer l'environnement
+composer install
+npm install
+copy .env.example .env
+php artisan key:generate
+
+# Base de données
+php artisan migrate
+php artisan db:seed --class=DemoDataSeeder
+php artisan db:seed --class=StationDataSeeder
+php artisan db:seed --class=PermissionsSpecSeeder
+
+# Maintenance / cache
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+
+# Lister toutes les routes
+php artisan route:list
+</code></pre>
+<h3>19.6 Support &amp; contact</h3>
+<ul>
+<li><strong>Éditeur</strong> : Nexus BMB Tech</li>
+<li><strong>Support technique</strong> : <a href="mailto:support@nexus-bmb-tech.local">support@nexus-bmb-tech.local</a></li>
+<li><strong>Documentation technique</strong> : voir <code>README.md</code></li>
+<li><strong>Tickets</strong> : utiliser le canal interne défini avec votre administrateur.</li>
+</ul>
+<hr />
+<p><em>Document : Manuel utilisateur — Station BOPEL · Version 1.0.0 · © 2026 Nexus BMB Tech.</em>
+<em>Reproduction autorisée à des fins de formation interne uniquement.</em></p>
+
+</main>
+<div class="footer-doc">Manuel Utilisateur — Station BOPEL · v1.0.0 · &copy; 2026 Nexus BMB Tech</div>
+</body>
+</html>

@@ -10,6 +10,10 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
+        // Notifications proactives : retards crédit, demandes stales, clôtures en attente
+        $schedule->command('notifications:proactive')->hourly()->withoutOverlapping();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         // Alias RBAC dynamique : ->middleware('permission:CODE_PERMISSION')
         $middleware->alias([

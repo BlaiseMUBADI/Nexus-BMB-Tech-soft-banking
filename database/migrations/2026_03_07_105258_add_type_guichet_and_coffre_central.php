@@ -10,13 +10,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tb_caisses_guichets', function (Blueprint $table) {
-            // Type de guichet :
-            //   FIXE    = guichetier de bureau (besoin de fonds de roulement)
-            //   MOBILE  = agent de terrain (départ à 0, dégagement le soir)
-            //   CENTRAL = coffre-fort central (source de tous les fonds)
-            $table->enum('type_guichet', ['FIXE', 'MOBILE', 'CENTRAL'])
-                  ->default('FIXE')
-                  ->after('code_guichet');
+            if (!Schema::hasColumn('tb_caisses_guichets', 'type_guichet')) {
+                // Type de guichet :
+                //   FIXE    = guichetier de bureau (besoin de fonds de roulement)
+                //   MOBILE  = agent de terrain (départ à 0, dégagement le soir)
+                //   CENTRAL = coffre-fort central (source de tous les fonds)
+                $table->enum('type_guichet', ['FIXE', 'MOBILE', 'CENTRAL'])
+                      ->default('FIXE')
+                      ->after('code_guichet');
+            }
         });
 
         // Insérer le COFFRE-FORT CENTRAL s'il n'existe pas encore

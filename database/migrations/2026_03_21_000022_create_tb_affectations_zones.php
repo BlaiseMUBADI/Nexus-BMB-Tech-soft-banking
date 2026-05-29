@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('tb_affectations_zones')) {
+            return;
+        }
+
         Schema::create('tb_affectations_zones', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('code_zone', 50);

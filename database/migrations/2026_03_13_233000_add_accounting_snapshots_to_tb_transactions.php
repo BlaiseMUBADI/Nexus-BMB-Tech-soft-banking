@@ -9,10 +9,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tb_transactions', function (Blueprint $table) {
-            $table->decimal('solde_compte_avant', 18, 2)->nullable()->after('montant_commission_total');
-            $table->decimal('solde_compte_apres', 18, 2)->nullable()->after('solde_compte_avant');
-            $table->decimal('montant_total_client', 18, 2)->nullable()->after('solde_compte_apres');
-            $table->decimal('montant_net_client', 18, 2)->nullable()->after('montant_total_client');
+            if (!Schema::hasColumn('tb_transactions', 'solde_compte_avant')) {
+                $table->decimal('solde_compte_avant', 18, 2)->nullable()->after('montant_commission_total');
+            }
+            if (!Schema::hasColumn('tb_transactions', 'solde_compte_apres')) {
+                $table->decimal('solde_compte_apres', 18, 2)->nullable()->after('solde_compte_avant');
+            }
+            if (!Schema::hasColumn('tb_transactions', 'montant_total_client')) {
+                $table->decimal('montant_total_client', 18, 2)->nullable()->after('solde_compte_apres');
+            }
+            if (!Schema::hasColumn('tb_transactions', 'montant_net_client')) {
+                $table->decimal('montant_net_client', 18, 2)->nullable()->after('montant_total_client');
+            }
         });
     }
 

@@ -257,6 +257,7 @@ class RolesPermissionsController extends Controller
                 ),
                 [
                     'type' => 'info',
+                    'category' => 'administration',
                     'icon' => 'fas fa-key',
                     'action_url' => route('administration.roles_permissions'),
                 ]
@@ -297,6 +298,7 @@ class RolesPermissionsController extends Controller
                 ),
                 [
                     'type' => 'warning',
+                    'category' => 'administration',
                     'icon' => 'fas fa-user-lock',
                     'action_url' => route('administration.roles_permissions'),
                 ]

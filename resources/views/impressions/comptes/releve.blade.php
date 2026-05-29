@@ -103,9 +103,9 @@
     <thead>
         <tr style="background:#1a7a4a; color:#fff;">
             <th style="padding:4px 5px; text-align:left; width:50px;">Date</th>
-            <th style="padding:4px 5px; text-align:left; width:64px;">Référence</th>
-            <th style="padding:4px 5px; text-align:left;">Opération</th>
-            <th style="padding:4px 5px; text-align:left; width:50px;">Observ.</th>
+            <th style="padding:4px 5px; text-align:left; width:110px;">Référence</th>
+            <th style="padding:4px 5px; text-align:left; width:55px;">Opération</th>
+            <th style="padding:4px 5px; text-align:left;">Observ.</th>
             <th style="padding:4px 5px; text-align:right; width:62px;">Débit</th>
             <th style="padding:4px 5px; text-align:right; width:62px;">Crédit</th>
             <th style="padding:4px 5px; text-align:right; width:66px;">Solde</th>
@@ -142,7 +142,7 @@
                 @endif
             </td>
             <td style="padding:3px 5px; font-size:7px; color:#666;">
-                {{ \Illuminate\Support\Str::limit($t->observations ?? '', 30) }}
+                {{ \Illuminate\Support\Str::limit($t->observations ?? '', 50) }}
             </td>
             <td style="padding:3px 5px; text-align:right; color:{{ $isDebit ? '#c0392b' : '' }}; font-weight:{{ $isDebit ? 'bold' : 'normal' }};">
                 {{ $isDebit ? number_format($montant, 2, ',', ' ') : '' }}

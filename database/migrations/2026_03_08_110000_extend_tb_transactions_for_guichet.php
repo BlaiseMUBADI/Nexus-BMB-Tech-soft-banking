@@ -37,43 +37,71 @@ return new class extends Migration
         Schema::table('tb_transactions', function (Blueprint $table) {
 
             // Guichet émetteur
-            $table->unsignedBigInteger('guichet_id')
-                  ->nullable()
-                  ->after('agent_matricule')
-                  ->comment('Guichet ayant effectué l\'opération');
+            if (!Schema::hasColumn('tb_transactions', 'guichet_id')) {
+                $table->unsignedBigInteger('guichet_id')
+                      ->nullable()
+                      ->after('agent_matricule')
+                      ->comment('Guichet ayant effectué l\'opération');
+            }
 
             // Devise principale de l'opération
-            $table->char('devise_code', 3)
-                  ->nullable()
-                  ->after('guichet_id')
-                  ->comment('Devise de la transaction (CDF, USD, EUR…)');
+            if (!Schema::hasColumn('tb_transactions', 'devise_code')) {
+                $table->char('devise_code', 3)
+                      ->nullable()
+                      ->after('guichet_id')
+                      ->comment('Devise de la transaction (CDF, USD, EUR…)');
+            }
 
             // Client sans compte (opérations espèces sans compte bancaire)
-            $table->string('client_nom', 150)->nullable()->after('devise_code');
-            $table->string('client_ref', 50)->nullable()->after('client_nom')
-                  ->comment('Réf. externe, passeport, ID…');
+            if (!Schema::hasColumn('tb_transactions', 'client_nom')) {
+                $table->string('client_nom', 150)->nullable()->after('devise_code');
+            }
+            if (!Schema::hasColumn('tb_transactions', 'client_ref')) {
+                $table->string('client_ref', 50)->nullable()->after('client_nom')
+                      ->comment('Réf. externe, passeport, ID…');
+            }
 
             // Colonnes dédiées au CHANGE de devises
-            $table->char('devise_dest', 3)->nullable()->after('client_ref');
-            $table->decimal('montant_dest', 18, 2)->nullable()->after('devise_dest');
-            $table->decimal('taux_change', 14, 6)->nullable()->after('montant_dest');
+            if (!Schema::hasColumn('tb_transactions', 'devise_dest')) {
+                $table->char('devise_dest', 3)->nullable()->after('client_ref');
+            }
+            if (!Schema::hasColumn('tb_transactions', 'montant_dest')) {
+                $table->decimal('montant_dest', 18, 2)->nullable()->after('devise_dest');
+            }
+            if (!Schema::hasColumn('tb_transactions', 'taux_change')) {
+                $table->decimal('taux_change', 14, 6)->nullable()->after('montant_dest');
+            }
 
             // Informations complémentaires
-            $table->text('observations')->nullable()->after('taux_change');
-            $table->enum('statut', ['CONFIRME', 'ANNULE'])
-                  ->default('CONFIRME')
-                  ->after('observations');
-            $table->timestamp('date_operation')
-                  ->useCurrent()
-                  ->after('statut');
+            if (!Schema::hasColumn('tb_transactions', 'observations')) {
+                $table->text('observations')->nullable()->after('taux_change');
+            }
+            if (!Schema::hasColumn('tb_transactions', 'statut')) {
+                $table->enum('statut', ['CONFIRME', 'ANNULE'])
+                      ->default('CONFIRME')
+                      ->after('observations');
+            }
+            if (!Schema::hasColumn('tb_transactions', 'date_operation')) {
+                $table->timestamp('date_operation')
+                      ->useCurrent()
+                      ->after('statut');
+            }
 
             // Timestamps Laravel
-            $table->timestamps();
+            if (!Schema::hasColumn('tb_transactions', 'created_at')) {
+                $table->timestamps();
+            }
 
-            // FK guichet
-            $table->foreign('guichet_id', 'tb_transactions_guichet_fk')
-                  ->references('id')->on('tb_caisses_guichets')
-                  ->nullOnDelete();
+            // FK guichet (uniquement si la colonne vient d'être ajoutée)
+            if (!Schema::hasColumn('tb_transactions', 'guichet_id') === false) {
+                try {
+                    $table->foreign('guichet_id', 'tb_transactions_guichet_fk')
+                          ->references('id')->on('tb_caisses_guichets')
+                          ->nullOnDelete();
+                } catch (\Throwable $e) {
+                    // FK peut déjà exister
+                }
+            }
 
             // Index utiles
             $table->index(['guichet_id', 'date_operation'], 'idx_trans_guichet_date');

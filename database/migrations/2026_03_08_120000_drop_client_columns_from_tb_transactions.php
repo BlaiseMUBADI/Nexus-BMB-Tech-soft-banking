@@ -15,7 +15,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tb_transactions', function (Blueprint $table) {
-            $table->dropColumn(['client_nom', 'client_ref']);
+            $toDrop = array_filter(
+                ['client_nom', 'client_ref'],
+                fn($col) => Schema::hasColumn('tb_transactions', $col)
+            );
+            if (!empty($toDrop)) {
+                $table->dropColumn(array_values($toDrop));
+            }
         });
     }
 

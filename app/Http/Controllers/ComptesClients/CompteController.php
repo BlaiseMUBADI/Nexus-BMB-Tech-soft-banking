@@ -49,9 +49,18 @@ class CompteController extends Controller
             return;
         }
 
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        $roleCodes = $user ? (array) $user->getRoleCodes() : [];
+
+        // Les profils de supervision peuvent imprimer, meme depuis un guichet mobile.
+        if (!empty(array_intersect($roleCodes, ['EBEN-ROL1', 'EBEN-ROL3', 'EBEN-ROL12']))) {
+            return;
+        }
+
         Log::warning('[Compte] Impression refusée pour guichet mobile', [
             'document_type' => $documentType,
-            'agent_matricule' => Auth::user()?->agent_matricule,
+            'agent_matricule' => $user?->agent_matricule,
             'ip' => request()->ip(),
         ]);
 

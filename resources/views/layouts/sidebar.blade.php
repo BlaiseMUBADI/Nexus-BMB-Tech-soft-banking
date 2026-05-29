@@ -310,7 +310,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</li>
 				@endif
 
-				@php $hasCreditAccess = in_array('EBEN-PER53', $userPermCodes ?? []); @endphp
+				@php $hasCreditAccess = in_array('EBEN-PER53', $userPermCodes ?? []) || in_array('EBEN-PER70', $userPermCodes ?? []); @endphp
 				@if($hasCreditAccess)
 					@php
 						$creditStatutMenu = request('statut');
@@ -337,6 +337,16 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									</a>
 								</li>
 							@endif
+
+								@if(in_array('EBEN-PER70', $userPermCodes ?? []))
+									<li class="nav-item">
+										<a href="{{ route('credit.rapport_frais') }}"
+											class="nav-link sub-link {{ request()->routeIs('credit.rapport_frais') ? 'active' : '' }}">
+											<i class="fas fa-file-invoice-dollar nav-icon text-info"></i>
+											<p>Rapport frais déblocage</p>
+										</a>
+									</li>
+								@endif
 
 							<li class="nav-item">
 								<a href="{{ route('credit.index') }}"

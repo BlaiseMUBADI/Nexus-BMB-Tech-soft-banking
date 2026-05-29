@@ -17,6 +17,7 @@ class CreditDeblocage extends Model
         'guichet_solde_id',
         'compte_credit_id',
         'montant_debloque',
+        'montant_caution',
         'devise',
         'frais_dossier',
         'montant_net_verse',
@@ -28,6 +29,7 @@ class CreditDeblocage extends Model
 
     protected $casts = [
         'montant_debloque'   => 'decimal:2',
+        'montant_caution'    => 'decimal:2',
         'frais_dossier'      => 'decimal:2',
         'montant_net_verse'  => 'decimal:2',
         'debloque_le'        => 'datetime',

@@ -23,6 +23,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tb_affectations', function (Blueprint $table) {
+            if (Schema::hasColumn('tb_affectations', 'guichet_id')) {
+                return;
+            }
             // Colonne nullable : l'affectation reste valable sans guichet
             $table->unsignedBigInteger('guichet_id')
                   ->nullable()

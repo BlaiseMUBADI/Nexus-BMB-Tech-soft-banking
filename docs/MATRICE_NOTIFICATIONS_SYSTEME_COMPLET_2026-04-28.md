@@ -2,6 +2,10 @@
 
 Cette matrice liste les notifications metier actuellement branchees dans l'application.
 
+Voir aussi la matrice detaillee du cycle credit: `docs/MATRICE_NOTIFICATIONS_CREDIT_2026-05-03.md`
+
+Voir aussi la matrice detaillee tresorerie/caisse: `docs/MATRICE_NOTIFICATIONS_TRESORERIE_CAISSE_2026-05-03.md`
+
 ## 1) Administration RBAC
 
 | Evenement | Emetteur (code) | Destinataires | Type | Action UI |

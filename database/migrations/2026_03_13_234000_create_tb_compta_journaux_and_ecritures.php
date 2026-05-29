@@ -8,6 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (!Schema::hasTable('tb_compta_journaux')) {
         Schema::create('tb_compta_journaux', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('code_journal', 20)->default('CAI');
@@ -40,7 +41,9 @@ return new class extends Migration
                 ->nullOnDelete()
                 ->cascadeOnUpdate();
         });
+        } // end hasTable tb_compta_journaux
 
+        if (!Schema::hasTable('tb_compta_ecritures')) {
         Schema::create('tb_compta_ecritures', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('journal_id');
@@ -70,6 +73,7 @@ return new class extends Migration
                 ->nullOnDelete()
                 ->cascadeOnUpdate();
         });
+        } // end hasTable tb_compta_ecritures
     }
 
     public function down(): void

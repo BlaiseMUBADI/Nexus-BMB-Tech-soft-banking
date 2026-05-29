@@ -15,10 +15,15 @@
     .badge-CONFIRME     { background:#d1fae5; color:#065f46; }
     .badge-ANNULE       { background:#fee2e2; color:#991b1b; }
     .type-badge         { font-size:.78em; font-weight:600; padding:3px 9px; border-radius:20px; letter-spacing:.4px; }
-    .compte-info-card   { border-left:4px solid #3b82f6; background:#f8faff; }
+    .compte-info-card   { border:1px solid #4b5563; background:#1f2937; }
     .montant-depot      { color:#059669; font-weight:700; }
     .montant-retrait    { color:#dc2626; font-weight:700; }
-    .filter-bar         { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:12px 16px; margin-bottom:16px; }
+    .filter-bar         { background:#1f2937; border:1px solid #4b5563; border-radius:10px; padding:12px 16px; margin-bottom:16px; }
+    .filter-bar label   { color:#d1d5db; }
+    .filter-bar .form-control { background:#111827; color:#f9fafb; border-color:#4b5563; }
+    .filter-bar .form-control:focus { border-color:#60a5fa; box-shadow:none; }
+    .table thead        { background:#0f172a !important; }
+    .table thead th     { color:#cbd5e1 !important; }
 </style>
 @endpush
 
@@ -32,10 +37,10 @@
                 <div class="card-body py-3">
                     <div class="d-flex flex-wrap align-items-center justify-content-between">
                         <div>
-                            <h5 class="mb-0 font-weight-bold text-primary">
-                                <i class="fas fa-university mr-2"></i>{{ $compte->code_compte }}
+                            <h5 class="mb-0 font-weight-bold text-white">
+                                {{ $compte->code_compte }}
                             </h5>
-                            <div class="text-muted small mt-1">
+                            <div class="text-light small mt-1">
                                 <i class="fas fa-user mr-1"></i>
                                 {{ $compte->client->nom ?? '—' }} {{ $compte->client->postnom ?? '' }} {{ $compte->client->prenom ?? '' }}
                                 &nbsp;&bull;&nbsp;
@@ -49,9 +54,14 @@
                                 </strong>
                             </div>
                         </div>
-                        <a href="{{ route('comptes.index') }}" class="btn btn-sm btn-outline-secondary mt-2 mt-md-0">
-                            <i class="fas fa-arrow-left mr-1"></i>Retour à la liste
-                        </a>
+                        <div class="d-flex mt-2 mt-md-0" style="gap:6px;">
+                            <a href="{{ route('comptes.releve.pdf', ['code_compte' => $compte->code_compte, 'date_debut' => request('date_debut', now()->startOfMonth()->toDateString()), 'date_fin' => request('date_fin', now()->toDateString())]) }}" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">
+                                <i class="fas fa-file-pdf mr-1"></i>Imprimer relevé bancaire
+                            </a>
+                            <a href="{{ route('comptes.index') }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-arrow-left mr-1"></i>Retour à la liste
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -122,6 +132,7 @@
                             <th class="text-right">Crédit</th>
                             <th>Statut</th>
                             <th>Observations</th>
+                            <th class="text-center">Bordereau</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -168,10 +179,19 @@
                             <td class="small text-muted" style="max-width:180px; word-break:break-word;">
                                 {{ $t->observations ?? '—' }}
                             </td>
+                            <td class="text-center text-nowrap">
+                                @if(auth()->user()?->hasPermission('EBEN-PER11') && !empty($t->id) && !empty($t->reference) && (str_starts_with((string) $t->reference, 'DEB-') || str_starts_with((string) $t->reference, 'OP-')))
+                                    <a href="{{ route('caisses.operations.bordereau', ['id' => $t->id]) }}" class="btn btn-xs btn-outline-primary" target="_blank" rel="noopener" title="Imprimer / Réimprimer le bordereau">
+                                        <i class="fas fa-print"></i>
+                                    </a>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-5">
+                            <td colspan="9" class="text-center text-muted py-5">
                                 <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                                 Aucun mouvement pour les critères sélectionnés.
                             </td>

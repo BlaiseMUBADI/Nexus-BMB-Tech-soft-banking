@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Http\Controllers\Credit\CreditController;
 use Illuminate\Support\Facades\Route;
@@ -57,6 +57,11 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
         // ── AJAX helpers (pas de permission supplémentaire au-delà PER53) ──
         Route::get('/ajax/comptes-client',  [CreditController::class, 'getComptesClient'])->name('ajax.comptes_client');
         Route::get('/ajax/simuler',         [CreditController::class, 'simuler'])->name('ajax.simuler');
+
+        // ── Rapport frais déblocage (AVANT /{dossier}) ──────────────
+        Route::middleware('permission:EBEN-PER70')->group(function () {
+            Route::get('/rapport-frais', [CreditController::class, 'rapportFrais'])->name('rapport_frais');
+        });
 
         // ── Détail d'un dossier ───────────────────────────────────────
         Route::middleware('permission:EBEN-PER57')->group(function () {

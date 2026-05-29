@@ -126,9 +126,17 @@ class CreditController extends Controller
         if ($estSuperviseur) {
             // Scope global : tous les dossiers, pas de restriction
         } elseif ($estAgentCredit) {
-            // L'agent ne voit que les dossiers qui lui ont été affectés
+            // L'agent voit ses dossiers affectés + les dossiers de ses portefeuilles actifs
+            $portefeuilleIds = $this->resolvePortefeuilleScope($user);
             if ($matricule) {
-                $query->where('agent_analyse_matricule', $matricule);
+                $query->where(function ($q) use ($matricule, $portefeuilleIds) {
+                    $q->where('agent_analyse_matricule', $matricule);
+                    if (!empty($portefeuilleIds)) {
+                        $q->orWhereIn('portefeuille_id', $portefeuilleIds);
+                    }
+                });
+            } elseif (!empty($portefeuilleIds)) {
+                $query->whereIn('portefeuille_id', $portefeuilleIds);
             } else {
                 $query->whereRaw('1 = 0');
             }
@@ -147,10 +155,7 @@ class CreditController extends Controller
                 }
             });
         }
-
         $zonesCodes = $estSuperviseur ? null : ($estAgentCredit ? null : $this->resolveZoneScope($user));
-
-        // Filtres
         if ($request->get('vue') === 'analyse' && !$request->filled('statut')) {
             $query->whereIn('statut_global', ['SOUMIS', 'EN_ANALYSE']);
         }
@@ -179,17 +184,60 @@ class CreditController extends Controller
     }
 
     // ================================================================
+    // RAPPORT FRAIS DÉBLOCAGE
+    // ================================================================
+
+    public function rapportFrais(Request $request)
+    {
+        $query = CreditDeblocage::with(['demande.client', 'operateur'])
+            ->orderByDesc('debloque_le');
+
+        if ($request->filled('date_debut')) {
+            $query->whereDate('debloque_le', '>=', $request->date_debut);
+        }
+        if ($request->filled('date_fin')) {
+            $query->whereDate('debloque_le', '<=', $request->date_fin);
+        }
+        if ($request->filled('devise')) {
+            $query->where('devise', $request->devise);
+        }
+
+        $deblocages = $query->paginate(30)->withQueryString();
+
+        $totaux = CreditDeblocage::query()
+            ->when($request->filled('date_debut'), fn($q) => $q->whereDate('debloque_le', '>=', $request->date_debut))
+            ->when($request->filled('date_fin'), fn($q) => $q->whereDate('debloque_le', '<=', $request->date_fin))
+            ->when($request->filled('devise'), fn($q) => $q->where('devise', $request->devise))
+            ->selectRaw('devise,
+                COUNT(*) as nb,
+                SUM(montant_debloque) as total_brut,
+                SUM(montant_caution) as total_caution,
+                SUM(frais_dossier) as total_frais,
+                SUM(montant_net_verse) as total_net')
+            ->groupBy('devise')
+            ->get();
+
+        return view('credit.rapport_frais', compact('deblocages', 'totaux'));
+    }
+
+    // ================================================================
     // CRÉATION D'UN DOSSIER
     // ================================================================
 
     public function create(Request $request)
     {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
         // Règle métier: toute personne habilitée à créer une demande peut sélectionner n'importe quel client.
         $clients = Client::orderBy('nom')->orderBy('postnom')->orderBy('prenom')->get();
         $zones = Zone::orderBy('nom')->get();
         $selectedClientMatricule = $request->query('client_matricule');
+        $portefeuillesDisponibles = $user
+            ? $this->resolveCreationPortefeuilleOptions($user)
+            : collect();
 
-        return view('credit.creation', compact('clients', 'zones', 'selectedClientMatricule'));
+        return view('credit.creation', compact('clients', 'zones', 'selectedClientMatricule', 'portefeuillesDisponibles'));
     }
 
     /**
@@ -228,6 +276,7 @@ class CreditController extends Controller
     {
         $validated = $request->validate([
             'client_matricule'     => 'required|string|exists:tb_clients,matricule',
+            'portefeuille_id'      => 'required|integer|exists:tb_portefeuilles_agents,id',
             'montant_demande'      => 'required|numeric|min:1',
             'devise'               => 'required|in:CDF,USD,EUR',
             'duree_mois'           => 'required|integer|min:1|max:360',
@@ -239,8 +288,28 @@ class CreditController extends Controller
             'referent_nom'         => 'nullable|string|max:120',
         ]);
 
+        /** @var \App\Models\User|null $user */
         $user  = Auth::user();
+        if (!$user) {
+            abort(401, 'Utilisateur non authentifié.');
+        }
+
         $agent = $user->agent;
+
+        $portefeuillesAutorises = $this->resolveCreationPortefeuilleOptions($user)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->toArray();
+
+        if (empty($portefeuillesAutorises)) {
+            return back()->withInput()->with('error', 'Aucun portefeuille actif n\'est disponible pour créer ce dossier.');
+        }
+
+        $portefeuilleIdCreation = (int) $validated['portefeuille_id'];
+        if (!in_array($portefeuilleIdCreation, $portefeuillesAutorises, true)) {
+            return back()->withInput()->with('error', 'Le portefeuille sélectionné n\'est pas autorisé pour votre profil.');
+        }
 
         $client = Client::findOrFail($validated['client_matricule']);
 
@@ -250,11 +319,11 @@ class CreditController extends Controller
             (int) $validated['duree_mois']
         );
 
-        $demande = DB::transaction(function () use ($validated, $client, $agent, $calcul) {
+        $demande = DB::transaction(function () use ($validated, $client, $agent, $calcul, $portefeuilleIdCreation) {
             $demande = CreditDemande::create([
                 'client_matricule'        => $validated['client_matricule'],
                 'compte_id'               => null,
-                'portefeuille_id'         => null,
+                'portefeuille_id'         => $portefeuilleIdCreation,
                 'code_zone'               => $client->code_zone,
                 'agent_createur_matricule'=> $agent?->matricule ?? 'SYSTEM',
                 'montant_demande'         => $validated['montant_demande'],
@@ -358,23 +427,76 @@ class CreditController extends Controller
 
         $validated = $request->validate([
             'agent_analyse_matricule' => 'required|string|exists:tb_agents,matricule',
+            'portefeuille_id'         => 'nullable|integer',
         ]);
 
         if (!$this->isEligibleCreditAnalyst($validated['agent_analyse_matricule'])) {
             return back()->with('error', 'L\'agent sélectionné n\'a pas le profil analyse crédit (PER58).');
         }
 
+        $portefeuilleIds = $this->resolveAgentPortefeuilleIds($validated['agent_analyse_matricule']);
+        if (empty($portefeuilleIds)) {
+            return back()->with('error', 'L\'agent sélectionné ne dispose d\'aucun portefeuille actif.');
+        }
+
+        $portefeuilleId = null;
+        if (!empty($validated['portefeuille_id'])) {
+            $portefeuilleId = (int) $validated['portefeuille_id'];
+            if (!in_array($portefeuilleId, $portefeuilleIds, true)) {
+                return back()->with('error', 'Le portefeuille sélectionné n\'est pas actif pour cet agent.');
+            }
+        } elseif (count($portefeuilleIds) === 1) {
+            $portefeuilleId = (int) $portefeuilleIds[0];
+        } else {
+            return back()->with('error', 'Cet agent a plusieurs portefeuilles actifs. Veuillez sélectionner le portefeuille du dossier.');
+        }
+
         $ancienAgent = $dossier->agent_analyse_matricule;
+        $ancienPortefeuille = $dossier->portefeuille_id;
 
         $dossier->update([
             'agent_analyse_matricule' => $validated['agent_analyse_matricule'],
+            'portefeuille_id'         => $portefeuilleId,
         ]);
 
         $details = $ancienAgent
-            ? "Réaffecté de {$ancienAgent} vers {$validated['agent_analyse_matricule']}"
-            : "Affecté à {$validated['agent_analyse_matricule']}";
+            ? "Réaffecté de {$ancienAgent} vers {$validated['agent_analyse_matricule']} | Portefeuille {$ancienPortefeuille} -> {$portefeuilleId}"
+            : "Affecté à {$validated['agent_analyse_matricule']} | Portefeuille {$portefeuilleId}";
 
         $this->logAudit($dossier, 'AFFECTATION_ANALYSE', $dossier->statut_global, $dossier->statut_global, $details);
+
+        $notificationService = app(NotificationService::class);
+        $notificationService->notifyAgentMatricules(
+            [$validated['agent_analyse_matricule']],
+            'Nouveau dossier crédit affecté',
+            sprintf(
+                'Le dossier %s vous a été %s pour analyse.',
+                $dossier->numero_dossier,
+                $ancienAgent ? 'réaffecté' : 'affecté'
+            ),
+            [
+                'type' => 'action_required',
+                'category' => 'credit',
+                'icon' => 'fas fa-user-check',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
+
+        $notificationService->notifyAgentMatricules(
+            [$dossier->agent_createur_matricule],
+            'Dossier pris en charge',
+            sprintf(
+                'Le dossier %s a été %s à un agent de crédit pour analyse.',
+                $dossier->numero_dossier,
+                $ancienAgent ? 'réaffecté' : 'affecté'
+            ),
+            [
+                'type' => 'info',
+                'category' => 'credit',
+                'icon' => 'fas fa-user-tie',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
 
         return back()->with('success', 'Agent de crédit affecté avec succès.');
     }
@@ -399,6 +521,27 @@ class CreditController extends Controller
             ]);
             $this->logAudit($dossier, 'SOUMISSION', $ancien, 'SOUMIS');
         });
+
+        $notificationService = app(NotificationService::class);
+        $destinataires = $notificationService->usersWithPermission('EBEN-PER61')
+            ->merge($notificationService->usersWithRole('EBEN-ROL11'))
+            ->unique('id')
+            ->values();
+
+        $notificationService->notifyUsers(
+            $destinataires,
+            'Nouveau dossier soumis',
+            sprintf(
+                'Le dossier %s vient d\'être soumis et attend l\'affectation d\'un agent de crédit.',
+                $dossier->numero_dossier
+            ),
+            [
+                'type' => 'action_required',
+                'category' => 'credit',
+                'icon' => 'fas fa-file-upload',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
 
         return redirect()->route('credit.show', $dossier)
             ->with('success', "Dossier {$dossier->numero_dossier} soumis pour analyse.");
@@ -478,7 +621,10 @@ class CreditController extends Controller
             abort(403, 'Vous n\'êtes pas autorisé à compléter l\'analyse.');
         }
 
-        DB::transaction(function () use ($validated, $dossier, $agent) {
+        $analyseDemarree = false;
+        $analyseComplete = false;
+
+        DB::transaction(function () use ($validated, $dossier, $agent, &$analyseDemarree, &$analyseComplete) {
             $statut    = $validated['action'] === 'COMPLETER' ? 'COMPLETE' : 'EN_COURS';
             $ancienStatut = $dossier->statut_global;
 
@@ -504,6 +650,7 @@ class CreditController extends Controller
             if ($dossier->statut_global === 'SOUMIS') {
                 $dossier->update(['statut_global' => 'EN_ANALYSE']);
                 $this->logAudit($dossier, 'ANALYSE_DEMARREE', $ancienStatut, 'EN_ANALYSE');
+                $analyseDemarree = true;
             }
 
             if ($statut === 'COMPLETE') {
@@ -512,8 +659,51 @@ class CreditController extends Controller
                 $dossier->validations()->where('ordre_etape', 1)
                     ->update(['etape_precedente_ok' => true]);
                 $this->logAudit($dossier, 'ANALYSE_COMPLETE', 'EN_ANALYSE', 'EN_VALIDATION');
+                $analyseComplete = true;
             }
         });
+
+        $notificationService = app(NotificationService::class);
+
+        if ($analyseDemarree) {
+            $notificationService->notifyAgentMatricules(
+                [$dossier->agent_createur_matricule],
+                'Analyse crédit démarrée',
+                sprintf('Le dossier %s est maintenant en cours d\'analyse.', $dossier->numero_dossier),
+                [
+                    'type' => 'info',
+                    'category' => 'credit',
+                    'icon' => 'fas fa-search-dollar',
+                    'action_url' => route('credit.show', $dossier),
+                ]
+            );
+        }
+
+        if ($analyseComplete) {
+            $notificationService->notifyUsersWithPermission(
+                'EBEN-PER60',
+                'Dossier prêt pour validation',
+                sprintf('Le dossier %s a terminé l\'analyse et attend la validation du bloc Agent crédit.', $dossier->numero_dossier),
+                [
+                    'type' => 'action_required',
+                    'category' => 'credit',
+                    'icon' => 'fas fa-file-signature',
+                    'action_url' => route('credit.show', $dossier),
+                ]
+            );
+
+            $notificationService->notifyAgentMatricules(
+                [$dossier->agent_createur_matricule, $dossier->agent_analyse_matricule],
+                'Analyse crédit complétée',
+                sprintf('Le dossier %s a terminé la phase d\'analyse et passe en validation.', $dossier->numero_dossier),
+                [
+                    'type' => 'info',
+                    'category' => 'credit',
+                    'icon' => 'fas fa-check-circle',
+                    'action_url' => route('credit.show', $dossier),
+                ]
+            );
+        }
 
         return redirect()->route('credit.show', $dossier)
             ->with('success', 'Analyse enregistrée avec succès.');
@@ -616,7 +806,7 @@ class CreditController extends Controller
             $conditionsAvantDecision = $dossier->conditions_retenues;
             $montantValide = $validated['decision'] === 'REJETE'
                 ? null
-                : (float) $validated['montant_valide'];
+                : round((float) $validated['montant_valide'], 2);
             $dureeValidee = $validated['decision'] === 'REJETE'
                 ? null
                 : (!empty($validated['duree_mois_validee']) ? (int) $validated['duree_mois_validee'] : null);
@@ -652,7 +842,7 @@ class CreditController extends Controller
                 ];
             }
 
-            $montantRetenu = $montantValide ?? $conditionsAvantDecision['montant'];
+            $montantRetenu = round((float) ($montantValide ?? $conditionsAvantDecision['montant']), 2);
             $dureeRetenue = $dureeValidee ?? $conditionsAvantDecision['duree_mois'];
             $calculRetenu = $this->amortissement->simuler(
                 (float) $montantRetenu,
@@ -739,6 +929,7 @@ class CreditController extends Controller
                     ),
                     [
                         'type' => 'action_required',
+                        'category' => 'credit',
                         'icon' => 'fas fa-file-signature',
                         'action_url' => route('credit.show', $dossier),
                     ]
@@ -753,6 +944,7 @@ class CreditController extends Controller
                 sprintf('Le dossier %s a été rejeté pendant la phase de validation par %s.', $dossier->numero_dossier, $actorName),
                 [
                     'type' => 'danger',
+                    'category' => 'credit',
                     'icon' => 'fas fa-times-circle',
                     'action_url' => route('credit.show', $dossier),
                 ]
@@ -766,6 +958,7 @@ class CreditController extends Controller
                 sprintf('Le dossier %s est prêt à la phase de déblocage.', $dossier->numero_dossier),
                 [
                     'type' => 'warning',
+                    'category' => 'credit',
                     'icon' => 'fas fa-hand-holding-usd',
                     'action_url' => route('credit.deblocage', $dossier),
                 ]
@@ -777,6 +970,7 @@ class CreditController extends Controller
                 sprintf('Le dossier %s est validé et prêt à débloquer.', $dossier->numero_dossier),
                 [
                     'type' => 'info',
+                    'category' => 'credit',
                     'icon' => 'fas fa-check-circle',
                     'action_url' => route('credit.show', $dossier),
                 ]
@@ -879,8 +1073,9 @@ class CreditController extends Controller
         $coffreSolde = CaissesGuichetSolde::findOrFail($validated['coffre_solde_id']);
 
         $alreadyDebloque = false;
+        $deblocageRefs = [];
 
-        DB::transaction(function () use ($dossier, $validated, $agentMatricule, $montant, $coffreSolde, &$alreadyDebloque) {
+        DB::transaction(function () use ($dossier, $validated, $agentMatricule, $montant, $coffreSolde, &$alreadyDebloque, &$deblocageRefs) {
             $dossier = CreditDemande::whereKey($dossier->id)->lockForUpdate()->firstOrFail();
 
             if ($dossier->deblocage()->exists()) {
@@ -895,62 +1090,105 @@ class CreditController extends Controller
 
             $ancien = $dossier->statut_global;
             $compteCredit = $this->resolveCompteCreditClient($dossier);
+            $compteGtc = $this->resolveCompteGtcClient($dossier);
 
             // ── Répartition du montant débloqué ──────────────────────────
-            $netVerse  = round($montant * 0.80, 2);  // 80% → RMB disponible
-            $caution   = round($montant * 0.20, 2);  // 20% → GTC bloqué
-            $fraisReel = round($montant * 0.04, 2);  // 4% → prélèvement sur RMB
+            // Flux métier :
+            // 1) Entrée brute 100% sur le compte RMB du client
+            // 2) Prélèvement 20% (caution) du RMB vers compte GTC bloqué
+            // 3) Prélèvement 4% (frais dossier) vers coffre central
+            // => Le client reçoit effectivement 76% sur son compte RMB
+            $montantBrut = round($montant, 2);
+            $caution     = round($montantBrut * 0.20, 2);
+            $fraisReel   = round($montantBrut * 0.04, 2);
+            $netVerse    = round($montantBrut - $caution - $fraisReel, 2);
 
             $soldeAvantRmb = (float) $compteCredit->solde_reel;
 
-            // 1. Créditer le compte RMB client (80%)
-            $compteCredit->increment('solde_reel', $netVerse);
+            // 1. Créditer le compte RMB client (100% brut)
+            $compteCredit->increment('solde_reel', $montantBrut);
+            $soldeApresDepotBrutRmb = round($soldeAvantRmb + $montantBrut, 2);
 
-            // 2. Prélever les frais (4%) depuis le RMB
+            // 2. Prélever la caution (20%) du RMB → GTC
+            $compteCredit->decrement('solde_reel', $caution);
+            $soldeApresTransfertRmb = round($soldeApresDepotBrutRmb - $caution, 2);
+
+            $soldeAvantGtc = (float) $compteGtc->solde_reel;
+            $compteGtc->increment('solde_reel', $caution);
+            $compteGtc->increment('solde_bloque', $caution);
+            $soldeApresGtc = round($soldeAvantGtc + $caution, 2);
+
+            // 3. Prélever les frais (4%) du RMB → coffre central
             $compteCredit->decrement('solde_reel', $fraisReel);
 
             $compteCredit->refresh();
             $soldeApresRmb = (float) $compteCredit->solde_reel;
 
-            // 3. Créditer le compte GTC (caution bloquée) — créer si absent
-            $compteGtc = Compte::firstOrCreate(
-                [
-                    'client_matricule' => $dossier->client_matricule,
-                    'type'             => 'GTC',
-                    'devise'           => $dossier->devise,
-                ],
-                [
-                    'solde_reel'    => 0,
-                    'solde_bloque'  => 0,
-                    'portefeuille_id' => null,
-                ]
-            );
-            $compteGtc->increment('solde_bloque', $caution);
+            $referenceBase    = 'DEB-' . $dossier->numero_dossier . '-' . now()->format('YmdHis');
+            $referenceDepot   = $referenceBase . '-D';
+            $referenceCaution = $referenceBase . '-C';
+            $referenceGtc     = $referenceBase . '-C-G';
+            $referenceFrais   = $referenceBase . '-F';
 
-            $referenceDepot = 'DEB-' . $dossier->numero_dossier . '-' . now()->format('YmdHis') . '-D';
-            $referenceFrais = 'DEB-' . $dossier->numero_dossier . '-' . now()->format('YmdHis') . '-F';
-
-            // 4. Historique RMB: depot de deblocage (visible dans releve)
-            Transaction::create([
+            // 5. Historique RMB: dépôt brut de déblocage (100%)
+            $transactionDepot = Transaction::create([
                 'compte_code'             => $compteCredit->code_compte,
                 'agent_matricule'         => $agentMatricule,
                 'guichet_id'              => $coffreSolde->guichet_id,
                 'devise_code'             => $dossier->devise,
                 'type'                    => Transaction::DEPOT,
-                'montant'                 => $netVerse,
+                'montant'                 => $montantBrut,
                 'montant_commission_total'=> 0,
                 'solde_compte_avant'      => $soldeAvantRmb,
-                'solde_compte_apres'      => round($soldeAvantRmb + $netVerse, 2),
-                'montant_total_client'    => $netVerse,
-                'montant_net_client'      => $netVerse,
+                'solde_compte_apres'      => $soldeApresDepotBrutRmb,
+                'montant_total_client'    => $montantBrut,
+                'montant_net_client'      => $montantBrut,
                 'reference'               => $referenceDepot,
-                'observations'            => 'Deblocage credit ' . $dossier->numero_dossier . ' (80% RMB)',
+                'observations'            => 'Deblocage credit ' . $dossier->numero_dossier . ' (100% brut sur RMB)',
                 'statut'                  => Transaction::CONFIRME,
                 'date_operation'          => Carbon::parse($validated['date_deblocage']),
             ]);
 
-            // 5. Historique RMB: frais de dossier (visible dans releve)
-            Transaction::create([
+            // 6. Historique RMB: retrait 20% caution → transfert GTC
+            $transactionCautionRmb = Transaction::create([
+                'compte_code'             => $compteCredit->code_compte,
+                'agent_matricule'         => $agentMatricule,
+                'guichet_id'              => $coffreSolde->guichet_id,
+                'devise_code'             => $dossier->devise,
+                'type'                    => Transaction::RETRAIT,
+                'montant'                 => $caution,
+                'montant_commission_total'=> 0,
+                'solde_compte_avant'      => $soldeApresDepotBrutRmb,
+                'solde_compte_apres'      => $soldeApresTransfertRmb,
+                'montant_total_client'    => $caution,
+                'montant_net_client'      => $caution,
+                'reference'               => $referenceCaution,
+                'observations'            => 'Transfert caution GTC credit ' . $dossier->numero_dossier . ' (20% RMB -> GTC bloque)',
+                'statut'                  => Transaction::CONFIRME,
+                'date_operation'          => Carbon::parse($validated['date_deblocage']),
+            ]);
+
+            // 6-bis. Historique GTC: depot de la caution bloquee (20%)
+            $transactionCautionGtc = Transaction::create([
+                'compte_code'             => $compteGtc->code_compte,
+                'agent_matricule'         => $agentMatricule,
+                'guichet_id'              => $coffreSolde->guichet_id,
+                'devise_code'             => $dossier->devise,
+                'type'                    => Transaction::DEPOT,
+                'montant'                 => $caution,
+                'montant_commission_total'=> 0,
+                'solde_compte_avant'      => $soldeAvantGtc,
+                'solde_compte_apres'      => $soldeApresGtc,
+                'montant_total_client'    => $caution,
+                'montant_net_client'      => $caution,
+                'reference'               => $referenceGtc,
+                'observations'            => 'Depot caution GTC credit ' . $dossier->numero_dossier . ' (20% bloque)',
+                'statut'                  => Transaction::CONFIRME,
+                'date_operation'          => Carbon::parse($validated['date_deblocage']),
+            ]);
+
+            // 7. Historique RMB: frais non remboursables 4% → coffre central
+            $transactionFrais = Transaction::create([
                 'compte_code'             => $compteCredit->code_compte,
                 'agent_matricule'         => $agentMatricule,
                 'guichet_id'              => $coffreSolde->guichet_id,
@@ -958,15 +1196,36 @@ class CreditController extends Controller
                 'type'                    => Transaction::RETRAIT,
                 'montant'                 => $fraisReel,
                 'montant_commission_total'=> 0,
-                'solde_compte_avant'      => round($soldeAvantRmb + $netVerse, 2),
+                'solde_compte_avant'      => $soldeApresTransfertRmb,
                 'solde_compte_apres'      => $soldeApresRmb,
                 'montant_total_client'    => $fraisReel,
                 'montant_net_client'      => $fraisReel,
                 'reference'               => $referenceFrais,
-                'observations'            => 'Frais deblocage credit ' . $dossier->numero_dossier . ' (4%)',
+                'observations'            => 'Frais deblocage credit ' . $dossier->numero_dossier . ' (4% non remboursables)',
                 'statut'                  => Transaction::CONFIRME,
                 'date_operation'          => Carbon::parse($validated['date_deblocage']),
             ]);
+
+            // 9. Verser 20% (caution) + 4% (frais) dans le coffre central
+            $coffreGeneral = CaissesGuichet::central()->lockForUpdate()->first();
+            $coffreGeneralId = $coffreGeneral?->id ?? $coffreSolde->guichet_id;
+
+            $soldeCoffreGeneral = CaissesGuichetSolde::where('guichet_id', $coffreGeneralId)
+                ->where('devise_code', $dossier->devise)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$soldeCoffreGeneral) {
+                $soldeCoffreGeneral = CaissesGuichetSolde::create([
+                    'guichet_id'      => $coffreGeneralId,
+                    'devise_code'     => $dossier->devise,
+                    'solde_en_caisse' => 0,
+                ]);
+            }
+
+            $totalCoffre = round($caution + $fraisReel, 2); // 24% total
+            $soldeCoffreGeneral->increment('solde_en_caisse', $totalCoffre);
+            $soldeCoffreGeneralNouveau = (float) $soldeCoffreGeneral->fresh()->solde_en_caisse;
 
             CreditDeblocage::create([
                 'credit_demande_id'     => $dossier->id,
@@ -974,17 +1233,18 @@ class CreditController extends Controller
                 'compte_debit_id'       => $coffreSolde->guichet->code_guichet ?? ('GUICHET-' . $coffreSolde->guichet_id),
                 'guichet_solde_id'      => $coffreSolde->id,
                 'compte_credit_id'      => $compteCredit->code_compte,
-                'montant_debloque'     => $montant,
+                'montant_debloque'     => $montantBrut,
+                'montant_caution'      => $caution,
                 'devise'               => $dossier->devise,
                 'frais_dossier'        => $fraisReel,
-                'montant_net_verse'    => $soldeApresRmb - $soldeAvantRmb,
-                'reference_transaction' => $validated['reference_comptable'],
-                'observations'         => $validated['observations'],
+                'montant_net_verse'    => $netVerse,
+                'reference_transaction' => $referenceDepot,
+                'numero_ordre'         => $referenceCaution,
+                'observations'         => trim((string) ($validated['observations'] ?? '')) . ' | refs: depot=' . $referenceDepot . ', caution_rmb=' . $referenceCaution . ', caution_gtc=' . $referenceGtc . ', frais=' . $referenceFrais,
                 'debloque_le'          => Carbon::parse($validated['date_deblocage']),
             ]);
 
-            // Option B: aucun mouvement de coffre ici.
-            // La sortie espèces sera constatée lors d'un RETRAIT client RMB au guichet.
+            // La caution (20%) reste en GTC bloque (traçabilité), et le coffre est provisionné dès le déblocage.
 
             // Générer l'échéancier
             $datePremier = Carbon::parse($validated['date_premier_remboursement']);
@@ -992,19 +1252,68 @@ class CreditController extends Controller
 
             $dossier->update([
                 'compte_id' => $compteCredit->code_compte,
-                'portefeuille_id' => $compteCredit->portefeuille_id,
+                'portefeuille_id' => $dossier->portefeuille_id ?? $compteCredit->portefeuille_id,
                 'statut_global' => 'DEBLOQUE',
             ]);
             $this->logAudit($dossier, 'DEBLOCAGE', $ancien, 'DEBLOQUE',
                 "Montant débloqué : {$montant} {$dossier->devise}");
+
+            $deblocageRefs = [
+                'reference_deblocage'      => $transactionDepot->reference,
+                'reference_caution'        => $transactionCautionRmb->reference,
+                'reference_transfert_gtc'  => $transactionCautionGtc->reference,
+                'reference_frais'          => $transactionFrais->reference,
+                'transaction_deblocage_id' => $transactionDepot->id,
+                'transaction_caution_id'   => $transactionCautionRmb->id,
+                'transaction_gtc_id'       => $transactionCautionRmb->id,
+                'transaction_gtc_depot_id' => $transactionCautionGtc->id,
+                'transaction_frais_id'     => $transactionFrais->id,
+                'compte_rmb_code'          => $compteCredit->code_compte,
+                'compte_gtc_code'          => $compteGtc->code_compte,
+                'coffre_general_id'        => $coffreGeneralId,
+                'coffre_general_solde'     => $soldeCoffreGeneralNouveau,
+            ];
         });
 
         if ($alreadyDebloque) {
             return back()->with('error', 'Ce dossier a deja ete debloque par un autre traitement.');
         }
 
+        $notificationService = app(NotificationService::class);
+        $targetUsers = User::query()
+            ->whereIn('agent_matricule', array_values(array_filter([
+                $dossier->agent_createur_matricule,
+                $dossier->agent_analyse_matricule,
+            ])))
+            ->get();
+
+        $notificationService->notifyUsers(
+            $targetUsers,
+            'Crédit débloqué',
+            sprintf('Le dossier %s a été débloqué avec succès.', $dossier->numero_dossier),
+            [
+                'type' => 'info',
+                'category' => 'credit',
+                'icon' => 'fas fa-money-check-alt',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
+
+        $notificationService->notifyUsersWithPermission(
+            'EBEN-PER65',
+            'Crédit en remboursement',
+            sprintf('Le dossier %s est désormais débloqué et prêt pour le suivi des remboursements.', $dossier->numero_dossier),
+            [
+                'type' => 'info',
+                'category' => 'credit',
+                'icon' => 'fas fa-calendar-check',
+                'action_url' => route('credit.remboursement', $dossier),
+            ]
+        );
+
         return redirect()->route('credit.show', $dossier)
-            ->with('success', "Deblocage de {$dossier->numero_dossier} effectue. Le coffre sera impacte uniquement au retrait RMB du client.");
+            ->with('success', "Deblocage de {$dossier->numero_dossier} effectue (100% en RMB, transfert 20% vers GTC, frais 4% non remboursables).")
+            ->with('deblocage_refs', $deblocageRefs);
     }
 
     private function resolveCompteCreditClient(CreditDemande $dossier): Compte
@@ -1028,6 +1337,27 @@ class CreditController extends Controller
         return Compte::create([
             'client_matricule' => $dossier->client_matricule,
             'type' => 'RMB',
+            'solde_reel' => 0,
+            'solde_bloque' => 0,
+            'devise' => $dossier->devise,
+            'portefeuille_id' => null,
+        ]);
+    }
+
+    private function resolveCompteGtcClient(CreditDemande $dossier): Compte
+    {
+        $compteGtc = Compte::where('client_matricule', $dossier->client_matricule)
+            ->where('type', 'GTC')
+            ->where('devise', $dossier->devise)
+            ->first();
+
+        if ($compteGtc) {
+            return $compteGtc;
+        }
+
+        return Compte::create([
+            'client_matricule' => $dossier->client_matricule,
+            'type' => 'GTC',
             'solde_reel' => 0,
             'solde_bloque' => 0,
             'devise' => $dossier->devise,
@@ -1080,6 +1410,7 @@ class CreditController extends Controller
         $user  = Auth::user();
         $agent = $user->agent;
 
+        $statutAvant = $dossier->statut_global;
         DB::transaction(function () use ($validated, $dossier, $agent) {
             $rembours = CreditRemboursement::create([
                 'credit_demande_id'  => $dossier->id,
@@ -1119,6 +1450,54 @@ class CreditController extends Controller
             $totalEcheances    = $dossier->echeancier?->echeances()->count() ?? 0;
             $echeancesPayees   = $dossier->echeancier?->echeances()->where('statut','PAYE')->count() ?? 0;
             if ($totalEcheances > 0 && $totalEcheances === $echeancesPayees) {
+                // À la clôture du crédit, la caution GTC bloquée (20%) est versée au coffre central.
+                $deblocage = $dossier->deblocage()->first();
+                $cautionACloturer = round((float) ($deblocage?->montant_caution ?? 0), 2);
+
+                if ($cautionACloturer > 0) {
+                    $compteGtc = Compte::where('client_matricule', $dossier->client_matricule)
+                        ->where('type', 'GTC')
+                        ->where('devise', $dossier->devise)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($compteGtc) {
+                        $montantTransfert = min($cautionACloturer, (float) ($compteGtc->solde_bloque ?? 0));
+
+                        if ($montantTransfert > 0) {
+                            $soldeAvantGtc = (float) $compteGtc->solde_reel;
+                            $bloqueAvantGtc = (float) $compteGtc->solde_bloque;
+
+                            $compteGtc->update([
+                                'solde_bloque' => max(0, round($bloqueAvantGtc - $montantTransfert, 2)),
+                            ]);
+
+                            $soldeApresGtc = (float) $compteGtc->fresh()->solde_reel;
+
+                            $coffreGeneral = CaissesGuichet::central()->lockForUpdate()->first();
+                            if ($coffreGeneral) {
+                                Transaction::create([
+                                    'compte_code'             => $compteGtc->code_compte,
+                                    'agent_matricule'         => $agent?->matricule ?? 'SYSTEM',
+                                    'guichet_id'              => $coffreGeneral->id,
+                                    'devise_code'             => $dossier->devise,
+                                    'type'                    => Transaction::VIREMENT,
+                                    'montant'                 => $montantTransfert,
+                                    'montant_commission_total'=> 0,
+                                    'solde_compte_avant'      => $soldeAvantGtc,
+                                    'solde_compte_apres'      => $soldeApresGtc,
+                                    'montant_total_client'    => $montantTransfert,
+                                    'montant_net_client'      => $montantTransfert,
+                                    'reference'               => 'SOLDE-' . $dossier->numero_dossier . '-GTC',
+                                    'observations'            => 'Levee du blocage caution GTC a la cloture du credit ' . $dossier->numero_dossier,
+                                    'statut'                  => Transaction::CONFIRME,
+                                    'date_operation'          => Carbon::parse($validated['date_paiement']),
+                                ]);
+                            }
+                        }
+                    }
+                }
+
                 $dossier->update(['statut_global' => 'SOLDE']);
                 $this->logAudit($dossier, 'REMBOURSEMENT', 'EN_REMBOURSEMENT', 'SOLDE', 'Crédit soldé intégralement.');
             } else {
@@ -1126,6 +1505,40 @@ class CreditController extends Controller
                     "Remboursement de {$validated['montant_recu']} {$dossier->devise}");
             }
         });
+
+        $notificationService = app(NotificationService::class);
+        $targetUsers = User::query()
+            ->whereIn('agent_matricule', array_values(array_filter([
+                $dossier->agent_createur_matricule,
+                $dossier->agent_analyse_matricule,
+            ])))
+            ->get();
+
+        if ($dossier->fresh()->statut_global === 'SOLDE') {
+            $notificationService->notifyUsers(
+                $targetUsers,
+                'Crédit soldé',
+                sprintf('Le dossier %s est maintenant totalement soldé.', $dossier->numero_dossier),
+                [
+                    'type' => 'info',
+                    'category' => 'credit',
+                    'icon' => 'fas fa-check-double',
+                    'action_url' => route('credit.show', $dossier),
+                ]
+            );
+        } else {
+            $notificationService->notifyUsers(
+                $targetUsers,
+                'Remboursement enregistré',
+                sprintf('Un remboursement de %s %s a été enregistré sur le dossier %s.', number_format((float) $validated['montant_recu'], 2, ',', ' '), $dossier->devise, $dossier->numero_dossier),
+                [
+                    'type' => 'info',
+                    'category' => 'credit',
+                    'icon' => 'fas fa-coins',
+                    'action_url' => route('credit.show', $dossier),
+                ]
+            );
+        }
 
         return redirect()->route('credit.show', $dossier)
             ->with('success', 'Remboursement enregistré.');
@@ -1154,6 +1567,23 @@ class CreditController extends Controller
         ]);
         $this->logAudit($dossier, 'ANNULATION', $ancien, 'ANNULE', $request->motif);
 
+        app(NotificationService::class)->notifyUsers(
+            User::query()
+                ->whereIn('agent_matricule', array_values(array_filter([
+                    $dossier->agent_createur_matricule,
+                    $dossier->agent_analyse_matricule,
+                ])))
+                ->get(),
+            'Dossier crédit annulé',
+            sprintf('Le dossier %s a été annulé. Motif: %s', $dossier->numero_dossier, $request->motif),
+            [
+                'type' => 'warning',
+                'category' => 'credit',
+                'icon' => 'fas fa-ban',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
+
         return back()->with('success', 'Dossier annulé.');
     }
 
@@ -1172,6 +1602,23 @@ class CreditController extends Controller
         ]);
         $this->logAudit($dossier, 'SUSPENSION', $ancien, 'SUSPENDU', $request->motif);
 
+        app(NotificationService::class)->notifyUsers(
+            User::query()
+                ->whereIn('agent_matricule', array_values(array_filter([
+                    $dossier->agent_createur_matricule,
+                    $dossier->agent_analyse_matricule,
+                ])))
+                ->get(),
+            'Dossier crédit suspendu',
+            sprintf('Le dossier %s a été suspendu. Motif: %s', $dossier->numero_dossier, $request->motif),
+            [
+                'type' => 'warning',
+                'category' => 'credit',
+                'icon' => 'fas fa-pause-circle',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
+
         return back()->with('success', 'Dossier suspendu.');
     }
 
@@ -1187,6 +1634,23 @@ class CreditController extends Controller
             'suspendu_le'            => null,
         ]);
         $this->logAudit($dossier, 'LEVER_SUSPENSION', 'SUSPENDU', 'EN_VALIDATION');
+
+        app(NotificationService::class)->notifyUsers(
+            User::query()
+                ->whereIn('agent_matricule', array_values(array_filter([
+                    $dossier->agent_createur_matricule,
+                    $dossier->agent_analyse_matricule,
+                ])))
+                ->get(),
+            'Suspension levée',
+            sprintf('La suspension du dossier %s a été levée. Le dossier revient en validation.', $dossier->numero_dossier),
+            [
+                'type' => 'info',
+                'category' => 'credit',
+                'icon' => 'fas fa-play-circle',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
 
         return back()->with('success', 'Suspension levée.');
     }
@@ -1206,6 +1670,23 @@ class CreditController extends Controller
         ]);
         $this->logAudit($dossier, 'SIGNALEMENT_SUSPECT', $ancien, 'SUSPECT', $request->motif);
 
+        app(NotificationService::class)->notifyUsers(
+            User::query()
+                ->whereIn('agent_matricule', array_values(array_filter([
+                    $dossier->agent_createur_matricule,
+                    $dossier->agent_analyse_matricule,
+                ])))
+                ->get(),
+            'Dossier signalé suspect',
+            sprintf('Le dossier %s a été signalé comme suspect. Motif: %s', $dossier->numero_dossier, $request->motif),
+            [
+                'type' => 'danger',
+                'category' => 'credit',
+                'icon' => 'fas fa-exclamation-triangle',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
+
         return back()->with('success', 'Dossier signalé comme suspect.');
     }
 
@@ -1221,6 +1702,23 @@ class CreditController extends Controller
             'signale_le'             => null,
         ]);
         $this->logAudit($dossier, 'LEVER_SUSPICION', 'SUSPECT', 'EN_VALIDATION');
+
+        app(NotificationService::class)->notifyUsers(
+            User::query()
+                ->whereIn('agent_matricule', array_values(array_filter([
+                    $dossier->agent_createur_matricule,
+                    $dossier->agent_analyse_matricule,
+                ])))
+                ->get(),
+            'Suspicion levée',
+            sprintf('Le signalement de suspicion du dossier %s a été levé. Le dossier revient en validation.', $dossier->numero_dossier),
+            [
+                'type' => 'info',
+                'category' => 'credit',
+                'icon' => 'fas fa-shield-alt',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
 
         return back()->with('success', 'Suspicion levée.');
     }
@@ -1393,8 +1891,99 @@ class CreditController extends Controller
         return in_array($codeZone, $zones);
     }
 
+    private function resolvePortefeuilleScope(\App\Models\User $user): ?array
+    {
+        if ($user->hasPermission('EBEN-PER1')) {
+            return null;
+        }
+
+        $superviseurPerms = ['EBEN-PER61', 'EBEN-PER62', 'EBEN-PER63', 'EBEN-PER64', 'EBEN-PER65'];
+        if (count(array_intersect($superviseurPerms, $user->getPermissionCodes())) > 0) {
+            return null;
+        }
+
+        $matricule = $user->agent?->matricule;
+        if (empty($matricule)) {
+            return [];
+        }
+
+        return $this->resolveAgentPortefeuilleIds($matricule);
+    }
+
+    private function resolveAgentPortefeuilleIds(string $agentMatricule): array
+    {
+        return Portefeuille::assignedToAgent($agentMatricule)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->toArray();
+    }
+
+    private function resolveCreationPortefeuilleOptions(\App\Models\User $user)
+    {
+        $query = Portefeuille::query()
+            ->whereHas('affectationActive')
+            ->with('agent')
+            ->orderBy('nom_portefeuille');
+
+        if (!$user->hasPermission('EBEN-PER1') && !$user->hasPermission('EBEN-PER61')) {
+            $matricule = $user->agent?->matricule;
+            if (empty($matricule)) {
+                return collect();
+            }
+            $query->assignedToAgent($matricule);
+        }
+
+        return $query->get(['id', 'nom_portefeuille', 'agent_matricule']);
+    }
+
+    private function shouldRestrictByPortefeuille(\App\Models\User $user): bool
+    {
+        if (!$user->hasPermission('EBEN-PER58')) {
+            return false;
+        }
+
+        if ($user->hasPermission('EBEN-PER1')) {
+            return false;
+        }
+
+        $superviseurPerms = ['EBEN-PER61', 'EBEN-PER62', 'EBEN-PER63', 'EBEN-PER64', 'EBEN-PER65'];
+        return count(array_intersect($superviseurPerms, $user->getPermissionCodes())) === 0;
+    }
+
+    private function canAccessPortefeuille(\App\Models\User $user, CreditDemande $dossier, bool $allowCreator = false): bool
+    {
+        if (!$this->shouldRestrictByPortefeuille($user)) {
+            return true;
+        }
+
+        $matricule = $user->agent?->matricule;
+        if ($allowCreator && !empty($matricule) && $dossier->agent_createur_matricule === $matricule) {
+            return true;
+        }
+
+        if (!empty($matricule) && $dossier->agent_analyse_matricule === $matricule) {
+            return true;
+        }
+
+        $portefeuilles = $this->resolvePortefeuilleScope($user);
+        if ($portefeuilles === null) {
+            return true;
+        }
+
+        if (empty($portefeuilles) || empty($dossier->portefeuille_id)) {
+            return false;
+        }
+
+        return in_array((int) $dossier->portefeuille_id, $portefeuilles, true);
+    }
+
     private function canAccessDemande(\App\Models\User $user, CreditDemande $dossier, bool $allowCreator = false): bool
     {
+        if (!$this->canAccessPortefeuille($user, $dossier, $allowCreator)) {
+            return false;
+        }
+
         if ($this->canAccessZone($user, $dossier->code_zone)) {
             return true;
         }
@@ -1412,7 +2001,10 @@ class CreditController extends Controller
 
     private function authorizeZoneAccess(CreditDemande $dossier): void
     {
-        if (!$this->canAccessZone(Auth::user(), $dossier->code_zone)) {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (!$user || !$this->canAccessDemande($user, $dossier, false)) {
             abort(403, 'Accès refusé à ce dossier crédit.');
         }
     }
@@ -1429,7 +2021,7 @@ class CreditController extends Controller
 
     private function resolveAssignableCreditAgents()
     {
-        return Agent::query()
+        $agents = Agent::query()
             ->whereIn('matricule', function ($q) {
                 $q->select('u.agent_matricule')
                     ->from('users as u')
@@ -1444,6 +2036,33 @@ class CreditController extends Controller
             ->orderBy('postnom')
             ->orderBy('prenom')
             ->get(['matricule', 'nom', 'postnom', 'prenom']);
+
+        if ($agents->isEmpty()) {
+            return $agents;
+        }
+
+        $portefeuillesParAgent = Portefeuille::query()
+            ->whereIn('agent_matricule', $agents->pluck('matricule')->all())
+            ->whereHas('affectationActive')
+            ->orderBy('nom_portefeuille')
+            ->get(['id', 'agent_matricule', 'nom_portefeuille'])
+            ->groupBy('agent_matricule');
+
+        return $agents->map(function ($agent) use ($portefeuillesParAgent) {
+            $portefeuilles = ($portefeuillesParAgent[$agent->matricule] ?? collect())
+                ->map(fn ($p) => [
+                    'id' => (int) $p->id,
+                    'nom_portefeuille' => $p->nom_portefeuille,
+                ])
+                ->values();
+
+            $agent->portefeuilles_actifs = $portefeuilles;
+            $agent->portefeuille_actif_unique_id = $portefeuilles->count() === 1 ? $portefeuilles->first()['id'] : null;
+            $agent->portefeuille_actif_resume = $portefeuilles->pluck('nom_portefeuille')->join(', ');
+
+            return $agent;
+        })->filter(fn ($agent) => collect($agent->portefeuilles_actifs)->isNotEmpty())
+            ->values();
     }
 
     private function resolveDemandeurMeta(?string $matricule): ?array

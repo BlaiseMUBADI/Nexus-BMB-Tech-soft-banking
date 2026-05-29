@@ -72,6 +72,26 @@
             </div>
         </div>
 
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label>Portefeuille crédit <span class="text-danger">*</span></label>
+                <select name="portefeuille_id" class="form-control" required>
+                    <option value="">-- Sélectionner un portefeuille --</option>
+                    @foreach(($portefeuillesDisponibles ?? collect()) as $pf)
+                        <option value="{{ $pf->id }}" {{ (string) old('portefeuille_id') === (string) $pf->id ? 'selected' : '' }}>
+                            {{ $pf->nom_portefeuille }} (#{{ $pf->id }})
+                            @if(!empty($pf->agent_matricule))
+                                — {{ $pf->agent_matricule }}
+                            @endif
+                        </option>
+                    @endforeach
+                </select>
+                <small class="text-muted d-block mt-1">
+                    Le dossier est rattaché au portefeuille sélectionné dès sa création.
+                </small>
+            </div>
+        </div>
+
         <div class="alert alert-info py-2 small">
             <i class="fas fa-info-circle mr-1"></i>
             Le compte du client n'est pas demandé à cette étape. Un compte RMB sera rattaché automatiquement lors du déblocage, si nécessaire.

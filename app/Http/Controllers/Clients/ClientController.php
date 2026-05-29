@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Clients;
 use App\Http\Controllers\Controller;
 use App\Models\RH\Affectation;
 use App\Models\Zone;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -16,6 +17,14 @@ use Illuminate\Validation\Rule;
 
 class ClientController extends Controller
 {
+    private const FICHE_RECOLTE_SINGLE_PDF_MAX_ROWS = 250;
+
+    private const FICHE_RECOLTE_ZIP_CHUNK_SIZE = 250;
+
+    private const LISTE_CLIENTS_SINGLE_PDF_MAX_ROWS = 300;
+
+    private const LISTE_CLIENTS_ZIP_CHUNK_SIZE = 300;
+
     private function isMobileGuichet(): bool
     {
         /** @var \App\Models\User|null $user */
@@ -64,6 +73,251 @@ class ClientController extends Controller
 
         $joined = implode(', ', array_map('trim', $zoneNames));
         return preg_match('/^zones?\b/i', $joined) ? $joined : 'Zones ' . $joined;
+    }
+
+    private function respondWithPdf($pdf, string $filename, Request $request)
+    {
+        $outputMode = strtolower((string) $request->input('output', 'stream'));
+
+        if ($request->boolean('download') || $outputMode === 'download') {
+            return $pdf->download($filename);
+        }
+
+        return $pdf->stream($filename);
+    }
+
+    private function getExportFormat(Request $request): string
+    {
+        return strtolower((string) $request->input('export_format', 'pdf'));
+    }
+
+    private function buildFicheRecoltePdf($clients, ?Zone $zone, string $agentCommercialNom, string $dateRecolte)
+    {
+        return Pdf::loadView('impressions.clients.fiche_recolte_journaliere', [
+            'clients' => $clients,
+            'zone' => $zone,
+            'agentCommercialNom' => $agentCommercialNom,
+            'dateRecolte' => $dateRecolte,
+        ])->setPaper('a4', 'portrait');
+    }
+
+    private function buildListeClientsPdf($clients, array $filtres, ?Zone $zone)
+    {
+        return Pdf::loadView('impressions.clients.liste', compact('clients', 'filtres', 'zone'))
+            ->setPaper('a4', 'portrait');
+    }
+
+    private function createChunkedPdfZip(
+        Builder $query,
+        int $chunkSize,
+        callable $pdfFactory,
+        string $zipFilenamePrefix,
+        string $pdfFilenamePrefix,
+        array $logContext = []
+    ) {
+        if (!class_exists(\ZipArchive::class)) {
+            throw new \RuntimeException('L\'extension ZIP n\'est pas disponible sur le serveur pour les exports volumineux. Utilisez l\'export CSV.');
+        }
+
+        $exportDirectory = storage_path('app/tmp/exports');
+
+        if (!is_dir($exportDirectory) && !mkdir($exportDirectory, 0775, true) && !is_dir($exportDirectory)) {
+            throw new \RuntimeException('Impossible de créer le dossier temporaire d\'export PDF.');
+        }
+
+        $zipFilename = $zipFilenamePrefix . '_' . now()->format('Ymd_His') . '.zip';
+        $zipPath = $exportDirectory . DIRECTORY_SEPARATOR . $zipFilename;
+        $zip = new \ZipArchive();
+
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Impossible de créer l\'archive ZIP des PDF.');
+        }
+
+        $partIndex = 0;
+
+        $query->chunk($chunkSize, function ($rows) use (&$partIndex, $zip, $pdfFactory, $pdfFilenamePrefix) {
+            $partIndex++;
+
+            $pdf = $pdfFactory($rows->values());
+
+            $zip->addFromString(
+                sprintf('%s_partie_%03d.pdf', $pdfFilenamePrefix, $partIndex),
+                $pdf->output()
+            );
+        });
+
+        $zip->close();
+
+        Log::warning($logContext['message'] ?? '[Client] Export PDF segmenté en ZIP', [
+            'clients_count' => $logContext['clients_count'] ?? null,
+            'parts' => $partIndex,
+            'chunk_size' => $chunkSize,
+            'document_type' => $logContext['document_type'] ?? null,
+            'user_id' => Auth::id(),
+        ]);
+
+        return response()->download($zipPath, $zipFilename, ['Content-Type' => 'application/zip'])
+            ->deleteFileAfterSend(true);
+    }
+
+    private function downloadListeClientsZip(Builder $query, array $filtres, ?Zone $zone, int $clientsCount)
+    {
+        return $this->createChunkedPdfZip(
+            $query,
+            self::LISTE_CLIENTS_ZIP_CHUNK_SIZE,
+            fn ($clients) => $this->buildListeClientsPdf($clients, $filtres, $zone),
+            'Listes_clients',
+            'Liste_clients',
+            [
+                'message' => '[Client] Liste clients exportée en ZIP',
+                'clients_count' => $clientsCount,
+                'document_type' => 'liste_clients',
+            ]
+        );
+    }
+
+    private function downloadFicheRecolteZip(
+        Builder $query,
+        ?Zone $zone,
+        string $agentCommercialNom,
+        string $dateRecolte,
+        int $clientsCount
+    ) {
+        return $this->createChunkedPdfZip(
+            $query,
+            self::FICHE_RECOLTE_ZIP_CHUNK_SIZE,
+            fn ($clients) => $this->buildFicheRecoltePdf($clients, $zone, $agentCommercialNom, $dateRecolte),
+            'Fiches_recolte_journaliere',
+            'Fiche_recolte_journaliere',
+            [
+                'message' => '[Client] Fiche récolte exportée en ZIP',
+                'clients_count' => $clientsCount,
+                'document_type' => 'fiche_recolte_journaliere',
+            ]
+        );
+    }
+
+    private function downloadClientsCsv(
+        Builder $query,
+        string $documentType,
+        ?Zone $zone,
+        string $agentCommercialNom,
+        string $dateRecolte
+    ) {
+        $filename = $documentType === 'fiche_recolte_journaliere'
+            ? 'Fiche_recolte_journaliere_' . now()->format('Ymd_His') . '.csv'
+            : 'Liste_clients_' . now()->format('Ymd_His') . '.csv';
+
+        return response()->streamDownload(function () use ($query, $documentType, $zone, $agentCommercialNom, $dateRecolte) {
+            $handle = fopen('php://output', 'w');
+
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            if ($documentType === 'fiche_recolte_journaliere') {
+                fputcsv($handle, ['Zone', $zone?->nom ?? 'Toutes les zones'], ';');
+                fputcsv($handle, ['Agent commercial', $agentCommercialNom], ';');
+                fputcsv($handle, ['Date de recolte', $dateRecolte], ';');
+                fputcsv($handle, [], ';');
+                fputcsv($handle, ['Matricule client', 'Nom complet', 'Zone', 'EAC', 'RMB', 'Signature'], ';');
+            } else {
+                fputcsv($handle, ['Matricule', 'Nom complet', 'Sexe', 'Zone', 'Telephone', 'Email', 'Comptes', 'Etat civil', 'Date inscription'], ';');
+            }
+
+            $query->chunk(1000, function ($clients) use ($handle, $documentType) {
+                foreach ($clients as $client) {
+                    $nomComplet = trim(implode(' ', array_filter([
+                        strtoupper((string) ($client->nom ?? '')),
+                        strtoupper((string) ($client->postnom ?? '')),
+                        strtoupper((string) ($client->prenom ?? '')),
+                    ])));
+
+                    if ($documentType === 'fiche_recolte_journaliere') {
+                        fputcsv($handle, [
+                            $client->matricule,
+                            $nomComplet,
+                            $client->zone->nom ?? '',
+                            '',
+                            '',
+                            '',
+                        ], ';');
+
+                        continue;
+                    }
+
+                    fputcsv($handle, [
+                        $client->matricule,
+                        $nomComplet,
+                        $client->sexe,
+                        $client->zone->nom ?? '',
+                        $client->telephone,
+                        $client->email,
+                        $client->comptes_count,
+                        $client->etat_civil,
+                        optional($client->created_at)->format('d/m/Y'),
+                    ], ';');
+                }
+            });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    private function buildClientPhotoDataUri(?string $relativePath): ?string
+    {
+        if (!$relativePath) {
+            return null;
+        }
+
+        $photoPath = base_path('images_projet/' . ltrim($relativePath, '/'));
+        if (!file_exists($photoPath)) {
+            return null;
+        }
+
+        $imageInfo = @getimagesize($photoPath);
+        if ($imageInfo === false) {
+            return null;
+        }
+
+        [$width, $height, $imageType] = $imageInfo;
+        $maxWidth = 320;
+        $maxHeight = 400;
+        $ratio = min($maxWidth / max($width, 1), $maxHeight / max($height, 1), 1);
+        $targetWidth = max(1, (int) round($width * $ratio));
+        $targetHeight = max(1, (int) round($height * $ratio));
+
+        switch ($imageType) {
+            case IMAGETYPE_JPEG:
+                $source = @imagecreatefromjpeg($photoPath);
+                break;
+            case IMAGETYPE_PNG:
+                $source = @imagecreatefrompng($photoPath);
+                break;
+            case IMAGETYPE_GIF:
+                $source = @imagecreatefromgif($photoPath);
+                break;
+            default:
+                return 'data:' . ($imageInfo['mime'] ?? 'image/jpeg') . ';base64,' . base64_encode((string) file_get_contents($photoPath));
+        }
+
+        if (!$source) {
+            return null;
+        }
+
+        $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
+        $white = imagecolorallocate($canvas, 255, 255, 255);
+        imagefill($canvas, 0, 0, $white);
+        imagecopyresampled($canvas, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $width, $height);
+
+        ob_start();
+        imagejpeg($canvas, null, 78);
+        $binary = (string) ob_get_clean();
+
+        imagedestroy($source);
+        imagedestroy($canvas);
+
+        return 'data:image/jpeg;base64,' . base64_encode($binary);
     }
 
     private function resolveZoneScope(): array
@@ -601,9 +855,10 @@ class ClientController extends Controller
     /* ─────────────────────────────────────────────────────────
      *  IMPRESSION  —  Fiche individuelle client
      * ───────────────────────────────────────────────────────── */
-    public function imprimerFiche(string $matricule)
+    public function imprimerFiche(Request $request, string $matricule)
     {
         $this->abortIfMobilePrintForbidden('fiche-client');
+        ini_set('memory_limit', '512M');
 
         $zoneScope = $this->resolveZoneScope();
         $client = \App\Models\Clients\Client::with(['zone', 'comptes'])
@@ -619,20 +874,12 @@ class ClientController extends Controller
             abort(403, 'Accès refusé : ce client n\'appartient pas à votre zone.');
         }
 
-        // Photo base64
-        $photoBase64 = null;
-        if ($client->photo) {
-            $photoPath = base_path('images_projet/' . $client->photo);
-            if (file_exists($photoPath)) {
-                $mime = mime_content_type($photoPath);
-                $photoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($photoPath));
-            }
-        }
+        $photoBase64 = $this->buildClientPhotoDataUri($client->photo);
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.fiche', compact('client', 'photoBase64'))
+        $pdf = Pdf::loadView('impressions.clients.fiche', compact('client', 'photoBase64'))
                   ->setPaper('a4', 'portrait');
 
-        return $pdf->stream('Fiche_' . $matricule . '.pdf');
+        return $this->respondWithPdf($pdf, 'Fiche_' . $matricule . '.pdf', $request);
     }
 
     /* ─────────────────────────────────────────────────────────
@@ -642,10 +889,11 @@ class ClientController extends Controller
     {
         $this->abortIfMobilePrintForbidden('liste-clients');
 
-        // Augmente la limite de mémoire pour DomPDF (PDF lists can be memory-intensive)
-        ini_set('memory_limit', '512M');
+        // DomPDF reste coûteux: on relève la limite puis on segmente les gros volumes.
+        ini_set('memory_limit', '768M');
 
         $documentType = $request->input('document_type', 'liste_clients');
+        $exportFormat = $this->getExportFormat($request);
 
         $zoneScope = $this->resolveZoneScope();
         // Optimisation : utiliser withCount() au lieu de with() pour les comptes
@@ -693,7 +941,8 @@ class ClientController extends Controller
             $query->where('etat_civil', $request->etat_civil);
         }
 
-        $clients  = $query->orderBy('nom')->get();
+        $query->orderBy('nom')->orderBy('matricule');
+        $clientsCount = (clone $query)->count();
         $filtres  = $request->only(['code_zone','sexe','date_debut','date_fin','avec_photo','avec_comptes','etat_civil','document_type','date_recolte']);
         $zone = null;
         if ($request->filled('code_zone') && (!($zoneScope['restricted'] ?? false) || in_array($request->code_zone, $zoneScope['zone_codes'] ?? [], true))) {
@@ -731,22 +980,34 @@ class ClientController extends Controller
             ? \Carbon\Carbon::parse($request->input('date_recolte'))->format('d/m/Y')
             : now()->format('d/m/Y');
 
+        if ($exportFormat === 'csv') {
+            return $this->downloadClientsCsv(clone $query, $documentType, $zone, $agentCommercialNom, $dateRecolte);
+        }
+
         if ($documentType === 'fiche_recolte_journaliere') {
             try {
-                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.fiche_recolte_journaliere', [
-                    'clients' => $clients,
-                    'zone' => $zone,
-                    'agentCommercialNom' => $agentCommercialNom,
-                    'dateRecolte' => $dateRecolte,
-                ])->setPaper('a4', 'portrait');
+                if ($clientsCount > self::FICHE_RECOLTE_SINGLE_PDF_MAX_ROWS) {
+                    return $this->downloadFicheRecolteZip(
+                        clone $query,
+                        $zone,
+                        $agentCommercialNom,
+                        $dateRecolte,
+                        $clientsCount
+                    );
+                }
 
-                return $pdf->stream('Fiche_recolte_journaliere.pdf');
-            } catch (\Exception $e) {
+                $clients = $query->get();
+                $pdf = $this->buildFicheRecoltePdf($clients, $zone, $agentCommercialNom, $dateRecolte);
+
+                return $this->respondWithPdf($pdf, 'Fiche_recolte_journaliere.pdf', $request);
+            } catch (\Throwable $e) {
                 Log::error('[Client] Erreur génération Fiche récolte journalière', [
                     'message' => $e->getMessage(),
                     'file' => $e->getFile(),
                     'line' => $e->getLine(),
-                    'clients_count' => $clients->count(),
+                    'clients_count' => $clientsCount,
+                    'memory_get_peak_usage' => memory_get_peak_usage(true),
+                    'ini_memory_limit' => ini_get('memory_limit'),
                     'user_id' => Auth::id(),
                 ]);
                 abort(500, 'Erreur lors de la génération du PDF: ' . $e->getMessage());
@@ -754,16 +1015,20 @@ class ClientController extends Controller
         }
 
         try {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.clients.liste', compact('clients', 'filtres', 'zone'))
-                      ->setPaper('a4', 'portrait');
+            if ($clientsCount > self::LISTE_CLIENTS_SINGLE_PDF_MAX_ROWS) {
+                return $this->downloadListeClientsZip(clone $query, $filtres, $zone, $clientsCount);
+            }
 
-            return $pdf->stream('Liste_clients.pdf');
-        } catch (\Exception $e) {
+            $clients = $query->get();
+            $pdf = $this->buildListeClientsPdf($clients, $filtres, $zone);
+
+            return $this->respondWithPdf($pdf, 'Liste_clients.pdf', $request);
+        } catch (\Throwable $e) {
             Log::error('[Client] Erreur génération Liste clients PDF', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'clients_count' => $clients->count(),
+                'clients_count' => $clientsCount,
                 'memory_get_peak_usage' => memory_get_peak_usage(true),
                 'ini_memory_limit' => ini_get('memory_limit'),
                 'user_id' => Auth::id(),

@@ -13,12 +13,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tb_caisses_guichets', function (Blueprint $table) {
+            if (Schema::hasColumn('tb_caisses_guichets', 'updated_at')) {
+                return;
+            }
             // created_at existe déjà — on ajoute uniquement updated_at
             $table->timestamp('updated_at')->nullable()->after('created_at');
         });
 
         // Initialise updated_at = created_at pour les lignes existantes
-        DB::statement('UPDATE tb_caisses_guichets SET updated_at = created_at');
+        DB::statement('UPDATE tb_caisses_guichets SET updated_at = created_at WHERE updated_at IS NULL');
     }
 
     /**

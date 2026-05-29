@@ -173,6 +173,8 @@
                     </button>
                 </div>
                 <form id="formImpressionListe" action="{{ route('clients.liste.pdf') }}" method="GET" target="_blank">
+                    <input type="hidden" name="output" id="printOutputMode" value="stream">
+                    <input type="hidden" name="export_format" id="printExportFormat" value="pdf">
                     <div class="modal-body">
                         <div class="row">
                             {{-- Type de document --}}
@@ -267,13 +269,19 @@
                         </div>
                         <div class="alert alert-info py-1 small mb-0">
                             <i class="fas fa-info-circle mr-1"></i>
-                            Sélectionnez le type de document à imprimer. Laissez un champ vide pour ne pas filtrer sur ce critère. Le PDF s'ouvrira dans un nouvel onglet.
+                            Sélectionnez le type de document à imprimer. Laissez un champ vide pour ne pas filtrer sur ce critère. Utilisez CSV pour les très gros volumes et PDF pour l'édition/impression.
                         </div>
                     </div>
                     <div class="modal-footer py-2">
                         <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
-                        <button type="submit" class="btn btn-sm btn-primary">
-                            <i class="fas fa-file-pdf mr-1"></i> Générer le PDF
+                        <button type="submit" class="btn btn-sm btn-primary js-print-action" data-output="stream" data-format="pdf">
+                            <i class="fas fa-file-pdf mr-1"></i> Ouvrir PDF
+                        </button>
+                        <button type="submit" class="btn btn-sm btn-outline-primary js-print-action" data-output="download" data-format="pdf">
+                            <i class="fas fa-download mr-1"></i> Télécharger PDF
+                        </button>
+                        <button type="submit" class="btn btn-sm btn-success js-print-action" data-output="download" data-format="csv">
+                            <i class="fas fa-file-csv mr-1"></i> Télécharger CSV
                         </button>
                     </div>
                 </form>
@@ -447,6 +455,12 @@
             var url = $(this).data('url');
             var nom = $(this).data('nom');
             doDelete(url, $(this).closest('tr'), nom);
+        });
+
+        /* ─── Sortie impression / téléchargement ─── */
+        $('.js-print-action').on('click', function () {
+            $('#printOutputMode').val($(this).data('output') || 'stream');
+            $('#printExportFormat').val($(this).data('format') || 'pdf');
         });
 
         /* ─── Menu contextuel ─── */

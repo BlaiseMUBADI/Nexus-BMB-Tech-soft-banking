@@ -28,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
             $latestUnreadNotifications = collect();
             $unreadNotificationCount = 0;
             $actionNotificationCount = 0;
+            $unreadNotificationCategoryCounts = collect();
 
             if ($authUser && Schema::hasTable('notifications')) {
                 $latestUnreadNotifications = $authUser->unreadNotifications()
@@ -44,6 +45,15 @@ class AppServiceProvider extends ServiceProvider
                         return in_array(data_get($notification->data, 'type'), ['warning', 'danger', 'action_required'], true);
                     })
                     ->count();
+
+                $unreadNotificationCategoryCounts = $authUser->unreadNotifications()
+                    ->latest()
+                    ->limit(100)
+                    ->get()
+                    ->map(function ($notification) {
+                        return data_get($notification->data, 'category', 'systeme');
+                    })
+                    ->countBy();
             }
 
             $view->with('authUser', $authUser);
@@ -51,6 +61,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with('latestUnreadNotifications', $latestUnreadNotifications);
             $view->with('unreadNotificationCount', $unreadNotificationCount);
             $view->with('actionNotificationCount', $actionNotificationCount);
+            $view->with('unreadNotificationCategoryCounts', $unreadNotificationCategoryCounts);
         });
     }
 }

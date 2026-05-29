@@ -6,7 +6,7 @@
 @php
     $zoneLabel = $zone?->nom ? strtoupper($zone->nom) : 'TOUTES LES ZONES';
     $rows = $clients->values();
-    $minRows = 20;
+    $minRows = 5;
     $totalRows = max($rows->count(), $minRows);
 
     $nomCompletClient = function ($client) {
@@ -42,36 +42,38 @@
 
 <div class="section">
     <div class="section-title">Détail journalier de récolte</div>
-    <table class="info-table" style="font-size:9.5px; border:2px solid #333; border-collapse:collapse;">
+    <table class="info-table" style="font-size:8.5px; border:2px solid #333; border-collapse:collapse;">
     <thead>
         <tr style="background:#1a7a4a; color:#fff; border:2.5px solid #333;">
-            <th style="padding:6px 8px; width:23%; border:2.5px solid #333;">Matricule client</th>
-            <th style="padding:6px 8px; width:43%; border:2.5px solid #333;">Noms</th>
-            <th style="padding:6px 8px; width:11%; text-align:center; border:2.5px solid #333;">EAC</th>
-            <th style="padding:6px 8px; width:11%; text-align:center; border:2.5px solid #333;">RMB</th>
-            <th style="padding:6px 8px; width:12%; text-align:center; border:2.5px solid #333;">Signature</th>
+            <th style="padding:3px 5px; width:5%; text-align:center; border:2.5px solid #333;">N°</th>
+            <th style="padding:3px 5px; width:20%; border:2.5px solid #333;">Matricule client</th>
+            <th style="padding:3px 5px; width:38%; border:2.5px solid #333;">Noms</th>
+            <th style="padding:3px 5px; width:11%; text-align:center; border:2.5px solid #333;">EAC</th>
+            <th style="padding:3px 5px; width:11%; text-align:center; border:2.5px solid #333;">RMB</th>
+            <th style="padding:3px 5px; width:15%; text-align:center; border:2.5px solid #333;">Signature</th>
         </tr>
     </thead>
     <tbody>
         @for($i = 0; $i < $totalRows; $i++)
             @php($client = $rows->get($i))
-            <tr style="{{ $i % 2 === 0 ? 'background:#fff;' : 'background:#f9f9f9;' }} border:2px solid #333;">
-                <td style="padding:9px 6px; font-family:DejaVu Sans Mono, monospace; font-size:10.5px; line-height:1.35; border:2px solid #333; color:#111;">
+            <tr style="{{ $i % 2 === 0 ? 'background:#fff;' : 'background:#f9f9f9;' }} border:1.5px solid #333;">
+                <td style="padding:3px 5px; font-size:8.5px; line-height:1.1; text-align:center; border:1.5px solid #333; color:#888;">{{ $i + 1 }}</td>
+                <td style="padding:3px 5px; font-family:DejaVu Sans Mono, monospace; font-size:8.5px; line-height:1.1; border:1.5px solid #333; color:#111;">
                     {{ $client ? $matriculeClient($client) : '' }}
                 </td>
-                <td style="padding:9px 6px; font-size:10.5px; line-height:1.35; border:2px solid #333; color:#111;">
+                <td style="padding:3px 5px; font-size:8.5px; line-height:1.1; border:1.5px solid #333; color:#111;">
                     {{ $client ? $nomCompletClient($client) : '' }}
                 </td>
-                <td style="padding:9px 6px; font-size:10.5px; line-height:1.35; border:2px solid #333; color:#111;">&nbsp;</td>
-                <td style="padding:9px 6px; font-size:10.5px; line-height:1.35; border:2px solid #333; color:#111;">&nbsp;</td>
-                <td style="padding:9px 6px; font-size:10.5px; line-height:1.35; border:2px solid #333; color:#111;">&nbsp;</td>
+                <td style="padding:3px 5px; font-size:8.5px; line-height:1.1; border:1.5px solid #333; color:#111;">&nbsp;</td>
+                <td style="padding:3px 5px; font-size:8.5px; line-height:1.1; border:1.5px solid #333; color:#111;">&nbsp;</td>
+                <td style="padding:3px 5px; font-size:8.5px; line-height:1.1; border:1.5px solid #333; color:#111;">&nbsp;</td>
             </tr>
         @endfor
         <tr style="background:#d9e8e0; font-weight:700; border:2.5px solid #333;">
-            <td colspan="2" style="padding:6px 8px; text-align:right; border:2.5px solid #333; color:#111;">TOTAL RECOLTE DU JOUR</td>
-            <td style="padding:6px 8px; text-align:center; border:2.5px solid #333; color:#111;">&nbsp;</td>
-            <td style="padding:6px 8px; text-align:center; border:2.5px solid #333; color:#111;">&nbsp;</td>
-            <td style="padding:6px 8px; text-align:center; border:2.5px solid #333; color:#111;">&nbsp;</td>
+            <td colspan="3" style="padding:4px 5px; text-align:right; border:2.5px solid #333; color:#111;">TOTAL RECOLTE DU JOUR</td>
+            <td style="padding:4px 5px; text-align:center; border:2.5px solid #333; color:#111;">&nbsp;</td>
+            <td style="padding:4px 5px; text-align:center; border:2.5px solid #333; color:#111;">&nbsp;</td>
+            <td style="padding:4px 5px; text-align:center; border:2.5px solid #333; color:#111;">&nbsp;</td>
         </tr>
     </tbody>
     </table>

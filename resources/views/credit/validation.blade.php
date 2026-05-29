@@ -33,6 +33,21 @@
     </div>
 @endif
 
+@php
+    $viewErrors = session('errors');
+@endphp
+@if($viewErrors instanceof \Illuminate\Support\ViewErrorBag && $viewErrors->any())
+    <div class="alert alert-danger alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+        <strong>Impossible d'enregistrer la validation :</strong>
+        <ul class="mb-0 mt-2 pl-3">
+            @foreach($viewErrors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
 {{-- ── Mini-résumé --}}
 <div class="card card-outline card-light mb-3">
     <div class="card-body py-2 px-3">
