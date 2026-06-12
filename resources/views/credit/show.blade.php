@@ -98,7 +98,7 @@
             @endif
 
             @if(in_array($demande->statut, ['DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD']))
-                @if(in_array('EBEN-PER65', $userPermCodes ?? []))
+                @if(in_array('EBEN-PER111', $userPermCodes ?? []))
                 <a href="{{ route('credit.remboursement', $demande) }}" class="btn btn-sm btn-success">
                     <i class="fas fa-money-bill-wave mr-1"></i>Remboursement
                 </a>
@@ -448,8 +448,11 @@
                     <strong>Montant total :</strong> {{ number_format($ech->montant_total, 2, ',', ' ') }} {{ $demande->devise }}&nbsp;&nbsp;
                     <strong>Total intérêts :</strong> {{ number_format($ech->total_interets, 2, ',', ' ') }} {{ $demande->devise }}
                 </div>
-                <a href="{{ route('credit.pdf.echeancier', $demande) }}" target="_blank" class="btn btn-sm btn-outline-danger">
-                    <i class="fas fa-print mr-1"></i>Imprimer PDF
+                <a href="{{ route('credit.pdf.echeancier', $demande) }}" target="_blank" class="btn btn-sm btn-outline-danger mr-1">
+                    <i class="fas fa-calendar-alt mr-1"></i>Échéancier PDF
+                </a>
+                <a href="{{ route('credit.pdf.releve', $demande) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-file-invoice mr-1"></i>Relevé de compte
                 </a>
             </div>
             <div class="table-responsive">
@@ -462,23 +465,27 @@
                     </tr>
                 </thead>
                 <tbody>
-                @foreach($ech->echeances as $e)
-                <tr class="{{ $e->statut === 'EN_RETARD' ? 'table-danger' : ($e->statut === 'PAYE' ? 'table-success' : '') }}">
-                    <td>{{ $e->numero_echeance }}</td>
-                    <td>{{ optional($e->date_echeance)->format('d/m/Y') }}</td>
-                    <td class="text-right">{{ number_format($e->capital_restant_debut, 2, ',', ' ') }}</td>
-                    <td class="text-right">{{ number_format($e->montant_capital, 2, ',', ' ') }}</td>
-                    <td class="text-right text-danger">{{ number_format($e->montant_interet, 2, ',', ' ') }}</td>
-                    <td class="text-right font-weight-bold">{{ number_format($e->montant_total, 2, ',', ' ') }}</td>
-                    <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }}</td>
-                    <td>
-                        @php
-                            $sc = ['EN_ATTENTE'=>'secondary','PAYE'=>'success','PARTIELLEMENT_PAYE'=>'info','EN_RETARD'=>'danger'];
-                            $lbl = str_replace('_',' ', $e->statut);
-                        @endphp
-                        <span class="badge badge-{{ $sc[$e->statut] ?? 'secondary' }}">{{ $lbl }}</span>
-                    </td>
-                </tr>
+                 @foreach($ech->echeances as $e)
+                 <tr>
+                     <td>{{ $e->numero_echeance }}</td>
+                     <td>{{ optional($e->date_echeance)->format('d/m/Y') }}</td>
+                     <td class="text-right">{{ number_format($e->capital_restant_debut, 2, ',', ' ') }}</td>
+                     <td class="text-right">{{ number_format($e->montant_capital, 2, ',', ' ') }}</td>
+                     <td class="text-right text-danger">{{ number_format($e->montant_interet, 2, ',', ' ') }}</td>
+                     <td class="text-right font-weight-bold">{{ number_format($e->montant_total, 2, ',', ' ') }}</td>
+                     <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }}</td>
+                      <td class="text-center">
+                          @php
+                              $expectedStatuses = ['EN_ATTENTE', 'PAYE', 'PARTIELLEMENT_PAYE', 'EN_RETARD'];
+                              $isExpected = in_array($e->statut, $expectedStatuses);
+                              $lbl = str_replace('_',' ', $e->statut);
+                              $badgeClass = $isExpected ? 
+                                  (['EN_ATTENTE'=>'secondary','PAYE'=>'success','PARTIELLEMENT_PAYE'=>'info','EN_RETARD'=>'danger'][$e->statut] ?? 'secondary') : 
+                                  'dark';
+                          @endphp
+                          <span class="badge badge-{{ $badgeClass }}">{{ $lbl }}</span>
+                      </td>
+                 </tr>
                 @endforeach
                 </tbody>
             </table>

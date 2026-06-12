@@ -186,15 +186,14 @@
                     </div>
                 </div>
 
-                @if(!empty($legacyPermissionMap ?? []))
-                <div class="alert alert-warning alert-sm" role="alert">
-                    <i class="fas fa-exclamation-triangle mr-1"></i>
-                    <strong>Nettoyage bancaire RBAC :</strong> les permissions Crédit legacy (PER30-PER35) sont conservées
-                    uniquement pour compatibilité historique. Utilisez les permissions canoniques PER53-PER72.
-                </div>
-                @endif
+                 {{-- Suppression de l'alerte legacy --}}
+                 {{-- 
+                 @if(!empty($legacyPermissionMap ?? []))
+                 ...
+                 @endif
+                 --}}
 
-                {{-- Barre de recherche --}}
+                 {{-- Barre de recherche --}}
                 <div class="mb-3">
                     <input type="text" id="searchPermissions"
                            class="form-control form-control-sm"
@@ -236,28 +235,18 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($perms as $perm)
-                                        @php
-                                            $isLegacy = in_array($perm->code, $legacyPermissionCodes ?? [], true);
-                                            $legacyTarget = ($legacyPermissionMap ?? [])[$perm->code] ?? null;
-                                        @endphp
-                                        <tr class="perm-tab-row"
-                                            data-search="{{ strtolower($perm->code . ' ' . $perm->nom . ' ' . $mod['label']) }}">
-                                            <td>
-                                                <code class="text-{{ $mod['color'] }}">{{ $perm->code }}</code>
-                                                @if($isLegacy)
-                                                    <span class="badge badge-warning ml-1">LEGACY</span>
-                                                @endif
-                                            </td>
-                                            <td><strong>{{ $perm->nom }}</strong></td>
-                                            <td class="text-muted small">
-                                                {{ $perm->description ?: '—' }}
-                                                @if($isLegacy && $legacyTarget)
-                                                    <br><span class="text-warning">Remplacement recommandé: {{ $legacyTarget }}</span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                        @endforeach
+                                         @foreach($perms as $perm)
+                                         <tr class="perm-tab-row"
+                                             data-search="{{ strtolower($perm->code . ' ' . $perm->nom . ' ' . $mod['label']) }}">
+                                             <td>
+                                                 <code class="text-{{ $mod['color'] }}">{{ $perm->code }}</code>
+                                             </td>
+                                             <td><strong>{{ $perm->nom }}</strong></td>
+                                             <td class="text-muted small">
+                                                 {{ $perm->description ?: '—' }}
+                                             </td>
+                                         </tr>
+                                         @endforeach
                                     </tbody>
                                 </table>
                             </div>

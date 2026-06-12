@@ -58,6 +58,7 @@ class Transaction extends Model
         'observations',
         'statut',
         'date_operation',
+        'dossier_credit_id',
     ];
 
     protected $casts = [
@@ -102,7 +103,13 @@ class Transaction extends Model
         return $this->hasMany(JournalComptable::class, 'transaction_id', 'id');
     }
 
-    // ── Helpers statiques ────────────────────────────────────────
+    /** Dossier crédit lié (pour les opérations de remboursement) */
+    public function dossierCredit()
+    {
+        return $this->belongsTo(\App\Models\Credit\CreditDemande::class, 'dossier_credit_id', 'id');
+    }
+
+    // ── Helpers statiques ───────────────────────────────────────
 
     /** Libellé lisible d'un type de transaction */
     public static function typeLabel(string $type): string

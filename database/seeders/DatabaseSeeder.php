@@ -15,4 +15,15 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class,
         ]);
     }
+
+    /**
+     * Lance uniquement le jeu de données de test crédit.
+     * Usage : php artisan db:seed --class=CreditTestSeeder
+     */
+    public function runCreditTest(): void
+    {
+        $this->call([
+            CreditTestSeeder::class,
+        ]);
+    }
 }

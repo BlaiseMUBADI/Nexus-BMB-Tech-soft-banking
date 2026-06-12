@@ -37,7 +37,7 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
     ->group(function () {
 
         // ── Dashboard & Supervision ──────────────────────────────────
-        Route::middleware('permission:EBEN-PER61|EBEN-PER62|EBEN-PER63|EBEN-PER64|EBEN-PER65')->group(function () {
+        Route::middleware('permission:EBEN-PER61|EBEN-PER62|EBEN-PER63|EBEN-PER64')->group(function () {
             Route::get('/dashboard',    [CreditController::class, 'dashboard'])->name('dashboard');
             Route::get('/supervision',  [CreditController::class, 'supervision'])->name('supervision');
         });
@@ -48,10 +48,13 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
         // ── Création ─────────────────────────────────────────────────
         Route::middleware('permission:EBEN-PER54')->group(function () {
             Route::get('/nouveau',  [CreditController::class, 'create'])->name('create');
+            Route::post('/', [CreditController::class, 'store'])->name('store');
         });
 
-        Route::middleware('permission:EBEN-PER54')->group(function () {
-            Route::post('/', [CreditController::class, 'store'])->name('store');
+        // ── Édition brouillon (PER55) ─────────────────────────────
+        Route::middleware('permission:EBEN-PER55')->group(function () {
+            Route::get('/{dossier}/editer',  [CreditController::class, 'edit'])->name('edit');
+            Route::put('/{dossier}/editer',  [CreditController::class, 'update'])->name('update');
         });
 
         // ── AJAX helpers (pas de permission supplémentaire au-delà PER53) ──
@@ -106,15 +109,15 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
         });
 
         // ── Remboursement ─────────────────────────────────────────────
-        Route::middleware('permission:EBEN-PER65')->group(function () {
+        Route::middleware('permission:EBEN-PER10|EBEN-PER111')->group(function () {
             Route::get('/{dossier}/remboursement', [CreditController::class, 'remboursement'])->name('remboursement');
         });
 
-        Route::middleware('permission:EBEN-PER65')->group(function () {
+        Route::middleware('permission:EBEN-PER10|EBEN-PER111')->group(function () {
             Route::post('/{dossier}/remboursement', [CreditController::class, 'storeRemboursement'])->name('remboursement.store');
         });
 
-        // ── Actions transverses ───────────────────────────────────────
+        // ─ Actions transverses ───────────────────────────────────────
         Route::middleware('permission:EBEN-PER66')->post('/{dossier}/annuler', [CreditController::class, 'annuler'])->name('annuler');
 
         Route::middleware('permission:EBEN-PER67')->group(function () {
@@ -132,4 +135,12 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
             Route::get('/{dossier}/pdf/echeancier', [CreditController::class, 'pdfEcheancier'])->name('pdf.echeancier');
             Route::get('/{dossier}/pdf/fiche',      [CreditController::class, 'pdfFiche'])->name('pdf.fiche');
         });
+    });
+
+// Relevé de compte crédit - permission Caisse/Guichet (indépendant de EBEN-PER53)
+Route::middleware(['auth', 'permission:EBEN-PER112'])
+    ->prefix('credits')
+    ->name('credit.')
+    ->group(function () {
+        Route::get('/{dossier}/pdf/releve', [CreditController::class, 'releveCredit'])->name('pdf.releve');
     });

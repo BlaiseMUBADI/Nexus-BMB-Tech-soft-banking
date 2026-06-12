@@ -10,13 +10,14 @@
     </span>
 </div>
 
+{{-- Alerte Legacy supprimée --}}
+{{--
 @if(!empty($legacyPermissionMap ?? []))
 <div class="alert alert-warning py-2 px-3 mb-3 small">
-    <i class="fas fa-exclamation-triangle mr-1"></i>
-    Permissions Crédit legacy détectées (PER30-PER35). Les nouvelles attributions sont bloquées.
-    Les anciennes attributions peuvent être retirées pour migration vers PER53-PER72.
+    ...
 </div>
 @endif
+--}}
 
 @if($allPermissions->isEmpty())
     <div class="text-center text-muted py-3">
@@ -82,37 +83,24 @@
                         </label>
                     </div>
                     <div class="row">
-                        @foreach($perms as $perm)
-                        @php
-                            $isLegacy = in_array($perm->code, $legacyPermissionCodes ?? [], true);
-                            $isAttached = in_array($perm->code, $attached);
-                            $isDisabled = $isLegacy && !$isAttached;
-                            $legacyTarget = ($legacyPermissionMap ?? [])[$perm->code] ?? null;
-                        @endphp
-                        <div class="col-md-6 mb-1 perm-item"
-                             data-search="{{ strtolower($perm->code . ' ' . $perm->nom . ' ' . $mod['label']) }}">
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox"
-                                       class="custom-control-input perm-checkbox"
-                                       id="perm_{{ $perm->code }}"
-                                       data-perm-code="{{ $perm->code }}"
-                                       data-module-id="{{ $collapseId }}"
-                                       {{ $isDisabled ? 'disabled' : '' }}
-                                       {{ in_array($perm->code, $attached) ? 'checked' : '' }}>
-                                <label class="custom-control-label" for="perm_{{ $perm->code }}">
-                                    <span class="font-weight-bold text-{{ $mod['color'] }} small">{{ $perm->code }}</span>
-                                    @if($isLegacy)
-                                        <span class="badge badge-warning ml-1">LEGACY</span>
-                                    @endif
-                                    <br>
-                                    <span class="text-muted small">{{ $perm->nom }}</span>
-                                    @if($isLegacy && $legacyTarget)
-                                        <br><span class="text-warning small">Remplacer par {{ $legacyTarget }}</span>
-                                    @endif
-                                </label>
-                            </div>
-                        </div>
-                        @endforeach
+                         @foreach($perms as $perm)
+                         <div class="col-md-6 mb-1 perm-item"
+                              data-search="{{ strtolower($perm->code . ' ' . $perm->nom . ' ' . $mod['label']) }}">
+                             <div class="custom-control custom-checkbox">
+                                 <input type="checkbox"
+                                        class="custom-control-input perm-checkbox"
+                                        id="perm_{{ $perm->code }}"
+                                        data-perm-code="{{ $perm->code }}"
+                                        data-module-id="{{ $collapseId }}"
+                                        {{ in_array($perm->code, $attached) ? 'checked' : '' }}>
+                                 <label class="custom-control-label" for="perm_{{ $perm->code }}">
+                                     <span class="font-weight-bold text-{{ $mod['color'] }} small">{{ $perm->code }}</span>
+                                     <br>
+                                     <span class="text-muted small">{{ $perm->nom }}</span>
+                                 </label>
+                             </div>
+                         </div>
+                         @endforeach
                     </div>
                 </div>
             </div>

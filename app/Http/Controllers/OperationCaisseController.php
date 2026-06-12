@@ -18,6 +18,7 @@ use App\Services\Comptabilite\OhadaAccountingService;
 use App\Services\Commissions\CommissionEngine;
 use App\Services\Notifications\NotificationService;
 use App\Models\Zone;
+use App\Events\DepositOnRmbAccount;
 use Illuminate\Validation\Rule;
 
 /**
@@ -146,11 +147,12 @@ class OperationCaisseController extends Controller
             Transaction::RETRAIT => '💸 Retrait (compte client)',
             Transaction::CHANGE => '🔄 Change de devises',
             Transaction::PAIEMENT => '🧾 Paiement facture/service',
-            Transaction::REMBOURSEMENT => '↩ Remboursement',
+            Transaction::REMBOURSEMENT => '↩️ Remboursement crédit',
             Transaction::VIREMENT => '🔁 Virement',
         ];
 
         return collect(Transaction::operationTypeOptions($guichet?->type_guichet))
+            ->reject(fn ($type) => $type['value'] === Transaction::REMBOURSEMENT)
             ->map(fn ($type) => [
                 'value' => $type['value'],
                 'label' => $labels[$type['value']] ?? $type['label'],
@@ -285,10 +287,9 @@ class OperationCaisseController extends Controller
      * Met à jour les soldes en temps réel.
      *
      * DEPOT      → crédite le compte du client  + solde guichet augmente (reçoit les espèces)
-     * RETRAIT     → débite le compte du client   + solde guichet diminue  (donne les espèces)
-     * PAIEMENT    → solde guichet augmente (espèces, sans compte)
-     * REMBOURSEMENT → solde guichet diminue (espèces, sans compte)
-     * CHANGE      → solde +montant(devise_code), -montant_dest(devise_dest)
+     * RETRAIT    → débite le compte du client   + solde guichet diminue  (donne les espèces)
+     * PAIEMENT   → solde guichet augmente (espèces, sans compte)
+     * CHANGE     → solde +montant(devise_code), -montant_dest(devise_dest)
      */
     public function store(Request $request, CommissionEngine $commissionEngine, OhadaAccountingService $accountingService)
     {
@@ -519,13 +520,6 @@ class OperationCaisseController extends Controller
                             ->increment('solde_en_caisse', $montant);
                         break;
 
-                    case Transaction::REMBOURSEMENT:
-                        // Espèces sans compte — solde guichet diminue
-                        CaissesGuichetSolde::where('guichet_id', $guichet->id)
-                            ->where('devise_code', $devise)
-                            ->decrement('solde_en_caisse', $montant);
-                        break;
-
                     case Transaction::CHANGE:
                         $deviseDest  = $request->devise_dest;
                         $montantDest = (float) $request->montant_dest;
@@ -586,6 +580,22 @@ class OperationCaisseController extends Controller
                     ],
                 ]);
             });
+
+            // Dispatcher l'événement pour traitement automatique du remboursement crédit
+            if ($type === Transaction::DEPOT && $compteOperation) {
+                DepositOnRmbAccount::dispatch($transaction, $compteOperation, $montant);
+            }
+
+            // Transition automatique DEBLOQUE -> EN_REMBOURSEMENT lors du retrait des fonds de crédit
+            if ($type === Transaction::RETRAIT && $compteOperation && $compteOperation->type === 'RMB') {
+                $creditDebloque = \App\Models\Credit\CreditDemande::where('client_matricule', $compteOperation->client_matricule)
+                    ->where('statut_global', 'DEBLOQUE')
+                    ->first();
+                
+                if ($creditDebloque) {
+                    $creditDebloque->update(['statut_global' => 'EN_REMBOURSEMENT']);
+                }
+            }
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1133,8 +1143,8 @@ class OperationCaisseController extends Controller
                 ])->values(),
             ])->values();
 
-            $entryTypes = [Transaction::DEPOT, Transaction::PAIEMENT];
-            $exitTypes  = [Transaction::RETRAIT, Transaction::REMBOURSEMENT];
+            $entryTypes = [Transaction::DEPOT, Transaction::PAIEMENT, Transaction::REMBOURSEMENT];
+            $exitTypes  = [Transaction::RETRAIT];
 
             $stats['par_devise'] = $ops->groupBy('devise_code')->map(function ($items, $devise) use ($entryTypes, $exitTypes) {
                 $totalEntrees = (float) $items->whereIn('type', $entryTypes)->sum('montant');
@@ -1747,9 +1757,14 @@ class OperationCaisseController extends Controller
                                 ->decrement('solde_en_caisse', $montant);
                             break;
                         case Transaction::REMBOURSEMENT:
+                            // REMBOURSEMENT est une entrée : à l'annulation, on décrimente le guichet
                             CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
                                 ->where('devise_code', $devise)
-                                ->increment('solde_en_caisse', $montant);
+                                ->decrement('solde_en_caisse', $montant);
+                            // Et on décrimente aussi le compte RMB du client
+                            if ($op->compte_code) {
+                                Compte::where('code_compte', $op->compte_code)->decrement('solde_reel', $montant);
+                            }
                             break;
                         case Transaction::CHANGE:
                             CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
@@ -1761,6 +1776,34 @@ class OperationCaisseController extends Controller
                                     ->increment('solde_en_caisse', (float) $op->montant_dest);
                             }
                             break;
+                    }
+
+                    // Inverser les mises à jour du crédit si cette transaction est liée à un remboursement
+                    $remboursement = \App\Models\Credit\CreditRemboursement::where('transaction_id', $op->id)->first();
+                    if ($remboursement) {
+                        if ($remboursement->echeance_id) {
+                            $echeance = \App\Models\Credit\CreditEcheance::find($remboursement->echeance_id);
+                            if ($echeance) {
+                                $montantAAnnuler = (float) $remboursement->montant_recu;
+                                $nouveauMontantPaye = max(0, (float) $echeance->montant_paye - $montantAAnnuler);
+                                
+                                $totalDu = (float) $echeance->total_echeance;
+                                $nouveauStatut = 'EN_ATTENTE';
+                                if ($nouveauMontantPaye > 0) {
+                                    $nouveauStatut = 'PARTIELLEMENT_PAYE';
+                                } elseif ($nouveauMontantPaye >= $totalDu) {
+                                    $nouveauStatut = 'PAYE';
+                                }
+                                
+                                $echeance->update([
+                                    'montant_paye'           => $nouveauMontantPaye,
+                                    'statut'                 => $nouveauStatut,
+                                    'date_paiement_effectif' => null,
+                                ]);
+                            }
+                        }
+                        // Supprimer l'enregistrement du remboursement
+                        $remboursement->delete();
                     }
 
                     $accountingService->postReversal($op, 'Annulation sur demande superviseur', [
@@ -2029,5 +2072,54 @@ class OperationCaisseController extends Controller
         $pdf->setPaper([0, 0, 595.28, 420], 'landscape'); // A5 landscape (half A4)
 
         return $pdf->stream('bordereau-' . $op->reference . '.pdf');
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  REMBOURSEMENTS CRÉDIT (vue Caisse)
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Liste des dossiers en cours de remboursement (vue caissier).
+     * Accessible depuis le menu Caisse > Remboursements.
+     * Supporte la recherche progressive par AJAX.
+     */
+    public function remboursementsCredit(Request $request)
+    {
+        $guichet = $this->getGuichetAgent();
+
+        $query = \App\Models\Credit\CreditDemande::where('statut_global', 'EN_REMBOURSEMENT');
+
+        // Recherche progressive
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('numero_dossier', 'like', "%{$search}%")
+                  ->orWhereHas('client', function($cq) use ($search) {
+                      $cq->where('nom', 'like', "%{$search}%")
+                         ->orWhere('postnom', 'like', "%{$search}%")
+                         ->orWhere('prenom', 'like', "%{$search}%")
+                         ->orWhere('matricule', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $dossiers = $query->with(['client', 'echeancier.echeances', 'remboursements'])
+            ->orderByDesc('created_at')
+            ->paginate(20)
+            ->withQueryString();
+
+        // Opérations de remboursement enregistrées (transactions de type REMBOURSEMENT)
+        $operationsRemboursement = \App\Models\Caisse\Transaction::where('type', 'REMBOURSEMENT')
+            ->with(['guichet', 'dossierCredit.client'])
+            ->orderByDesc('date_operation')
+            ->limit(20)
+            ->get();
+
+        // Réponse AJAX pour la recherche progressive
+        if ($request->ajax()) {
+            return view('Caisse_Guichet._remboursements_table', compact('dossiers'))->render();
+        }
+
+        return view('Caisse_Guichet.remboursements_credit', compact('guichet', 'dossiers', 'operationsRemboursement'));
     }
 }

@@ -306,8 +306,8 @@
 </section>
 @endsection
 
-@section('scripts')
+@push('js')
 <script>
 // Aucun script requis pour cette version du formulaire.
 </script>
-@endsection
+@endpush

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('page_title', 'Remboursement – ' . $demande->numero_dossier)
-@section('breadcrumb_parent', 'Crédits')
+@section('breadcrumb_parent', 'Caisse / Guichet')
 @section('breadcrumb', 'Enregistrer un remboursement')
 
 @section('content')
@@ -14,8 +14,8 @@
         <a href="{{ route('credit.show', $demande) }}" class="btn btn-sm btn-outline-primary">
             <i class="fas fa-eye mr-1"></i>Voir dossier
         </a>
-        <a href="{{ route('credit.index') }}" class="btn btn-sm btn-outline-secondary ml-1">
-            <i class="fas fa-list mr-1"></i>Liste crédits
+        <a href="{{ route('caisses.remboursements.liste') }}" class="btn btn-sm btn-outline-secondary ml-1">
+            <i class="fas fa-list mr-1"></i>Liste remboursements
         </a>
     </div>
 </div>
@@ -31,6 +31,26 @@
         <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
         {{ session('error') }}
     </div>
+@endif
+
+@if($guichet)
+<div class="d-flex align-items-center flex-wrap gap-2 mb-3 operation-soldes-bar">
+    <small class="text-muted text-uppercase" style="letter-spacing:.08em;">
+        <i class="fas fa-wallet mr-1"></i> Soldes :
+    </small>
+    @foreach($guichet->soldes->sortBy('devise_code') as $s)
+    <span class="badge badge-pill px-3 py-2 solde-pill" id="soldePill_{{ $s->devise_code }}"
+          style="font-size:.92rem; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15);">
+        <strong>{{ $s->devise_code }}</strong>
+        <span class="solde-val">{{ number_format($s->solde_en_caisse, 2, ',', ' ') }}</span>
+    </span>
+    @endforeach
+    <span class="badge badge-pill px-2 py-2 ml-1"
+          style="background:rgba(23,162,184,.2); border:1px solid rgba(23,162,184,.4); font-size:.85rem;">
+        <i class="fas fa-{{ $guichet->type_guichet === 'MOBILE' ? 'mobile-alt' : 'desktop' }} mr-1 text-info"></i>
+        {{ $guichet->type_guichet }}
+    </span>
+</div>
 @endif
 
 <div class="row">
@@ -57,6 +77,28 @@
         </div>
     </div>
 
+    {{-- Solde RMB du client --}}
+    @if($soldeRmbActuel > 0)
+    <div class="alert alert-info py-2 mb-3">
+        <i class="fas fa-wallet mr-1"></i>
+        <strong>Solde RMB actuel du client :</strong>
+        <span class="badge badge-info badge-pill ml-1" style="font-size:1rem;">
+            {{ number_format($soldeRmbActuel, 2, ',', ' ') }} {{ $demande->devise }}
+        </span>
+        <small class="d-block mt-1 text-muted">
+            <i class="fas fa-info-circle mr-1"></i>Ce montant sera ajouté à ce que le client verse pour calculer le total disponible.
+        </small>
+    </div>
+    @else
+    <div class="alert alert-warning py-2 mb-3">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        <strong>Solde RMB du client : 0,00 {{ $demande->devise }}</strong>
+        <small class="d-block mt-1 text-muted">
+            Le client n'a pas de solde sur son compte RMB. Seul le montant versé sera utilisé.
+        </small>
+    </div>
+    @endif
+
     {{-- Formulaire --}}
     <div class="card card-outline card-success">
         <div class="card-header">
@@ -81,33 +123,35 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('credit.remboursement.store', $demande) }}">
+            <form method="POST" action="{{ route('caisses.remboursement.store', $demande) }}" id="formRemboursement">
             @csrf
 
-            <div class="form-group">
-                <label>Échéance concernée <span class="text-danger">*</span></label>
-                <select name="echeance_id" class="form-control" id="sel_echeance"
-                        onchange="remplirMontant(this)">
-                    <option value="">-- Sélectionner une échéance --</option>
-                    @foreach($echeancier->echeances->whereIn('statut', ['EN_ATTENTE','EN_RETARD','PARTIELLEMENT_PAYE']) as $e)
-                    <option value="{{ $e->id }}"
-                            data-capital="{{ $e->montant_capital }}"
-                            data-interet="{{ $e->montant_interet }}"
-                            data-total="{{ $e->montant_total }}"
-                            {{ old('echeance_id') == $e->id ? 'selected' : '' }}>
-                        # {{ $e->numero_echeance }}
-                        – {{ optional($e->date_echeance)->format('d/m/Y') }}
-                        – {{ number_format($e->montant_total, 2, ',', ' ') }} {{ $demande->devise }}
-                        @if($e->statut === 'EN_RETARD') [RETARD] @endif
-                    </option>
-                    @endforeach
-                </select>
-            </div>
+            {{-- Échéance cible automatique (masquée mais envoyée au backend) --}}
+            @php
+                $premiereEcheanceImpayee = $echeancesImpayees->first();
+                $echeanceIdCible = $premiereEcheanceImpayee ? $premiereEcheanceImpayee->id : '';
+            @endphp
+            <input type="hidden" name="echeance_id" id="echeance_id_cible" value="{{ $echeanceIdCible }}">
 
-            <div id="zone_detail_ech" class="alert alert-light border small" style="display:none">
-                Capital : <span id="lbl_capital">–</span> &nbsp;|&nbsp;
-                Intérêt : <span id="lbl_interet">–</span> &nbsp;|&nbsp;
-                <strong>Total : <span id="lbl_total">–</span></strong>
+            @if($premiereEcheanceImpayee)
+            <div class="alert alert-secondary py-2 mb-3">
+                <i class="fas fa-bullseye mr-1 text-primary"></i>
+                <strong>Échéance ciblée automatiquement :</strong> 
+                Échéance n°{{ $premiereEcheanceImpayee->numero_echeance }} du {{ \Carbon\Carbon::parse($premiereEcheanceImpayee->date_echeance)->format('d/m/Y') }}
+                (Reste à payer : <strong>{{ number_format(max(0, ($premiereEcheanceImpayee->montant_capital + $premiereEcheanceImpayee->montant_interet) - ($premiereEcheanceImpayee->montant_paye ?? 0)), 2, ',', ' ') }} {{ $demande->devise }}</strong>)
+            </div>
+            @else
+            <div class="alert alert-success py-2 mb-3">
+                <i class="fas fa-check-circle mr-1"></i>
+                <strong>Toutes les échéances sont soldées.</strong> Aucun remboursement n'est nécessaire.
+            </div>
+            @endif
+
+            <div class="form-group" style="display:none;">
+                <label>Échéance concernée <span class="text-danger">*</span></label>
+                <select name="echeance_id_old" class="form-control" id="sel_echeance" disabled>
+                    <option value="{{ $echeanceIdCible }}" selected>Automatique</option>
+                </select>
             </div>
 
             <div class="form-group">
@@ -120,60 +164,16 @@
                 </div>
             </div>
 
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label>Dont capital <span class="text-danger">*</span></label>
-                    <input type="number" name="dont_capital" id="inp_dont_capital" class="form-control" step="0.01" min="0" required value="{{ old('dont_capital', 0) }}">
-                </div>
-                <div class="form-group col-md-6">
-                    <label>Dont intérêt <span class="text-danger">*</span></label>
-                    <input type="number" name="dont_interet" id="inp_dont_interet" class="form-control" step="0.01" min="0" required value="{{ old('dont_interet', 0) }}">
-                </div>
-            </div>
-
-            <input type="hidden" name="dont_penalite" value="{{ old('dont_penalite', 0) }}">
-
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label>Date de paiement <span class="text-danger">*</span></label>
-                    <input type="date" name="date_paiement" class="form-control" required
-                           value="{{ old('date_paiement', date('Y-m-d')) }}">
-                </div>
-                <div class="form-group col-md-6">
-                    <label>Type de remboursement</label>
-                    <select name="type_remboursement" class="form-control">
-                        <option value="ECHEANCE" {{ old('type_remboursement','ECHEANCE')=='ECHEANCE'?'selected':'' }}>Échéance normale</option>
-                        <option value="PARTIEL" {{ old('type_remboursement')=='PARTIEL'?'selected':'' }}>Paiement partiel</option>
-                        <option value="ANTICIPE" {{ old('type_remboursement')=='ANTICIPE'?'selected':'' }}>Remboursement anticipé</option>
-                        <option value="PENALITE" {{ old('type_remboursement')=='PENALITE'?'selected':'' }}>Pénalité</option>
-                    </select>
-                </div>
-            </div>
+            <input type="hidden" name="dont_interet" id="inp_dont_interet" value="0">
+            <input type="hidden" name="dont_capital" id="inp_dont_capital" value="0">
+            <input type="hidden" name="dont_penalite" value="0">
+            <input type="hidden" name="type_remboursement" id="inp_type_remb" value="ECHEANCE">
+            <input type="hidden" name="montant_a_appliquer" id="inp_montant_a_appliquer" value="{{ old('montant_recu') }}">
 
             <div class="form-group">
-                <label>Référence de paiement</label>
-                <input type="text" name="reference_caisse" class="form-control"
-                       value="{{ old('reference_caisse') }}" maxlength="100"
-                       placeholder="N° reçu, réf. virement…">
-            </div>
-
-            <div class="form-group">
-                <label>Compte de destination</label>
-                <select name="compte_destination_id" class="form-control">
-                    <option value="">-- Compte de caisse/ressources --</option>
-                    @foreach($comptesInstitutionList as $c)
-                    @if(is_object($c))
-                    <option value="{{ $c->code_compte }}" {{ old('compte_destination_id')==$c->code_compte?'selected':'' }}>
-                        {{ $c->code_compte }} – {{ $c->type }}
-                    </option>
-                    @endif
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Observations</label>
-                <textarea name="observations" class="form-control" rows="2">{{ old('observations') }}</textarea>
+                <label>Date de paiement <span class="text-danger">*</span></label>
+                <input type="date" name="date_paiement" class="form-control" required
+                       value="{{ old('date_paiement', date('Y-m-d')) }}">
             </div>
 
             <button type="submit" class="btn btn-success btn-block">
@@ -209,22 +209,30 @@
                 </tr>
             </thead>
             <tbody>
+            @if($echeancier)
             @php
                 $sc = ['EN_ATTENTE'=>'secondary','PAYE'=>'success','PARTIELLEMENT_PAYE'=>'info','EN_RETARD'=>'danger'];
                 $totalPaye = 0; $totalRestant = 0;
+                $devise = $demande->devise ?? 'CDF';
             @endphp
             @foreach($echeancier->echeances as $e)
             @php
-                if($e->statut === 'PAYE') $totalPaye += $e->montant_total;
-                else $totalRestant += $e->montant_total;
+                if($e->statut === 'PAYE') {
+                    $totalPaye += $e->montant_total;
+                } elseif($e->statut === 'PARTIELLEMENT_PAYE') {
+                    $totalPaye += $e->montant_paye ?? 0;
+                    $totalRestant += ($e->montant_total - ($e->montant_paye ?? 0));
+                } else {
+                    $totalRestant += $e->montant_total;
+                }
             @endphp
-            <tr class="{{ $e->statut === 'EN_RETARD' ? 'table-danger' : ($e->statut === 'PAYE' ? 'table-success' : ($e->statut === 'PARTIELLEMENT_PAYE' ? 'table-info' : '')) }}">
+            <tr style="background:{{ $e->statut === 'EN_RETARD' ? 'rgba(220,53,69,0.15)' : ($e->statut === 'PAYE' ? 'rgba(40,167,69,0.15)' : ($e->statut === 'PARTIELLEMENT_PAYE' ? 'rgba(23,162,184,0.15)' : 'transparent')) }}">
                 <td>{{ $e->numero_echeance }}</td>
                 <td class="text-nowrap">{{ optional($e->date_echeance)->format('d/m/Y') }}</td>
-                <td class="text-right">{{ number_format($e->montant_capital, 2, ',', ' ') }}</td>
-                <td class="text-right">{{ number_format($e->montant_interet, 2, ',', ' ') }}</td>
-                <td class="text-right font-weight-bold">{{ number_format($e->montant_total, 2, ',', ' ') }}</td>
-                <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }}</td>
+                <td class="text-right">{{ number_format($e->montant_capital, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
+                <td class="text-right">{{ number_format($e->montant_interet, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
+                <td class="text-right font-weight-bold">{{ number_format($e->montant_total, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
+                <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
                 <td>
                     <span class="badge badge-{{ $sc[$e->statut] ?? 'secondary' }}">
                         {{ str_replace('_',' ', $e->statut) }}
@@ -232,12 +240,13 @@
                 </td>
             </tr>
             @endforeach
+            @endif
             </tbody>
-            <tfoot class="bg-light">
+            <tfoot style="background:#1a202c">
                 <tr>
                     <td colspan="4" class="text-right"><strong>Total payé / Restant :</strong></td>
-                    <td class="text-right text-success"><strong>{{ number_format($totalPaye, 2, ',', ' ') }}</strong></td>
-                    <td class="text-right text-danger"><strong>{{ number_format($totalRestant, 2, ',', ' ') }}</strong></td>
+                    <td class="text-right text-success"><strong>{{ number_format($totalPaye, 2, ',', ' ') }} <small>{{ $devise }}</small></strong></td>
+                    <td class="text-right text-danger"><strong>{{ number_format($totalRestant, 2, ',', ' ') }} <small>{{ $devise }}</small></strong></td>
                     <td></td>
                 </tr>
             </tfoot>
@@ -280,30 +289,141 @@
 </section>
 @endsection
 
-@section('scripts')
+@push('js')
 <script>
-function remplirMontant(sel) {
-    const opt = sel.options[sel.selectedIndex];
-    const zone = document.getElementById('zone_detail_ech');
-    if (!opt.value) {
-        zone.style.display = 'none';
-        return;
-    }
-    const capital = parseFloat(opt.dataset.capital);
-    const interet = parseFloat(opt.dataset.interet);
-    const total   = parseFloat(opt.dataset.total);
-    document.getElementById('lbl_capital').textContent = capital.toLocaleString('fr',{minimumFractionDigits:2});
-    document.getElementById('lbl_interet').textContent = interet.toLocaleString('fr',{minimumFractionDigits:2});
-    document.getElementById('lbl_total').textContent   = total.toLocaleString('fr',{minimumFractionDigits:2});
-    document.getElementById('inp_montant_recu').value  = total.toFixed(2);
-    document.getElementById('inp_dont_capital').value  = capital.toFixed(2);
-    document.getElementById('inp_dont_interet').value  = interet.toFixed(2);
-    zone.style.display = 'block';
+const echeancesImpayees = @json($echeancesImpayees ?? []);
+const soldeRmbActuel    = {{ $soldeRmbActuel ?? 0 }};
+
+/**
+ * WRAPPER PROMISE pour showUniversalConfirm.
+ * Résout TRUE = l'utilisateur a confirmé.
+ * Résout FALSE = l'utilisateur a annulé ou fermé la modale.
+ */
+function askModal(message, options) {
+    return new Promise(function(resolve) {
+        var confirmed = false;
+
+        showUniversalConfirm(message, function() {
+            confirmed = true;
+        }, $.extend({ showWarning: false }, options || {}));
+
+        $('#universalConfirmModal').one('hidden.bs.modal', function() {
+            resolve(confirmed);
+        });
+    });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const sel = document.getElementById('sel_echeance');
-    if (sel.value) remplirMontant(sel);
-});
+(function() {
+    var form = document.getElementById('formRemboursement');
+    if (!form) return;
+
+    var btn = form.querySelector('button[type="submit"]');
+    if (!btn) return;
+
+    // Bloquer la soumission native du formulaire
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+    });
+
+    // Toute la logique est sur le clic du bouton (compatible async)
+    btn.addEventListener('click', async function(e) {
+        e.preventDefault();
+
+        var montantRecu = parseFloat(document.getElementById('inp_montant_recu').value) || 0;
+        if (montantRecu <= 0) {
+            showSystemMessage('warning', 'Veuillez saisir un montant valide.');
+            return;
+        }
+
+        // Filtrer les échéances ayant un solde dû
+        var echeancesValides = echeancesImpayees.filter(function(ech) {
+            var mt = parseFloat(ech.capital_echeance || 0) + parseFloat(ech.interet_echeance || 0);
+            var dp = parseFloat(ech.montant_paye) || 0;
+            return (mt - dp) > 0.01;
+        });
+
+        var totalDisponible    = soldeRmbActuel + montantRecu;
+        var montantTotalTraite = 0;
+
+        function soumettre() {
+            document.getElementById('inp_montant_a_appliquer').value = montantTotalTraite.toFixed(2);
+            form.submit();
+        }
+
+        // ── ÉTAPE 1 : Dépôt simple OU Règlement d'échéancier ? ─────────────────────
+        var msgRmb = soldeRmbActuel > 0.01
+            ? '<br><small class="text-info">dont <strong>' + soldeRmbActuel.toFixed(2) + ' {{ $demande->devise }}</strong> depuis le compte RMB</small>'
+            : '';
+
+        var etape1 = await askModal(
+            'Montant disponible : <strong>' + totalDisponible.toFixed(2) + ' {{ $demande->devise }}</strong>' + msgRmb + '<br><br>Que souhaitez-vous faire ?',
+            {
+                title    : 'Dépôt ou Remboursement ?',
+                btnLabel : "Régler l'échéancier",
+                btnClass : 'btn-success',
+                icon     : 'fas fa-exchange-alt',
+                headerClass: 'bg-primary text-white'
+            }
+        );
+
+        if (!etape1) {
+            // Dépôt simple : tout crédité sur le RMB par le backend
+            soumettre();
+            return;
+        }
+
+        // ── ÉTAPE 2 : Régler automatiquement la première échéance ──────────────────
+        if (echeancesValides.length === 0) {
+            showSystemMessage('info', 'Aucune échéance en attente. Dépôt sur le compte RMB.');
+            soumettre();
+            return;
+        }
+
+        var ech0     = echeancesValides[0];
+        var mt0      = parseFloat(ech0.capital_echeance || 0) + parseFloat(ech0.interet_echeance || 0);
+        var dp0      = parseFloat(ech0.montant_paye) || 0;
+        var resteDu0 = Math.max(0, mt0 - dp0);
+        var aApp0    = Math.min(totalDisponible, resteDu0);
+
+        montantTotalTraite += aApp0;
+        totalDisponible    -= aApp0;
+
+        // ── ÉTAPE 3 : Proposer chaque échéance suivante (async/await) ───────────────
+        for (var i = 1; i < echeancesValides.length; i++) {
+            if (totalDisponible <= 0.01) break;
+
+            var ech     = echeancesValides[i];
+            var mt      = parseFloat(ech.capital_echeance || 0) + parseFloat(ech.interet_echeance || 0);
+            var dp      = parseFloat(ech.montant_paye) || 0;
+            var resteDu = Math.max(0, mt - dp);
+            if (resteDu <= 0.01) continue;
+
+            var aMax       = Math.min(totalDisponible, resteDu);
+            var dateEch    = new Date(ech.date_echeance).toLocaleDateString('fr-FR');
+
+            var continuer = await askModal(
+                'Il reste <strong>' + totalDisponible.toFixed(2) + ' {{ $demande->devise }}</strong> disponible.<br><br>' +
+                'Appliquer <strong>' + aMax.toFixed(2) + ' {{ $demande->devise }}</strong> ' +
+                "à l'échéance n°<strong>" + ech.numero_echeance + '</strong> (Date : ' + dateEch + ') ?',
+                {
+                    title    : 'Remboursement anticipé',
+                    btnLabel : 'Oui, appliquer',
+                    btnClass : 'btn-success',
+                    icon     : 'fas fa-forward',
+                    headerClass: 'bg-info text-white'
+                }
+            );
+
+            if (!continuer) break; // NON → reste crédité sur le RMB (Étape 4)
+
+            montantTotalTraite += aMax;
+            totalDisponible    -= aMax;
+        }
+
+        // ── ÉTAPE 4 : Soumettre — le backend crédite automatiquement le reste sur RMB
+        soumettre();
+    });
+})();
 </script>
-@endsection
+@endpush

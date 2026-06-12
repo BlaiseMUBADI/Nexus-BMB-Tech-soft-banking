@@ -24,6 +24,7 @@ class CreditRemboursement extends Model
         'reference_caisse',
         'observations',
         'recu_le',
+        'transaction_id', // Lien vers la transaction de caisse
     ];
 
     protected $casts = [

@@ -193,6 +193,114 @@
         .two-col { display: table; width: 100%; }
         .two-col .col { display: table-cell; vertical-align: top; padding-right: 12px; }
         .two-col .col:last-child { padding-right: 0; padding-left: 12px; }
+
+        /* ── Tableau des mouvements (Releve de compte) ── */
+        table.movement-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            margin-top: 8px;
+        }
+        table.movement-table thead th {
+            background: #1a7a4a;
+            color: #fff;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 5px 6px;
+            border: 1.5px solid #333;
+            vertical-align: middle;
+        }
+        table.movement-table tbody td {
+            padding: 4px 6px;
+            border: 1.5px solid #ccc;
+            vertical-align: middle;
+            color: #111;
+        }
+        table.movement-table tbody tr.opening-row,
+        table.movement-table tbody tr.closing-row {
+            background: #f0f7f0;
+        }
+        table.movement-table tbody tr.opening-row td,
+        table.movement-table tbody tr.closing-row td {
+            font-weight: bold;
+            border: 2px solid #1a7a4a;
+        }
+        table.movement-table tbody tr.movement-row {
+            background: #fff;
+        }
+        table.movement-table tbody tr.movement-row:nth-child(even) {
+            background: #fafafa;
+        }
+        table.movement-table tbody tr.movement-row.type-frais {
+            background: #fff8e1;
+        }
+        table.movement-table tbody tr.movement-row.type-caution {
+            background: #fff3e0;
+        }
+        table.movement-table tbody tr.movement-row.type-deblocage {
+            background: #e8f5e9;
+        }
+        table.movement-table tbody tr.movement-row.type-remboursement {
+            background: #e3f2fd;
+        }
+        table.movement-table tbody tr.movement-row.type-restitution {
+            background: #e8f5e9;
+        }
+        table.movement-table tbody td.debit {
+            color: #c62828;
+            font-weight: bold;
+        }
+        table.movement-table tbody td.credit {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+        table.movement-table tbody td.solde {
+            color: #1a7a4a;
+            font-weight: bold;
+        }
+
+        /* ── Badges type mouvement ── */
+        .badge-frais,
+        .badge-caution,
+        .badge-deblocage,
+        .badge-remboursement,
+        .badge-restitution {
+            display: inline-block;
+            font-size: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 1px 4px;
+            border-radius: 2px;
+            margin-right: 4px;
+            vertical-align: middle;
+        }
+        .badge-frais { background: #fff8e1; color: #f57f17; border: 1px solid #f57f17; }
+        .badge-caution { background: #fff3e0; color: #e65100; border: 1px solid #e65100; }
+        .badge-deblocage { background: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; }
+        .badge-remboursement { background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0; }
+        .badge-restitution { background: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; }
+
+        /* ── Pied de page releve ── */
+        .footer-info {
+            display: table;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .footer-info .footer-col {
+            display: table-cell;
+            width: 33.33%;
+            padding: 6px 8px;
+            border: 1.5px solid #ccc;
+            vertical-align: top;
+            font-size: 10px;
+        }
+        .footer-info .footer-col strong {
+            color: #1a7a4a;
+            text-transform: uppercase;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>

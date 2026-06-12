@@ -132,7 +132,11 @@ class CreditDemande extends Model
             'SUSPENDU'         => ['warning',   'Suspendu'],
             'SUSPECT'          => ['danger',    'Suspect'],
         ];
-        [$color, $label] = $map[$this->statut_global] ?? ['secondary', $this->statut_global];
+        
+        $isExpected = in_array($this->statut_global, array_keys($map));
+        $label = str_replace('_', ' ', $this->statut_global);
+        $color = $isExpected ? $map[$this->statut_global][0] : 'dark';
+        
         return "<span class=\"badge badge-{$color}\">{$label}</span>";
     }
 

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CaisseController;
 use App\Http\Controllers\OperationCaisseController;
+use App\Http\Controllers\Credit\CreditController;
 
 Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function () {
 
@@ -69,5 +70,14 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
     Route::middleware('permission:EBEN-PER44')->group(function () {
         Route::post('demandes-modification/{id}/approuver', [OperationCaisseController::class, 'approuverModification'])->name('demandes.modification.approuver');
         Route::post('demandes-modification/{id}/rejeter',   [OperationCaisseController::class, 'rejeterModification'])->name('demandes.modification.rejeter');
+    });
+
+    // Remboursements crédit (vue caissier) — permission Caisse EBEN-PER111
+    Route::middleware('permission:EBEN-PER111')->get('remboursements', [OperationCaisseController::class, 'remboursementsCredit'])->name('remboursements.liste');
+
+    // Enregistrement remboursement — dans le groupe Caisse
+    Route::middleware('permission:EBEN-PER111')->group(function () {
+        Route::get('remboursement/{dossier}', [CreditController::class, 'remboursement'])->name('remboursement');
+        Route::post('remboursement/{dossier}', [CreditController::class, 'storeRemboursement'])->name('remboursement.store');
     });
 });

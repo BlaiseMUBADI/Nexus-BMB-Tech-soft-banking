@@ -127,14 +127,24 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									</a>
 								</li>
 
-								{{-- 2. Opérations de Caisse --}}
-								<li class="nav-item">
-									<a href="{{ route('caisses.operations.index') }}"
-										class="nav-link sub-link {{ request()->is('caisses/operations') ? 'active' : '' }}">
-										<i class="fas fa-exchange-alt nav-icon"></i>
-										<p>Opérations</p>
-									</a>
-								</li>
+                                {{-- 2. Opérations de Caisse --}}
+                                <li class="nav-item">
+                                    <a href="{{ route('caisses.operations.index') }}"
+                                       class="nav-link sub-link {{ request()->is('caisses/operations') ? 'active' : '' }}">
+                                        <i class="fas fa-exchange-alt nav-icon"></i>
+                                        <p>Opérations</p>
+                                    </a>
+                                </li>
+                                 {{-- 5. Remboursements --}}
+                                  @if(in_array('EBEN-PER111', $userPermCodes ?? []))
+                                      <li class="nav-item">
+                                          <a href="{{ route('caisses.remboursements.liste') }}"
+                                             class="nav-link sub-link {{ request()->routeIs('caisses.remboursements.liste') ? 'active' : '' }}">
+                                              <i class="fas fa-money-bill-wave nav-icon text-primary"></i>
+                                              <p>Remboursements</p>
+                                          </a>
+                                      </li>
+                                  @endif
 
 							@endif
 
@@ -316,7 +326,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						$creditStatutMenu = request('statut');
 						$creditVueMenu = request('vue');
 						$isCreditListBase = request()->routeIs('credit.index') && empty($creditStatutMenu);
-						$canCreditSupervision = count(array_intersect(['EBEN-PER61', 'EBEN-PER62', 'EBEN-PER63', 'EBEN-PER64', 'EBEN-PER65'], $userPermCodes ?? [])) > 0;
+						$canCreditSupervision = count(array_intersect(['EBEN-PER61', 'EBEN-PER62', 'EBEN-PER63', 'EBEN-PER64'], $userPermCodes ?? [])) > 0;
 					@endphp
 					<li class="nav-item {{ request()->is('credits*') ? 'menu-open' : '' }}">
 						<a href="#" class="nav-link parent-link {{ request()->is('credits*') ? 'active' : '' }}">
@@ -396,15 +406,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								</li>
 							@endif
 
-							@if(in_array('EBEN-PER65', $userPermCodes ?? []))
-								<li class="nav-item">
-									<a href="{{ route('credit.index') }}?statut=EN_REMBOURSEMENT"
-										class="nav-link sub-link {{ request()->routeIs('credit.remboursement') || (request()->routeIs('credit.index') && $creditStatutMenu === 'EN_REMBOURSEMENT') ? 'active' : '' }}">
-										<i class="fas fa-money-bill-wave nav-icon text-primary"></i>
-										<p>Remboursements</p>
-									</a>
-								</li>
-							@endif
+
 
 							@if($canCreditSupervision)
 								<li class="nav-item">

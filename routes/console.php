@@ -188,7 +188,7 @@ Artisan::command('notifications:proactive {--dry-run}', function () {
                 'icon'       => 'fas fa-exclamation-circle',
                 'action_url' => route('credit.remboursement', $dossier),
             ]);
-            $service->notifyUsersWithPermission('EBEN-PER65', 'Échéance(s) crédit en retard', $message, [
+            $service->notifyUsersWithPermission('EBEN-PER111', 'Échéance(s) crédit en retard', $message, [
                 'type'       => 'warning',
                 'category'   => 'credit',
                 'icon'       => 'fas fa-exclamation-circle',

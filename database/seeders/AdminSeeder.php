@@ -131,19 +131,44 @@ class AdminSeeder extends Seeder
             Permission::firstOrCreate(['nom' => $p['nom']], ['description' => $p['description']]);
         }
 
-        // ----------------------------------------------------------------
-        // 6. Rôle ADMIN → toutes les permissions
-        // ----------------------------------------------------------------
-        $allPermCodes = Permission::pluck('code');
+         // ----------------------------------------------------------------
+         // 6. Rôle ADMIN → toutes les permissions
+         // ----------------------------------------------------------------
+         $allPermCodes = Permission::pluck('code');
 
-        foreach ($allPermCodes as $permCode) {
-            DB::table('tb_role_permission')->insertOrIgnore([
-                'role_code'       => $adminRole->code,
-                'permission_code' => $permCode,
-                'created_at'      => now(),
-                'updated_at'      => now(),
-            ]);
-        }
+         foreach ($allPermCodes as $permCode) {
+             DB::table('tb_role_permission')->insertOrIgnore([
+                 'role_code'       => $adminRole->code,
+                 'permission_code' => $permCode,
+                 'created_at'      => now(),
+                 'updated_at'      => now(),
+             ]);
+         }
+
+         // ----------------------------------------------------------------
+         // 6b. Rôle CAISSIER → permissions spécifiques
+         // ----------------------------------------------------------------
+         $caissierRole = Role::where('nom', 'Caissier')->first();
+         if ($caissierRole) {
+             $caissierPermCodes = [
+                 'EBEN-PER53',  // Voir liste crédits (Nécessaire pour accéder au module Crédit)
+                 'EBEN-PER10',  // Voir caisse / guichet (menu)
+                 'EBEN-PER11',  // Saisir opérations de caisse
+                 'EBEN-PER25',  // Annuler opérations (si besoin)
+                 // Add any other permissions caissier should have
+             ];
+             foreach ($caissierPermCodes as $permCode) {
+                 // Ensure permission exists
+                 if (Permission::where('code', $permCode)->exists()) {
+                     DB::table('tb_role_permission')->insertOrIgnore([
+                         'role_code'       => $caissierRole->code,
+                         'permission_code' => $permCode,
+                         'created_at'      => now(),
+                         'updated_at'      => now(),
+                     ]);
+                 }
+             }
+         }
 
         // ----------------------------------------------------------------
         // 7. Utilisateur admin — via Eloquent pour déclencher les events

@@ -80,11 +80,12 @@ return new class extends Migration
             ['code' => 'EBEN-PER28', 'nom' => 'Gérer produits épargne',      'description' => "Créer et modifier les produits d'épargne",                      'created_at' => $now, 'updated_at' => $now],
             ['code' => 'EBEN-PER29', 'nom' => 'Gérer comptes épargne',       'description' => 'Ouvrir, alimenter et clôturer des comptes épargne',             'created_at' => $now, 'updated_at' => $now],
             // MODULE 9 – Crédits / Prêts
-            ['code' => 'EBEN-PER30', 'nom' => 'Voir crédits',                'description' => 'Consulter les dossiers de crédit',                              'created_at' => $now, 'updated_at' => $now],
-            ['code' => 'EBEN-PER31', 'nom' => 'Soumettre demande crédit',    'description' => 'Créer une demande de prêt pour un client',                      'created_at' => $now, 'updated_at' => $now],
-            ['code' => 'EBEN-PER32', 'nom' => 'Instruire dossier crédit',    'description' => 'Analyser et compléter un dossier de crédit',                    'created_at' => $now, 'updated_at' => $now],
-            ['code' => 'EBEN-PER33', 'nom' => 'Approuver crédit',            'description' => 'Accorder ou rejeter un crédit (niveau comité)',                 'created_at' => $now, 'updated_at' => $now],
-            ['code' => 'EBEN-PER34', 'nom' => 'Gérer remboursements',        'description' => 'Saisir les échéances et paiements de remboursement',            'created_at' => $now, 'updated_at' => $now],
+            // [SUPPRIMÉ] Permissions Legacy (remplacées par EBEN-PER5x/6x)
+            // ['code' => 'EBEN-PER30', 'nom' => 'Voir crédits', ...],
+            // ['code' => 'EBEN-PER31', 'nom' => 'Soumettre demande crédit', ...],
+            // ['code' => 'EBEN-PER32', 'nom' => 'Instruire dossier crédit', ...],
+            // ['code' => 'EBEN-PER33', 'nom' => 'Approuver crédit', ...],
+            // ['code' => 'EBEN-PER34', 'nom' => 'Gérer remboursements', ...],
             ['code' => 'EBEN-PER35', 'nom' => 'Clôturer crédit',             'description' => 'Marquer un crédit comme soldé ou en contentieux',              'created_at' => $now, 'updated_at' => $now],
             // MODULE 10 – Rapports & Statistiques
             ['code' => 'EBEN-PER36', 'nom' => 'Voir rapports opérationnels', 'description' => 'Rapports journaliers caisse et transactions',                   'created_at' => $now, 'updated_at' => $now],
@@ -121,7 +122,7 @@ return new class extends Migration
             ['role_code' => 'EBEN-ROL2', 'permission_code' => 'EBEN-PER23', 'created_at' => $now, 'updated_at' => $now],  // Retraits
             ['role_code' => 'EBEN-ROL2', 'permission_code' => 'EBEN-PER24', 'created_at' => $now, 'updated_at' => $now],  // Virements
             ['role_code' => 'EBEN-ROL2', 'permission_code' => 'EBEN-PER29', 'created_at' => $now, 'updated_at' => $now],  // Comptes épargne
-            ['role_code' => 'EBEN-ROL2', 'permission_code' => 'EBEN-PER34', 'created_at' => $now, 'updated_at' => $now],  // Remboursements
+            // [SUPPRIMÉ] ['role_code' => 'EBEN-ROL2', 'permission_code' => 'EBEN-PER34', ...], // Remboursements
         ]);
 
         // ── ROL3 Directeur ───────────────────────────────────────────────────────
@@ -136,8 +137,8 @@ return new class extends Migration
             ['role_code' => 'EBEN-ROL3', 'permission_code' => 'EBEN-PER20', 'created_at' => $now, 'updated_at' => $now],  // Voir devises
             ['role_code' => 'EBEN-ROL3', 'permission_code' => 'EBEN-PER26', 'created_at' => $now, 'updated_at' => $now],  // Valider tx
             ['role_code' => 'EBEN-ROL3', 'permission_code' => 'EBEN-PER27', 'created_at' => $now, 'updated_at' => $now],  // Voir épargne
-            ['role_code' => 'EBEN-ROL3', 'permission_code' => 'EBEN-PER30', 'created_at' => $now, 'updated_at' => $now],  // Voir crédits
-            ['role_code' => 'EBEN-ROL3', 'permission_code' => 'EBEN-PER33', 'created_at' => $now, 'updated_at' => $now],  // Approuver crédit
+            // [SUPPRIMÉ] ['role_code' => 'EBEN-ROL3', 'permission_code' => 'EBEN-PER30', ...], // Voir crédits
+            // [SUPPRIMÉ] ['role_code' => 'EBEN-ROL3', 'permission_code' => 'EBEN-PER33', ...], // Approuver crédit
             ['role_code' => 'EBEN-ROL3', 'permission_code' => 'EBEN-PER36', 'created_at' => $now, 'updated_at' => $now],  // Rapports opéra.
             ['role_code' => 'EBEN-ROL3', 'permission_code' => 'EBEN-PER37', 'created_at' => $now, 'updated_at' => $now],  // Rapports finan.
             ['role_code' => 'EBEN-ROL3', 'permission_code' => 'EBEN-PER38', 'created_at' => $now, 'updated_at' => $now],  // Exporter
@@ -163,7 +164,7 @@ return new class extends Migration
             ['role_code' => 'EBEN-ROL5', 'permission_code' => 'EBEN-PER20', 'created_at' => $now, 'updated_at' => $now],  // Voir devises
             ['role_code' => 'EBEN-ROL5', 'permission_code' => 'EBEN-PER26', 'created_at' => $now, 'updated_at' => $now],  // Valider tx
             ['role_code' => 'EBEN-ROL5', 'permission_code' => 'EBEN-PER27', 'created_at' => $now, 'updated_at' => $now],  // Voir épargne
-            ['role_code' => 'EBEN-ROL5', 'permission_code' => 'EBEN-PER30', 'created_at' => $now, 'updated_at' => $now],  // Voir crédits
+            // [SUPPRIMÉ] ['role_code' => 'EBEN-ROL5', 'permission_code' => 'EBEN-PER30', ...], // Voir crédits
             ['role_code' => 'EBEN-ROL5', 'permission_code' => 'EBEN-PER36', 'created_at' => $now, 'updated_at' => $now],  // Rapports opéra.
             ['role_code' => 'EBEN-ROL5', 'permission_code' => 'EBEN-PER37', 'created_at' => $now, 'updated_at' => $now],  // Rapports finan.
             ['role_code' => 'EBEN-ROL5', 'permission_code' => 'EBEN-PER38', 'created_at' => $now, 'updated_at' => $now],  // Exporter
@@ -179,10 +180,10 @@ return new class extends Migration
             ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER27', 'created_at' => $now, 'updated_at' => $now],  // Voir épargne
             ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER28', 'created_at' => $now, 'updated_at' => $now],  // Gérer épargne
             ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER29', 'created_at' => $now, 'updated_at' => $now],  // Comptes épargne
-            ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER30', 'created_at' => $now, 'updated_at' => $now],  // Voir crédits
-            ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER31', 'created_at' => $now, 'updated_at' => $now],  // Soumettre crédit
-            ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER32', 'created_at' => $now, 'updated_at' => $now],  // Instruire crédit
-            ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER34', 'created_at' => $now, 'updated_at' => $now],  // Remboursements
+            // [SUPPRIMÉ] ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER30', ...], // Voir crédits
+            // [SUPPRIMÉ] ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER31', ...], // Soumettre crédit
+            // [SUPPRIMÉ] ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER32', ...], // Instruire crédit
+            // [SUPPRIMÉ] ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER34', ...], // Remboursements
             ['role_code' => 'EBEN-ROL6', 'permission_code' => 'EBEN-PER35', 'created_at' => $now, 'updated_at' => $now],  // Clôturer crédit
         ]);
 

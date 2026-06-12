@@ -13,6 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
         // Notifications proactives : retards crédit, demandes stales, clôtures en attente
         $schedule->command('notifications:proactive')->hourly()->withoutOverlapping();
+
+        // Marquage automatique des retards crédit (chaque jour à 07h00)
+        $schedule->command('credit:marquer-retards')
+                 ->dailyAt('07:00')
+                 ->withoutOverlapping()
+                 ->appendOutputTo(storage_path('logs/credit-retards.log'));
     })
     ->withMiddleware(function (Middleware $middleware): void {
         // Alias RBAC dynamique : ->middleware('permission:CODE_PERMISSION')

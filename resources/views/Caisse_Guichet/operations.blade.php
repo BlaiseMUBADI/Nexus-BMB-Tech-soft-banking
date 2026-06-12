@@ -96,6 +96,7 @@
                         </select>
                     </div>
 
+                    {{-- ── Bloc remboursement crédit (visible seulement si REMBOURSEMENT) ── --}}
                     {{-- ── Bloc compte (visible seulement si DEPOT / RETRAIT) ── --}}
                     <div id="blocCompte" class="d-none mb-2">
                         <div class="alert alert-primary py-1 mb-2 small">
@@ -190,15 +191,9 @@
                                {{ !$guichetOuvert ? 'disabled' : '' }}>
                     </div>
 
-                    <div class="custom-control custom-checkbox mb-3">
-                        <input type="checkbox" class="custom-control-input" id="chkImprimerBordereau"
-                               {{ !$guichetOuvert ? 'disabled' : '' }}>
-                        <label class="custom-control-label" for="chkImprimerBordereau">
-                            Imprimer le bordereau après l'enregistrement
-                        </label>
-                        <small class="form-text text-muted">
-                            Laissez décoché pour enregistrer plus vite sans ouvrir automatiquement le PDF.
-                        </small>
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        <strong>Confirmation :</strong> Une fenêtre de confirmation apparaîtra avant l'enregistrement pour choisir d'imprimer le bordereau.
                     </div>
 
                     <div id="blocCommissionPreview" class="card mb-3 d-none operation-preview-card">
@@ -255,6 +250,12 @@
                         <small class="text-muted" title="Les opérations avec demande en attente sont affichées en premier">
                             <i class="fas fa-sort-amount-down-alt mr-1"></i>Tri : demandes en attente d'abord
                         </small>
+                        <div class="input-group input-group-sm" style="width: 250px; margin-left: auto;">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            </div>
+                            <input type="text" class="form-control" id="searchOpsInput" placeholder="Réf., client, compte...">
+                        </div>
                         <button class="btn btn-xs btn-outline-secondary" id="btnRefreshOps" title="Actualiser">
                             <i class="fas fa-sync-alt"></i>
                         </button>
@@ -269,7 +270,6 @@
                                     <th>Réf.</th>
                                     <th>Client</th>
                                     <th>Montant</th>
-                                    <th>Heure</th>
                                     <th>Statut</th>
                                     <th>État demande</th>
                                     <th style="width:100px;"></th>
@@ -403,13 +403,15 @@
                 <div class="p-3">
                     <div class="d-flex align-items-center identite-client-layout">
                         {{-- Photo du client --}}
-                        <div class="mr-3 flex-shrink-0 identite-client-media">
-                            <img id="photoIdentiteClient"
-                                 src="{{ asset('images_projet/default_user.png') }}"
-                                 alt="Photo client"
-                                 style="width:110px;height:130px;object-fit:cover;border-radius:10px;
-                                        border:3px solid #3b82f6;background:#e2e8f0;">
-                        </div>
+                         <div class="mr-3 flex-shrink-0 identite-client-media">
+                             @if($guichet && $guichet->type_guichet === 'FIXE')
+                             <img id="photoIdentiteClient"
+                                  src="{{ asset('images_projet/default_user.png') }}"
+                                  alt="Photo client"
+                                  style="width:110px;height:130px;object-fit:cover;border-radius:10px;
+                                         border:3px solid #3b82f6;background:#e2e8f0;">
+                             @endif
+                         </div>
                         {{-- Infos client --}}
                         <div class="flex-grow-1">
                             <div class="mb-1">
@@ -513,6 +515,45 @@
                 <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
                 <button type="button" class="btn btn-sm btn-warning font-weight-bold" id="btnSoumettreDemandeModif">
                     <i class="fas fa-paper-plane mr-1"></i>Soumettre la demande
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════
+     MODAL — Confirmation d'enregistrement d'opération
+     ══════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modalConfirmOperation" tabindex="-1" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content shadow-lg" style="border-radius:14px; overflow:hidden;">
+            <div class="modal-header py-2" style="background:linear-gradient(90deg,#2563eb 0%,#1d4ed8 100%);">
+                <h6 class="modal-title text-white mb-0">
+                    <i class="fas fa-check-circle mr-2"></i>Confirmation de l'opération
+                </h6>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body p-3">
+                <div class="text-center mb-3">
+                    <div class="mb-2">
+                        <span class="badge badge-pill px-3 py-2" id="modalConfirmType" style="font-size:.95rem; background:rgba(37,99,235,.15); border:1px solid rgba(37,99,235,.3);">—</span>
+                    </div>
+                    <div class="font-weight-bold" style="font-size:1.3rem;" id="modalConfirmMontant">—</div>
+                </div>
+                <hr class="my-2">
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="chkImprimerBordereauModal" checked>
+                    <label class="custom-control-label" for="chkImprimerBordereauModal">
+                        <i class="fas fa-file-pdf mr-1 text-danger"></i>Imprimer le bordereau après l'enregistrement
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer py-2 justify-content-between">
+                <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Annuler
+                </button>
+                <button type="button" class="btn btn-sm btn-success font-weight-bold" id="btnConfirmOp">
+                    <i class="fas fa-check mr-1"></i>Confirmer
                 </button>
             </div>
         </div>
@@ -879,7 +920,7 @@ $(document).ready(function () {
         resetPreview();
     }
 
-    // ── Type opération → affichage dynamique ─────────────────────
+    // ─ Type opération → affichage dynamique ─────────────────────
     $('#selTypeOp').on('change', function () {
         var type = $(this).val();
         var avecCompte = (type === 'DEPOT' || type === 'RETRAIT');
@@ -915,11 +956,13 @@ $(document).ready(function () {
         var type    = $('#selTypeOp').val();
         var devise  = $('#selDevise').val();
         var montant = $('#inpMontant').val();
-        var imprimerBordereau = $('#chkImprimerBordereau').is(':checked');
 
         if (!type)    { showSystemMessage('error', 'Sélectionnez un type d\'opération.'); return; }
         if ((type === 'DEPOT' || type === 'RETRAIT') && !$('#selectedCompteCode').val()) {
             showSystemMessage('error', 'Recherchez et sélectionnez le compte client.'); return;
+        }
+        if (type === 'REMBOURSEMENT' && !$('#selectedDossierCreditId').val()) {
+            showSystemMessage('error', 'Sélectionnez un dossier crédit.'); return;
         }
         if (!devise)  { showSystemMessage('error', 'Sélectionnez une devise.'); return; }
         if (!montant || parseFloat(montant) <= 0) { showSystemMessage('error', 'Entrez un montant valide.'); return; }
@@ -931,9 +974,6 @@ $(document).ready(function () {
             if (!montDest || parseFloat(montDest) <= 0) { showSystemMessage('error', 'Entrez le montant destination.'); return; }
             if (deviseDest === devise) { showSystemMessage('error', 'Les deux devises doivent être différentes.'); return; }
         }
-
-        var $btn = $(this);
-        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Enregistrement…');
 
         var payload = {
             type_operation: type,
@@ -952,6 +992,27 @@ $(document).ready(function () {
             payload.montant_dest = $('#inpMontantDest').val();
             payload.taux_change  = $('#inpTaux').val() || null;
         }
+
+        // Afficher le modal de confirmation avec option bordereau
+        $('#modalConfirmOperation').modal('show');
+        $('#modalConfirmType').text(type);
+        $('#modalConfirmMontant').text(parseFloat(montant).toLocaleString('fr-FR', {minimumFractionDigits:2}) + ' ' + devise);
+        $('#modalConfirmDevise').text(devise);
+
+        // Stocker le payload pour utilisation après confirmation
+        window._pendingPayload = payload;
+    });
+
+    // ─ Confirmation de l'opération via modal ─────────────────────
+    $('#btnConfirmOp').on('click', function () {
+        var imprimerBordereau = $('#chkImprimerBordereauModal').is(':checked');
+        var $btn = $('#btnEnregistrerOp');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Enregistrement…');
+
+        var payload = window._pendingPayload || {};
+        payload.imprimer_bordereau = imprimerBordereau;
+
+        $('#modalConfirmOperation').modal('hide');
 
         $.ajax({
             url: urlStore, method: 'POST', data: payload, dataType: 'json'
@@ -972,13 +1033,20 @@ $(document).ready(function () {
             if (imprimerBordereau && r.bordereau_url) {
                 setTimeout(function () { window.open(r.bordereau_url, '_blank'); }, 400);
             }
-            setTimeout(function () { location.reload(); }, 1000);
+            
+            // Actualisation automatique et fluide sans rechargement complet de la page
+            if (r.soldes) {
+                majSoldes(r.soldes);
+            }
+            chargerOpsJour();
+            resetForm();
+            
+            $('#btnEnregistrerOp').prop('disabled', false).html('<i class="fas fa-check-circle mr-1"></i> Enregistrer');
+            $('#modalConfirmOperation').modal('hide');
         })
         .fail(function (xhr) {
             handleAjaxFail(xhr, 'Enregistrement opération caisse');
-        })
-        .always(function () {
-            $btn.prop('disabled', false).html('<i class="fas fa-check-circle mr-1"></i> Enregistrer');
+            $('#btnEnregistrerOp').prop('disabled', false).html('<i class="fas fa-check-circle mr-1"></i> Enregistrer');
         });
     });
 
@@ -986,7 +1054,7 @@ $(document).ready(function () {
         $('#selTypeOp').val('');
         $('#selDevise, #selDeviseDest').val('').prop('disabled', false);
         $('#inpMontant, #inpMontantDest, #inpTaux, #inpObservations').val('');
-        $('#chkImprimerBordereau').prop('checked', false);
+        $('#chkImprimerBordereauModal').prop('checked', true);
         $('#blocChange').addClass('d-none');
         $('#blocCompte').addClass('d-none');
         clearCompteSelection();
@@ -1059,7 +1127,7 @@ $(document).ready(function () {
                 var annulerBtn = '';
                 if (op.statut === 'CONFIRME' && !demandeBloquee) {
                     annulerBtn = canDeleteOperation
-                        ? '<button class="btn btn-xs btn-outline-danger btn-annuler" data-id="' + op.id + '" title="Annuler"><i class="fas fa-times"></i></button>' + demandeBtnActif
+                        ? '<button class="btn btn-xs btn-outline-danger btn-annuler" data-id="' + op.id + '" data-ref="' + op.reference + '" data-montant="' + op.montant + '" data-type="' + op.type + '" data-devise="' + (op.devise_code || '') + '" title="Annuler"><i class="fas fa-times"></i></button>' + demandeBtnActif
                         : demandeBtnActif;
                 } else if (op.statut === 'CONFIRME' && demandeBloquee) {
                     annulerBtn = demandeBtnBloque;
@@ -1268,38 +1336,35 @@ $(document).ready(function () {
         });
     });
 
-    // ── Annuler une opération ─────────────────────────────────────
+    // ── Annuler une opération (via demande de suppression) ─────────────────────────────
     $(document).on('click', '.btn-annuler', function () {
-        var id = $(this).data('id');
-        showUniversalConfirm('Annuler cette opération ? Le solde du guichet sera recalculé.', function () {
-            $.post(urlAnnuler.replace('__ID__', id))
-            .done(function (r) {
-                showSystemMessage('success', r.message || 'Opération annulée.');
-                setTimeout(function () { location.reload(); }, 1000);
-            })
-            .fail(function (xhr) {
-                // ═════════════════════════════════════════════════════════
-                // Erreur 403 → afficher directement la page 403 ergonomique
-                // (pas de popup d'avertissement)
-                // ═════════════════════════════════════════════════════════
-                if (xhr.status === 403) {
-                    if (xhr.responseText && xhr.responseText.indexOf('<!DOCTYPE') !== -1) {
-                        document.open();
-                        document.write(xhr.responseText);
-                        document.close();
-                    }
-                    return;
-                }
+        var $btn = $(this);
+        _demandeOpId = $btn.data('id');
 
-                // Autres erreurs
-                handleAjaxFail(xhr, 'Annulation opération caisse');
-            });
-        }, {
-            title: 'Annuler l\'opération',
-            btnLabel: 'Oui, annuler',
-            btnClass: 'btn-danger',
-            icon: 'fas fa-undo',
-            headerClass: 'bg-danger text-white',
+        $('#demandeRef').text($btn.data('ref') || '—');
+        $('#demandeType').text($btn.data('type') || '—');
+        var montant = $btn.data('montant');
+        var devise  = $btn.data('devise') || '';
+        $('#demandeAncienMontant').text(parseFloat(montant).toLocaleString('fr-FR', {minimumFractionDigits: 2}) + ' ' + devise);
+        $('#demandeDevise').text(devise);
+        $('#inpNouveauMontant').val('');
+        $('#inpNouvObservations').val('');
+        $('#inpMotifDemande').val('');
+        $('#selTypeDemande').val('SUPPRESSION').trigger('change');
+        $('#modalDemandeModif').modal('show');
+        chargerEtatDemande(_demandeOpId);
+    });
+
+    // ── Recherche progressive dans le tableau des opérations ─────────────────────────────
+    $('#searchOpsInput').on('input', function() {
+        var searchTerm = $(this).val().toLowerCase();
+        $('#tbodyOps tr').each(function() {
+            var rowText = $(this).text().toLowerCase();
+            if (rowText.indexOf(searchTerm) > -1) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
         });
     });
 
