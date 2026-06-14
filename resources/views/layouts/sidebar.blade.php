@@ -422,6 +422,21 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</li>
 				@endif
 
+				{{-- Module Recouvrement (réservé à l'Admin et au Gérant) --}}
+				@if(in_array('EBEN-PER90', $userPermCodes ?? []))
+					<li class="nav-item {{ request()->is('recouvrement*') ? 'menu-open' : '' }}">
+						<a href="{{ route('recouvrement.index') }}" class="nav-link parent-link {{ request()->is('recouvrement*') ? 'active' : '' }}">
+							<i class="nav-icon fas fa-sync-alt text-warning"></i>
+							<p>
+								Recouvrement Auto
+								@if(isset($alerteRecouvrementCount) && $alerteRecouvrementCount > 0)
+									<span class="badge badge-danger right">{{ $alerteRecouvrementCount }}</span>
+								@endif
+							</p>
+						</a>
+					</li>
+				@endif
+
 				@php $hasAdminAccess = count(array_intersect(['EBEN-PER1', 'EBEN-PER2', 'EBEN-PER3', 'EBEN-PER4', 'EBEN-PER5', 'EBEN-PER20', 'EBEN-PER21'], $userPermCodes ?? [])) > 0; @endphp
 				@if($hasAdminAccess)
 					<li class="nav-item {{ request()->routeIs('administration.*') ? 'menu-open' : '' }}">

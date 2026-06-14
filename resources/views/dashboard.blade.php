@@ -63,6 +63,58 @@
     </div>
 
     {{-- ================================================================
+         ALERTE : RECOUVREMENT AUTOMATIQUE RMB
+         (Visible uniquement pour les administrateurs et gérants avec la permission)
+    ================================================================ --}}
+    @if(isset($alerteRecouvrementCount) && $alerteRecouvrementCount > 0 && $authUser->hasPermission('EBEN-PER90'))
+    <style>
+        @keyframes recouvrement-pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7), 0 0 0 0 rgba(255, 193, 7, 0.4); border-color: #ffc107; }
+            50%  { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0), 0 0 0 20px rgba(255, 193, 7, 0); border-color: #e74c3c; }
+            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0), 0 0 0 0 rgba(255, 193, 7, 0); border-color: #ffc107; }
+        }
+        @keyframes icon-shake {
+            0%, 100% { transform: rotate(0deg); }
+            10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
+            20%, 40%, 60%, 80% { transform: rotate(10deg); }
+        }
+        .alerte-recouvrement {
+            animation: recouvrement-pulse 1.5s infinite;
+            border-width: 2px !important;
+        }
+        .alerte-recouvrement .icon-alerte {
+            animation: icon-shake 2s infinite;
+            display: inline-block;
+        }
+    </style>
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-9 col-md-11">
+            <div class="card card-outline card-warning elevation-4 alerte-recouvrement">
+                <div class="card-body py-3 px-4">
+                    <div class="d-flex align-items-center">
+                        <span class="icon-alerte mr-3">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                        </span>
+                        <div class="flex-grow-1">
+                            <h5 class="font-weight-bold mb-1 text-dark">
+                                ⚠️ Recouvrement Automatique en attente !
+                            </h5>
+                            <p class="mb-0 text-muted" style="font-size:.9rem;">
+                                <strong class="text-danger">{{ $alerteRecouvrementCount }}</strong> dossier(s) ont des échéances <strong>en retard ou dues aujourd'hui</strong> avec un solde RMB suffisant pour un prélèvement automatique.
+                                Cliquez sur le bouton pour lancer le recouvrement.
+                            </p>
+                        </div>
+                        <a href="{{ route('recouvrement.index') }}" class="ml-3 btn btn-warning btn-lg font-weight-bold shadow">
+                            <i class="fas fa-bolt mr-1"></i> Lancer le recouvrement
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- ================================================================
          MODULES ACCESSIBLES (acces rapide selon permissions)
     ================================================================ --}}
     @php

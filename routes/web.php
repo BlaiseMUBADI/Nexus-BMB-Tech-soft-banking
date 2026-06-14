@@ -33,7 +33,14 @@ require_once __DIR__.'/comptes_clients.php';
 // Module Crédit
 require_once __DIR__.'/credit.php';
 
+// Module Caisse
 require_once __DIR__.'/caisse.php';
+
+// Module Recouvrement (Auto-Collection)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/recouvrement', [App\Http\Controllers\RecouvrementController::class, 'index'])->name('recouvrement.index');
+    Route::post('/recouvrement/run', [App\Http\Controllers\RecouvrementController::class, 'runAutoCollection'])->name('recouvrement.run');
+});
 
 
 // Log erreurs AJAX côté client → storage/logs/laravel.log
@@ -53,7 +60,16 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    // Compteur pour l'alerte de recouvrement automatique sur le tableau de bord
+    $alerteRecouvrementCount = \App\Models\Credit\CreditDemande::where('prelevement_auto_autorise', 1)
+        ->whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
+        ->whereHas('echeancier.echeances', function ($query) {
+            $query->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
+                  ->whereDate('date_echeance', '<=', now()->addDays(1)); // Retard ou demain
+        })
+        ->count();
+
+    return view('dashboard', compact('alerteRecouvrementCount'));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
