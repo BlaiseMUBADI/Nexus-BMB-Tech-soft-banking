@@ -17,6 +17,7 @@ class CreditEcheancier extends Model
         'type_amortissement',
         'total_capital',
         'total_interets',
+        'total_commission',
         'total_general',
     ];
 
@@ -25,6 +26,7 @@ class CreditEcheancier extends Model
         'taux_mensuel'                => 'decimal:4',
         'total_capital'               => 'decimal:2',
         'total_interets'              => 'decimal:2',
+        'total_commission'            => 'decimal:2',
         'total_general'               => 'decimal:2',
         'date_premier_remboursement'  => 'date',
     ];

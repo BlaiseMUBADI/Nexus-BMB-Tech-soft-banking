@@ -320,7 +320,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</li>
 				@endif
 
-				@php $hasCreditAccess = in_array('EBEN-PER53', $userPermCodes ?? []) || in_array('EBEN-PER70', $userPermCodes ?? []); @endphp
+				@php $hasCreditAccess = in_array('EBEN-PER53', $userPermCodes ?? []) || in_array('EBEN-PER70', $userPermCodes ?? []) || in_array('EBEN-PER90', $userPermCodes ?? []); @endphp
 				@if($hasCreditAccess)
 					@php
 						$creditStatutMenu = request('statut');
@@ -328,8 +328,8 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 						$isCreditListBase = request()->routeIs('credit.index') && empty($creditStatutMenu);
 						$canCreditSupervision = count(array_intersect(['EBEN-PER61', 'EBEN-PER62', 'EBEN-PER63', 'EBEN-PER64'], $userPermCodes ?? [])) > 0;
 					@endphp
-					<li class="nav-item {{ request()->is('credits*') ? 'menu-open' : '' }}">
-						<a href="#" class="nav-link parent-link {{ request()->is('credits*') ? 'active' : '' }}">
+					<li class="nav-item {{ (request()->is('credits*') || request()->is('recouvrement*')) ? 'menu-open' : '' }}">
+						<a href="#" class="nav-link parent-link {{ (request()->is('credits*') || request()->is('recouvrement*')) ? 'active' : '' }}">
 							<i class="nav-icon fas fa-hand-holding-usd" style="color:#e67e22;"></i>
 							<p>
 								Crédits
@@ -358,15 +358,23 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									</li>
 								@endif
 
-							<li class="nav-item">
-								<a href="{{ route('credit.index') }}"
-									class="nav-link sub-link {{ $isCreditListBase ? 'active' : '' }}">
-									<i class="fas fa-list nav-icon"></i>
-									<p>Liste des dossiers</p>
-								</a>
-							</li>
+						<li class="nav-item">
+							<a href="{{ route('credit.index') }}"
+								class="nav-link sub-link {{ $isCreditListBase ? 'active' : '' }}">
+								<i class="fas fa-list nav-icon"></i>
+								<p>Liste des dossiers</p>
+							</a>
+						</li>
 
-							@if(in_array('EBEN-PER54', $userPermCodes ?? []))
+						<li class="nav-item">
+							<a href="{{ route('credit.echeances') }}"
+								class="nav-link sub-link {{ request()->routeIs('credit.echeances') ? 'active' : '' }}">
+								<i class="fas fa-calendar-alt nav-icon text-danger"></i>
+								<p>Tombée d'échéances</p>
+							</a>
+						</li>
+
+						@if(in_array('EBEN-PER54', $userPermCodes ?? []))
 								<li class="nav-item">
 									<a href="{{ route('credit.create') }}"
 										class="nav-link sub-link {{ request()->routeIs('credit.create') ? 'active' : '' }}">
@@ -418,22 +426,23 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								</li>
 							@endif
 
-						</ul>
-					</li>
-				@endif
+							{{-- Recouvrement Auto (sous-menu de Crédits, réservé Admin/Gérant) --}}
+							@if(in_array('EBEN-PER90', $userPermCodes ?? []))
+								<li class="nav-item">
+									<a href="{{ route('recouvrement.index') }}"
+										class="nav-link sub-link {{ request()->is('recouvrement*') ? 'active' : '' }}">
+										<i class="fas fa-sync-alt nav-icon text-warning"></i>
+										<p>
+											Recouvrement Auto
+											@if(isset($alerteRecouvrementCount) && $alerteRecouvrementCount > 0)
+												<span class="badge badge-danger right">{{ $alerteRecouvrementCount }}</span>
+											@endif
+										</p>
+									</a>
+								</li>
+							@endif
 
-				{{-- Module Recouvrement (réservé à l'Admin et au Gérant) --}}
-				@if(in_array('EBEN-PER90', $userPermCodes ?? []))
-					<li class="nav-item {{ request()->is('recouvrement*') ? 'menu-open' : '' }}">
-						<a href="{{ route('recouvrement.index') }}" class="nav-link parent-link {{ request()->is('recouvrement*') ? 'active' : '' }}">
-							<i class="nav-icon fas fa-sync-alt text-warning"></i>
-							<p>
-								Recouvrement Auto
-								@if(isset($alerteRecouvrementCount) && $alerteRecouvrementCount > 0)
-									<span class="badge badge-danger right">{{ $alerteRecouvrementCount }}</span>
-								@endif
-							</p>
-						</a>
+						</ul>
 					</li>
 				@endif
 

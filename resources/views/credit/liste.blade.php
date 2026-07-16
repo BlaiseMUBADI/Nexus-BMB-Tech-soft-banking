@@ -18,44 +18,60 @@
 <div class="container-fluid">
 
     {{-- ── Totaux selon les filtres actifs ───────────────────── --}}
-    <div class="row mb-4">
+    <div class="row mb-3">
         <div class="col-12">
-            <div class="alert alert-info">
+            <div class="alert alert-info py-2 mb-0">
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
-                    <div>
+                    <div class="d-flex align-items-center mr-3">
                         <strong>Résultats filtrés :</strong> {{ $totauxFiltres['count'] }} dossier(s)
                     </div>
-                    <div class="d-flex gap-3">
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
                         @php
-                            $symboleDevise = match(request('devise')) {
-                                'USD' => '$',
-                                'EUR' => '€',
-                                default => 'Fc'
-                            };
+                            $parDevise = $totauxFiltres['par_devise'] ?? [];
                         @endphp
-                        <div>
-                            <small class="text-muted">Montant demandé :</small><br>
-                            <strong>{{ number_format($totauxFiltres['montant_demande'], 0, ',', ' ') }}{{ $symboleDevise }}</strong>
-                        </div>
-                        <div>
-                            <small class="text-muted">Montant approuvé :</small><br>
-                            <strong>{{ number_format($totauxFiltres['montant_approuve'], 0, ',', ' ') }}{{ $symboleDevise }}</strong>
-                        </div>
-                        <div>
-                            <small class="text-muted">Décaissé :</small><br>
-                            <strong>{{ number_format($totauxFiltres['montant_net_verse'], 0, ',', ' ') }}{{ $symboleDevise }}</strong>
-                        </div>
-                        <div>
-                            <small class="text-muted">Remboursé :</small><br>
-                            <strong>{{ number_format($totauxFiltres['montant_rembourse'], 0, ',', ' ') }}{{ $symboleDevise }}</strong>
-                        </div>
-                        <div>
-                            <small class="text-muted">En retard :</small><br>
-                            <strong>{{ $totauxFiltres['en_retard'] }} dossier(s)</strong>
-                            @if($totauxFiltres['montant_en_retard'] > 0)
-                                <br><small class="text-danger">({{ number_format($totauxFiltres['montant_en_retard'], 0, ',', ' ') }}{{ $symboleDevise }})</small>
-                            @endif
-                        </div>
+                        @foreach($parDevise as $devise => $totaux)
+                            @php
+                                $symbole = match($devise) {
+                                    'USD' => '$',
+                                    'EUR' => '€',
+                                    default => 'Fc'
+                                };
+                                $tooltipContent = "Devise: {$devise}\n" .
+                                    "Demandé: " . number_format($totaux['montant_demande'], 0, ',', ' ') . "{$symbole}\n" .
+                                    "Approuvé: " . number_format($totaux['montant_approuve'], 0, ',', ' ') . "{$symbole}\n" .
+                                    "Décaissé: " . number_format($totaux['montant_net_verse'], 0, ',', ' ') . "{$symbole}\n" .
+                                    "En retard: {$totaux['en_retard']} dossier(s)";
+                                if ($totaux['montant_en_retard'] > 0) {
+                                    $tooltipContent .= "\nMontant en retard: " . number_format($totaux['montant_en_retard'], 0, ',', ' ') . "{$symbole}";
+                                }
+                            @endphp
+                            <div class="d-flex align-items-center px-2" style="border-right: 1px solid rgba(255,255,255,0.3);" 
+                                 data-toggle="tooltip" 
+                                 title="{{ $tooltipContent }}"
+                                 data-html="true"
+                                 style="cursor: pointer;">
+                                <span class="badge badge-light px-2 mr-2">{{ $devise }}</span>
+                                <i class="fas fa-file-invoice-dollar text-white mr-2" title="Montant demandé"></i>
+                                <strong class="text-white mr-2">{{ number_format($totaux['montant_demande'], 0, ',', ' ') }}{{ $symbole }}</strong>
+                                <i class="fas fa-check-circle text-success mr-2" title="Montant approuvé"></i>
+                                <strong class="text-success mr-2">{{ number_format($totaux['montant_approuve'], 0, ',', ' ') }}{{ $symbole }}</strong>
+                                <i class="fas fa-hand-holding-usd text-info mr-2" title="Décaissé"></i>
+                                <strong class="text-info mr-2">{{ number_format($totaux['montant_net_verse'], 0, ',', ' ') }}{{ $symbole }}</strong>
+                                @if($totaux['en_retard'] > 0)
+                                    <i class="fas fa-exclamation-triangle text-warning" title="En retard"></i>
+                                    <strong class="text-warning ml-1">{{ $totaux['en_retard'] }}</strong>
+                                @endif
+                            </div>
+                        @endforeach
+                        @if($totauxFiltres['montant_rembourse'] > 0)
+                            <div class="d-flex align-items-center px-2"
+                                 data-toggle="tooltip"
+                                 title="Remboursé: {{ number_format($totauxFiltres['montant_rembourse'], 0, ',', ' ') }}"
+                                 style="cursor: pointer;">
+                                <i class="fas fa-undo text-light mr-2"></i>
+                                <strong class="text-light">{{ number_format($totauxFiltres['montant_rembourse'], 0, ',', ' ') }}</strong>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -146,8 +162,14 @@
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="card" id="printZone">
+        <div class="print-only text-center mb-3">
+            <h3 class="font-weight-bold">Coopec EBEN - Liste des Dossiers Crédit</h3>
+            <p class="text-muted mb-1">Généré le {{ now()->format('d/m/Y à H:i') }}</p>
+            <p class="mb-0"><strong>{{ $totauxFiltres['count'] }} dossier(s)</strong></p>
+            <hr>
+        </div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2 no-print">
             <h5 class="card-title mb-0">
                 <i class="fas fa-folder-open mr-2 text-warning"></i>
                 Dossiers Crédit
@@ -240,8 +262,8 @@
                         </select>
                     </div>
                     <div class="col-md-2 col-sm-6 mb-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary btn-sm btn-block">
-                            <i class="fas fa-filter mr-1"></i>Filtrer
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-block" data-toggle="modal" data-target="#modalImpressionCredit" title="Imprimer la liste">
+                            <i class="fas fa-print mr-1"></i> Imprimer
                         </button>
                     </div>
                 </div>
@@ -297,42 +319,6 @@
                         <input type="hidden" name="alerte" value="{{ $activeAlerte }}">
                     @endif
                 </div>
-
-                <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-1">
-                    <div>
-                        <button type="submit" class="btn btn-primary btn-sm mr-1">
-                            <i class="fas fa-search mr-1"></i>Filtrer
-                        </button>
-                        <a href="{{ route('credit.index') }}" class="btn btn-outline-secondary btn-sm mr-1">
-                            <i class="fas fa-times mr-1"></i>Réinitialiser
-                        </a>
-                    <button type="button" class="btn btn-outline-info btn-sm" id="btn-avances">
-                        <i class="fas fa-times mr-1"></i>Masquer filtres avancés
-                    </button>
-                    </div>
-                    {{-- Filtres rapides --}}
-                    <div class="btn-group btn-group-sm" role="group">
-                        <a href="{{ route('credit.index') }}" class="btn {{ !$activeAlerte && !$activeStatut ? 'btn-dark' : 'btn-outline-dark' }}">Tout</a>
-                        <a href="{{ route('credit.index', ['alerte' => 'retard']) }}" class="btn {{ $activeAlerte === 'retard' ? 'btn-danger' : 'btn-outline-danger' }}">
-                            <i class="fas fa-exclamation-triangle mr-1"></i>Retards
-                            @if($compteurs['en_retard'] > 0)
-                                <span class="badge badge-light ml-1">{{ $compteurs['en_retard'] }}</span>
-                            @endif
-                        </a>
-                        <a href="{{ route('credit.index', ['alerte' => 'alertes']) }}" class="btn {{ $activeAlerte === 'alertes' ? 'btn-warning' : 'btn-outline-warning' }}">
-                            <i class="fas fa-shield-alt mr-1"></i>Alertes
-                            @if($compteurs['alertes'] > 0)
-                                <span class="badge badge-light ml-1">{{ $compteurs['alertes'] }}</span>
-                            @endif
-                        </a>
-                        <a href="{{ route('credit.index', ['statut' => 'PRET_A_DEBLOQUER']) }}" class="btn {{ $activeStatut === 'PRET_A_DEBLOQUER' ? 'btn-success' : 'btn-outline-success' }}">
-                            <i class="fas fa-unlock-alt mr-1"></i>À débloquer
-                        </a>
-                        <a href="{{ route('credit.index', ['statut' => 'SOLDE']) }}" class="btn {{ $activeStatut === 'SOLDE' ? 'btn-dark' : 'btn-outline-dark' }}">
-                            <i class="fas fa-check-double mr-1"></i>Soldés
-                        </a>
-                    </div>
-                </div>
             </form>
         </div>
 
@@ -344,6 +330,42 @@
 
 </div>
 </section>
+
+{{-- ===== Modal Impression Liste ===== --}}
+<div class="modal fade" id="modalImpressionCredit" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white py-2">
+                <h5 class="modal-title"><i class="fas fa-print mr-2"></i>Paramètres d'impression</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="formImpressionCredit" action="{{ route('credit.print.liste') }}" method="GET" target="_blank">
+                <input type="hidden" name="output" id="printOutputMode" value="stream">
+                <input type="hidden" name="export_format" id="printExportFormat" value="pdf">
+                <div id="printFiltersContainer"></div>
+                <div class="modal-body text-center py-4">
+                    <p class="mb-2">Les filtres actuels de la liste seront appliqués.</p>
+                    <p class="text-muted small mb-0">Choisissez le format de sortie :</p>
+                </div>
+                <div class="modal-footer py-2 justify-content-center">
+                    <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-sm btn-primary js-print-action" data-output="stream" data-format="pdf">
+                        <i class="fas fa-file-pdf mr-1"></i> Ouvrir PDF
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-outline-primary js-print-action" data-output="download" data-format="pdf">
+                        <i class="fas fa-download mr-1"></i> Télécharger PDF
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-success js-print-action" data-output="download" data-format="csv">
+                        <i class="fas fa-file-csv mr-1"></i> Télécharger CSV
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('js')
@@ -477,20 +499,51 @@
         initFilters();
     }
 
-    // ── Toggle filtres avancés ──
-    document.addEventListener('DOMContentLoaded', function() {
-        const btn = document.getElementById('btn-avances');
-        const zone = document.getElementById('filtres-avances');
-        if (btn && zone) {
-            btn.addEventListener('click', function() {
-                const visible = zone.style.display !== 'none';
-                zone.style.display = visible ? 'none' : '';
-                btn.innerHTML = visible
-                    ? '<i class="fas fa-sliders-h mr-1"></i>Filtres avancés'
-                    : '<i class="fas fa-times mr-1"></i>Masquer filtres avancés';
-            });
-        }
+    /* ─── Sortie impression / téléchargement ─── */
+    // Reconstruit les champs cachés du formulaire d'impression à partir
+    // des valeurs ACTUELLES du formulaire de filtres (même non soumises,
+    // car cette page utilise la recherche AJAX sans rechargement complet).
+    function syncPrintFilters() {
+        const container = document.getElementById('printFiltersContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        const filterForm = document.getElementById('form-filtres');
+        if (!filterForm) return;
+        filterForm.querySelectorAll('input[name], select[name]').forEach(function (field) {
+            if (!field.name || field.value === '' || field.value === null) return;
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = field.name;
+            hidden.value = field.value;
+            container.appendChild(hidden);
+        });
+    }
+
+    $('#modalImpressionCredit').on('show.bs.modal', syncPrintFilters);
+
+    $(document).on('click', '.js-print-action', function () {
+        syncPrintFilters();
+        $('#printOutputMode').val($(this).data('output') || 'stream');
+        $('#printExportFormat').val($(this).data('format') || 'pdf');
     });
 })();
 </script>
+@endpush
+
+@push('css')
+<style>
+@media print {
+    body * { visibility: hidden; }
+    #printZone, #printZone * { visibility: visible; }
+    #printZone { position: absolute; left: 0; top: 0; width: 100%; }
+    .no-print, .no-print * { display: none !important; }
+    .print-only { display: block !important; }
+    .alert-info { background: #f8f9fa !important; color: #000 !important; border: 1px solid #dee2e6 !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    .table { font-size: 0.75rem; }
+    .table th, .table td { padding: 3px 5px !important; }
+    @page { margin: 1cm; size: A4 landscape; }
+}
+.print-only { display: none; }
+</style>
 @endpush

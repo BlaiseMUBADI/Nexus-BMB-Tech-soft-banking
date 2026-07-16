@@ -46,24 +46,26 @@
     <table class="info-table" style="font-size: 8.8px;">
         <thead>
             <tr style="background:#eef7f2;">
-                <td class="label" style="width:6%; text-align:center;">#</td>
-                <td class="label" style="width:13%; text-align:center;">Date echeance</td>
-                <td class="label" style="width:16%; text-align:center;">Capital restant debut</td>
-                <td class="label" style="width:14%; text-align:center;">Capital</td>
-                <td class="label" style="width:14%; text-align:center;">Interet</td>
-                <td class="label" style="width:14%; text-align:center;">Total echeance</td>
-                <td class="label" style="width:16%; text-align:center;">Capital restant fin</td>
-                <td class="label" style="width:7%; text-align:center;">Statut</td>
+                <td class="label" style="width:5%; text-align:center;">#</td>
+                <td class="label" style="width:11%; text-align:center;">Date echeance</td>
+                <td class="label" style="width:14%; text-align:center;">Capital restant debut</td>
+                <td class="label" style="width:12%; text-align:center;">Capital</td>
+                <td class="label" style="width:12%; text-align:center;">Interet</td>
+                <td class="label" style="width:12%; text-align:center;">Commission</td>
+                <td class="label" style="width:12%; text-align:center;">Total echeance</td>
+                <td class="label" style="width:14%; text-align:center;">Capital restant fin</td>
+                <td class="label" style="width:8%; text-align:center;">Statut</td>
             </tr>
         </thead>
         <tbody>
             @php
-                $sCap = 0; $sInt = 0; $sTot = 0;
+                $sCap = 0; $sInt = 0; $sCom = 0; $sTot = 0;
             @endphp
             @foreach($echeancier->echeances as $e)
                 @php
                     $sCap += $e->montant_capital;
                     $sInt += $e->montant_interet;
+                    $sCom += ($e->montant_commission ?? 0);
                     $sTot += $e->montant_total;
                 @endphp
                 <tr>
@@ -72,6 +74,7 @@
                     <td class="text-right">{{ number_format($e->capital_restant_debut, 2, ',', ' ') }}</td>
                     <td class="text-right">{{ number_format($e->montant_capital, 2, ',', ' ') }}</td>
                     <td class="text-right">{{ number_format($e->montant_interet, 2, ',', ' ') }}</td>
+                    <td class="text-right">{{ number_format($e->montant_commission ?? 0, 2, ',', ' ') }}</td>
                     <td class="text-right"><strong>{{ number_format($e->montant_total, 2, ',', ' ') }}</strong></td>
                     <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }}</td>
                     <td style="text-align:center; font-size:8px;">{{ str_replace('_',' ', $e->statut) }}</td>
@@ -83,6 +86,7 @@
                 <td colspan="3" style="text-align:right;">Totaux :</td>
                 <td class="text-right">{{ number_format($sCap, 2, ',', ' ') }}</td>
                 <td class="text-right">{{ number_format($sInt, 2, ',', ' ') }}</td>
+                <td class="text-right">{{ number_format($sCom, 2, ',', ' ') }}</td>
                 <td class="text-right">{{ number_format($sTot, 2, ',', ' ') }}</td>
                 <td class="text-right">{{ number_format($echeancier->echeances->last()->capital_restant_fin ?? 0, 2, ',', ' ') }}</td>
                 <td></td>

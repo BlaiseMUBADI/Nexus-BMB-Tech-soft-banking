@@ -103,6 +103,44 @@
         overflow-x: hidden;
     }
 
+    /* Empêcher tout content-wrapper ::before/::after décoratif qui pourrait déborder */
+    .content-wrapper::before,
+    .content-wrapper::after {
+        display: none !important;
+    }
+
+    /* S'assurer que .content ne déborde pas */
+    .content {
+        min-height: auto;
+        overflow: visible;
+    }
+
+    /* Empêcher un logo ou icône agrandie de déborder la page */
+    .content .container-fluid {
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    /* Empêcher les icônes débordant dans les pages de pagination */
+    .content-wrapper .pagination + * {
+        clear: both;
+    }
+
+    /* FIX: chevrons du sidebar positionnés par rapport au body au lieu du lien parent */
+    .main-sidebar .nav-link {
+        position: relative;
+    }
+
+    /* FIX: confine le scrollbar OverlayScrollbars dans la sidebar */
+    .main-sidebar {
+        overflow: hidden;
+    }
+
+    /* FIX: empêche le handle OverlayScrollbars de déborder dans le content */
+    .os-scrollbar {
+        z-index: 1000;
+    }
+
     @media (max-width: 767.98px) {
         .content-header .container-fluid,
         .content .container-fluid {

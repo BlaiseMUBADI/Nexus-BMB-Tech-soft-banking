@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Models\Credit\CreditDemande;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -62,6 +63,19 @@ class AppServiceProvider extends ServiceProvider
             $view->with('unreadNotificationCount', $unreadNotificationCount);
             $view->with('actionNotificationCount', $actionNotificationCount);
             $view->with('unreadNotificationCategoryCounts', $unreadNotificationCategoryCounts);
+
+            // Compteur global : dossiers actif avec au moins une échéance dépassée (EN_ATTENTE ou EN_RETARD avec date < aujourd'hui)
+            $alerteRecouvrementCount = 0;
+            if ($authUser && $authUser->hasPermission('EBEN-PER90')) {
+                $today = \Illuminate\Support\Carbon::now()->toDateString();
+                $alerteRecouvrementCount = CreditDemande::whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
+                    ->whereHas('echeancier.echeances', function ($q) use ($today) {
+                        $q->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
+                          ->where('date_echeance', '<', $today);
+                    })
+                    ->count();
+            }
+            $view->with('alerteRecouvrementCount', $alerteRecouvrementCount);
         });
     }
 }

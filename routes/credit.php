@@ -1,6 +1,7 @@
 ﻿<?php
 
 use App\Http\Controllers\Credit\CreditController;
+use App\Http\Controllers\Credit\CreditCommissionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -44,6 +45,19 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
 
         // ── Liste des dossiers ───────────────────────────────────────
         Route::get('/', [CreditController::class, 'index'])->name('index');
+        Route::get('/print', [CreditController::class, 'printListe'])->name('print.liste');
+
+        // ── Tombée d'échéances (échéances à recouvrir selon critères) ──
+        Route::get('/echeances', [CreditController::class, 'echeances'])->name('echeances');
+        Route::get('/echeances/print', [CreditController::class, 'printEcheances'])->name('echeances.print');
+
+        // ── Grille de commissions crédit (Admin/Gérant uniquement) ──
+        Route::middleware('permission:EBEN-PER63')->prefix('commissions')->name('commissions.')->group(function () {
+            Route::get('/', [CreditCommissionController::class, 'index'])->name('index');
+            Route::post('/', [CreditCommissionController::class, 'store'])->name('store');
+            Route::put('/{rule}', [CreditCommissionController::class, 'update'])->name('update');
+            Route::delete('/{rule}', [CreditCommissionController::class, 'destroy'])->name('destroy');
+        });
 
         // ── Création ─────────────────────────────────────────────────
         Route::middleware('permission:EBEN-PER54')->group(function () {
@@ -70,6 +84,10 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
         Route::middleware('permission:EBEN-PER57')->group(function () {
             Route::get('/{dossier}', [CreditController::class, 'show'])->name('show');
         });
+
+        // ── Prélèvement auto toggle ──────────────────────────────────
+        Route::post('/{dossier}/toggle-prelevement-auto', [CreditController::class, 'togglePrelevementAuto'])
+            ->name('toggle.prelevement.auto');
 
         // ── Soumission ────────────────────────────────────────────────
         // PER56 = soumettre explicitement, PER53 = créateur peut aussi soumettre
@@ -115,6 +133,7 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
 
         Route::middleware('permission:EBEN-PER10|EBEN-PER111')->group(function () {
             Route::post('/{dossier}/remboursement', [CreditController::class, 'storeRemboursement'])->name('remboursement.store');
+            Route::post('/{dossier}/reglement-auto', [CreditController::class, 'reglementAutoEcheance'])->name('reglement.auto.echeance');
         });
 
         // ─ Actions transverses ───────────────────────────────────────

@@ -112,8 +112,14 @@
         <tr>
             <td class="label">Frais dossier</td>
             <td>{{ number_format($demande->frais_dossier ?? 0, 2, ',', ' ') }} {{ $demande->devise }}</td>
+            <td class="label">Commission totale</td>
+            <td>{{ number_format($demande->commission_totale ?? 0, 2, ',', ' ') }} {{ $demande->devise }}</td>
+        </tr>
+        <tr>
             <td class="label">Capital restant</td>
             <td>{{ number_format($demande->capital_restant ?? 0, 2, ',', ' ') }} {{ $demande->devise }}</td>
+            <td class="label">Commission par échéance</td>
+            <td>{{ $demande->duree_mois > 0 ? number_format(($demande->commission_totale ?? 0) / $demande->duree_mois, 2, ',', ' ') : '0,00' }} {{ $demande->devise }}</td>
         </tr>
     </table>
 </div>
@@ -249,8 +255,8 @@
             <td>{{ optional($db->operateur)->nom_complet ?? '-' }}</td>
         </tr>
         <tr>
-            <td class="label">Compte debit</td>
-            <td>{{ optional($db->compteDebit)->code_compte ?? '-' }}</td>
+            <td class="label">Guichet debite</td>
+            <td>{{ optional(optional($db->guichetSolde)->guichet)->intitule ?? optional($db->guichetSolde)->devise_code ?? '-' }}</td>
             <td class="label">Compte credit client</td>
             <td>{{ optional($db->compteCredit)->code_compte ?? '-' }}</td>
         </tr>

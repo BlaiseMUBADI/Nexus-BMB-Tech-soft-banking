@@ -36,9 +36,11 @@ require_once __DIR__.'/credit.php';
 // Module Caisse
 require_once __DIR__.'/caisse.php';
 
-// Module Recouvrement (Auto-Collection)
-Route::middleware(['auth'])->group(function () {
+// Module Recouvrement (Auto-Collection) - Réservé aux profils avec EBEN-PER90
+Route::middleware(['auth', 'permission:EBEN-PER90'])->group(function () {
     Route::get('/recouvrement', [App\Http\Controllers\RecouvrementController::class, 'index'])->name('recouvrement.index');
+    Route::get('/recouvrement/historique', [App\Http\Controllers\RecouvrementController::class, 'historique'])->name('recouvrement.historique');
+    Route::get('/recouvrement/historique/print', [App\Http\Controllers\RecouvrementController::class, 'printHistorique'])->name('recouvrement.historique.print');
     Route::post('/recouvrement/run', [App\Http\Controllers\RecouvrementController::class, 'runAutoCollection'])->name('recouvrement.run');
 });
 
@@ -60,12 +62,12 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    // Compteur pour l'alerte de recouvrement automatique sur le tableau de bord
-    $alerteRecouvrementCount = \App\Models\Credit\CreditDemande::where('prelevement_auto_autorise', 1)
-        ->whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
-        ->whereHas('echeancier.echeances', function ($query) {
+    // Alerte : comptes les dossiers avec au moins une échéance dépassée (EN_ATTENTE ou EN_RETARD avec date < aujourd'hui)
+    $today = \Illuminate\Support\Carbon::now()->toDateString();
+    $alerteRecouvrementCount = \App\Models\Credit\CreditDemande::whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
+        ->whereHas('echeancier.echeances', function ($query) use ($today) {
             $query->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
-                  ->whereDate('date_echeance', '<=', now()->addDays(1)); // Retard ou demain
+                  ->where('date_echeance', '<', $today);
         })
         ->count();
 

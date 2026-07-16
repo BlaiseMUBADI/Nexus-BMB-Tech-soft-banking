@@ -53,6 +53,12 @@
             <td class="text-right">{{ number_format($totalInteretsPayes, 2, ',', ' ') }}</td>
         </tr>
         <tr>
+            <td class="label">Commission totale</td>
+            <td class="text-right">{{ number_format($dossier->commission_totale ?? 0, 2, ',', ' ') }}</td>
+            <td class="label">Commission payee</td>
+            <td class="text-right">{{ number_format($totalCommissionPayee ?? 0, 2, ',', ' ') }}</td>
+        </tr>
+        <tr>
             <td class="label">Caution bloquee (GTC)</td>
             <td class="text-right text-warning">{{ number_format($cautionBloquee, 2, ',', ' ') }}</td>
             <td class="label">Total debits</td>

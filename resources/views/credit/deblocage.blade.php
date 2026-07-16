@@ -252,6 +252,25 @@
 
         <div class="form-row">
             <div class="form-group col-md-6">
+                <label>Commission totale <small class="text-muted">(modifiable avant génération échéancier)</small></label>
+                <div class="input-group">
+                    <input type="number" name="commission_totale" id="inp_commission_deblocage"
+                           class="form-control" step="0.01" min="0"
+                           value="{{ old('commission_totale', $demande->commission_totale ?? 0) }}">
+                    <div class="input-group-append">
+                        <span class="input-group-text">{{ $demande->devise }}</span>
+                    </div>
+                </div>
+                <small class="text-muted">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Commission actuelle : <strong>{{ number_format($demande->commission_totale ?? 0, 2, ',', ' ') }} {{ $demande->devise }}</strong>.
+                    Modifiable si nécessaire avant la génération de l'échéancier.
+                </small>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group col-md-6">
                 <label>Source des fonds — Coffre central <span class="text-danger">*</span></label>
                 @if($comptesDebitList->count() === 0)
                 <div class="alert alert-danger py-2 small mb-1">

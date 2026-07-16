@@ -31,6 +31,7 @@ class CreditDemande extends Model
         'montant_approuve',
         'montant_total_echeances',
         'total_interets',
+        'commission_totale',
         'statut_global',
         'est_annule',
         'motif_annulation',
@@ -47,6 +48,7 @@ class CreditDemande extends Model
         'soumis_le',
         'service_provenance',
         'referent_nom',
+        'prelevement_auto_autorise',
     ];
 
     protected $casts = [
@@ -54,6 +56,7 @@ class CreditDemande extends Model
         'montant_approuve'        => 'decimal:2',
         'montant_total_echeances' => 'decimal:2',
         'total_interets'          => 'decimal:2',
+        'commission_totale'       => 'decimal:2',
         'taux_interet_mensuel'    => 'decimal:4',
         'est_annule'              => 'boolean',
         'est_suspendu'            => 'boolean',

@@ -15,6 +15,7 @@ class CreditEcheance extends Model
         'capital_restant_debut',
         'capital_echeance',
         'interet_echeance',
+        'commission_echeance',
         'total_echeance',
         'capital_restant_fin',
         'statut',
@@ -26,6 +27,7 @@ class CreditEcheance extends Model
         'capital_restant_debut'  => 'decimal:2',
         'capital_echeance'       => 'decimal:2',
         'interet_echeance'       => 'decimal:2',
+        'commission_echeance'    => 'decimal:2',
         'total_echeance'         => 'decimal:2',
         'capital_restant_fin'    => 'decimal:2',
         'montant_paye'           => 'decimal:2',
@@ -58,6 +60,11 @@ class CreditEcheance extends Model
     public function getMontantInteretAttribute(): ?string
     {
         return $this->interet_echeance;
+    }
+
+    public function getMontantCommissionAttribute(): ?string
+    {
+        return $this->commission_echeance;
     }
 
     public function getMontantTotalAttribute(): ?string

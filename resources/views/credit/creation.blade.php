@@ -102,7 +102,7 @@
         </h6>
 
         <div class="form-row">
-            <div class="form-group col-md-4">
+            <div class="form-group col-md-6">
                 <label>Montant demandé <span class="text-danger">*</span></label>
                 <div class="input-group">
                     <input type="number" name="montant_demande" id="inp_montant"
@@ -118,14 +118,17 @@
                     </div>
                 </div>
             </div>
-            <div class="form-group col-md-4">
+            <div class="form-group col-md-6">
                 <label>Durée (mois) <span class="text-danger">*</span></label>
                 <input type="number" name="duree_mois" id="inp_duree"
                        class="form-control" min="1" max="360"
                        value="{{ old('duree_mois', 12) }}" required
                        oninput="simuler()">
             </div>
-            <div class="form-group col-md-4">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group col-md-6">
                 <label>Taux d'intérêt mensuel (%) <span class="text-danger">*</span></label>
                 <div class="input-group">
                     <input type="number" name="taux_interet_mensuel" id="inp_taux"
@@ -134,6 +137,19 @@
                            oninput="simuler()">
                     <div class="input-group-append"><span class="input-group-text">%</span></div>
                 </div>
+            </div>
+            <div class="form-group col-md-6">
+                <label>Commission <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <input type="number" name="commission_totale" id="inp_commission"
+                           class="form-control" step="0.01" min="0"
+                           value="{{ old('commission_totale', 0) }}" required
+                           oninput="simuler()">
+                    <div class="input-group-append">
+                        <span class="input-group-text" id="symbole_commission">Fc</span>
+                    </div>
+                </div>
+                <small class="text-muted"><i class="fas fa-info-circle mr-1"></i>Calculée selon la grille, modifiable</small>
             </div>
         </div>
 
@@ -266,10 +282,16 @@ function simuler() {
         const duree   = document.getElementById('inp_duree').value;
         const taux    = document.getElementById('inp_taux').value;
         const devise  = document.getElementById('inp_devise').value;
+        const commission = document.getElementById('inp_commission').value || 0;
+
+        // Mettre à jour le symbole de la commission selon la devise
+        const symboles = { 'CDF': 'Fc', 'USD': '$', 'EUR': '€' };
+        const symboleEl = document.getElementById('symbole_commission');
+        if (symboleEl) symboleEl.textContent = symboles[devise] || 'Fc';
 
         if (!montant || !duree || !taux) return;
 
-        fetch(`{{ route("credit.ajax.simuler") }}?montant=${montant}&taux=${taux}&duree=${duree}`)
+        fetch(`{{ route("credit.ajax.simuler") }}?montant=${montant}&taux=${taux}&duree=${duree}&commission=${commission}`)
             .then(r => r.json())
             .then(data => {
                 if (data.errors) return;
@@ -282,6 +304,10 @@ function simuler() {
                         <span><strong>Total intérêts :</strong></span>
                         <span class="text-danger font-weight-bold">${parseFloat(data.total_interets).toLocaleString('fr',{minimumFractionDigits:2})} ${devise}</span>
                     </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><strong>Commission totale :</strong></span>
+                        <span class="text-info font-weight-bold">${parseFloat(data.total_commission || 0).toLocaleString('fr',{minimumFractionDigits:2})} ${devise}</span>
+                    </div>
                     <div class="d-flex justify-content-between mb-3 border-top pt-2">
                         <span><strong>TOTAL GÉNÉRAL :</strong></span>
                         <span class="text-dark font-weight-bold">${parseFloat(data.total_general).toLocaleString('fr',{minimumFractionDigits:2})} ${devise}</span>
@@ -289,7 +315,7 @@ function simuler() {
                     <div class="table-responsive" style="max-height:300px;overflow-y:auto;">
                     <table class="table table-xs table-bordered small mb-0">
                         <thead class="thead-dark">
-                            <tr><th>#</th><th>Cap. restant</th><th>Capital</th><th>Intérêt</th><th>Total</th></tr>
+                            <tr><th>#</th><th>Cap. restant</th><th>Capital</th><th>Intérêt</th><th>Commission</th><th>Total</th></tr>
                         </thead><tbody>`;
 
                 data.echeances.forEach(e => {
@@ -298,6 +324,7 @@ function simuler() {
                         <td class="text-right">${parseFloat(e.capital_restant_debut).toLocaleString('fr',{minimumFractionDigits:2})}</td>
                         <td class="text-right">${parseFloat(e.capital).toLocaleString('fr',{minimumFractionDigits:2})}</td>
                         <td class="text-right text-danger">${parseFloat(e.interet).toLocaleString('fr',{minimumFractionDigits:2})}</td>
+                        <td class="text-right text-info">${parseFloat(e.commission || 0).toLocaleString('fr',{minimumFractionDigits:2})}</td>
                         <td class="text-right font-weight-bold">${parseFloat(e.total).toLocaleString('fr',{minimumFractionDigits:2})}</td>
                     </tr>`;
                 });

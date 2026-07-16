@@ -260,26 +260,43 @@ class CreditController extends Controller
         ];
 
         // ─ Totaux selon le filtre actif (pour l'affichage au-dessus du tableau) ──
+        // Calcul séparé par devise pour éviter d'additionner CDF et USD
         $filteredQuery = clone $query;
         $filtresActifs = $filteredQuery->get();
 
         $idsFiltres = $filtresActifs->pluck('id')->toArray();
 
+        // Totaux par devise
+        $totauxParDevise = [];
+        foreach ($filtresActifs->groupBy('devise') as $devise => $dossiersDevise) {
+            $totauxParDevise[$devise] = [
+                'count'             => $dossiersDevise->count(),
+                'montant_demande'   => $dossiersDevise->sum('montant_demande'),
+                'montant_approuve'  => $dossiersDevise->sum('montant_approuve'),
+                'montant_net_verse' => $dossiersDevise->whereNotNull('deblocage_id')->sum(function($d) {
+                    return $d->deblocage?->montant_net_verse ?? 0;
+                }),
+                'en_retard'         => $dossiersDevise->where('statut_global', 'EN_RETARD')->count(),
+                'montant_en_retard' => $dossiersDevise->where('statut_global', 'EN_RETARD')->sum('montant_demande'),
+            ];
+        }
+
+        // Totaux globaux (remboursement via table séparée)
+        $montantRembourse = !empty($idsFiltres)
+            ? CreditRemboursement::whereIn('credit_demande_id', $idsFiltres)->sum('montant_recu')
+            : 0;
+
         $totauxFiltres = [
-            'count'          => count($idsFiltres),
-            'montant_demande' => $filtresActifs->sum('montant_demande'),
-            'montant_approuve'=> $filtresActifs->sum('montant_approuve'),
-            'montant_net_verse'=> $filtresActifs
-                                    ->whereNotNull('deblocage_id')
-                                    ->sum(function($d) {
-                                        return $d->deblocage?->montant_net_verse ?? 0;
-                                    }),
-            'montant_rembourse'=> !empty($idsFiltres)
-                                    ? CreditRemboursement::whereIn('credit_demande_id', $idsFiltres)->sum('montant_recu')
-                                    : 0,
-            'en_retard'      => $filtresActifs->where('statut_global', 'EN_RETARD')->count(),
-            'montant_en_retard'=> $filtresActifs->where('statut_global', 'EN_RETARD')
-                                    ->sum('montant_demande')
+            'count'             => count($idsFiltres),
+            'montant_demande'   => $filtresActifs->sum('montant_demande'),
+            'montant_approuve'  => $filtresActifs->sum('montant_approuve'),
+            'montant_net_verse' => $filtresActifs->whereNotNull('deblocage_id')->sum(function($d) {
+                return $d->deblocage?->montant_net_verse ?? 0;
+            }),
+            'montant_rembourse' => $montantRembourse,
+            'en_retard'         => $filtresActifs->where('statut_global', 'EN_RETARD')->count(),
+            'montant_en_retard' => $filtresActifs->where('statut_global', 'EN_RETARD')->sum('montant_demande'),
+            'par_devise'        => $totauxParDevise,
         ];
 
         //  AJAX : retourner uniquement le tableau (recherche progressive) ──
@@ -291,6 +308,351 @@ class CreditController extends Controller
             'dossiers', 'zones', 'portefeuilles', 'agentsAnalyse', 'agentsCreateur', 'compteurs',
             'estSuperviseur', 'estAgentCredit', 'totauxFiltres'
         ));
+    }
+
+    /**
+     * Impression de la liste des dossiers crédit (PDF ou CSV)
+     */
+    public function printListe(Request $request)
+    {
+        ini_set('memory_limit', '768M');
+
+        $user = $request->user();
+        $matricule = $user->agent_matricule ?? null;
+        $estSuperviseur = $user->hasPermission('EBEN-PER61') || $user->hasPermission('EBEN-PER62') || $user->hasPermission('EBEN-PER63');
+        $estAgentCredit = $user->hasPermission('EBEN-PER58') || $user->hasPermission('EBEN-PER59');
+
+        $query = CreditDemande::with(['client.zone', 'deblocage', 'remboursements']);
+
+        // Scope par rôle
+        if ($estSuperviseur) {
+            // Superviseur : tous les dossiers
+        } elseif ($estAgentCredit && $matricule) {
+            $query->where('agent_analyse_matricule', $matricule);
+        } else {
+            $zonesCodes = $this->resolveZoneScope($user);
+            $query->where(function ($q) use ($zonesCodes, $matricule) {
+                if ($zonesCodes !== null && !empty($zonesCodes)) {
+                    $q->whereIn('code_zone', $zonesCodes);
+                }
+                if ($matricule) {
+                    $q->orWhere('agent_createur_matricule', $matricule);
+                }
+            });
+        }
+
+        // Filtres
+        if ($request->filled('statut')) $query->where('statut_global', $request->statut);
+        if ($request->filled('type_credit')) $query->where('type_credit', $request->type_credit);
+        if ($request->filled('devise')) $query->where('devise', $request->devise);
+        if ($request->filled('zone')) $query->where('code_zone', $request->zone);
+        if ($request->filled('portefeuille_id')) $query->where('portefeuille_id', $request->portefeuille_id);
+        if ($request->filled('agent_analyse')) $query->where('agent_analyse_matricule', $request->agent_analyse);
+        if ($request->filled('agent_createur')) $query->where('agent_createur_matricule', $request->agent_createur);
+        if ($request->filled('date_debut')) $query->whereDate('created_at', '>=', $request->date_debut);
+        if ($request->filled('date_fin')) $query->whereDate('created_at', '<=', $request->date_fin);
+        if ($request->get('alerte') === 'retard') {
+            $query->whereIn('statut_global', ['EN_REMBOURSEMENT','DEBLOQUE','EN_RETARD'])
+                ->whereHas('echeancier.echeances', fn ($q) =>
+                    $q->whereIn('statut', ['EN_ATTENTE','PARTIELLEMENT_PAYE','EN_RETARD'])
+                      ->where('date_echeance', '<', now()->toDateString()));
+        }
+        if ($request->get('alerte') === 'alertes') {
+            $query->whereIn('statut_global', ['SUSPECT','SUSPENDU']);
+        }
+
+        $query->orderByDesc('created_at');
+        $dossiersCount = (clone $query)->count();
+
+        // Filtres actifs pour affichage
+        $filtres = array_filter([
+            'statut_global' => $request->statut,
+            'type_credit' => $request->type_credit,
+            'devise' => $request->devise,
+            'code_zone' => $request->zone,
+            'portefeuille_id' => $request->portefeuille_id,
+            'agent_analyse_matricule' => $request->agent_analyse,
+            'agent_createur_matricule' => $request->agent_createur,
+            'date_debut' => $request->date_debut,
+            'date_fin' => $request->date_fin,
+        ], fn($v) => $v !== null && $v !== '');
+
+        // Objets pour les libellés
+        $zone = $request->zone ? Zone::where('code_zone', $request->zone)->first() : null;
+        $portefeuille = $request->portefeuille_id ? \App\Models\Tresorerie\Portefeuille::find($request->portefeuille_id) : null;
+        $agentAnalyse = $request->agent_analyse ? Agent::where('matricule', $request->agent_analyse)->first() : null;
+        $agentCreateur = $request->agent_createur ? Agent::where('matricule', $request->agent_createur)->first() : null;
+
+        $exportFormat = strtolower((string) $request->input('export_format', 'pdf'));
+        $outputMode = strtolower((string) $request->input('output', 'stream'));
+
+        // ─ Export CSV ──
+        if ($exportFormat === 'csv') {
+            $filename = 'Liste_dossiers_credit_' . now()->format('Ymd_His') . '.csv';
+
+            return response()->streamDownload(function () use ($query) {
+                $handle = fopen('php://output', 'w');
+                // BOM UTF-8 pour Excel
+                fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+                // En-tête
+                fputcsv($handle, [
+                    'N° Dossier', 'Client', 'Devise', 'Montant demandé',
+                    'Montant approuvé', 'Décaissé', 'Remboursé',
+                    'Statut', 'Zone', 'Portefeuille', 'Créé le'
+                ], ';');
+
+                $query->chunk(1000, function ($dossiers) use ($handle) {
+                    foreach ($dossiers as $dossier) {
+                        $clientNom = '';
+                        if ($dossier->client) {
+                            $clientNom = trim(strtoupper($dossier->client->nom ?? '') . ' ' .
+                                strtoupper($dossier->client->postnom ?? '') . ' ' .
+                                ucfirst(strtolower($dossier->client->prenom ?? '')));
+                        }
+                        $montantRembourse = $dossier->remboursements?->sum('montant_recu') ?? 0;
+
+                        fputcsv($handle, [
+                            $dossier->numero_dossier,
+                            $clientNom,
+                            $dossier->devise,
+                            $dossier->montant_demande,
+                            $dossier->montant_approuve ?? 0,
+                            $dossier->deblocage?->montant_net_verse ?? 0,
+                            $montantRembourse,
+                            $dossier->statut_global,
+                            $dossier->client?->zone?->nom ?? '',
+                            $dossier->portefeuille?->nom_portefeuille ?? '',
+                            \Carbon\Carbon::parse($dossier->created_at)->format('d/m/Y'),
+                        ], ';');
+                    }
+                });
+
+                fclose($handle);
+            }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }
+
+        // ── Export PDF ──
+        $dossiers = $query->get();
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.credit.liste', compact(
+            'dossiers', 'filtres', 'zone', 'portefeuille', 'agentAnalyse', 'agentCreateur'
+        ))->setPaper('a4', 'landscape');
+
+        if ($outputMode === 'download') {
+            return $pdf->download('Liste_dossiers_credit.pdf');
+        }
+
+        return $pdf->stream('Liste_dossiers_credit.pdf');
+    }
+
+    // ================================================================
+    // TOMBÉE D'ÉCHÉANCES (échéances à recouvrer selon critères)
+    // ================================================================
+
+    /**
+     * Construit la requête des échéances filtrées (réutilisée pour la liste
+     * paginée, les totaux, et l'export PDF/CSV).
+     */
+    private function buildEcheancesQuery(Request $request)
+    {
+        $user = $request->user();
+        $matricule = $user->agent_matricule ?? null;
+        $estSuperviseur = $user->hasPermission('EBEN-PER61') || $user->hasPermission('EBEN-PER62') || $user->hasPermission('EBEN-PER63');
+        $estAgentCredit = $user->hasPermission('EBEN-PER58') || $user->hasPermission('EBEN-PER59');
+
+        $query = CreditEcheance::query()
+            ->with(['echeancier.demande.client', 'echeancier.demande.zone', 'echeancier.demande.portefeuille']);
+
+        // Statut de l'échéance : par défaut, uniquement celles restant à recouvrer
+        if ($request->filled('statut_echeance')) {
+            $query->where('statut', $request->statut_echeance);
+        } else {
+            $query->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD', 'PARTIELLEMENT_PAYE']);
+        }
+
+        // Date d'échéance : date précise ou plage
+        if ($request->filled('date_echeance')) {
+            $query->whereDate('date_echeance', $request->date_echeance);
+        } else {
+            if ($request->filled('date_debut')) {
+                $query->whereDate('date_echeance', '>=', $request->date_debut);
+            }
+            if ($request->filled('date_fin')) {
+                $query->whereDate('date_echeance', '<=', $request->date_fin);
+            }
+        }
+
+        // Filtres sur le dossier crédit lié + scope d'accès par rôle
+        $query->whereHas('echeancier.demande', function ($q) use ($request, $estSuperviseur, $estAgentCredit, $matricule) {
+            $q->whereNotIn('statut_global', ['ANNULE']);
+
+            if ($request->filled('devise')) $q->where('devise', $request->devise);
+            if ($request->filled('zone')) $q->where('code_zone', $request->zone);
+            if ($request->filled('portefeuille_id')) $q->where('portefeuille_id', $request->portefeuille_id);
+
+            if ($estSuperviseur) {
+                // Superviseur : accès total, aucune restriction supplémentaire
+            } elseif ($estAgentCredit && $matricule) {
+                $q->where('agent_analyse_matricule', $matricule);
+            } else {
+                $zonesCodes = $this->resolveZoneScope($request->user());
+                $q->where(function ($sub) use ($zonesCodes, $matricule) {
+                    if ($zonesCodes !== null && !empty($zonesCodes)) {
+                        $sub->whereIn('code_zone', $zonesCodes);
+                    }
+                    if ($matricule) {
+                        $sub->orWhere('agent_createur_matricule', $matricule);
+                    }
+                });
+            }
+        });
+
+        return $query->orderBy('date_echeance', 'asc');
+    }
+
+    /**
+     * Affiche la liste des échéances à recouvrer selon critères
+     * (devise, zone, portefeuille, date d'échéance) avec totaux.
+     */
+    public function echeances(Request $request)
+    {
+        $echeances = $this->buildEcheancesQuery($request)->paginate(20)->withQueryString();
+
+        // Totaux calculés sur TOUS les résultats filtrés (pas seulement la page affichée)
+        $allEcheances = $this->buildEcheancesQuery($request)->get();
+
+        $resteDuFn = fn($e) => max(0, (float) $e->total_echeance - (float) $e->montant_paye);
+
+        $totauxParDevise = [];
+        foreach ($allEcheances->groupBy(fn($e) => $e->echeancier->demande->devise ?? 'N/A') as $devise => $group) {
+            $totauxParDevise[$devise] = [
+                'count'         => $group->count(),
+                'montant_total' => $group->sum('total_echeance'),
+                'montant_paye'  => $group->sum('montant_paye'),
+                'reste_du'      => $group->sum($resteDuFn),
+            ];
+        }
+
+        $totauxParZone = [];
+        foreach ($allEcheances->groupBy(fn($e) => $e->echeancier->demande->zone->nom ?? ($e->echeancier->demande->code_zone ?? 'Sans zone')) as $zoneNom => $group) {
+            $totauxParZone[$zoneNom] = [
+                'count'    => $group->count(),
+                'reste_du' => $group->sum($resteDuFn),
+            ];
+        }
+
+        $totauxParPortefeuille = [];
+        foreach ($allEcheances->groupBy(fn($e) => $e->echeancier->demande->portefeuille->nom_portefeuille ?? 'Sans portefeuille') as $pfNom => $group) {
+            $totauxParPortefeuille[$pfNom] = [
+                'count'    => $group->count(),
+                'reste_du' => $group->sum($resteDuFn),
+            ];
+        }
+
+        $resteATotalGeneral = $allEcheances->sum($resteDuFn);
+        $totalEcheances = $allEcheances->count();
+
+        // AJAX : recherche progressive → retourne uniquement le contenu des résultats
+        if ($request->ajax() || $request->wantsJson()) {
+            return view('credit._echeances_content', compact(
+                'echeances', 'totauxParDevise', 'totauxParZone', 'totauxParPortefeuille',
+                'resteATotalGeneral', 'totalEcheances'
+            ))->render();
+        }
+
+        $zones = Zone::orderBy('nom')->get();
+        $portefeuilles = Portefeuille::orderBy('nom_portefeuille')->get(['id', 'nom_portefeuille']);
+
+        return view('credit.echeances', compact(
+            'echeances', 'totauxParDevise', 'totauxParZone', 'totauxParPortefeuille',
+            'resteATotalGeneral', 'totalEcheances', 'zones', 'portefeuilles'
+        ));
+    }
+
+    /**
+     * Impression de la tombée d'échéances (PDF ou CSV)
+     */
+    public function printEcheances(Request $request)
+    {
+        ini_set('memory_limit', '768M');
+
+        $query = $this->buildEcheancesQuery($request);
+
+        $exportFormat = strtolower((string) $request->input('export_format', 'pdf'));
+        $outputMode = strtolower((string) $request->input('output', 'stream'));
+
+        if ($exportFormat === 'csv') {
+            $filename = 'Tombee_echeances_' . now()->format('Ymd_His') . '.csv';
+
+            return response()->streamDownload(function () use ($query) {
+                $handle = fopen('php://output', 'w');
+                fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+                fputcsv($handle, [
+                    'Date échéance', 'N° Éch.', 'Dossier', 'Client', 'Devise',
+                    'Zone', 'Portefeuille', 'Montant échéance', 'Montant payé',
+                    'Reste dû', 'Statut'
+                ], ';');
+
+                $query->chunk(500, function ($echeances) use ($handle) {
+                    foreach ($echeances as $ech) {
+                        $demande = $ech->echeancier->demande ?? null;
+                        $client = $demande->client ?? null;
+                        $clientNom = $client ? trim(strtoupper($client->nom ?? '') . ' ' . strtoupper($client->postnom ?? '') . ' ' . ucfirst(strtolower($client->prenom ?? ''))) : '-';
+                        $resteDu = max(0, (float) $ech->total_echeance - (float) $ech->montant_paye);
+
+                        fputcsv($handle, [
+                            \Carbon\Carbon::parse($ech->date_echeance)->format('d/m/Y'),
+                            $ech->numero_echeance,
+                            $demande->numero_dossier ?? '-',
+                            $clientNom,
+                            $demande->devise ?? '-',
+                            $demande->zone->nom ?? '-',
+                            $demande->portefeuille->nom_portefeuille ?? '-',
+                            $ech->total_echeance,
+                            $ech->montant_paye,
+                            $resteDu,
+                            $ech->statut,
+                        ], ';');
+                    }
+                });
+
+                fclose($handle);
+            }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }
+
+        $echeances = $query->get();
+        $resteDuFn = fn($e) => max(0, (float) $e->total_echeance - (float) $e->montant_paye);
+
+        $totauxParDevise = [];
+        foreach ($echeances->groupBy(fn($e) => $e->echeancier->demande->devise ?? 'N/A') as $devise => $group) {
+            $totauxParDevise[$devise] = [
+                'count'    => $group->count(),
+                'reste_du' => $group->sum($resteDuFn),
+            ];
+        }
+        $resteATotalGeneral = $echeances->sum($resteDuFn);
+
+        $filtres = array_filter([
+            'date_echeance'    => $request->date_echeance,
+            'date_debut'       => $request->date_debut,
+            'date_fin'         => $request->date_fin,
+            'devise'           => $request->devise,
+            'zone'             => $request->zone,
+            'portefeuille_id'  => $request->portefeuille_id,
+            'statut_echeance'  => $request->statut_echeance,
+        ], fn($v) => $v !== null && $v !== '');
+
+        $zoneObj = $request->filled('zone') ? Zone::where('code_zone', $request->zone)->first() : null;
+        $portefeuilleObj = $request->filled('portefeuille_id') ? Portefeuille::find($request->portefeuille_id) : null;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.credit.echeances', compact(
+            'echeances', 'totauxParDevise', 'resteATotalGeneral', 'filtres', 'zoneObj', 'portefeuilleObj'
+        ))->setPaper('a4', 'landscape');
+
+        if ($outputMode === 'download') {
+            return $pdf->download('Tombee_echeances.pdf');
+        }
+
+        return $pdf->stream('Tombee_echeances.pdf');
     }
 
     // ================================================================
@@ -368,15 +730,19 @@ class CreditController extends Controller
     public function simuler(Request $request)
     {
         $request->validate([
-            'montant'  => 'required|numeric|min:1',
-            'taux'     => 'required|numeric|min:0.01|max:100',
-            'duree'    => 'required|integer|min:1|max:360',
+            'montant'    => 'required|numeric|min:1',
+            'taux'       => 'required|numeric|min:0.01|max:100',
+            'duree'      => 'required|integer|min:1|max:360',
+            'commission' => 'nullable|numeric|min:0',
         ]);
+
+        $commission = (float) ($request->commission ?? 0);
 
         $calcul = $this->amortissement->simuler(
             (float) $request->montant,
             (float) $request->taux,
-            (int) $request->duree
+            (int) $request->duree,
+            $commission
         );
 
         return response()->json($calcul);
@@ -396,6 +762,7 @@ class CreditController extends Controller
             'garantie_description' => 'nullable|string',
             'service_provenance'   => 'nullable|string|max:100',
             'referent_nom'         => 'nullable|string|max:120',
+            'commission_totale'    => 'nullable|numeric|min:0',
         ]);
 
         /** @var \App\Models\User|null $user */
@@ -423,13 +790,28 @@ class CreditController extends Controller
 
         $client = Client::findOrFail($validated['client_matricule']);
 
+        // Calculer la commission si non fournie manuellement
+        $commissionTotale = $validated['commission_totale'] ?? 0;
+        if ($commissionTotale == 0) {
+            $commissionService = app(\App\Services\Credit\CreditCommissionService::class);
+            $commissionTotale = $commissionService->calculateForContext([
+                'devise' => $validated['devise'],
+                'type_credit' => $validated['type_credit'],
+                'code_zone' => $client->code_zone,
+                'portefeuille_id' => $portefeuilleIdCreation,
+                'montant' => (float) $validated['montant_demande'],
+            ]);
+        }
+
         $calcul = $this->amortissement->simuler(
             (float) $validated['montant_demande'],
             (float) $validated['taux_interet_mensuel'],
-            (int) $validated['duree_mois']
+            (int) $validated['duree_mois'],
+            null,
+            (float) $commissionTotale
         );
 
-        $demande = DB::transaction(function () use ($validated, $client, $agent, $calcul, $portefeuilleIdCreation) {
+        $demande = DB::transaction(function () use ($validated, $client, $agent, $calcul, $portefeuilleIdCreation, $commissionTotale) {
             $demande = CreditDemande::create([
                 'client_matricule'        => $validated['client_matricule'],
                 'compte_id'               => null,
@@ -447,6 +829,7 @@ class CreditController extends Controller
                 'referent_nom'            => $validated['referent_nom'] ?? null,
                 'montant_total_echeances' => $calcul['total_general'],
                 'total_interets'          => $calcul['total_interets'],
+                'commission_totale'       => $commissionTotale,
                 'statut_global'           => 'BROUILLON',
             ]);
 
@@ -533,6 +916,7 @@ class CreditController extends Controller
             'garantie_description' => 'nullable|string',
             'service_provenance'   => 'nullable|string|max:100',
             'referent_nom'         => 'nullable|string|max:120',
+            'commission_totale'    => 'nullable|numeric|min:0',
         ]);
 
         /** @var \App\Models\User|null $user */
@@ -550,10 +934,26 @@ class CreditController extends Controller
         }
 
         $client = Client::findOrFail($validated['client_matricule']);
+
+        // Calculer la commission si non fournie manuellement
+        $commissionTotale = $validated['commission_totale'] ?? 0;
+        if ($commissionTotale == 0) {
+            $commissionService = app(\App\Services\Credit\CreditCommissionService::class);
+            $commissionTotale = $commissionService->calculateForContext([
+                'devise' => $validated['devise'],
+                'type_credit' => $validated['type_credit'],
+                'code_zone' => $client->code_zone,
+                'portefeuille_id' => $portefeuilleId,
+                'montant' => (float) $validated['montant_demande'],
+            ]);
+        }
+
         $calcul = $this->amortissement->simuler(
             (float) $validated['montant_demande'],
             (float) $validated['taux_interet_mensuel'],
-            (int) $validated['duree_mois']
+            (int) $validated['duree_mois'],
+            null,
+            (float) $commissionTotale
         );
 
         $ancien = $dossier->replicate();
@@ -573,6 +973,7 @@ class CreditController extends Controller
             'referent_nom'            => $validated['referent_nom'] ?? null,
             'montant_total_echeances' => $calcul['total_general'],
             'total_interets'          => $calcul['total_interets'],
+            'commission_totale'       => $commissionTotale,
         ]);
 
         $this->logAudit(
@@ -610,6 +1011,41 @@ class CreditController extends Controller
             $dossier->load('audits');
         }
 
+        // Rafraîchissement dynamique : marque en RETARD les échéances dépassées
+        // afin que l'affichage soit toujours cohérent même si le cron n'est pas lancé.
+        if (in_array($dossier->statut_global, ['DEBLOQUE', 'EN_REMBOURSEMENT', 'EN_RETARD'])) {
+            $today = Carbon::today()->toDateString();
+            $echancier = $dossier->echeancier;
+            if ($echancier) {
+                $misesAJour = false;
+                foreach ($echancier->echeances as $e) {
+                    if (in_array($e->statut, ['EN_ATTENTE', 'PARTIELLEMENT_PAYE']) && $e->date_echeance < $today) {
+                        $e->update(['statut' => 'EN_RETARD']);
+                        $misesAJour = true;
+                    }
+                }
+                if ($misesAJour) {
+                    $aRetard = $echancier->echeances()
+                        ->whereIn('statut', ['EN_RETARD', 'PARTIELLEMENT_PAYE'])
+                        ->where('date_echeance', '<', $today)
+                        ->exists();
+                    $toutesSoldees = $echancier->echeances()
+                        ->whereNotIn('statut', ['PAYE'])
+                        ->count() === 0;
+                    if ($toutesSoldees) {
+                        $dossier->update(['statut_global' => 'SOLDE']);
+                    } elseif (!$aRetard && $dossier->statut_global === 'EN_RETARD') {
+                        $dossier->update(['statut_global' => 'EN_REMBOURSEMENT']);
+                    } elseif ($aRetard && $dossier->statut_global !== 'EN_RETARD') {
+                        $dossier->update(['statut_global' => 'EN_RETARD']);
+                    }
+                    // Recharger les relations fraîches pour la vue
+                    $dossier->refresh();
+                    $dossier->load(['echeancier.echeances', 'client']);
+                }
+            }
+        }
+
         $assignableAgents = collect();
         if ($authUser?->hasPermission('EBEN-PER61') && $dossier->statut_global === 'SOUMIS') {
             $assignableAgents = $this->resolveAssignableCreditAgents();
@@ -617,8 +1053,17 @@ class CreditController extends Controller
 
         $demandeurMeta = $this->resolveDemandeurMeta($dossier->agent_createur_matricule);
 
+        $soldeRmb = 0;
+        $compteRmb = Compte::where('client_matricule', $dossier->client_matricule)
+            ->where('type', 'RMB')
+            ->where('devise', $dossier->devise)
+            ->first();
+        if ($compteRmb) {
+            $soldeRmb = (float) $compteRmb->solde_reel;
+        }
+
         $demande = $dossier;
-        return view('credit.show', compact('dossier', 'demande', 'canViewAudit', 'assignableAgents', 'demandeurMeta'));
+        return view('credit.show', compact('dossier', 'demande', 'canViewAudit', 'assignableAgents', 'demandeurMeta', 'soldeRmb'));
     }
 
     public function affecterAnalyse(Request $request, CreditDemande $dossier)
@@ -1263,6 +1708,7 @@ class CreditController extends Controller
             'date_deblocage'             => 'required|date',
             'date_premier_remboursement' => 'required|date|after:today',
             'frais_dossier'             => 'nullable|numeric|min:0',
+            'commission_totale'         => 'nullable|numeric|min:0',
             'reference_comptable'        => 'nullable|string|max:100',
             'observations'              => 'nullable|string',
         ]);
@@ -1448,6 +1894,12 @@ class CreditController extends Controller
 
             // Générer l'échéancier
             $datePremier = Carbon::parse($validated['date_premier_remboursement']);
+            
+            // Mettre à jour la commission si fournie dans le formulaire
+            if (isset($validated['commission_totale'])) {
+                $dossier->update(['commission_totale' => $validated['commission_totale']]);
+            }
+            
             $this->amortissement->genererEtSauvegarder($dossier, $datePremier);
 
             $dossier->update([
@@ -1588,21 +2040,29 @@ class CreditController extends Controller
         $echeancier = $dossier->echeancier;
         $comptesInstitution = collect();
 
-        // Récupérer le guichet de l'agent connecté pour afficher les soldes
+        // Vérification : l'agent doit avoir un guichet fixe OUVERT
         $user = Auth::user();
-        $guichet = null;
-        if ($user) {
-            $matricule = $user->agent_matricule ?? ($user->agent->matricule ?? null);
-            if ($matricule) {
-                $affectation = \App\Models\RH\Affectation::with('guichet')
-                    ->where('agent_matricule', $matricule)
-                    ->where('Etat', 'ACTIF')
-                    ->whereNotNull('guichet_id')
-                    ->latest('date_debut')
-                    ->first();
-                $guichet = $affectation?->guichet;
-            }
+        $matricule = $user?->agent?->matricule;
+        if (!$matricule) {
+            return back()->with('error', 'Aucun profil agent associé à ce compte.');
         }
+
+        $affectation = \App\Models\RH\Affectation::with('guichet')
+            ->where('agent_matricule', $matricule)
+            ->where('Etat', 'ACTIF')
+            ->whereNotNull('guichet_id')
+            ->latest('date_debut')
+            ->first();
+
+        if (!$affectation || !$affectation->guichet) {
+            return back()->with('error', 'Accès refusé : Vous devez être titulaire d\'un guichet fixe pour accéder à cette page.');
+        }
+
+        if ($affectation->guichet->statut_operationnel !== 'OUVERT') {
+            return back()->with('error', 'Accès refusé : Votre guichet (' . $affectation->guichet->code_guichet . ') est ' . $affectation->guichet->statut_operationnel . '. Veuillez l\'ouvrir avant d\'accéder aux remboursements.');
+        }
+
+        $guichet = $affectation->guichet;
 
         // Récupérer le solde RMB actuel du client pour l'affichage et les calculs
         $soldeRmbActuel = 0;
@@ -1972,12 +2432,16 @@ class CreditController extends Controller
                        'client',
                        'zone',
                         'analyse',
-                        'validations',
+                        'validations.validateur',
+                        'pieces',
                         'deblocage',
+                        'deblocages.operateur',
+                        'deblocages.guichetSolde',
+                        'deblocages.compteCredit',
                         'echeancier.echeances'
                         ]);
 
-        $pdf = Pdf::loadView('credit.pdf_fiche', compact('dossier'))
+        $pdf = Pdf::loadView('impressions.credit.fiche_credit', ['demande' => $dossier])
                     ->setPaper('a4', 'portrait');
 
         return $pdf->stream("Fiche_Credit_{$dossier->numero_dossier}.pdf");
@@ -2123,6 +2587,86 @@ class CreditController extends Controller
             'stats_zones',
             'stats'
         ));
+    }
+
+    // ================================================================
+    // RÈGLEMENT AUTO D'UNE ÉCHÉANCE VIA RMB
+    // ================================================================
+    public function reglementAutoEcheance(Request $request, CreditDemande $dossier)
+    {
+        $echeanceId = $request->input('echeance_id');
+        $echeance = CreditEcheance::findOrFail($echeanceId);
+
+        // Vérifier que le solde RMB est suffisant
+        $montantRestantDu = (float)$echeance->total_echeance - (float)$echeance->montant_paye;
+        $compteRmb = Compte::where('client_matricule', $dossier->client_matricule)
+            ->where('type', 'RMB')
+            ->where('devise', $dossier->devise)
+            ->first();
+        
+        if (!$compteRmb || $compteRmb->solde_reel < $montantRestantDu) {
+            return redirect()->route('credit.show', $dossier)->with('error', 'Solde RMB insuffisant pour régler cette échéance.')->withFragment('tab_echeancier');
+        }
+
+        DB::transaction(function () use ($dossier, $echeance, $compteRmb, $montantRestantDu) {
+            $soldeAvant = (float)$compteRmb->solde_reel;
+            $soldeApres = $soldeAvant - $montantRestantDu;
+
+            $compteRmb->decrement('solde_reel', $montantRestantDu);
+
+            $echeance->increment('montant_paye', $montantRestantDu);
+            
+            if ((float)$echeance->montant_paye >= (float)$echeance->total_echeance) {
+                $echeance->statut = 'PAYE';
+                $echeance->date_paiement_effectif = now()->format('Y-m-d');
+            } else {
+                $echeance->statut = 'PARTIELLEMENT_PAYE';
+            }
+            $echeance->save();
+
+            $agent = Auth::user()?->agent;
+            $affectation = $agent?->affectations()->where('Etat', 'ACTIF')->whereNotNull('guichet_id')->first();
+            $transaction = Transaction::create([
+                'compte_code'              => $compteRmb->code_compte,
+                'agent_matricule'          => $agent?->matricule ?? 'SYSTEM',
+                'guichet_id'               => $affectation?->guichet_id,
+                'devise_code'              => $dossier->devise,
+                'type'                     => 'REMBOURSEMENT',
+                'montant'                  => $montantRestantDu,
+                'montant_commission_total' => 0,
+                'solde_compte_avant'       => $soldeAvant,
+                'solde_compte_apres'       => $soldeApres,
+                'montant_total_client'     => $montantRestantDu,
+                'montant_net_client'       => $montantRestantDu,
+                'statut'                   => 'CONFIRME',
+                'reference'                => 'AUTO-REG-' . $dossier->numero_dossier . '-' . $echeance->numero_echeance . '-' . now()->format('dmyHis'),
+                'observations'             => 'Règlement automatique échéance ' . $echeance->numero_echeance . ' via RMB',
+                'date_operation'           => now(),
+            ]);
+
+            $ratio = (float)$echeance->montant_paye / (float)$echeance->total_echeance;
+            $dontCapital = (float)$echeance->capital_echeance * $ratio;
+            $dontInteret = (float)$echeance->interet_echeance * $ratio;
+
+            CreditRemboursement::create([
+                'credit_demande_id' => $dossier->id,
+                'echeance_id'       => $echeance->id,
+                'agent_matricule'   => $agent?->matricule ?? 'SYSTEM',
+                'compte_id'         => $compteRmb->code_compte,
+                'montant_recu'      => $montantRestantDu,
+                'dont_capital'      => $dontCapital,
+                'dont_interet'      => $dontInteret,
+                'dont_penalite'     => 0,
+                'devise'            => $dossier->devise,
+                'type_remboursement'=> 'ECHEANCE',
+                'reference_caisse'  => $transaction->reference,
+                'observations'      => 'Règlement automatique échéance ' . $echeance->numero_echeance . ' via RMB',
+                'recu_le'           => now(),
+                'transaction_id'    => $transaction->id,
+            ]);
+        });
+
+        return redirect()->route('credit.show', $dossier)->with('success', '✅ Échéance réglée automatiquement avec succès via le compte RMB.')->withFragment('tab_echeancier');
     }
 
     // ================================================================

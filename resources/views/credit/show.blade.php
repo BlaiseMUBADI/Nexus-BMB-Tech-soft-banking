@@ -47,10 +47,19 @@
 {{-- ── Header --}}
 <div class="card card-outline card-success mb-3">
     <div class="card-header">
-        <h4 class="card-title mb-0">
+        <h4 class="card-title mb-0 d-flex align-items-center gap-2 flex-wrap">
             <i class="fas fa-file-alt mr-2"></i>
             {{ $demande->numero_dossier }}
-            &nbsp; {!! $demande->badgeStatut() !!}
+            {!! $demande->badgeStatut() !!}
+            @if(isset($soldeRmb) && $soldeRmb > 0)
+                <span class="badge badge-info ml-2" title="Solde du compte RMB">
+                    <i class="fas fa-wallet mr-1"></i>Solde RMB : {{ number_format($soldeRmb, 2, ',', ' ') }} {{ $demande->devise }}
+                </span>
+            @elseif(isset($soldeRmb))
+                <span class="badge badge-secondary ml-2" title="Solde du compte RMB">
+                    <i class="fas fa-wallet mr-1"></i>Solde RMB : 0,00 {{ $demande->devise }}
+                </span>
+            @endif
         </h4>
         <div class="card-tools d-flex gap-1">
             {{-- Action buttons --}}
@@ -446,7 +455,8 @@
             <div class="d-flex justify-content-between mb-3 flex-wrap gap-2">
                 <div>
                     <strong>Montant total :</strong> {{ number_format($ech->montant_total, 2, ',', ' ') }} {{ $demande->devise }}&nbsp;&nbsp;
-                    <strong>Total intérêts :</strong> {{ number_format($ech->total_interets, 2, ',', ' ') }} {{ $demande->devise }}
+                    <strong>Total intérêts :</strong> {{ number_format($ech->total_interets, 2, ',', ' ') }} {{ $demande->devise }}&nbsp;&nbsp;
+                    <strong>Commission totale :</strong> {{ number_format($ech->total_commission ?? 0, 2, ',', ' ') }} {{ $demande->devise }}
                 </div>
                 <a href="{{ route('credit.pdf.echeancier', $demande) }}" target="_blank" class="btn btn-sm btn-outline-danger mr-1">
                     <i class="fas fa-calendar-alt mr-1"></i>Échéancier PDF
@@ -460,7 +470,7 @@
                 <thead class="thead-dark">
                     <tr>
                         <th>#</th><th>Date</th><th>Cap. restant déb.</th>
-                        <th>Capital</th><th>Intérêt</th><th>Total</th>
+                        <th>Capital</th><th>Intérêt</th><th>Commission</th><th>Total</th>
                         <th>Cap. restant fin</th><th>Statut</th>
                     </tr>
                 </thead>
@@ -472,6 +482,7 @@
                      <td class="text-right">{{ number_format($e->capital_restant_debut, 2, ',', ' ') }}</td>
                      <td class="text-right">{{ number_format($e->montant_capital, 2, ',', ' ') }}</td>
                      <td class="text-right text-danger">{{ number_format($e->montant_interet, 2, ',', ' ') }}</td>
+                     <td class="text-right text-info">{{ number_format($e->montant_commission ?? 0, 2, ',', ' ') }}</td>
                      <td class="text-right font-weight-bold">{{ number_format($e->montant_total, 2, ',', ' ') }}</td>
                      <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }}</td>
                       <td class="text-center">
@@ -482,8 +493,23 @@
                               $badgeClass = $isExpected ? 
                                   (['EN_ATTENTE'=>'secondary','PAYE'=>'success','PARTIELLEMENT_PAYE'=>'info','EN_RETARD'=>'danger'][$e->statut] ?? 'secondary') : 
                                   'dark';
+                              
+                              $montantRestantDu = max(0, (float)$e->total_echeance - (float)$e->montant_paye);
+                              // Bouton éclair : uniquement pour échéances EN RETARD (échues)
+                              $estEnRetard = $e->statut === 'EN_RETARD';
+                              $peutReglerAuto = $estEnRetard && ($soldeRmb >= $montantRestantDu) && $montantRestantDu > 0;
                           @endphp
                           <span class="badge badge-{{ $badgeClass }}">{{ $lbl }}</span>
+                          
+                          @if($peutReglerAuto)
+                              <form id="form-reglement-auto-{{ $e->id }}" method="POST" action="{{ route('credit.reglement.auto.echeance', $dossier) }}" style="display:inline;">
+                                  @csrf
+                                  <input type="hidden" name="echeance_id" value="{{ $e->id }}">
+                                  <button type="button" class="btn btn-sm btn-outline-warning ml-1" title="Régler automatiquement depuis le solde RMB" onclick="confirmReglementAuto({{ $e->id }}, {{ number_format($montantRestantDu, 2, '.', '') }}, '{{ $demande->devise }}')">
+                                      <i class="fas fa-bolt"></i>
+                                  </button>
+                              </form>
+                          @endif
                       </td>
                  </tr>
                 @endforeach
@@ -730,6 +756,23 @@
                 $agentSelect.select2('open');
             }, 100);
         });
+
+        // Activer automatiquement l'onglet ciblé par le hash (ex: #tab_echeancier après règlement auto)
+        if (window.location.hash) {
+            var hash = window.location.hash;
+            var $tab = $('.nav-tabs a[href="' + hash + '"]');
+            if ($tab.length) {
+                $tab.tab('show');
+            }
+        }
     });
+
+    // Fonction de confirmation standardisée pour le règlement automatique
+    window.confirmReglementAuto = function(echeanceId, montant, devise) {
+        var message = 'Confirmer le prélèvement automatique de <strong>' + montant + ' ' + devise + '</strong> sur le compte RMB pour régler cette échéance ?';
+        showUniversalConfirm(message, function() {
+            document.getElementById('form-reglement-auto-' + echeanceId).submit();
+        }, { showWarning: true });
+    };
 </script>
 @endpush
