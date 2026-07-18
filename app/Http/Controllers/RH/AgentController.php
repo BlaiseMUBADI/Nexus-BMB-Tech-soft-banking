@@ -72,6 +72,15 @@ class AgentController extends Controller
         }
 
         $agent = \App\Models\RH\Agent::create($validated);
+
+        \App\Models\ActivityLog::record(
+            'RH',
+            'AGENT_CREE',
+            $agent,
+            $agent->matricule,
+            "Création de l'agent {$agent->nom} {$agent->prenom} ({$agent->matricule})"
+        );
+
         return redirect()->route('agents.create')->with('success', 'Agent ajouté avec succès. Matricule : ' . $agent->matricule);
     }
 
@@ -128,6 +137,15 @@ class AgentController extends Controller
         }
 
         $agent->update($validated);
+
+        \App\Models\ActivityLog::record(
+            'RH',
+            'AGENT_MODIFIE',
+            $agent,
+            $agent->matricule,
+            "Modification de l'agent {$agent->nom} {$agent->prenom} ({$agent->matricule})"
+        );
+
         return redirect()->route('agents.edit', $matricule)->with('success', 'Agent modifié avec succès.');
     }
 
@@ -142,7 +160,18 @@ class AgentController extends Controller
         if ($agent->photo && file_exists(base_path('images_projet/' . $agent->photo))) {
             @unlink(base_path('images_projet/' . $agent->photo));
         }
+        $nomAgent = $agent->nom . ' ' . $agent->prenom;
+        $matriculeAgent = $agent->matricule;
         $agent->delete();
+
+        \App\Models\ActivityLog::record(
+            'RH',
+            'AGENT_SUPPRIME',
+            null,
+            $matriculeAgent,
+            "Suppression de l'agent {$nomAgent} ({$matriculeAgent})"
+        );
+
         return redirect()->route('agents.index')->with('success', 'Agent supprimé avec succès.');
     }
 }

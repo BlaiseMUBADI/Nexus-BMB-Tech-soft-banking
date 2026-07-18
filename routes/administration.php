@@ -8,8 +8,14 @@ use App\Http\Controllers\Administration\DeviseTauxController;
 use App\Http\Controllers\Administration\GuichetController;
 use App\Http\Controllers\Administration\RolesPermissionsController;
 use App\Http\Controllers\Administration\SmsTestController;
+use App\Http\Controllers\Administration\AuditLogController;
 
 Route::middleware('auth')->prefix('administration')->group(function () {
+
+    // Journal d'activité (audit) — permission EBEN-PER42
+    Route::middleware('permission:EBEN-PER42')->group(function () {
+        Route::get('/journal-activite', [AuditLogController::class, 'index'])->name('administration.journal_activite');
+    });
 
     
     Route::middleware('permission:EBEN-PER1')->group(function () {
@@ -86,6 +92,9 @@ Route::middleware('auth')->prefix('administration')->group(function () {
         Route::delete('/devises-taux/devise/{code_iso}',  [DeviseTauxController::class, 'destroyDevise'])->name('administration.devises-taux.destroyDevise');
     });
 
-    Route::get('/sms-test', [SmsTestController::class, 'index'])->name('administration.sms_test.index');
-    Route::post('/sms-test', [SmsTestController::class, 'send'])->name('administration.sms_test.send');
+    // Envoi de SMS = action coûteuse/sensible → réservée aux administrateurs (EBEN-PER1)
+    Route::middleware('permission:EBEN-PER1')->group(function () {
+        Route::get('/sms-test', [SmsTestController::class, 'index'])->name('administration.sms_test.index');
+        Route::post('/sms-test', [SmsTestController::class, 'send'])->name('administration.sms_test.send');
+    });
 });

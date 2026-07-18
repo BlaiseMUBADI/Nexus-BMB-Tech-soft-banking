@@ -262,6 +262,14 @@ class RolesPermissionsController extends Controller
                 ]
             );
 
+            \App\Models\ActivityLog::record(
+                'ADMINISTRATION',
+                'PERMISSION_ATTACHEE',
+                $role,
+                $request->role_code,
+                "Permission {$request->permission_code} attribuée au rôle {$request->role_code}"
+            );
+
             return response()->json(['success' => true, 'message' => 'Permission attribuée.']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $first = array_key_first($e->errors());
@@ -301,6 +309,14 @@ class RolesPermissionsController extends Controller
                     'icon' => 'fas fa-user-lock',
                     'action_url' => route('administration.roles_permissions'),
                 ]
+            );
+
+            \App\Models\ActivityLog::record(
+                'ADMINISTRATION',
+                'PERMISSION_DETACHEE',
+                $role,
+                $request->role_code,
+                "Permission {$request->permission_code} retirée du rôle {$request->role_code}"
             );
 
             return response()->json(['success' => true, 'message' => 'Permission retirée.']);
@@ -378,6 +394,14 @@ class RolesPermissionsController extends Controller
             );
         }
 
+        \App\Models\ActivityLog::record(
+            'ADMINISTRATION',
+            'ROLE_ATTACHE_UTILISATEUR',
+            $user,
+            $user?->name ?? (string) $request->user_id,
+            "Rôle {$request->role_code} attribué à l'utilisateur {$user?->name} (id {$request->user_id})"
+        );
+
         return response()->json(['success' => true]);
     }
 
@@ -407,6 +431,14 @@ class RolesPermissionsController extends Controller
                 ]
             );
         }
+
+        \App\Models\ActivityLog::record(
+            'ADMINISTRATION',
+            'ROLE_DETACHE_UTILISATEUR',
+            $user,
+            $user?->name ?? (string) $request->user_id,
+            "Rôle {$request->role_code} retiré de l'utilisateur {$user?->name} (id {$request->user_id})"
+        );
 
         return response()->json(['success' => true]);
     }

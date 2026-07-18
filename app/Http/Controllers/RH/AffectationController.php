@@ -40,7 +40,15 @@ class AffectationController extends Controller
         try {
             $data = $request->only('agent_matricule', 'poste_id', 'guichet_id', 'date_debut', 'date_fin');
             $data['Etat'] = 'ACTIF';
-            Affectation::create($data);
+            $affectation = Affectation::create($data);
+
+            \App\Models\ActivityLog::record(
+                'RH',
+                'AFFECTATION_CREEE',
+                $affectation,
+                $affectation->agent_matricule,
+                "Affectation créée pour l'agent {$affectation->agent_matricule} (poste #{$affectation->poste_id})"
+            );
         } catch (\Exception $e) {
             if ($request->ajax() || $request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
@@ -101,6 +109,14 @@ class AffectationController extends Controller
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }
 
+        \App\Models\ActivityLog::record(
+            'RH',
+            'AFFECTATION_ETAT',
+            $affectation,
+            $affectation->agent_matricule,
+            "Affectation #{$affectation->id} → état changé en {$request->etat}"
+        );
+
         return response()->json([
             'success'  => true,
             'message'  => 'État mis à jour : ' . $request->etat,
@@ -121,11 +137,22 @@ class AffectationController extends Controller
             ], 422);
         }
 
+        $agentMatricule = $affectation->agent_matricule;
+        $affectationId = $affectation->id;
+
         try {
             $affectation->delete();
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }
+
+        \App\Models\ActivityLog::record(
+            'RH',
+            'AFFECTATION_SUPPRIMEE',
+            null,
+            $agentMatricule,
+            "Suppression de l'affectation #{$affectationId} de l'agent {$agentMatricule}"
+        );
 
         return response()->json(['success' => true, 'message' => 'Affectation supprimée avec succès.']);
     }

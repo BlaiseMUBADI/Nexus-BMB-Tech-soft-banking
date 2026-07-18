@@ -330,6 +330,14 @@ class TresorerieController extends Controller
             ], 500);
         }
 
+        \App\Models\ActivityLog::record(
+            'TRESORERIE',
+            'COFFRE_APPROVISIONNE',
+            $coffre,
+            $request->devise_code,
+            "Approvisionnement coffre central : +{$request->montant} {$request->devise_code}" . ($request->source ? " (source : {$request->source})" : '')
+        );
+
         return response()->json([
             'success'       => true,
             'message'       => 'Coffre approvisionné : +' . number_format($request->montant, 2, ',', ' ') . ' ' . $request->devise_code . '. Nouveau solde : ' . number_format($nouveauSolde, 2, ',', ' '),
@@ -464,6 +472,14 @@ class TresorerieController extends Controller
             ]);
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }
+
+        \App\Models\ActivityLog::record(
+            'TRESORERIE',
+            'GUICHET_ALIMENTE',
+            $guichet,
+            $guichet->code_guichet,
+            "Alimentation du guichet {$guichet->code_guichet} depuis le coffre : +{$request->montant} {$request->devise_code}"
+        );
 
         return response()->json([
             'success'              => true,
@@ -1063,6 +1079,14 @@ class TresorerieController extends Controller
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }
 
+        \App\Models\ActivityLog::record(
+            'TRESORERIE',
+            'CLOTURE_APPROUVEE',
+            $guichet,
+            $guichet->code_guichet,
+            "Clôture approuvée pour le guichet {$guichet->code_guichet}"
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Clôture validée. Guichet ' . $guichet->code_guichet . ' fermé, fonds transférés au coffre.',
@@ -1126,6 +1150,14 @@ class TresorerieController extends Controller
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
         }
+
+        \App\Models\ActivityLog::record(
+            'TRESORERIE',
+            'CLOTURE_REJETEE',
+            $guichet,
+            $guichet->code_guichet,
+            "Clôture rejetée pour le guichet {$guichet->code_guichet} — motif : {$request->observations}"
+        );
 
         return response()->json([
             'success' => true,

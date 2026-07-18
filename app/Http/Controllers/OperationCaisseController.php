@@ -18,6 +18,7 @@ use App\Services\Comptabilite\OhadaAccountingService;
 use App\Services\Commissions\CommissionEngine;
 use App\Services\Notifications\NotificationService;
 use App\Models\Zone;
+use App\Models\ActivityLog;
 use App\Events\DepositOnRmbAccount;
 use Illuminate\Validation\Rule;
 
@@ -152,7 +153,11 @@ class OperationCaisseController extends Controller
         ];
 
         return collect(Transaction::operationTypeOptions($guichet?->type_guichet))
-            ->reject(fn ($type) => $type['value'] === Transaction::REMBOURSEMENT)
+            ->reject(fn ($type) => in_array($type['value'], [
+                Transaction::REMBOURSEMENT,
+                Transaction::DEPENSE,
+                Transaction::RECETTE,
+            ], true))
             ->map(fn ($type) => [
                 'value' => $type['value'],
                 'label' => $labels[$type['value']] ?? $type['label'],
@@ -651,6 +656,14 @@ class OperationCaisseController extends Controller
             ? route('caisses.operations.bordereau', ['id' => $transaction->id])
             : null;
 
+        ActivityLog::record(
+            'CAISSE',
+            'OPERATION_CREEE',
+            $transaction,
+            $reference,
+            "Opération {$request->type_operation} — {$request->montant} {$request->devise_code}" . ($request->compte_code ? " sur compte {$request->compte_code}" : '')
+        );
+
         return response()->json([
             'success'        => true,
             'reference'      => $reference,
@@ -811,6 +824,14 @@ class OperationCaisseController extends Controller
                 'message' => 'Erreur lors de l\'annulation : ' . $e->getMessage(),
             ], 500);
         }
+
+        ActivityLog::record(
+            'CAISSE',
+            'OPERATION_ANNULEE',
+            $op,
+            $op->reference,
+            "Annulation de l'opération {$op->reference} ({$op->type_operation} — {$op->montant} {$op->devise_code})"
+        );
 
         return response()->json([
             'success' => true,
@@ -1001,6 +1022,77 @@ class OperationCaisseController extends Controller
         $operationTypeOptions = $this->getOperationTypeFilterOptions($guichet);
 
         return view('Caisse_Guichet.journal', compact('guichet', 'user', 'operationTypeOptions'));
+    }
+
+    /**
+     * Impression du journal de caisse (PDF ou CSV).
+     */
+    public function printJournal(Request $request)
+    {
+        ini_set('memory_limit', '768M');
+
+        $guichet = $this->getGuichetAgent();
+        $date = $request->filled('date') ? $request->date : today()->toDateString();
+        $type = $request->input('type', 'TOUS');
+        $allowedTypes = $this->getAllowedOperationTypes($guichet);
+
+        $query = Transaction::where('guichet_id', $guichet?->id)
+            ->with('compte.client')
+            ->whereDate('date_operation', $date)
+            ->whereIn('type', $allowedTypes)
+            ->orderBy('date_operation');
+
+        if ($type !== 'TOUS' && in_array($type, $allowedTypes, true)) {
+            $query->where('type', $type);
+        }
+
+        $exportFormat = strtolower((string) $request->input('export_format', 'pdf'));
+        $outputMode = strtolower((string) $request->input('output', 'stream'));
+
+        if ($exportFormat === 'csv') {
+            $filename = 'Journal_caisse_' . $date . '.csv';
+
+            return response()->streamDownload(function () use ($query) {
+                $handle = fopen('php://output', 'w');
+                fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+                fputcsv($handle, ['Référence', 'Type', 'Compte', 'Client', 'Devise', 'Montant', 'Heure', 'Statut', 'Observations'], ';');
+
+                $query->chunk(500, function ($ops) use ($handle) {
+                    foreach ($ops as $op) {
+                        $client = $op->compte?->client;
+                        $clientNom = $client ? trim(($client->nom ?? '') . ' ' . ($client->prenom ?? '')) : '';
+                        fputcsv($handle, [
+                            $op->reference,
+                            Transaction::typeLabel($op->type),
+                            $op->compte_code,
+                            $clientNom,
+                            $op->devise_code,
+                            $op->montant,
+                            $op->date_operation?->format('H:i:s'),
+                            $op->statut,
+                            $op->observations,
+                        ], ';');
+                    }
+                });
+                fclose($handle);
+            }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }
+
+        $operations = $query->get();
+        $totauxParType = $operations->groupBy('type')->map(fn ($g) => [
+            'count' => $g->count(),
+            'montant' => $g->sum('montant'),
+        ]);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('impressions.caisse.journal_operations', compact(
+            'operations', 'totauxParType', 'date', 'type', 'guichet'
+        ))->setPaper('a4', 'landscape');
+
+        if ($outputMode === 'download') {
+            return $pdf->download('Journal_caisse_' . $date . '.pdf');
+        }
+
+        return $pdf->stream('Journal_caisse_' . $date . '.pdf');
     }
 
     /**

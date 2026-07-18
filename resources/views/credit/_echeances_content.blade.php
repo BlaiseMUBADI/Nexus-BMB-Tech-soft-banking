@@ -100,7 +100,6 @@
                         <th>Zone</th>
                         <th>Portefeuille</th>
                         <th class="text-right">Montant échéance</th>
-                        <th class="text-right">Commission</th>
                         <th class="text-right">Payé</th>
                         <th class="text-right">Reste dû</th>
                         <th class="text-center">Statut</th>
@@ -112,7 +111,6 @@
                             $demande = $ech->echeancier->demande ?? null;
                             $client = $demande->client ?? null;
                             $resteDu = max(0, (float) $ech->total_echeance - (float) $ech->montant_paye);
-                            $commission = $ech->commission_echeance ?? 0;
                             $badgeStatut = [
                                 'EN_ATTENTE' => 'badge-secondary',
                                 'EN_RETARD' => 'badge-danger',
@@ -137,7 +135,6 @@
                             <td>{{ $demande->zone->nom ?? '-' }}</td>
                             <td>{{ $demande->portefeuille->nom_portefeuille ?? '-' }}</td>
                             <td class="text-right">{{ number_format($ech->total_echeance, 2, ',', ' ') }} <small>{{ $demande->devise ?? '' }}</small></td>
-                            <td class="text-right text-info">{{ number_format($commission, 2, ',', ' ') }}</td>
                             <td class="text-right text-success">{{ number_format($ech->montant_paye, 2, ',', ' ') }}</td>
                             <td class="text-right text-danger font-weight-bold">{{ number_format($resteDu, 2, ',', ' ') }}</td>
                             <td class="text-center">
@@ -146,7 +143,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="text-center text-muted py-4">
+                            <td colspan="10" class="text-center text-muted py-4">
                                 <i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>
                                 Aucune échéance ne correspond aux critères sélectionnés.
                             </td>

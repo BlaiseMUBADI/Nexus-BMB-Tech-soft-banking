@@ -44,8 +44,9 @@
                     </select>
                 </div>
                 <div class="col-12 col-md-auto journal-filter-actions">
-                    <button class="btn btn-info btn-sm" id="btnFiltrer">
-                        <i class="fas fa-search mr-1"></i> Filtrer
+                    <small class="text-muted d-block mb-1"><i class="fas fa-bolt text-warning mr-1"></i>Recherche automatique</small>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-toggle="modal" data-target="#modalImpressionJournalCaisse">
+                        <i class="fas fa-print mr-1"></i> Imprimer
                     </button>
                     <button class="btn btn-outline-secondary btn-sm ml-1" id="btnExportCSV" title="Export CSV">
                         <i class="fas fa-file-csv mr-1"></i> CSV
@@ -104,6 +105,40 @@
     </div>
 
     @endif
+</div>
+
+{{-- ===== Modal Impression Journal de Caisse ===== --}}
+<div class="modal fade" id="modalImpressionJournalCaisse" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white py-2">
+                <h5 class="modal-title"><i class="fas fa-print mr-2"></i>Paramètres d'impression</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="formImpressionJournalCaisse" action="{{ route('caisses.journal.print') }}" method="GET" target="_blank">
+                <input type="hidden" name="output" id="journalPrintOutputMode" value="stream">
+                <input type="hidden" name="export_format" id="journalPrintExportFormat" value="pdf">
+                <input type="hidden" name="date" id="journalPrintDate">
+                <input type="hidden" name="type" id="journalPrintType">
+                <div class="modal-body text-center py-4">
+                    <p class="mb-2">Le journal du <strong id="journalPrintDateLabel"></strong> sera imprimé (filtre type actif inclus).</p>
+                    <p class="text-muted small mb-0">Choisissez le format de sortie :</p>
+                </div>
+                <div class="modal-footer py-2 justify-content-center">
+                    <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-sm btn-primary js-journal-print-action" data-output="stream" data-format="pdf">
+                        <i class="fas fa-file-pdf mr-1"></i> Ouvrir PDF
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-outline-primary js-journal-print-action" data-output="download" data-format="pdf">
+                        <i class="fas fa-download mr-1"></i> Télécharger PDF
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-success js-journal-print-action" data-output="download" data-format="csv">
+                        <i class="fas fa-file-csv mr-1"></i> Télécharger CSV
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -303,8 +338,19 @@ $(document).ready(function () {
         link.click();
     });
 
-    $('#btnFiltrer, #btnRefreshJournal').on('click', chargerJournal);
+    $('#btnRefreshJournal').on('click', chargerJournal);
     $('#filtreDate, #filtreType').on('change', chargerJournal);
+
+    // ── Synchro filtres → modal d'impression ──
+    $('#modalImpressionJournalCaisse').on('show.bs.modal', function () {
+        $('#journalPrintDate').val($('#filtreDate').val());
+        $('#journalPrintType').val($('#filtreType').val());
+        $('#journalPrintDateLabel').text($('#filtreDate').val());
+    });
+    $('.js-journal-print-action').on('click', function () {
+        $('#journalPrintOutputMode').val($(this).data('output') || 'stream');
+        $('#journalPrintExportFormat').val($(this).data('format') || 'pdf');
+    });
 
     // Premier chargement
     chargerJournal();

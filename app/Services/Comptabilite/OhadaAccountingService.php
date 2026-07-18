@@ -20,13 +20,23 @@ class OhadaAccountingService
 
     private function createJournal(Transaction $transaction, string $typePiece, array $overrides, bool $reverse): ?JournalComptable
     {
+        // Sécurité comptable : interdire toute nouvelle écriture sur un exercice CLOTURE
+        $dateEcriture = $transaction->date_operation ?? now();
+        $exercice = \App\Models\Comptabilite\ExerciceComptable::pourDate($dateEcriture);
+        if ($exercice && $exercice->estCloture()) {
+            throw new \RuntimeException(
+                "Impossible d'enregistrer cette écriture : l'exercice comptable {$exercice->annee} est clôturé. " .
+                "Contactez le service comptabilité."
+            );
+        }
+
         $montant = isset($overrides['montant']) ? (float) $overrides['montant'] : (float) $transaction->montant;
         $commission = isset($overrides['commission']) ? (float) $overrides['commission'] : (float) ($transaction->montant_commission_total ?? 0);
         $devise = $overrides['devise_code'] ?? $transaction->devise_code;
         $montantDest = isset($overrides['montant_dest']) ? (float) $overrides['montant_dest'] : (float) ($transaction->montant_dest ?? 0);
         $deviseDest = $overrides['devise_dest'] ?? $transaction->devise_dest;
 
-        $lines = $this->buildLines($transaction, $montant, $commission, $devise, $montantDest, $deviseDest);
+        $lines = $this->buildLines($transaction, $montant, $commission, $devise, $montantDest, $deviseDest, $overrides);
         if (empty($lines)) {
             return null;
         }
@@ -80,7 +90,7 @@ class OhadaAccountingService
         return $journal;
     }
 
-    private function buildLines(Transaction $transaction, float $montant, float $commission, ?string $devise, float $montantDest, ?string $deviseDest): array
+    private function buildLines(Transaction $transaction, float $montant, float $commission, ?string $devise, float $montantDest, ?string $deviseDest, array $overrides = []): array
     {
         if ($montant <= 0) {
             return [];
@@ -122,6 +132,22 @@ class OhadaAccountingService
             case Transaction::REMBOURSEMENT:
                 $lines[] = $this->line($compteChargeRemboursement, $devise, 'Charge remboursement guichet', $montant, 0);
                 $lines[] = $this->line($caisseCompteSource, $devise, 'Decaissement remboursement', 0, $montant);
+                break;
+
+            case Transaction::DEPENSE:
+                // Compte de charge déterminé dynamiquement par la catégorie de dépense
+                // (voir CategorieDepense::numero_compte_charge) — jamais codé en dur.
+                $compteCharge = $overrides['compte_charge'] ?? '6581'; // repli : autres charges diverses
+                $lines[] = $this->line($compteCharge, $devise, 'Charge - dépense de caisse', $montant, 0);
+                $lines[] = $this->line($caisseCompteSource, $devise, 'Décaissement dépense', 0, $montant);
+                break;
+
+            case Transaction::RECETTE:
+                // Compte de produit déterminé dynamiquement par la catégorie de recette
+                // (voir CategorieRecette::numero_compte_produit) — jamais codé en dur.
+                $compteProduit = $overrides['compte_produit'] ?? '7581'; // repli : autres produits divers
+                $lines[] = $this->line($caisseCompteSource, $devise, 'Encaissement recette de caisse', $montant, 0);
+                $lines[] = $this->line($compteProduit, $devise, 'Produit - recette de caisse', 0, $montant);
                 break;
 
             case Transaction::CHANGE:

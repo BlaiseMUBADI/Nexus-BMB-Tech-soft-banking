@@ -322,6 +322,14 @@ class CompteController extends Controller
             throw $e;
         }
 
+        \App\Models\ActivityLog::record(
+            'COMPTE',
+            'COMPTE_CREE',
+            $compte,
+            $compte->code_compte,
+            "Ouverture d'un compte {$compte->type} ({$compte->devise}) pour le client {$compte->client_matricule}"
+        );
+
         if ($request->ajax()) {
             return response()->json(['success' => true, 'message' => 'Compte ouvert avec succès.']);
         }
@@ -345,7 +353,19 @@ class CompteController extends Controller
                 return response()->json(['success' => false, 'message' => 'Accès refusé : compte hors de votre zone.'], 403);
             }
 
+            $codeCompte = $compte->code_compte;
+            $typeCompte = $compte->type;
+            $clientMatricule = $compte->client_matricule;
             $compte->delete();
+
+            \App\Models\ActivityLog::record(
+                'COMPTE',
+                'COMPTE_SUPPRIME',
+                null,
+                $codeCompte,
+                "Suppression du compte {$typeCompte} ({$codeCompte}) du client {$clientMatricule}"
+            );
+
             return response()->json(['success' => true, 'message' => 'Compte supprimé avec succès.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erreur lors de la suppression : ' . $e->getMessage()], 500);

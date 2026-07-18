@@ -60,13 +60,12 @@
         <tr style="background:#1a7a4a; color:#fff; border:2.5px solid #333;">
             <th style="padding:5px 6px; width:10%; border:2.5px solid #333;">Date éch.</th>
             <th style="padding:5px 6px; width:5%; border:2.5px solid #333; text-align:center;">N°</th>
-            <th style="padding:5px 6px; width:20%; border:2.5px solid #333;">Client</th>
+            <th style="padding:5px 6px; width:24%; border:2.5px solid #333;">Client</th>
             <th style="padding:5px 6px; width:12%; border:2.5px solid #333;">Zone</th>
             <th style="padding:5px 6px; width:13%; border:2.5px solid #333;">Portefeuille</th>
-            <th style="padding:5px 6px; width:12%; border:2.5px solid #333; text-align:right;">Montant éch.</th>
-            <th style="padding:5px 6px; width:10%; border:2.5px solid #333; text-align:right;">Commission</th>
-            <th style="padding:5px 6px; width:9%; border:2.5px solid #333; text-align:right;">Payé</th>
-            <th style="padding:5px 6px; width:9%; border:2.5px solid #333; text-align:right;">Reste dû</th>
+            <th style="padding:5px 6px; width:14%; border:2.5px solid #333; text-align:right;">Montant éch.</th>
+            <th style="padding:5px 6px; width:11%; border:2.5px solid #333; text-align:right;">Payé</th>
+            <th style="padding:5px 6px; width:11%; border:2.5px solid #333; text-align:right;">Reste dû</th>
         </tr>
     </thead>
     <tbody>
@@ -75,7 +74,6 @@
             $demande = $ech->echeancier->demande ?? null;
             $client = $demande->client ?? null;
             $resteDu = max(0, (float) $ech->total_echeance - (float) $ech->montant_paye);
-            $commission = $ech->commission_echeance ?? 0;
         @endphp
         <tr style="{{ $i % 2 === 0 ? 'background:#fff;' : 'background:#f9f9f9;' }} border:2px solid #333; font-size:8.5px;">
             <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; border:2px solid #333; color:#111;">{{ \Carbon\Carbon::parse($ech->date_echeance)->format('d/m/Y') }}</td>
@@ -86,7 +84,6 @@
             <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; border:2px solid #333; color:#111;">{{ $demande->zone->nom ?? '-' }}</td>
             <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; border:2px solid #333; color:#111;">{{ $demande->portefeuille->nom_portefeuille ?? '-' }}</td>
             <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; text-align:right; border:2px solid #333; color:#111;">{{ number_format($ech->total_echeance, 0, ',', ' ') }} {{ $demande->devise ?? '' }}</td>
-            <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; text-align:right; border:2px solid #333; color:#1565c0;">{{ number_format($commission, 0, ',', ' ') }}</td>
             <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; text-align:right; border:2px solid #333; color:#2e7d32;">{{ number_format($ech->montant_paye, 0, ',', ' ') }}</td>
             <td style="padding:4px 6px; line-height:1.15; vertical-align:middle; text-align:right; border:2px solid #333; color:#c62828; font-weight:bold;">{{ number_format($resteDu, 0, ',', ' ') }}</td>
         </tr>
@@ -94,7 +91,7 @@
     </tbody>
     <tfoot>
         <tr style="background:#d9e8e0; font-weight:bold; border:2.5px solid #333;">
-            <td colspan="8" style="padding:6px 8px; text-align:right; border:2.5px solid #333; color:#111;">RESTE À RECOUVRIR (TOUTES DEVISES)</td>
+            <td colspan="7" style="padding:6px 8px; text-align:right; border:2.5px solid #333; color:#111;">RESTE À RECOUVRIR (TOUTES DEVISES)</td>
             <td style="padding:6px 8px; text-align:right; border:2.5px solid #333; color:#c62828;">{{ number_format($resteATotalGeneral, 0, ',', ' ') }}</td>
         </tr>
     </tfoot>

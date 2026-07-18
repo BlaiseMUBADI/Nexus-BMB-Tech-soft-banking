@@ -34,6 +34,8 @@ class Transaction extends Model
     const REMBOURSEMENT  = 'REMBOURSEMENT';
     const CHANGE         = 'CHANGE';
     const PAIEMENT       = 'PAIEMENT';
+    const DEPENSE        = 'DEPENSE';
+    const RECETTE        = 'RECETTE';
 
     // ── Constantes statut ────────────────────────────────────────
     const CONFIRME = 'CONFIRME';
@@ -121,6 +123,8 @@ class Transaction extends Model
             self::REMBOURSEMENT => 'Remboursement',
             self::CHANGE        => 'Change',
             self::PAIEMENT      => 'Paiement',
+            self::DEPENSE       => 'Dépense',
+            self::RECETTE       => 'Recette',
             default             => $type,
         };
     }
@@ -135,6 +139,8 @@ class Transaction extends Model
             self::REMBOURSEMENT => 'fa-undo',
             self::CHANGE        => 'fa-sync-alt',
             self::PAIEMENT      => 'fa-money-bill-wave',
+            self::DEPENSE       => 'fa-receipt',
+            self::RECETTE       => 'fa-hand-holding-usd',
             default             => 'fa-circle',
         };
     }
@@ -149,6 +155,8 @@ class Transaction extends Model
             self::REMBOURSEMENT => 'badge-warning',
             self::CHANGE        => 'badge-primary',
             self::PAIEMENT      => 'badge-secondary',
+            self::DEPENSE       => 'badge-dark',
+            self::RECETTE       => 'badge-success',
             default             => 'badge-light',
         };
     }
@@ -164,6 +172,8 @@ class Transaction extends Model
             self::CHANGE,
             self::PAIEMENT,
             self::REMBOURSEMENT,
+            self::DEPENSE,
+            self::RECETTE,
         ];
 
         if (strtoupper((string) $guichetType) === 'MOBILE') {

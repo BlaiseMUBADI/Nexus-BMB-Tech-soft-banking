@@ -51,6 +51,14 @@ class UtilisateurController extends Controller
         $user->agent_matricule = $validated['agent_matricule'];
         $user->save();
 
+        \App\Models\ActivityLog::record(
+            'ADMINISTRATION',
+            'UTILISATEUR_CREE',
+            $user,
+            $user->name,
+            "Création de l'utilisateur {$user->name} (agent : {$user->agent_matricule}, état : {$user->etat})"
+        );
+
         return response()->json(['success' => true, 'message' => 'Utilisateur créé avec succès.']);
     }
 
@@ -68,7 +76,18 @@ class UtilisateurController extends Controller
     public function destroy($id)
     {
         $user = \App\Models\User::findOrFail($id);
+        $nomUser = $user->name;
+        $agentMatricule = $user->agent_matricule;
         $user->delete();
+
+        \App\Models\ActivityLog::record(
+            'ADMINISTRATION',
+            'UTILISATEUR_SUPPRIME',
+            null,
+            $nomUser,
+            "Suppression de l'utilisateur {$nomUser} (agent : {$agentMatricule})"
+        );
+
         return response()->json(['success' => true, 'message' => 'Utilisateur supprimé avec succès.']);
     }
 
@@ -116,7 +135,15 @@ class UtilisateurController extends Controller
                     ->delete();
             }
         });
-        
+
+        \App\Models\ActivityLog::record(
+            'ADMINISTRATION',
+            'UTILISATEUR_MODIFIE',
+            $user,
+            $user->name,
+            "Modification de l'utilisateur {$user->name} (état : {$validated['etat']})" . ($becomesInactive ? ' — comptes/sessions désactivés' : '')
+        );
+
         if ($request->ajax()) {
             return response()->json(['success' => true, 'message' => 'Utilisateur modifié avec succès.']);
         }

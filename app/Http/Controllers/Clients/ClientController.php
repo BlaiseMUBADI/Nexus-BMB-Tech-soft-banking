@@ -609,6 +609,14 @@ class ClientController extends Controller
             throw $e;
         }
 
+        \App\Models\ActivityLog::record(
+            'CLIENT',
+            'CLIENT_CREE',
+            $client,
+            $client->matricule,
+            "Création du client {$client->nom} {$client->prenom} ({$client->matricule})"
+        );
+
         return redirect()->route('clients.create')->with('success', 'Client ajouté avec succès. Matricule : ' . $client->matricule);
     }
 
@@ -786,7 +794,17 @@ class ClientController extends Controller
             $validated['photo'] = $client->photo;
         }
 
+        $ancienNom = $client->nom . ' ' . $client->prenom;
         $client->update($validated);
+
+        \App\Models\ActivityLog::record(
+            'CLIENT',
+            'CLIENT_MODIFIE',
+            $client,
+            $client->matricule,
+            "Modification du client {$ancienNom} ({$client->matricule})"
+        );
+
         return redirect()->route('clients.edit', $client->matricule)->with('success', 'Client modifié avec succès.');
     }
 
@@ -817,7 +835,18 @@ class ClientController extends Controller
         if ($client->photo && file_exists(base_path('images_projet/' . $client->photo))) {
             @unlink(base_path('images_projet/' . $client->photo));
         }
+
+        $nomClient = $client->nom . ' ' . $client->prenom;
+        $matriculeClient = $client->matricule;
         $client->delete();
+
+        \App\Models\ActivityLog::record(
+            'CLIENT',
+            'CLIENT_SUPPRIME',
+            null,
+            $matriculeClient,
+            "Suppression du client {$nomClient} ({$matriculeClient})"
+        );
 
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json(['success' => true, 'message' => 'Client supprimé avec succès.']);

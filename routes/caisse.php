@@ -4,6 +4,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CaisseController;
 use App\Http\Controllers\OperationCaisseController;
 use App\Http\Controllers\Credit\CreditController;
+use App\Http\Controllers\Caisse\DepenseController;
+use App\Http\Controllers\Caisse\RecetteController;
+use App\Http\Controllers\Caisse\OperationAdministrativeController;
 
 Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function () {
 
@@ -15,11 +18,25 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
         Route::get('operations',                        [OperationCaisseController::class, 'index'])->name('operations.index');
         Route::get('operations/comptes/search',         [OperationCaisseController::class, 'searchCompte'])->name('operations.comptes.search');
         Route::get('operations/commission-preview',      [OperationCaisseController::class, 'commissionPreview'])->name('operations.commission.preview');
+
+        // ── Opérations Administratives : Dépenses (Sorties) + Recettes (Entrées) OHADA ──
+        Route::get('operations-administratives', [OperationAdministrativeController::class, 'index'])->name('operations-administratives.index');
+        Route::get('depenses/{id}/recu', [DepenseController::class, 'recu'])->name('depenses.recu');
+        Route::get('recettes/{id}/recu', [RecetteController::class, 'recu'])->name('recettes.recu');
+    });
+
+    // Saisie / annulation : permission dédiée EBEN-PER114
+    Route::middleware('permission:EBEN-PER114')->group(function () {
+        Route::post('depenses', [DepenseController::class, 'store'])->name('depenses.store');
+        Route::post('depenses/{id}/annuler', [DepenseController::class, 'annuler'])->name('depenses.annuler');
+        Route::post('recettes', [RecetteController::class, 'store'])->name('recettes.store');
+        Route::post('recettes/{id}/annuler', [RecetteController::class, 'annuler'])->name('recettes.annuler');
     });
 
     Route::middleware('permission:EBEN-PER10')->group(function () {
         Route::get('operations/journal',      [OperationCaisseController::class, 'journalPage'])->name('journal.page');
         Route::get('operations/journal/data', [OperationCaisseController::class, 'journal'])->name('journal.data');
+        Route::get('operations/journal/print', [OperationCaisseController::class, 'printJournal'])->name('journal.print');
         Route::get('operations/rapport',      [OperationCaisseController::class, 'rapportFinJournee'])->name('rapport.fin.journee');
     });
 
@@ -41,9 +58,9 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
         Route::post('mobile/retour',   [OperationCaisseController::class, 'mobileRetour'])->name('mobile.retour');
     });
 
-    // Vérification permission d'annulation gérée dans le contrôleur
+    // Défense en profondeur : permission vérifiée au niveau route ET dans le contrôleur
     // (EBEN-PER25 transactions bancaire - modèle strict)
-    Route::post('operations/{id}/annuler', [OperationCaisseController::class, 'annuler'])->name('operations.annuler');
+    Route::middleware('permission:EBEN-PER25')->post('operations/{id}/annuler', [OperationCaisseController::class, 'annuler'])->name('operations.annuler');
 
     
     Route::middleware('permission:EBEN-PER10')->group(function () {

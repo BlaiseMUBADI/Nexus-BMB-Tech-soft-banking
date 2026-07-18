@@ -85,8 +85,8 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
             Route::get('/{dossier}', [CreditController::class, 'show'])->name('show');
         });
 
-        // ── Prélèvement auto toggle ──────────────────────────────────
-        Route::post('/{dossier}/toggle-prelevement-auto', [CreditController::class, 'togglePrelevementAuto'])
+        // ── Prélèvement auto toggle (EBEN-PER113 = modification config crédit) ──
+        Route::middleware('permission:EBEN-PER113')->post('/{dossier}/toggle-prelevement-auto', [CreditController::class, 'togglePrelevementAuto'])
             ->name('toggle.prelevement.auto');
 
         // ── Soumission ────────────────────────────────────────────────

@@ -1992,7 +1992,8 @@ class CreditController extends Controller
             'solde_reel' => 0,
             'solde_bloque' => 0,
             'devise' => $dossier->devise,
-            'portefeuille_id' => null,
+            // Bug corrigé : reprendre le portefeuille du dossier crédit, jamais null
+            'portefeuille_id' => $dossier->portefeuille_id,
         ]);
     }
 
@@ -2013,7 +2014,8 @@ class CreditController extends Controller
             'solde_reel' => 0,
             'solde_bloque' => 0,
             'devise' => $dossier->devise,
-            'portefeuille_id' => null,
+            // Bug corrigé : reprendre le portefeuille du dossier crédit, jamais null
+            'portefeuille_id' => $dossier->portefeuille_id,
         ]);
     }
 
