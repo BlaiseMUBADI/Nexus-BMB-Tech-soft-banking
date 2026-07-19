@@ -51,6 +51,11 @@ class RecetteController extends Controller
             return response()->json(['success' => false, 'message' => 'Aucun guichet affecté à votre compte.'], 422);
         }
 
+        // Sécurité : les Recettes sont réservées aux guichets FIXE/CENTRAL, jamais aux MOBILE
+        if ($guichet->type_guichet === 'MOBILE') {
+            return response()->json(['success' => false, 'message' => "Les recettes de caisse sont réservées aux guichets de bureau (FIXE). Un guichet MOBILE ne peut pas en saisir."], 403);
+        }
+
         if ($guichet->statut_operationnel !== 'OUVERT') {
             return response()->json(['success' => false, 'message' => 'Guichet non ouvert. Impossible de saisir une recette.'], 422);
         }

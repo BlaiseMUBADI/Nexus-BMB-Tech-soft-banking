@@ -159,6 +159,25 @@ class OhadaAccountingService
                 $lines[] = $this->line($compteTransitoireChange, $deviseDest ?: $devise, 'Contrepartie change devise destination', $effectiveDest, 0);
                 $lines[] = $this->line($caisseCompteDest, $deviseDest ?: $devise, 'Sortie devise destination', 0, $effectiveDest);
                 break;
+
+            case Transaction::VIREMENT:
+                // Virement entre deux comptes clients (agrégés sur le compte de dépôt 2511).
+                // Aucun mouvement de caisse physique : c'est un jeu d'écriture pur entre comptes clients.
+                $effectiveDestVirement = $montantDest > 0 ? $montantDest : $montant;
+                $deviseDestVirement = $deviseDest ?: $devise;
+
+                if ($deviseDestVirement === $devise) {
+                    // Meme devise : deux lignes suffisent (debit source / credit destination)
+                    $lines[] = $this->line($compteDepotClient, $devise, 'Virement sortant - debit compte source', $montant, 0);
+                    $lines[] = $this->line($compteDepotClient, $devise, 'Virement entrant - credit compte destination', 0, $effectiveDestVirement);
+                } else {
+                    // Devises differentes : passage par le compte transitoire de change (meme principe que CHANGE)
+                    $lines[] = $this->line($compteDepotClient, $devise, 'Virement sortant (devise source) - debit compte source', $montant, 0);
+                    $lines[] = $this->line($compteTransitoireChange, $devise, 'Contrepartie change - devise source', 0, $montant);
+                    $lines[] = $this->line($compteTransitoireChange, $deviseDestVirement, 'Contrepartie change - devise destination', $effectiveDestVirement, 0);
+                    $lines[] = $this->line($compteDepotClient, $deviseDestVirement, 'Virement entrant (devise destination) - credit compte destination', 0, $effectiveDestVirement);
+                }
+                break;
         }
 
         return $lines;

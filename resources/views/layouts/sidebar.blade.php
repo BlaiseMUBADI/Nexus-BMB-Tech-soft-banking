@@ -143,14 +143,16 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
                                       </li>
                                   @endif
 
-                                 {{-- 6. Opérations Administratives (Dépenses + Recettes) --}}
-                                  <li class="nav-item">
-                                      <a href="{{ route('caisses.operations-administratives.index') }}"
-                                         class="nav-link sub-link {{ request()->routeIs('caisses.operations-administratives.*') ? 'active' : '' }}">
-                                          <i class="fas fa-exchange-alt nav-icon text-danger"></i>
-                                          <p>Op. Administratives</p>
-                                      </a>
-                                  </li>
+                                 {{-- 6. Opérations Administratives (Dépenses + Recettes) — réservées aux guichets FIXE/CENTRAL --}}
+                                  @if(strtoupper((string) ($guichetTypeActuel ?? '')) !== 'MOBILE')
+                                      <li class="nav-item">
+                                          <a href="{{ route('caisses.operations-administratives.index') }}"
+                                             class="nav-link sub-link {{ request()->routeIs('caisses.operations-administratives.*') ? 'active' : '' }}">
+                                              <i class="fas fa-exchange-alt nav-icon text-danger"></i>
+                                              <p>Op. Administratives</p>
+                                          </a>
+                                      </li>
+                                  @endif
 
 							@endif
 
@@ -374,6 +376,16 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									</a>
 								</li>
 							@endif
+
+							@if(in_array('EBEN-PER119', $userPermCodes ?? []) || in_array('EBEN-PER120', $userPermCodes ?? []))
+								<li class="nav-item">
+									<a href="{{ route('comptabilite.virements.index') }}"
+										class="nav-link sub-link {{ request()->routeIs('comptabilite.virements.*') ? 'active' : '' }}">
+										<i class="fas fa-exchange-alt nav-icon text-info"></i>
+										<p>Virements Bancaires</p>
+									</a>
+								</li>
+							@endif
 						</ul>
 					</li>
 				@endif
@@ -435,7 +447,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 								</li>
 							@endif
 
-							@if(in_array('EBEN-PER53', $userPermCodes ?? []))
+							@if(in_array('EBEN-PER118', $userPermCodes ?? []))
 								<li class="nav-item">
 									<a href="{{ route('credit.echeances') }}"
 										class="nav-link sub-link {{ request()->routeIs('credit.echeances') ? 'active' : '' }}">

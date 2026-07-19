@@ -35,6 +35,12 @@ class OperationAdministrativeController extends Controller
     {
         $guichet = $this->getGuichetAgent();
 
+        // Opérations Administratives (Dépenses/Recettes) : réservées aux guichets FIXE/CENTRAL,
+        // comme les Retraits et Remboursements. Un guichet MOBILE ne doit jamais y accéder.
+        if ($guichet && $guichet->type_guichet === 'MOBILE') {
+            abort(403, "Les Opérations Administratives sont réservées aux guichets de bureau (FIXE). Un guichet MOBILE ne peut ni saisir ni consulter les dépenses/recettes de caisse.");
+        }
+
         $depenses = Depense::with(['transaction', 'categorie', 'agent'])
             ->orderByDesc('created_at')
             ->paginate(15, ['*'], 'page_depenses')

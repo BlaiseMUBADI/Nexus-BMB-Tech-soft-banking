@@ -113,6 +113,7 @@ class RolesPermissionsController extends Controller
             12 => ['label' => 'Trésorerie',        'icon' => 'fa-university',       'color' => 'success'],
             13 => ['label' => 'Audit & Sécurité',  'icon' => 'fa-shield-alt',       'color' => 'danger'],
             14 => ['label' => 'CRUD Global',       'icon' => 'fa-layer-group',      'color' => 'secondary'],
+            15 => ['label' => 'Autre / Non classé', 'icon' => 'fa-puzzle-piece',    'color' => 'secondary'],
         ];
     }
 
@@ -125,28 +126,24 @@ class RolesPermissionsController extends Controller
         if ($n >= 1 && $n <= 5) {
             return 1;
         }
-        if ($n >= 6 && $n <= 9) {
+        // RH : création (6-9), modification/suppression (86-88 agents, 90-92 services/affectations, 103-106)
+        if (($n >= 6 && $n <= 9) || ($n >= 86 && $n <= 88) || ($n >= 90 && $n <= 92) || ($n >= 103 && $n <= 106)) {
             return 2;
         }
-        if ($n >= 103 && $n <= 106) {
-            return 2;
-        }
-        if (($n >= 10 && $n <= 14) || $n === 110 || $n === 111 || $n === 112) {
+        // Caisse/Guichet : opérations (10-14), rapport/remboursements/relevé (109-112),
+        // ajout/modif opération caisse (95-96), saisie dépense/recette au guichet (114)
+        if (($n >= 10 && $n <= 14) || ($n >= 95 && $n <= 96) || $n === 109 || $n === 110 || $n === 111 || $n === 112 || $n === 114) {
             return 3;
         }
         if ($n === 97) {
             return 7;
         }
-        if (($n >= 15 && $n <= 17) || $n === 76) {
+        // Clients : consultation/création/modification (15-17, 76), ajout/modif/suppression (80-82, 107)
+        if (($n >= 15 && $n <= 17) || $n === 76 || ($n >= 80 && $n <= 82) || $n === 107) {
             return 4;
         }
-        if ($n === 107) {
-            return 4;
-        }
-        if ($n >= 18 && $n <= 19) {
-            return 5;
-        }
-        if ($n === 108) {
+        // Comptes : consultation/création (18-19), ajout/modif/suppression (83-85, 108)
+        if (($n >= 18 && $n <= 19) || ($n >= 83 && $n <= 85) || $n === 108) {
             return 5;
         }
         if ($n >= 20 && $n <= 21) {
@@ -158,18 +155,24 @@ class RolesPermissionsController extends Controller
         if ($n >= 27 && $n <= 29) {
             return 8;
         }
-        if (($n >= 30 && $n <= 35) || ($n >= 53 && $n <= 72)) {
+        // Crédits : workflow legacy/analyse/validation (30-35, 53-72), ajout/suppression (100, 102),
+        // modifier workflow (101), toggle prélèvement auto (113), tombée d'échéances (118)
+        if (($n >= 30 && $n <= 35) || ($n >= 53 && $n <= 72) || $n === 100 || $n === 101 || $n === 102 || $n === 113 || $n === 118) {
             return 9;
         }
         if ($n >= 36 && $n <= 38) {
             return 10;
         }
-        if (($n >= 39 && $n <= 41) || ($n >= 49 && $n <= 52)) {
+        // Comptabilité : journal/plan/grand livre (39-41, 49-52), catégories dépenses/recettes (115),
+        // clôture d'exercice comptable (116-117), virement bancaire proposer/valider (119-120)
+        if (($n >= 39 && $n <= 41) || ($n >= 49 && $n <= 52) || $n === 115 || $n === 116 || $n === 117 || $n === 119 || $n === 120) {
             return 11;
         }
         if (($n >= 44 && $n <= 48) || ($n >= 77 && $n <= 79)) {
             return 12;
         }
+        // Audit & Sécurité : uniquement le journal d'activité et les paramètres de sécurité —
+        // aucune autre permission ne doit y être rattachée par défaut.
         if ($n === 42 || $n === 43) {
             return 13;
         }
@@ -177,7 +180,9 @@ class RolesPermissionsController extends Controller
             return 14;
         }
 
-        return 13;
+        // Fallback neutre : plutôt que de polluer "Audit & Sécurité", toute permission non
+        // reconnue atterrit dans "Autre / Non classé" pour rester visible sans induire en erreur.
+        return 15;
     }
 
     /**

@@ -47,9 +47,11 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
         Route::get('/', [CreditController::class, 'index'])->name('index');
         Route::get('/print', [CreditController::class, 'printListe'])->name('print.liste');
 
-        // ── Tombée d'échéances (échéances à recouvrir selon critères) ──
-        Route::get('/echeances', [CreditController::class, 'echeances'])->name('echeances');
-        Route::get('/echeances/print', [CreditController::class, 'printEcheances'])->name('echeances.print');
+        // ── Tombée d'échéances (permission dédiée EBEN-PER118, distincte de PER53) ──
+        Route::middleware('permission:EBEN-PER118')->group(function () {
+            Route::get('/echeances', [CreditController::class, 'echeances'])->name('echeances');
+            Route::get('/echeances/print', [CreditController::class, 'printEcheances'])->name('echeances.print');
+        });
 
         // ── Grille de commissions crédit (Admin/Gérant uniquement) ──
         Route::middleware('permission:EBEN-PER63')->prefix('commissions')->name('commissions.')->group(function () {

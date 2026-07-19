@@ -4,7 +4,7 @@
 @section('page_title', 'Demandes de Modification / Suppression')
 
 @section('breadcrumb')
-<li class="breadcrumb-item"><a href="{{ route('home') }}">Tableau de bord</a></li>
+<li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Tableau de bord</a></li>
 <li class="breadcrumb-item active">Demandes de modification</li>
 @endsection
 

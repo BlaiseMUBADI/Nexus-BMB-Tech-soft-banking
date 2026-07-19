@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Credit\CreditDemande;
+use App\Models\RH\Affectation;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -57,8 +58,24 @@ class AppServiceProvider extends ServiceProvider
                     ->countBy();
             }
 
+            // Type de guichet actuellement affecté à l'agent connecté (FIXE / MOBILE / CENTRAL / null)
+            // Utilisé pour masquer dans le menu les fonctionnalités interdites aux guichets MOBILE
+            // (ex : Opérations Administratives), en cohérence avec les restrictions déjà appliquées
+            // côté contrôleur (DepenseController, RecetteController, OperationAdministrativeController).
+            $guichetTypeActuel = null;
+            if ($authUser && $authUser->agent_matricule && Schema::hasTable('tb_affectations')) {
+                $affectation = Affectation::where('agent_matricule', $authUser->agent_matricule)
+                    ->where('Etat', 'ACTIF')
+                    ->whereNotNull('guichet_id')
+                    ->orderByDesc('date_debut')
+                    ->with('guichet')
+                    ->first();
+                $guichetTypeActuel = $affectation?->guichet?->type_guichet;
+            }
+
             $view->with('authUser', $authUser);
             $view->with('userPermCodes', $userPermCodes);
+            $view->with('guichetTypeActuel', $guichetTypeActuel);
             $view->with('latestUnreadNotifications', $latestUnreadNotifications);
             $view->with('unreadNotificationCount', $unreadNotificationCount);
             $view->with('actionNotificationCount', $actionNotificationCount);

@@ -4,6 +4,7 @@ use App\Http\Controllers\Comptabilite\ComptabiliteController;
 use App\Http\Controllers\Comptabilite\CategorieDepenseController;
 use App\Http\Controllers\Comptabilite\CategorieRecetteController;
 use App\Http\Controllers\Comptabilite\ExerciceComptableController;
+use App\Http\Controllers\Comptabilite\VirementController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'permission:EBEN-PER49'])
@@ -38,6 +39,23 @@ Route::middleware(['auth', 'permission:EBEN-PER49'])
             Route::post('/', [CategorieRecetteController::class, 'store'])->name('store');
             Route::put('/{categorieRecette}', [CategorieRecetteController::class, 'update'])->name('update');
             Route::delete('/{categorieRecette}', [CategorieRecetteController::class, 'destroy'])->name('destroy');
+        });
+
+        // ── Virement bancaire entre comptes clients (proposer / valider double-signature) ──
+        Route::prefix('virements')->name('virements.')->group(function () {
+            Route::middleware('permission:EBEN-PER119')->group(function () {
+                Route::get('/creer', [VirementController::class, 'create'])->name('creer');
+                Route::post('/', [VirementController::class, 'store'])->name('store');
+            });
+            Route::middleware('permission:EBEN-PER119|EBEN-PER120')->group(function () {
+                Route::get('/', [VirementController::class, 'index'])->name('index');
+                Route::get('/rechercher-compte', [VirementController::class, 'searchCompte'])->name('rechercher-compte');
+                Route::get('/{id}/recu', [VirementController::class, 'recu'])->name('recu');
+            });
+            Route::middleware('permission:EBEN-PER120')->group(function () {
+                Route::post('/{id}/approuver', [VirementController::class, 'approuver'])->name('approuver');
+                Route::post('/{id}/rejeter', [VirementController::class, 'rejeter'])->name('rejeter');
+            });
         });
 
         Route::middleware('permission:EBEN-PER50')->group(function () {
