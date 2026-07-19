@@ -30,12 +30,12 @@ class VirementController extends Controller
 
         $demandes = $query->paginate(20)->withQueryString();
 
-        return view('Comptabilite.virements.index', compact('demandes'));
+        return view('comptabilite.virements.index', compact('demandes'));
     }
 
     public function create()
     {
-        return view('Comptabilite.virements.creer');
+        return view('comptabilite.virements.creer');
     }
 
     /**
