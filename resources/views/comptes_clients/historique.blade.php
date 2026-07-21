@@ -138,8 +138,12 @@
                     <tbody>
                         @forelse($transactions as $t)
                         @php
-                            $isCredit = in_array($t->type, ['DEPOT','PAIEMENT']);
-                            $montantAffiche = number_format($t->montant, 2, ',', ' ') . ' ' . ($devise->symbole ?? $compte->devise);
+                            $estVirementRecu = $t->type === 'VIREMENT' && $t->compte_dest_code === $compte->code_compte;
+                            $estVirementEnvoye = $t->type === 'VIREMENT' && $t->compte_code === $compte->code_compte;
+                            $isCredit = in_array($t->type, ['DEPOT','PAIEMENT']) || $estVirementRecu;
+                            $montantAffiche = $estVirementRecu
+                                ? number_format($t->montant_dest, 2, ',', ' ') . ' ' . $t->devise_dest
+                                : number_format($t->montant, 2, ',', ' ') . ' ' . ($devise->symbole ?? $compte->devise);
                         @endphp
                         <tr class="{{ $t->statut === 'ANNULE' ? 'table-light text-muted' : '' }}">
                             <td class="pl-3 text-nowrap">
@@ -151,6 +155,11 @@
                             </td>
                             <td>
                                 <span class="type-badge badge-{{ $t->type }}">{{ $t->type }}</span>
+                                @if($estVirementRecu)
+                                    <br><small class="text-success"><i class="fas fa-arrow-down mr-1"></i>Reçu de {{ $t->compte_code }}</small>
+                                @elseif($estVirementEnvoye)
+                                    <br><small class="text-danger"><i class="fas fa-arrow-up mr-1"></i>Envoyé vers {{ $t->compte_dest_code }}</small>
+                                @endif
                             </td>
                             <td class="text-nowrap small">
                                 {{ $t->guichet->intitule ?? $t->guichet_id ?? '—' }}

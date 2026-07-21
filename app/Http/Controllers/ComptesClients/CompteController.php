@@ -489,7 +489,12 @@ class CompteController extends Controller
             ? \Carbon\Carbon::parse($request->date_fin)->endOfDay()
             : now()->endOfDay();
 
-        $transactions = \App\Models\Caisse\Transaction::where('compte_code', $code_compte)
+        // Virements bancaires : ce compte peut être le côté SOURCE (compte_code) ou le
+        // côté DESTINATION (compte_dest_code) — les deux doivent apparaître dans le relevé.
+        $transactions = \App\Models\Caisse\Transaction::where(function ($q) use ($code_compte) {
+                $q->where('compte_code', $code_compte)
+                  ->orWhere('compte_dest_code', $code_compte);
+            })
             ->whereBetween('date_operation', [$dateDebut, $dateFin])
             ->where('statut', 'CONFIRME')
             ->orderBy('date_operation')
@@ -497,7 +502,11 @@ class CompteController extends Controller
 
         // Solde d'ouverture = solde actuel − somme des mouvements dans la période
         $soldeActuel = (float) $compte->solde_reel;
-        $mouvement = $transactions->sum(function ($t) {
+        $mouvement = $transactions->sum(function ($t) use ($code_compte) {
+            if ($t->type === 'VIREMENT') {
+                // Coté destination = entrée (+), coté source = sortie (-)
+                return $t->compte_dest_code === $code_compte ? (float) $t->montant_dest : -((float) $t->montant);
+            }
             return $t->type === 'DEPOT' ? (float)$t->montant : -((float)$t->montant);
         });
         $soldeOuverture = $soldeActuel - $mouvement;
@@ -611,9 +620,14 @@ class CompteController extends Controller
 
         $devise = Devise::where('code_iso', $compte->devise)->first();
 
-        $query = Transaction::where('compte_code', $code_compte)
+        // Virements bancaires : ce compte peut être le côté SOURCE (compte_code) ou le
+        // côté DESTINATION (compte_dest_code) — les deux doivent apparaître dans l'historique.
+        $query = Transaction::where(function ($q) use ($code_compte) {
+                $q->where('compte_code', $code_compte)
+                  ->orWhere('compte_dest_code', $code_compte);
+            })
             ->whereIn('type', $allowedOperationTypes)
-            ->with(['guichet']);
+            ->with(['guichet', 'compte', 'compteDest']);
 
         if ($request->filled('date_debut')) {
             $query->whereDate('date_operation', '>=', $request->date_debut);

@@ -177,6 +177,12 @@ class OhadaAccountingService
                     $lines[] = $this->line($compteTransitoireChange, $deviseDestVirement, 'Contrepartie change - devise destination', $effectiveDestVirement, 0);
                     $lines[] = $this->line($compteDepotClient, $deviseDestVirement, 'Virement entrant (devise destination) - credit compte destination', 0, $effectiveDestVirement);
                 }
+
+                // Commission (bareme par tranches) prelevee en plus sur le compte source
+                if ($commission > 0) {
+                    $lines[] = $this->line($compteDepotClient, $devise, 'Commission sur virement - debit compte source', $commission, 0);
+                    $lines[] = $this->line($compteProduitCommission, $devise, 'Produit commission virement', 0, $commission);
+                }
                 break;
         }
 

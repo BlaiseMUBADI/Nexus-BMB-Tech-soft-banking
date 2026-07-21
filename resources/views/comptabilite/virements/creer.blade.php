@@ -63,13 +63,17 @@
                                 <input type="number" step="0.01" min="0.01" id="montant_source" name="montant_source" class="form-control form-control-sm" required>
                             </div>
                             <div class="col-md-4 form-group" id="tauxChangeGroup" style="display:none;">
-                                <label class="small font-weight-bold">Taux de change (1 <span id="deviseSrcLabel">SRC</span> = ? <span id="deviseDstLabel">DST</span>) <span class="text-danger">*</span></label>
-                                <input type="number" step="0.000001" min="0.000001" id="taux_change" name="taux_change" class="form-control form-control-sm">
+                                <label class="small font-weight-bold">Taux de change ACTIF</label>
+                                <div class="alert alert-warning py-2 px-2 mb-1 text-center" style="font-size:1rem; font-weight:bold;" id="taux_change_affiche">—</div>
+                                <small class="text-muted" id="tauxInfoLabel"></small>
                             </div>
                             <div class="col-md-4 form-group">
-                                <label class="small font-weight-bold">Montant estimé destination</label>
-                                <input type="text" id="montantDestApercu" class="form-control form-control-sm" disabled>
+                                <label class="small font-weight-bold">Montant destination</label>
+                                <div class="alert alert-success py-2 px-2 mb-1 text-center" style="font-size:1rem; font-weight:bold;" id="montantDestApercu">—</div>
                             </div>
+                        </div>
+                        <div class="alert alert-info small" id="tauxMemeDeviseInfo" style="display:none;">
+                            <i class="fas fa-info-circle mr-1"></i>Mêmes devises source et destination — aucune conversion nécessaire.
                         </div>
 
                         <div class="form-group">
@@ -129,11 +133,13 @@
 $(document).ready(function () {
     $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'), 'Accept': 'application/json' } });
 
-    var urlSearch = '{{ route("comptabilite.virements.rechercher-compte") }}';
-    var urlStore  = '{{ route("comptabilite.virements.store") }}';
+    var urlSearch    = '{{ route("comptabilite.virements.rechercher-compte") }}';
+    var urlStore     = '{{ route("comptabilite.virements.store") }}';
+    var urlTauxActif = '{{ route("administration.devises-taux.actif") }}';
 
     var compteSource = null;
     var compteDest = null;
+    window._tauxActifCourant = null;
 
     function setupSearch(inputId, resultsId, onSelect) {
         var timer = null;
@@ -183,31 +189,57 @@ $(document).ready(function () {
         refreshDeviseUI();
     });
 
+    function fmtNombre(n, decimales) {
+        return parseFloat(n).toLocaleString('fr-FR', { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
+    }
+
     function refreshDeviseUI() {
-        if (compteSource && compteDest) {
-            if (compteSource.devise !== compteDest.devise) {
-                $('#tauxChangeGroup').show();
-                $('#deviseSrcLabel').text(compteSource.devise);
-                $('#deviseDstLabel').text(compteDest.devise);
-            } else {
-                $('#tauxChangeGroup').hide();
-                $('#taux_change').val('');
-            }
+        window._tauxActifCourant = null;
+        $('#taux_change_affiche').text('—');
+        $('#tauxInfoLabel').text('').removeClass('text-danger');
+        $('#tauxMemeDeviseInfo').hide();
+        $('#tauxChangeGroup').hide();
+
+        if (!compteSource || !compteDest) { calculerApercu(); return; }
+
+        if (compteSource.devise === compteDest.devise) {
+            $('#tauxMemeDeviseInfo').show();
+            calculerApercu();
+            return;
         }
-        calculerApercu();
+
+        $('#tauxChangeGroup').show();
+
+        // Taux ACTIF consulté automatiquement — jamais saisi librement par le comptable.
+        $.getJSON(urlTauxActif, { source: compteSource.devise, destination: compteDest.devise })
+            .done(function (r) {
+                if (r.success) {
+                    window._tauxActifCourant = parseFloat(r.taux);
+                    $('#taux_change_affiche').html('1 ' + compteSource.devise + ' = <strong>' + fmtNombre(r.taux, 4) + '</strong> ' + compteDest.devise);
+                    $('#tauxInfoLabel').removeClass('text-danger')
+                        .text(r.date_fin ? ('Actif du ' + r.date_debut + ' au ' + r.date_fin) : ('Actif depuis le ' + (r.date_debut || '—')));
+                }
+                calculerApercu();
+            })
+            .fail(function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Aucun taux actif trouvé pour cette paire de devises.';
+                $('#taux_change_affiche').text('—');
+                $('#tauxInfoLabel').addClass('text-danger').text(msg);
+                calculerApercu();
+            });
     }
 
     function calculerApercu() {
         var montant = parseFloat($('#montant_source').val()) || 0;
         if (compteSource && compteDest && compteSource.devise !== compteDest.devise) {
-            var taux = parseFloat($('#taux_change').val()) || 0;
-            $('#montantDestApercu').val(taux > 0 ? (montant * taux).toFixed(2) + ' ' + compteDest.devise : '—');
+            var taux = window._tauxActifCourant || 0;
+            $('#montantDestApercu').text(taux > 0 && montant > 0 ? (fmtNombre(montant * taux, 2) + ' ' + compteDest.devise) : '—');
         } else {
-            $('#montantDestApercu').val(montant > 0 ? montant.toFixed(2) + ' ' + (compteDest ? compteDest.devise : '') : '—');
+            $('#montantDestApercu').text(montant > 0 ? (fmtNombre(montant, 2) + ' ' + (compteDest ? compteDest.devise : '')) : '—');
         }
     }
 
-    $('#montant_source, #taux_change').on('input', calculerApercu);
+    $('#montant_source').on('input', calculerApercu);
 
     $('#formVirement').on('submit', function (e) {
         e.preventDefault();
@@ -221,12 +253,15 @@ $(document).ready(function () {
             showSystemMessage('warning', 'Le compte source et le compte destination doivent être différents.');
             return;
         }
+        if (compteSource.devise !== compteDest.devise && !window._tauxActifCourant) {
+            showSystemMessage('error', 'Aucun taux de change actif n\'est défini pour cette paire de devises. Contactez la Trésorerie.');
+            return;
+        }
 
         var payload = {
             compte_source_code: compteSource.code_compte,
             compte_dest_code: compteDest.code_compte,
             montant_source: $('#montant_source').val(),
-            taux_change: $('#taux_change').val() || null,
             motif: $('#motif').val(),
         };
 

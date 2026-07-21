@@ -22,6 +22,16 @@
         }
     @endphp
 
+    <div class="alert alert-info shadow-sm mb-3" style="font-size:.85rem;">
+        <i class="fas fa-info-circle mr-1"></i>
+        <strong>Barème par tranches</strong> : pour appliquer un montant fixe selon une plage de montant
+        (ex : Retrait de 1 à 20 000 Fc → commission 2 000 Fc, de 20 001 à 50 000 Fc → 5 000 Fc, etc.),
+        créez <strong>une règle par tranche</strong> pour la même opération (Dépôt / Retrait / Virement / Change),
+        avec le mode <strong>FIXE</strong> et les bornes <strong>Montant min / Montant max</strong> correspondantes.
+        Le système applique automatiquement la règle dont la tranche couvre le montant de l'opération.
+        Ces règles s'appliquent déjà en temps réel au Dépôt/Retrait/Change au guichet et au Virement bancaire.
+    </div>
+
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
             <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
@@ -207,7 +217,7 @@
                                 <label>Valeur</label>
                                 <input type="number" step="0.0001" min="0" name="valeur" class="form-control @error('valeur') is-invalid @enderror"
                                        value="{{ old('valeur', isset($selectedRule) ? (float) $selectedRule->valeur : '') }}" required>
-                                <small class="text-muted d-block mt-1">Pourcentage ou montant fixe selon le mode.</small>
+                                <small class="text-muted d-block mt-1">Pourcentage (mode POURCENTAGE) ou montant fixe de la tranche (mode FIXE).</small>
                             </div>
                             <div class="form-group col-md-4">
                                 <label>Priorité</label>
@@ -218,12 +228,12 @@
 
                         <div class="form-row">
                             <div class="form-group col-md-6">
-                                <label>Montant min</label>
+                                <label>Montant min (borne basse de la tranche)</label>
                                 <input type="number" step="0.01" min="0" name="montant_min" class="form-control @error('montant_min') is-invalid @enderror"
                                        value="{{ old('montant_min', isset($selectedRule) && !is_null($selectedRule->montant_min) ? (float) $selectedRule->montant_min : '') }}">
                             </div>
                             <div class="form-group col-md-6">
-                                <label>Montant max</label>
+                                <label>Montant max (borne haute de la tranche)</label>
                                 <input type="number" step="0.01" min="0" name="montant_max" class="form-control @error('montant_max') is-invalid @enderror"
                                        value="{{ old('montant_max', isset($selectedRule) && !is_null($selectedRule->montant_max) ? (float) $selectedRule->montant_max : '') }}">
                             </div>

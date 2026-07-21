@@ -158,7 +158,7 @@
                         <div class="alert alert-info py-1 mb-2 small">
                             <i class="fas fa-info-circle mr-1"></i>
                             <strong>Change :</strong> le client donne <em>Devise source</em>,
-                            le guichet donne <em>Devise destination</em>.
+                            le guichet donne <em>Devise destination</em>, au <strong>taux actif</strong> défini par la Trésorerie.
                         </div>
                         <div class="form-row mb-2">
                             <div class="col-5">
@@ -171,15 +171,14 @@
                                 </select>
                             </div>
                             <div class="col-7">
-                                <label class="font-weight-bold" style="font-size:.85rem;">Montant dest. <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control form-control-sm" id="inpMontantDest"
-                                       placeholder="0.00" min="0.01" step="any">
+                                <label class="font-weight-bold" style="font-size:.85rem;">Montant destination</label>
+                                <div class="alert alert-success py-1 px-2 mb-0 text-center" style="font-weight:bold;" id="inpMontantDest">—</div>
                             </div>
                         </div>
                         <div class="form-group mb-2">
-                            <label class="font-weight-bold" style="font-size:.85rem;">Taux appliqué</label>
-                            <input type="number" class="form-control form-control-sm" id="inpTaux"
-                                   placeholder="Ex : 2850.00" min="0" step="any">
+                            <label class="font-weight-bold" style="font-size:.85rem;">Taux de change ACTIF</label>
+                            <div class="alert alert-warning py-1 px-2 mb-1 text-center" style="font-weight:bold;" id="inpTaux">—</div>
+                            <small class="text-muted" id="tauxInfoLabel"></small>
                         </div>
                     </div>
 
@@ -668,6 +667,7 @@ $(document).ready(function () {
     var urlBordereau     = '{{ route("caisses.operations.bordereau", ["id" => "__ID__"]) }}';
     var urlSearchCompte   = '{{ route("caisses.operations.comptes.search") }}';
     var urlCommissionPreview = '{{ route("caisses.operations.commission.preview") }}';
+    var urlTauxActif      = '{{ route("administration.devises-taux.actif") }}';
     var urlClientPhoto    = '{{ url("/clients/photo") }}';
     
     // ══════════════════════════════════════════════════════════════
@@ -951,6 +951,58 @@ $(document).ready(function () {
 
     $('#selDevise, #inpMontant').on('change input', queuePreview);
 
+    // ── Taux de change ACTIF (Change au guichet) — jamais saisi librement ──
+    window._tauxActifCourant = null;
+
+    function fmtNombreCaisse(n, decimales) {
+        return parseFloat(n).toLocaleString('fr-FR', { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
+    }
+
+    function recalculerMontantDest() {
+        var montant = parseFloat($('#inpMontant').val());
+        var dest = $('#selDeviseDest').val();
+        if (window._tauxActifCourant && montant > 0) {
+            $('#inpMontantDest').text(fmtNombreCaisse(montant * window._tauxActifCourant, 2) + (dest ? ' ' + dest : ''));
+        } else {
+            $('#inpMontantDest').text('—');
+        }
+    }
+
+    function chargerTauxActif() {
+        var source = $('#selDevise').val();
+        var dest   = $('#selDeviseDest').val();
+
+        window._tauxActifCourant = null;
+        $('#inpTaux').text('—');
+        $('#inpMontantDest').text('—');
+        $('#tauxInfoLabel').text('').removeClass('text-danger');
+
+        if ($('#selTypeOp').val() !== 'CHANGE' || !source || !dest) { return; }
+        if (source === dest) {
+            $('#tauxInfoLabel').addClass('text-danger').text('Les deux devises doivent être différentes.');
+            return;
+        }
+
+        $.getJSON(urlTauxActif, { source: source, destination: dest })
+            .done(function (r) {
+                if (r.success) {
+                    window._tauxActifCourant = parseFloat(r.taux);
+                    $('#inpTaux').html('1 ' + source + ' = <strong>' + fmtNombreCaisse(r.taux, 4) + '</strong> ' + dest);
+                    $('#tauxInfoLabel').removeClass('text-danger')
+                        .text(r.date_fin ? ('Actif du ' + r.date_debut + ' au ' + r.date_fin) : ('Actif depuis le ' + (r.date_debut || '—')));
+                    recalculerMontantDest();
+                }
+            })
+            .fail(function (xhr) {
+                $('#inpTaux').text('—');
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Aucun taux actif trouvé pour cette paire de devises.';
+                $('#tauxInfoLabel').addClass('text-danger').text(msg);
+            });
+    }
+
+    $('#selDevise, #selDeviseDest').on('change', chargerTauxActif);
+    $('#inpMontant').on('change input', recalculerMontantDest);
+
     // ── Enregistrer une opération ────────────────────────────────
     $('#btnEnregistrerOp').on('click', function () {
         var type    = $('#selTypeOp').val();
@@ -969,10 +1021,12 @@ $(document).ready(function () {
 
         if (type === 'CHANGE') {
             var deviseDest = $('#selDeviseDest').val();
-            var montDest   = $('#inpMontantDest').val();
             if (!deviseDest) { showSystemMessage('error', 'Sélectionnez la devise destination.'); return; }
-            if (!montDest || parseFloat(montDest) <= 0) { showSystemMessage('error', 'Entrez le montant destination.'); return; }
             if (deviseDest === devise) { showSystemMessage('error', 'Les deux devises doivent être différentes.'); return; }
+            if (!window._tauxActifCourant) {
+                showSystemMessage('error', 'Aucun taux de change actif n\'est défini pour cette paire de devises. Contactez la Trésorerie.');
+                return;
+            }
         }
 
         var payload = {
@@ -988,9 +1042,9 @@ $(document).ready(function () {
         }
 
         if (type === 'CHANGE') {
-            payload.devise_dest  = $('#selDeviseDest').val();
-            payload.montant_dest = $('#inpMontantDest').val();
-            payload.taux_change  = $('#inpTaux').val() || null;
+            // montant_dest et taux_change sont désormais calculés et verrouillés côté serveur
+            // à partir du taux ACTIF (tb_taux_echanges) — jamais envoyés en saisie libre.
+            payload.devise_dest = $('#selDeviseDest').val();
         }
 
         // Afficher le modal de confirmation avec option bordereau
@@ -1053,7 +1107,10 @@ $(document).ready(function () {
     function resetForm() {
         $('#selTypeOp').val('');
         $('#selDevise, #selDeviseDest').val('').prop('disabled', false);
-        $('#inpMontant, #inpMontantDest, #inpTaux, #inpObservations').val('');
+        $('#inpMontant, #inpObservations').val('');
+        $('#inpMontantDest, #inpTaux').text('—');
+        $('#tauxInfoLabel').text('').removeClass('text-danger');
+        window._tauxActifCourant = null;
         $('#chkImprimerBordereauModal').prop('checked', true);
         $('#blocChange').addClass('d-none');
         $('#blocCompte').addClass('d-none');

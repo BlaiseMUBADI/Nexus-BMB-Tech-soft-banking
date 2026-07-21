@@ -67,6 +67,15 @@
                         {{ $demande->compte_dest_code }} <br><span style="font-family:inherit; font-weight:normal;">{{ $demande->clientDest->full_name ?? $demande->client_dest_matricule }}</span>
                     </td>
                 </tr>
+                @if((float) $demande->commission_totale > 0)
+                <tr>
+                    <td style="color:#222; padding:4px 6px; border:1px solid {{ $lineColor }}; background:#f1f1f1;">Commission :</td>
+                    <td style="font-weight:bold; color:#c0392b; padding:4px 6px; border:1px solid {{ $lineColor }}; background:#fff;">
+                        {{ number_format((float) $demande->commission_totale, 2, ',', ' ') }} {{ $demande->devise_source }}
+                        <span style="font-weight:normal; font-size:9px; color:#666;">(prélevée sur le compte source, en plus du montant transféré)</span>
+                    </td>
+                </tr>
+                @endif
                 <tr>
                     <td style="color:#222; padding:4px 6px; border:1px solid {{ $lineColor }}; background:#f1f1f1;">Statut :</td>
                     <td style="font-weight:bold; color:#1f4f32; padding:4px 6px; border:1px solid {{ $lineColor }}; background:#fff;">

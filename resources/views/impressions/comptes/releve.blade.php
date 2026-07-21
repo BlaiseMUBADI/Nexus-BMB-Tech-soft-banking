@@ -114,9 +114,11 @@
     <tbody>
         @foreach($transactions as $i => $t)
         @php
-            $isDebit  = in_array($t->type, ['RETRAIT', 'VIREMENT', 'REMBOURSEMENT']);
-            $isCredit = in_array($t->type, ['DEPOT', 'PAIEMENT']);
-            $montant  = (float) $t->montant;
+            $estVirementRecu = $t->type === 'VIREMENT' && $t->compte_dest_code === $compte->code_compte;
+            $estVirementEnvoye = $t->type === 'VIREMENT' && $t->compte_code === $compte->code_compte;
+            $isDebit  = in_array($t->type, ['RETRAIT', 'REMBOURSEMENT']) || $estVirementEnvoye;
+            $isCredit = in_array($t->type, ['DEPOT', 'PAIEMENT']) || $estVirementRecu;
+            $montant  = $estVirementRecu ? (float) $t->montant_dest : (float) $t->montant;
             if ($isDebit) {
                 $solde -= $montant;
                 $totalDebit += $montant;
@@ -139,6 +141,11 @@
                 {{ $typeLabels[$t->type] ?? $t->type }}
                 @if($t->type === 'CHANGE' && $t->devise_dest)
                 <br><span style="font-size:7px; color:#555;">→ {{ number_format($t->montant_dest,2,',','') }} {{ $t->devise_dest }}</span>
+                @endif
+                @if($estVirementRecu)
+                <br><span style="font-size:7px; color:#1a7a4a;">Reçu de {{ $t->compte_code }}</span>
+                @elseif($estVirementEnvoye)
+                <br><span style="font-size:7px; color:#c0392b;">Envoyé vers {{ $t->compte_dest_code }}</span>
                 @endif
             </td>
             <td style="padding:3px 5px; font-size:7px; color:#666;">

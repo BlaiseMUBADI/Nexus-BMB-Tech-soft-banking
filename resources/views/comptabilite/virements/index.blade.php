@@ -46,6 +46,7 @@
                             <th>Compte source</th>
                             <th>Compte destination</th>
                             <th class="text-right">Montant source</th>
+                            <th class="text-right">Commission</th>
                             <th class="text-right">Montant destination</th>
                             <th>Motif</th>
                             <th>Proposé par</th>
@@ -67,6 +68,13 @@
                                     <small class="text-muted">{{ $d->clientDest?->full_name ?? $d->client_dest_matricule }}</small>
                                 </td>
                                 <td class="text-right font-weight-bold">{{ number_format((float) $d->montant_source, 2, ',', ' ') }} {{ $d->devise_source }}</td>
+                                <td class="text-right">
+                                    @if((float) $d->commission_totale > 0)
+                                        <span class="text-danger">{{ number_format((float) $d->commission_totale, 2, ',', ' ') }} {{ $d->devise_source }}</span>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
                                 <td class="text-right">
                                     {{ number_format((float) $d->montant_dest, 2, ',', ' ') }} {{ $d->devise_dest }}
                                     @if($d->taux_change)
@@ -97,7 +105,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="10" class="text-center py-4 text-muted">
+                            <tr><td colspan="11" class="text-center py-4 text-muted">
                                 <i class="fas fa-inbox fa-2x mb-2 d-block"></i>Aucune demande de virement trouvée.
                             </td></tr>
                         @endforelse

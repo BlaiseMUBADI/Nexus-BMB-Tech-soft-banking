@@ -315,8 +315,6 @@ class OperationCaisseController extends Controller
             'observations'   => 'nullable|string|max:500',
             'compte_code'    => 'required_if:type_operation,DEPOT,RETRAIT|nullable|exists:tb_comptes,code_compte',
             'devise_dest'    => 'required_if:type_operation,CHANGE|nullable|exists:tb_devises,code_iso|different:devise_code',
-            'montant_dest'   => 'required_if:type_operation,CHANGE|nullable|numeric|min:0.01',
-            'taux_change'    => 'nullable|numeric|min:0',
         ], [
             'type_operation.in'        => $guichet->type_guichet === 'MOBILE'
                 ? 'Sur un guichet mobile, seules les opérations de dépôt et de change sont autorisées.'
@@ -324,9 +322,11 @@ class OperationCaisseController extends Controller
             'compte_code.required_if'  => 'Le compte client est obligatoire pour un dépôt ou un retrait.',
             'compte_code.exists'       => 'Le numéro de compte est introuvable.',
             'devise_dest.required_if'  => 'La devise de destination est obligatoire pour un change.',
-            'montant_dest.required_if' => 'Le montant destination est obligatoire pour un change.',
             'devise_dest.different'    => 'Les deux devises doivent être différentes.',
         ]);
+        // NOTE : montant_dest et taux_change ne sont plus saisis librement par le caissier.
+        // Ils sont désormais calculés automatiquement à partir du taux de change ACTIF
+        // (table tb_taux_echanges, gérée par la Trésorerie) — voir bloc CHANGE plus bas.
 
         if ($guichet->statut_operationnel !== 'OUVERT') {
             $msg = match($guichet->statut_operationnel) {
@@ -425,10 +425,22 @@ class OperationCaisseController extends Controller
             }
         }
 
-        // Vérifications supplémentaires pour CHANGE
+        // Vérifications supplémentaires pour CHANGE — taux de change ACTIF obligatoire (jamais saisi librement)
+        $tauxChangeApplique = null;
+        $montantDestCalcule = null;
         if ($type === Transaction::CHANGE) {
-            $deviseDest  = $request->devise_dest;
-            $montantDest = (float) $request->montant_dest;
+            $deviseDest = $request->devise_dest;
+
+            $tauxActif = \App\Models\Tresorerie\TauxEchange::actif($devise, $deviseDest);
+            if (!$tauxActif) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Aucun taux de change actif n'est défini pour {$devise} → {$deviseDest}. "
+                               . "Contactez la Trésorerie pour faire activer un taux avant de poursuivre.",
+                ], 422);
+            }
+            $tauxChangeApplique = (float) $tauxActif->taux;
+            $montantDestCalcule = round($montant * $tauxChangeApplique, 2);
 
             $soldeDest = CaissesGuichetSolde::where('guichet_id', $guichet->id)
                 ->where('devise_code', $deviseDest)
@@ -441,12 +453,13 @@ class OperationCaisseController extends Controller
                 ], 422);
             }
 
-            if ((float) $soldeDest->solde_en_caisse < $montantDest) {
+            if ((float) $soldeDest->solde_en_caisse < $montantDestCalcule) {
                 return response()->json([
                     'success' => false,
                     'message' => "Solde insuffisant en {$deviseDest} pour effectuer cet échange. "
                                . "Disponible : " . number_format((float)$soldeDest->solde_en_caisse, 2, ',', ' ')
-                               . " {$deviseDest}.",
+                               . " {$deviseDest}. Montant requis (taux actif {$tauxChangeApplique}) : "
+                               . number_format($montantDestCalcule, 2, ',', ' ') . " {$deviseDest}.",
                 ], 422);
             }
         }
@@ -461,7 +474,7 @@ class OperationCaisseController extends Controller
         $finalCompteDelta = (float) $compteImpact['delta'];
 
         try {
-            DB::transaction(function () use ($request, $guichet, $user, $type, $montant, $devise, $reference, $commissionEngine, $accountingService, $compteOperation, $commissionContext, $commissionPreviewAmount, $soldeCompteAvant, &$soldeCompteApres, &$finalCompteDelta, &$transaction, &$commissionSnapshot) {
+            DB::transaction(function () use ($request, $guichet, $user, $type, $montant, $devise, $reference, $commissionEngine, $accountingService, $compteOperation, $commissionContext, $commissionPreviewAmount, $soldeCompteAvant, &$soldeCompteApres, &$finalCompteDelta, &$transaction, &$commissionSnapshot, $tauxChangeApplique, $montantDestCalcule) {
 
                 // 1. Enregistrer l'opération
                 $transaction = Transaction::create([
@@ -474,9 +487,9 @@ class OperationCaisseController extends Controller
                     'type'            => $type,
                     'devise_code'     => $devise,
                     'montant'         => $montant,
-                    'devise_dest'     => $type === Transaction::CHANGE ? $request->devise_dest            : null,
-                    'montant_dest'    => $type === Transaction::CHANGE ? (float)$request->montant_dest    : null,
-                    'taux_change'     => $request->taux_change ? (float)$request->taux_change : null,
+                    'devise_dest'     => $type === Transaction::CHANGE ? $request->devise_dest    : null,
+                    'montant_dest'    => $type === Transaction::CHANGE ? $montantDestCalcule      : null,
+                    'taux_change'     => $type === Transaction::CHANGE ? $tauxChangeApplique       : null,
                     'observations'    => $request->observations,
                     'statut'          => Transaction::CONFIRME,
                     'date_operation'  => now(),
@@ -527,7 +540,7 @@ class OperationCaisseController extends Controller
 
                     case Transaction::CHANGE:
                         $deviseDest  = $request->devise_dest;
-                        $montantDest = (float) $request->montant_dest;
+                        $montantDest = $montantDestCalcule;
                         // Le guichet reçoit la devise source
                         CaissesGuichetSolde::where('guichet_id', $guichet->id)
                             ->where('devise_code', $devise)

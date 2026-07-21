@@ -807,7 +807,6 @@ class CreditController extends Controller
             (float) $validated['montant_demande'],
             (float) $validated['taux_interet_mensuel'],
             (int) $validated['duree_mois'],
-            null,
             (float) $commissionTotale
         );
 
@@ -952,7 +951,6 @@ class CreditController extends Controller
             (float) $validated['montant_demande'],
             (float) $validated['taux_interet_mensuel'],
             (int) $validated['duree_mois'],
-            null,
             (float) $commissionTotale
         );
 

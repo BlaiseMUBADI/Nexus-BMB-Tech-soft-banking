@@ -84,6 +84,11 @@ Route::middleware('auth')->prefix('administration')->group(function () {
         Route::get('/devises-taux',                       [DeviseTauxController::class, 'index'])->name('administration.devises-taux.index');
     });
 
+    // Consultation du taux ACTIF pour une paire de devises — tout utilisateur authentifié
+    // (un caissier/comptable doit pouvoir lire le taux actif pour un Change/Virement
+    // sans avoir le droit de gérer les taux lui-même, cf. EBEN-PER20/21 ci-dessus).
+    Route::get('/devises-taux/actif',                     [DeviseTauxController::class, 'actif'])->name('administration.devises-taux.actif');
+
     
     Route::middleware('permission:EBEN-PER21')->group(function () {
         Route::post('/devises-taux/devise',               [DeviseTauxController::class, 'storeDevise'])->name('administration.devises-taux.storeDevise');

@@ -1,8 +1,8 @@
 @extends('layouts.app')
 
 @section('page_title', 'Devises & Taux de change')
-@section('breadcrumb_parent', 'Administration')
-@section('breadcrumb', 'Devises / Taux')
+@section('breadcrumb_parent', 'Trésorerie')
+@section('breadcrumb', 'Taux de Change / Devises')
 
 @section('content')
 <div class="container-fluid">
@@ -193,11 +193,28 @@
                                             <label>Taux <span class="text-danger">*</span></label>
                                             <input type="number" step="0.0001" name="taux" id="taux" class="form-control" required placeholder="Ex : 2850.0000">
                                         </div>
-                                        <div class="alert alert-info py-2 px-3 mb-3" style="font-size:.82rem;">
-                                            <i class="fas fa-info-circle mr-1"></i> Le taux inverse sera créé automatiquement.
+                                        <div class="alert alert-info py-2 px-3 mb-2" style="font-size:.82rem;">
+                                            <i class="fas fa-info-circle mr-1"></i> Ce taux devient <strong>actif immédiatement</strong> et
+                                            le taux inverse est activé automatiquement. L'ancien taux (le cas échéant) est <strong>clôturé automatiquement</strong> —
+                                            son historique reste consultable, rien n'est jamais perdu.
+                                        </div>
+                                        <a href="#" class="small text-muted d-block mb-2" data-toggle="collapse" data-target="#optionsAvanceesTaux">
+                                            <i class="fas fa-cog mr-1"></i>Options avancées (période précise) <i class="fas fa-angle-down"></i>
+                                        </a>
+                                        <div class="collapse" id="optionsAvanceesTaux">
+                                            <div class="form-group">
+                                                <label>Début de la période</label>
+                                                <input type="datetime-local" name="date_debut" id="date_debut" class="form-control">
+                                                <small class="text-muted">Vide = à partir de maintenant (cas normal).</small>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Fin de la période</label>
+                                                <input type="datetime-local" name="date_fin" id="date_fin" class="form-control">
+                                                <small class="text-muted">Vide = actif jusqu'à nouvel ordre (cas normal — se clôture seul au prochain taux).</small>
+                                            </div>
                                         </div>
                                         <button type="submit" class="btn btn-warning btn-block text-dark" id="btnAddTaux">
-                                            <i class="fas fa-plus-circle mr-1"></i> Ajouter le taux
+                                            <i class="fas fa-plus-circle mr-1"></i> Activer ce taux
                                         </button>
                                     </form>
                                 </div>
@@ -221,7 +238,8 @@
                                                     <th>Source</th>
                                                     <th>Destination</th>
                                                     <th>Taux</th>
-                                                    <th>Date</th>
+                                                    <th>Période</th>
+                                                    <th class="text-center">Statut</th>
                                                     <th class="text-center" style="width:70px">Actions</th>
                                                 </tr>
                                             </thead>
@@ -232,7 +250,19 @@
                                                     <td><span class="badge badge-secondary">{{ $t->devise_source }}</span></td>
                                                     <td><span class="badge badge-secondary">{{ $t->devise_destination }}</span></td>
                                                     <td><strong>{{ number_format($t->taux, 4, '.', ' ') }}</strong></td>
-                                                    <td><small>{{ $t->date_application ?? '—' }}</small></td>
+                                                    <td>
+                                                        <small>
+                                                            Du {{ $t->date_debut?->format('d/m/Y H:i') ?? '—' }}<br>
+                                                            {{ $t->date_fin ? 'au ' . $t->date_fin->format('d/m/Y H:i') : 'jusqu\'à nouvel ordre' }}
+                                                        </small>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        @if($t->est_actif)
+                                                            <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>Actif</span>
+                                                        @else
+                                                            <span class="badge badge-secondary">Historique</span>
+                                                        @endif
+                                                    </td>
                                                     <td class="text-center">
                                                         <button class="btn btn-xs btn-danger btn-delete-taux"
                                                             data-id="{{ $t->id }}"
@@ -243,7 +273,7 @@
                                                     </td>
                                                 </tr>
                                                 @empty
-                                                <tr><td colspan="6" class="text-center text-muted py-5">
+                                                <tr><td colspan="7" class="text-center text-muted py-5">
                                                     <i class="fas fa-inbox fa-2x mb-2 d-block"></i> Aucun taux enregistré.
                                                 </td></tr>
                                                 @endforelse

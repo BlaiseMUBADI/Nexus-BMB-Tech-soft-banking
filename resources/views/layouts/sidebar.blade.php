@@ -277,6 +277,17 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>Commissions</p>
 								</a>
 							</li>
+
+							@if(in_array('EBEN-PER20', $userPermCodes ?? []) || in_array('EBEN-PER21', $userPermCodes ?? []))
+								<li class="nav-item">
+									<a href="{{ route('administration.devises-taux.index') }}"
+										class="nav-link sub-link {{ request()->is('administration/devises-taux*') ? 'active' : '' }}"
+										title="Taux de change actifs et devises gérées">
+										<i class="fas fa-coins fa-fw nav-icon text-warning"></i>
+										<p>Taux de Change / Devises</p>
+									</a>
+								</li>
+							@endif
 						</ul>
 					</li>
 				@endif
@@ -564,15 +575,6 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 										class="nav-link sub-link {{ request()->is('administration/zones-portfeuille*') ? 'active' : '' }}">
 										<i class="fas fa-map-marker-alt nav-icon"></i>
 										<p>Zones/Portefeuille</p>
-									</a>
-								</li>
-							@endif
-							@if(in_array('EBEN-PER20', $userPermCodes ?? []) || in_array('EBEN-PER21', $userPermCodes ?? []))
-								<li class="nav-item">
-									<a href="{{ route('administration.devises-taux.index') }}"
-										class="nav-link sub-link {{ request()->is('administration/devises-taux*') ? 'active' : '' }}">
-										<i class="fas fa-coins nav-icon"></i>
-										<p>Taux / Devises</p>
 									</a>
 								</li>
 							@endif

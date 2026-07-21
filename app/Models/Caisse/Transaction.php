@@ -43,6 +43,7 @@ class Transaction extends Model
 
     protected $fillable = [
         'compte_code',
+        'compte_dest_code',
         'agent_matricule',
         'guichet_id',
         'devise_code',
@@ -81,6 +82,12 @@ class Transaction extends Model
     public function compte()
     {
         return $this->belongsTo(Compte::class, 'compte_code', 'code_compte');
+    }
+
+    /** Compte destination — renseigné uniquement pour les VIREMENTS entre comptes clients */
+    public function compteDest()
+    {
+        return $this->belongsTo(Compte::class, 'compte_dest_code', 'code_compte');
     }
 
     /** Guichet émetteur */

@@ -7,7 +7,9 @@ use App\Models\ActivityLog;
 use App\Models\Caisse\Transaction;
 use App\Models\Clients\Compte;
 use App\Models\Comptabilite\DemandeVirement;
+use App\Models\Tresorerie\CommissionRule;
 use App\Services\Comptabilite\OhadaAccountingService;
+use App\Services\Commissions\CommissionEngine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -77,15 +79,17 @@ class VirementController extends Controller
         return response()->json($comptes);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, CommissionEngine $commissionEngine)
     {
         $validated = $request->validate([
             'compte_source_code' => 'required|exists:tb_comptes,code_compte',
             'compte_dest_code'   => 'required|exists:tb_comptes,code_compte|different:compte_source_code',
             'montant_source'     => 'required|numeric|min:0.01',
-            'taux_change'        => 'nullable|numeric|min:0.000001',
             'motif'              => 'required|string|max:500',
         ]);
+        // NOTE : le taux de change n'est plus saisi librement. Il est déterminé
+        // automatiquement à partir du taux ACTIF (tb_taux_echanges, géré par la
+        // Trésorerie) — voir bloc de résolution ci-dessous.
 
         $compteSource = Compte::with('client')->findOrFail($validated['compte_source_code']);
         $compteDest = Compte::with('client')->findOrFail($validated['compte_dest_code']);
@@ -96,10 +100,15 @@ class VirementController extends Controller
 
         $montantSource = (float) $validated['montant_source'];
 
-        if ($montantSource > (float) $compteSource->solde_reel) {
+        // Commission (barème par tranches — tb_commission_rules, code_operation = VIREMENT)
+        // Prélevée EN PLUS du montant sur le compte source, comme pour un Retrait.
+        $commissionTotale = $this->resolveCommission($commissionEngine, $compteSource, $montantSource);
+
+        if (($montantSource + $commissionTotale) > (float) $compteSource->solde_reel) {
             return response()->json([
                 'success' => false,
-                'message' => 'Montant supérieur au solde disponible du compte source (' . number_format((float) $compteSource->solde_reel, 2, ',', ' ') . ' ' . $compteSource->devise . ').',
+                'message' => 'Montant + commission (' . number_format($montantSource + $commissionTotale, 2, ',', ' ') . ' ' . $compteSource->devise
+                           . ') supérieur au solde disponible du compte source (' . number_format((float) $compteSource->solde_reel, 2, ',', ' ') . ' ' . $compteSource->devise . ').',
             ], 422);
         }
 
@@ -108,10 +117,14 @@ class VirementController extends Controller
         $montantDest = $montantSource;
 
         if (!$memeDevise) {
-            if (empty($validated['taux_change'])) {
-                return response()->json(['success' => false, 'message' => 'Un taux de change est requis car les devises source et destination diffèrent.'], 422);
+            $tauxActif = \App\Models\Tresorerie\TauxEchange::actif($compteSource->devise, $compteDest->devise);
+            if (!$tauxActif) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Aucun taux de change actif n'est défini pour {$compteSource->devise} → {$compteDest->devise}. Contactez la Trésorerie pour faire activer un taux avant de proposer ce virement.",
+                ], 422);
             }
-            $tauxChange = (float) $validated['taux_change'];
+            $tauxChange = (float) $tauxActif->taux;
             $montantDest = round($montantSource * $tauxChange, 2);
         }
 
@@ -119,6 +132,7 @@ class VirementController extends Controller
             'client_source_matricule' => $compteSource->client_matricule,
             'compte_source_code'      => $compteSource->code_compte,
             'montant_source'          => $montantSource,
+            'commission_totale'       => $commissionTotale,
             'devise_source'           => $compteSource->devise,
             'client_dest_matricule'   => $compteDest->client_matricule,
             'compte_dest_code'        => $compteDest->code_compte,
@@ -136,13 +150,33 @@ class VirementController extends Controller
             'VIREMENT_PROPOSE',
             $demande,
             'DVIR-' . $demande->id,
-            "Demande de virement proposée : {$compteSource->code_compte} -> {$compteDest->code_compte} de {$montantSource} {$compteSource->devise}"
+            "Demande de virement proposée : {$compteSource->code_compte} -> {$compteDest->code_compte} de {$montantSource} {$compteSource->devise} (commission : {$commissionTotale} {$compteSource->devise})"
         );
 
         return response()->json([
             'success' => true,
-            'message' => 'Demande de virement créée. Elle doit maintenant être validée.',
+            'message' => 'Demande de virement créée' . ($commissionTotale > 0 ? ' — commission applicable : ' . number_format($commissionTotale, 2, ',', ' ') . ' ' . $compteSource->devise : '') . '. Elle doit maintenant être validée.',
         ]);
+    }
+
+    /**
+     * Résout la commission applicable pour ce virement via le barème par
+     * tranches (tb_commission_rules — montant_min/montant_max + mode FIXE),
+     * exactement le même moteur que pour Dépôt/Retrait/Change au guichet.
+     */
+    private function resolveCommission(CommissionEngine $commissionEngine, Compte $compteSource, float $montantSource): float
+    {
+        $rule = $commissionEngine->resolveRule([
+            'code_operation'  => Transaction::VIREMENT,
+            'type_compte'     => $compteSource->type ?: CommissionRule::TYPE_NO_ACCOUNT,
+            'type_guichet'    => CommissionRule::ALL,
+            'devise_code'     => $compteSource->devise,
+            'code_zone'       => $compteSource->client?->code_zone,
+            'portefeuille_id' => $compteSource->portefeuille_id,
+            'montant'         => $montantSource,
+        ], now());
+
+        return $rule ? $commissionEngine->calculateCommission($rule, $montantSource) : 0.0;
     }
 
     public function approuver(Request $request, $id, OhadaAccountingService $accountingService)
@@ -164,42 +198,51 @@ class VirementController extends Controller
             return response()->json(['success' => false, 'message' => 'Les comptes de garantie (GTC) sont exclus des virements.'], 422);
         }
 
-        // Vérification du solde au moment de la validation (pas à la création)
-        if ((float) $demande->montant_source > (float) $compteSource->solde_reel) {
+        // Vérification du solde au moment de la validation (pas à la création) — montant + commission
+        $commissionTotale = (float) ($demande->commission_totale ?? 0);
+        $totalDebite = (float) $demande->montant_source + $commissionTotale;
+        if ($totalDebite > (float) $compteSource->solde_reel) {
             return response()->json([
                 'success' => false,
-                'message' => 'Solde insuffisant sur le compte source au moment de la validation (' . number_format((float) $compteSource->solde_reel, 2, ',', ' ') . ' ' . $compteSource->devise . ').',
+                'message' => 'Solde insuffisant sur le compte source au moment de la validation (montant + commission requis : '
+                           . number_format($totalDebite, 2, ',', ' ') . ' ' . $compteSource->devise . ', disponible : '
+                           . number_format((float) $compteSource->solde_reel, 2, ',', ' ') . ' ' . $compteSource->devise . ').',
             ], 422);
         }
 
         try {
-            $transaction = DB::transaction(function () use ($demande, $compteSource, $compteDest, $accountingService) {
+            $transaction = DB::transaction(function () use ($demande, $compteSource, $compteDest, $accountingService, $commissionTotale, $totalDebite) {
                 $reference = 'VIR-' . now()->format('Ymd-His') . '-' . $demande->id;
 
                 $soldeSourceAvant = (float) $compteSource->solde_reel;
                 $soldeDestAvant = (float) $compteDest->solde_reel;
 
-                $compteSource->decrement('solde_reel', (float) $demande->montant_source);
+                // Le compte source paie le montant transféré + la commission.
+                // Le compte destination reçoit le montant intégral (non affecté par la commission).
+                $compteSource->decrement('solde_reel', $totalDebite);
                 $compteDest->increment('solde_reel', (float) $demande->montant_dest);
 
                 $transaction = Transaction::create([
                     'reference'       => $reference,
                     'agent_matricule' => Auth::user()?->agent_matricule,
                     'compte_code'     => $compteSource->code_compte,
+                    'compte_dest_code' => $compteDest->code_compte,
                     'type'            => Transaction::VIREMENT,
                     'devise_code'     => $demande->devise_source,
                     'montant'         => $demande->montant_source,
                     'devise_dest'     => $demande->devise_dest,
                     'montant_dest'    => $demande->montant_dest,
                     'taux_change'     => $demande->taux_change,
+                    'montant_commission_total' => $commissionTotale,
                     'solde_compte_avant' => $soldeSourceAvant,
-                    'solde_compte_apres' => (float) $soldeSourceAvant - (float) $demande->montant_source,
-                    'observations'    => 'Virement vers ' . $compteDest->code_compte . ' — ' . $demande->motif,
+                    'solde_compte_apres' => (float) $soldeSourceAvant - $totalDebite,
+                    'observations'    => 'Virement vers ' . $compteDest->code_compte . ' — ' . $demande->motif
+                                       . ($commissionTotale > 0 ? ' (commission : ' . number_format($commissionTotale, 2, ',', ' ') . ' ' . $demande->devise_source . ')' : ''),
                     'statut'          => Transaction::CONFIRME,
                     'date_operation'  => now(),
                 ]);
 
-                $accountingService->postTransaction($transaction);
+                $accountingService->postTransaction($transaction, ['commission' => $commissionTotale]);
 
                 $demande->update([
                     'statut'                 => DemandeVirement::APPROUVEE,

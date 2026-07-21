@@ -32,6 +32,7 @@ class DemandeVirement extends Model
         'client_source_matricule',
         'compte_source_code',
         'montant_source',
+        'commission_totale',
         'devise_source',
         'client_dest_matricule',
         'compte_dest_code',
@@ -50,6 +51,7 @@ class DemandeVirement extends Model
 
     protected $casts = [
         'montant_source' => 'decimal:2',
+        'commission_totale' => 'decimal:2',
         'montant_dest'   => 'decimal:2',
         'taux_change'    => 'decimal:6',
         'propose_le'     => 'datetime',
