@@ -39,12 +39,17 @@ Route::middleware('auth')->prefix('comptes-clients')->group(function () {
         Route::get('comptes',                  [CompteController::class, 'index'])->name('comptes.index');
         Route::get('comptes/create',           [CompteController::class, 'create'])->name('comptes.create');
         Route::get('comptes/{code_compte}',    [CompteController::class, 'show'])->name('comptes.show');
-        Route::get('comptes/{code_compte}/edit', [CompteController::class, 'edit'])->name('comptes.edit');
     });
 
     
     Route::middleware('permission:EBEN-PER19')->group(function () {
         Route::post('comptes',                 [CompteController::class, 'store'])->name('comptes.store');
+    });
+
+    Route::middleware('permission:EBEN-PER121')->group(function () {
+        Route::get('comptes/{code_compte}/edit', [CompteController::class, 'edit'])->name('comptes.edit');
+        Route::put('comptes/{code_compte}',      [CompteController::class, 'update'])->name('comptes.update');
+        Route::patch('comptes/{code_compte}',    [CompteController::class, 'update']);
     });
 
     Route::middleware('permission:EBEN-PER108')->group(function () {

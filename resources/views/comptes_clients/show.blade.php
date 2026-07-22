@@ -90,9 +90,11 @@
                 <small class="text-muted ml-2">{{ $compte->code_compte }}</small>
             </h3>
             <div class="mt-2 mt-md-0">
-                <a href="{{ route('comptes.edit', $compte->code_compte) }}" class="btn btn-sm btn-info">
-                    <i class="fas fa-edit mr-1"></i>Modifier
-                </a>
+                @if(in_array('EBEN-PER121', $userPermCodes ?? []))
+                    <a href="{{ route('comptes.edit', $compte->code_compte) }}" class="btn btn-sm btn-info">
+                        <i class="fas fa-edit mr-1"></i>Modifier
+                    </a>
+                @endif
                 <a href="{{ route('comptes.historique', $compte->code_compte) }}" class="btn btn-sm btn-primary ml-1">
                     <i class="fas fa-history mr-1"></i>Historique
                 </a>

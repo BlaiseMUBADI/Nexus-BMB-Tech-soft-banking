@@ -142,8 +142,8 @@ class RolesPermissionsController extends Controller
         if (($n >= 15 && $n <= 17) || $n === 76 || ($n >= 80 && $n <= 82) || $n === 107) {
             return 4;
         }
-        // Comptes : consultation/création (18-19), ajout/modif/suppression (83-85, 108)
-        if (($n >= 18 && $n <= 19) || ($n >= 83 && $n <= 85) || $n === 108) {
+        // Comptes : consultation/création (18-19), ajout/modif/suppression (83-85, 108), modification dediee (121)
+        if (($n >= 18 && $n <= 19) || ($n >= 83 && $n <= 85) || $n === 108 || $n === 121) {
             return 5;
         }
         if ($n >= 20 && $n <= 21) {

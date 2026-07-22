@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\Clients\Compte;
 use App\Models\Clients\Client;
 use App\Models\Caisse\Transaction;
+use App\Models\ActivityLog;
 use App\Models\RH\Affectation;
 use App\Models\Zone;
 use Illuminate\Database\QueryException;
@@ -419,7 +420,7 @@ class CompteController extends Controller
     public function edit($code_compte)
     {
         $zoneScope = $this->resolveZoneScope();
-        $compte = Compte::with(['client', 'portefeuille.agent'])->find($code_compte);
+        $compte = Compte::with(['client', 'portefeuille.agent', 'portefeuille.affectationActive.agent'])->find($code_compte);
         if (!$compte) {
             Log::warning('[Compte] Compte introuvable', ['code_compte' => $code_compte, 'action' => 'edit', 'ip' => request()->ip()]);
             abort(404, 'Compte introuvable : ' . $code_compte);
@@ -430,7 +431,54 @@ class CompteController extends Controller
             abort(403, 'Accès refusé : ce compte n\'appartient pas à votre zone.');
         }
 
-        return view('comptes_clients.edit', compact('compte'));
+        $portefeuilles = \App\Models\Tresorerie\Portefeuille::with(['agent', 'affectationActive.agent'])->orderBy('nom_portefeuille')->get();
+
+        return view('comptes_clients.edit', compact('compte', 'portefeuilles'));
+    }
+
+    /**
+     * Met à jour un compte client.
+     *
+     * Par sécurité (système bancaire), seul le portefeuille/agent gestionnaire
+     * assigné au compte peut être modifié ici. Le solde, le type, la devise et
+     * le client titulaire ne sont JAMAIS modifiables via ce formulaire : ce
+     * sont des champs structurants qui ne doivent bouger qu'à travers de vraies
+     * opérations (transactions, migrations), jamais par une simple édition.
+     */
+    public function update(Request $request, $code_compte)
+    {
+        $zoneScope = $this->resolveZoneScope();
+        $compte = Compte::find($code_compte);
+        if (!$compte) {
+            Log::warning('[Compte] Compte introuvable', ['code_compte' => $code_compte, 'action' => 'update', 'ip' => request()->ip()]);
+            abort(404, 'Compte introuvable : ' . $code_compte);
+        }
+
+        if (!$this->canAccessCompte($compte, $zoneScope)) {
+            Log::warning('[Compte] Accès refusé hors zone', ['code_compte' => $code_compte, 'action' => 'update', 'ip' => request()->ip()]);
+            abort(403, 'Accès refusé : ce compte n\'appartient pas à votre zone.');
+        }
+
+        $validated = $request->validate([
+            'portefeuille_id' => $compte->type === 'GTC' ? 'required|exists:tb_portefeuilles_agents,id' : 'nullable|exists:tb_portefeuilles_agents,id',
+        ]);
+
+        $ancienPortefeuilleId = $compte->portefeuille_id;
+        $compte->update(['portefeuille_id' => $validated['portefeuille_id'] ?? null]);
+
+        ActivityLog::record(
+            'COMPTES',
+            'COMPTE_MODIFIE',
+            $compte,
+            $compte->code_compte,
+            "Réaffectation du portefeuille du compte {$compte->code_compte} : {$ancienPortefeuilleId} -> " . ($validated['portefeuille_id'] ?? 'aucun')
+        );
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Compte modifié avec succès.']);
+        }
+
+        return redirect()->route('comptes.show', $compte->code_compte)->with('success', 'Compte modifié avec succès.');
     }
 
     // ── Impression RIB ─────────────────────────────────────────────────────

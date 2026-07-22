@@ -200,10 +200,12 @@
                                    class="btn btn-xs btn-info mr-1" title="Voir">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{{ route('comptes.edit', $compte->code_compte) }}"
-                                   class="btn btn-xs btn-warning mr-1" title="Modifier">
-                                    <i class="fas fa-edit"></i>
-                                </a>
+                                @if(in_array('EBEN-PER121', $userPermCodes ?? []))
+                                    <a href="{{ route('comptes.edit', $compte->code_compte) }}"
+                                       class="btn btn-xs btn-warning mr-1" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                @endif
                                 @if($canPrintDocuments ?? true)
                                     <a href="{{ route('comptes.rib', $compte->code_compte) }}"
                                        target="_blank" class="btn btn-xs btn-secondary mr-1" title="RIB PDF">
