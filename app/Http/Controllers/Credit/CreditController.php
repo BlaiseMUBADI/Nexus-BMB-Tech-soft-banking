@@ -2707,11 +2707,17 @@ class CreditController extends Controller
     /**
      * Agents éligibles à recevoir un dossier crédit en analyse : ceux dont
      * l'utilisateur associé a la permission EBEN-PER58 (Saisir analyse crédit),
-     * ou qui sont Administrateur (EBEN-ROL1, bypass total). Avant ce correctif,
-     * TOUS les agents du système apparaissaient dans la liste (y compris des
-     * caissiers, RH, etc. sans aucun portefeuille crédit), ce qui menait
-     * systématiquement à l'erreur "ne dispose d'aucun portefeuille actif"
-     * lors de la tentative d'affectation.
+     * ou qui sont Administrateur (EBEN-ROL1, bypass total) — ET qui disposent
+     * réellement d'au moins un portefeuille actif (via affectation active ou
+     * colonne statique, cf. resolveAgentPortefeuilleIds()).
+     *
+     * Avant ce correctif, TOUS les agents du système apparaissaient dans la
+     * liste (y compris des caissiers, RH, etc.), puis n'importe quel agent
+     * "éligible par permission" mais SANS portefeuille apparaissait aussi,
+     * menant systématiquement à l'erreur "ne dispose d'aucun portefeuille
+     * actif" lors de la tentative d'affectation. Le filtrage se fait
+     * maintenant en amont : seuls des agents réellement affectables
+     * apparaissent dans la liste.
      */
     private function resolveAssignableCreditAgents()
     {
@@ -2726,7 +2732,11 @@ class CreditController extends Controller
             ->pluck('users.agent_matricule')
             ->unique();
 
-        return Agent::whereIn('matricule', $matriculesEligibles)->orderBy('nom')->get(['matricule','nom','postnom','prenom']);
+        $matriculesAvecPortefeuille = $matriculesEligibles->filter(
+            fn ($matricule) => !empty($this->resolveAgentPortefeuilleIds($matricule))
+        );
+
+        return Agent::whereIn('matricule', $matriculesAvecPortefeuille)->orderBy('nom')->get(['matricule','nom','postnom','prenom']);
     }
 
     private function resolveDemandeurMeta($matricule): array
