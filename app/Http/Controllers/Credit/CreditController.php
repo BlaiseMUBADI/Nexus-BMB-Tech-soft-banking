@@ -2720,9 +2720,29 @@ class CreditController extends Controller
         // Guard de sécurité d'agence locale
     }
 
+    /**
+     * Agents éligibles à recevoir un dossier crédit en analyse : ceux dont
+     * l'utilisateur associé a la permission EBEN-PER58 (Saisir analyse crédit),
+     * ou qui sont Administrateur (EBEN-ROL1, bypass total). Avant ce correctif,
+     * TOUS les agents du système apparaissaient dans la liste (y compris des
+     * caissiers, RH, etc. sans aucun portefeuille crédit), ce qui menait
+     * systématiquement à l'erreur "ne dispose d'aucun portefeuille actif"
+     * lors de la tentative d'affectation.
+     */
     private function resolveAssignableCreditAgents()
     {
-        return Agent::orderBy('nom')->get(['matricule','nom','postnom','prenom']);
+        $matriculesEligibles = DB::table('users')
+            ->join('tb_role_user', 'users.id', '=', 'tb_role_user.user_id')
+            ->join('tb_role_permission', 'tb_role_user.role_code', '=', 'tb_role_permission.role_code')
+            ->whereNotNull('users.agent_matricule')
+            ->where(function ($q) {
+                $q->where('tb_role_permission.permission_code', 'EBEN-PER58')
+                  ->orWhere('tb_role_user.role_code', 'EBEN-ROL1');
+            })
+            ->pluck('users.agent_matricule')
+            ->unique();
+
+        return Agent::whereIn('matricule', $matriculesEligibles)->orderBy('nom')->get(['matricule','nom','postnom','prenom']);
     }
 
     private function resolveDemandeurMeta($matricule): array
@@ -2734,14 +2754,50 @@ class CreditController extends Controller
         ];
     }
 
+    /**
+     * Vérifie que l'agent a bien le profil analyse crédit (EBEN-PER58) via
+     * son utilisateur associé, ou qu'il est Administrateur (EBEN-ROL1).
+     * Auparavant cette méthode retournait toujours `true` (jamais implémentée),
+     * ce qui permettait d'affecter n'importe quel agent — puis l'affectation
+     * échouait un peu plus loin faute de portefeuille compatible.
+     */
     private function isEligibleCreditAnalyst(string $matricule): bool
     {
-        return true;
+        return DB::table('users')
+            ->join('tb_role_user', 'users.id', '=', 'tb_role_user.user_id')
+            ->join('tb_role_permission', 'tb_role_user.role_code', '=', 'tb_role_permission.role_code')
+            ->where('users.agent_matricule', $matricule)
+            ->where(function ($q) {
+                $q->where('tb_role_permission.permission_code', 'EBEN-PER58')
+                  ->orWhere('tb_role_user.role_code', 'EBEN-ROL1');
+            })
+            ->exists();
     }
 
+    /**
+     * Portefeuilles actuellement rattachés à un agent.
+     *
+     * IMPORTANT : ne pas se limiter à la colonne statique
+     * tb_portefeuilles_agents.agent_matricule — un portefeuille peut être
+     * réaffecté à un autre agent via une AFFECTATION (tb_affectations_portefeuilles,
+     * cf. Portefeuille::affectationActive()) sans que cette colonne ne soit mise
+     * à jour. C'est exactement le même principe de repli que partout ailleurs
+     * dans l'app (affectationActive->agent ?? agent). Ignorer les affectations
+     * ici faisait échouer l'affectation d'un agent de crédit sur un dossier
+     * dès que son portefeuille avait été réaffecté après sa création.
+     */
     private function resolveAgentPortefeuilleIds(string $matricule): array
     {
-        return DB::table('tb_portefeuilles_agents')->where('agent_matricule', $matricule)->pluck('id')->toArray();
+        return \App\Models\Tresorerie\Portefeuille::with('affectationActive')
+            ->get()
+            ->filter(function ($pf) use ($matricule) {
+                $agentActuel = $pf->affectationActive->agent_matricule ?? $pf->agent_matricule;
+                return $agentActuel === $matricule;
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->toArray();
     }
 
     private function getGuichetAgent()
