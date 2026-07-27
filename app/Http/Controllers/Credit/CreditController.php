@@ -752,7 +752,11 @@ class CreditController extends Controller
     {
         $validated = $request->validate([
             'client_matricule'     => 'required|string|exists:tb_clients,matricule',
-            'portefeuille_id'      => 'required|integer|exists:tb_portefeuilles_agents,id',
+            // Le portefeuille n'est plus obligatoire à la création : il ne devient
+            // pertinent (et requis) que lors de l'affectation d'un agent de crédit
+            // au dossier (voir affecterAnalyse()), qui détermine automatiquement
+            // le bon portefeuille selon l'agent choisi.
+            'portefeuille_id'      => 'nullable|integer|exists:tb_portefeuilles_agents,id',
             'montant_demande'      => 'required|numeric|min:1',
             'devise'               => 'required|in:CDF,USD,EUR',
             'duree_mois'           => 'required|integer|min:1|max:360',
@@ -773,20 +777,7 @@ class CreditController extends Controller
 
         $agent = $user->agent;
 
-        $portefeuillesAutorises = $this->resolveCreationPortefeuilleOptions($user)
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->toArray();
-
-        if (empty($portefeuillesAutorises)) {
-            return back()->withInput()->with('error', 'Aucun portefeuille actif n\'est disponible pour créer ce dossier.');
-        }
-
-        $portefeuilleIdCreation = (int) $validated['portefeuille_id'];
-        if (!in_array($portefeuilleIdCreation, $portefeuillesAutorises, true)) {
-            return back()->withInput()->with('error', 'Le portefeuille sélectionné n\'est pas autorisé pour votre profil.');
-        }
+        $portefeuilleIdCreation = !empty($validated['portefeuille_id']) ? (int) $validated['portefeuille_id'] : null;
 
         $client = Client::findOrFail($validated['client_matricule']);
 
@@ -905,7 +896,9 @@ class CreditController extends Controller
 
         $validated = $request->validate([
             'client_matricule'     => 'required|string|exists:tb_clients,matricule',
-            'portefeuille_id'      => 'required|integer|exists:tb_portefeuilles_agents,id',
+            // Portefeuille optionnel ici aussi (voir store()) : il n'est requis
+            // qu'au moment de l'affectation d'un agent de crédit.
+            'portefeuille_id'      => 'nullable|integer|exists:tb_portefeuilles_agents,id',
             'montant_demande'      => 'required|numeric|min:1',
             'devise'               => 'required|in:CDF,USD,EUR',
             'duree_mois'           => 'required|integer|min:1|max:360',
@@ -921,16 +914,7 @@ class CreditController extends Controller
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
 
-        $portefeuillesAutorises = $this->resolveCreationPortefeuilleOptions($user)
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->toArray();
-
-        $portefeuilleId = (int) $validated['portefeuille_id'];
-        if (!empty($portefeuillesAutorises) && !in_array($portefeuilleId, $portefeuillesAutorises, true)) {
-            return back()->withInput()->with('error', 'Le portefeuille sélectionné n\'est pas autorisé.');
-        }
+        $portefeuilleId = !empty($validated['portefeuille_id']) ? (int) $validated['portefeuille_id'] : null;
 
         $client = Client::findOrFail($validated['client_matricule']);
 

@@ -68,9 +68,9 @@
 
         <div class="form-row">
             <div class="form-group col-md-6">
-                <label>Portefeuille crédit <span class="text-danger">*</span></label>
-                <select name="portefeuille_id" class="form-control" required>
-                    <option value="">-- Sélectionner un portefeuille --</option>
+                <label>Portefeuille crédit <span class="text-muted">(optionnel)</span></label>
+                <select name="portefeuille_id" class="form-control">
+                    <option value="">-- À déterminer lors de l'affectation de l'agent --</option>
                     @foreach(($portefeuillesDisponibles ?? collect()) as $pf)
                         <option value="{{ $pf->id }}" {{ old('portefeuille_id', $dossier->portefeuille_id) == $pf->id ? 'selected' : '' }}>
                             {{ $pf->nom_portefeuille }} (#{{ $pf->id }})

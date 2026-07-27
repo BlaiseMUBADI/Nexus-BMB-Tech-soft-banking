@@ -70,21 +70,46 @@ class CreditDemande extends Model
     // ------------------------------------------------------------
     // Auto-génération du numéro de dossier
     // ------------------------------------------------------------
+    //
+    // IMPORTANT : on détermine le prochain numéro à partir du MAX() numérique
+    // réel parmi tous les numero_dossier existants, PAS à partir du dernier
+    // "id" inséré (orderByDesc('id')). Ces deux notions peuvent diverger :
+    // certaines lignes historiques (import/seed) ont un id élevé mais un
+    // numéro de dossier plus ancien/plus bas que d'autres lignes — dans ce
+    // cas orderByDesc('id') renvoyait un numéro déjà attribué à un dossier
+    // plus récent, provoquant une violation de contrainte unique à la
+    // création (SQLSTATE 23000, doublon numero_dossier).
+    //
+    // On boucle en cas de collision résiduelle (concurrence de deux créations
+    // simultanées) : au pire quelques tentatives, jamais un échec silencieux.
     protected static function booted(): void
     {
         static::creating(function (self $demande) {
             if (empty($demande->numero_dossier)) {
-                $annee  = date('Y');
-                $prefix = 'CRD-EBEN-' . $annee . '-';
-                $last   = self::where('numero_dossier', 'like', $prefix . '%')
-                    ->orderByDesc('id')
-                    ->value('numero_dossier');
-                $next = $last
-                    ? (int) substr($last, strlen($prefix)) + 1
-                    : 1;
-                $demande->numero_dossier = $prefix . str_pad($next, 5, '0', STR_PAD_LEFT);
+                $demande->numero_dossier = self::prochainNumeroDossier();
             }
         });
+    }
+
+    public static function prochainNumeroDossier(): string
+    {
+        $annee  = date('Y');
+        $prefix = 'CRD-EBEN-' . $annee . '-';
+
+        $max = (int) self::where('numero_dossier', 'like', $prefix . '%')
+            ->selectRaw('MAX(CAST(SUBSTRING(numero_dossier, ?) AS UNSIGNED)) as max_num', [strlen($prefix) + 1])
+            ->value('max_num');
+
+        $next = $max + 1;
+
+        // Défense supplémentaire : si ce numéro existe déjà malgré tout
+        // (concurrence, données incohérentes), on avance jusqu'à en trouver
+        // un libre plutôt que de laisser l'INSERT planter.
+        while (self::where('numero_dossier', $prefix . str_pad($next, 5, '0', STR_PAD_LEFT))->exists()) {
+            $next++;
+        }
+
+        return $prefix . str_pad($next, 5, '0', STR_PAD_LEFT);
     }
 
     // ------------------------------------------------------------
