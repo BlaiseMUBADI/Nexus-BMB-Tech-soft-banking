@@ -72,30 +72,10 @@
             </div>
         </div>
 
-        <div class="form-row">
-            <div class="form-group col-md-6">
-                <label>Portefeuille crédit <span class="text-muted">(optionnel)</span></label>
-                <select name="portefeuille_id" class="form-control">
-                    <option value="">-- À déterminer lors de l'affectation de l'agent --</option>
-                    @foreach(($portefeuillesDisponibles ?? collect()) as $pf)
-                        <option value="{{ $pf->id }}" {{ (string) old('portefeuille_id') === (string) $pf->id ? 'selected' : '' }}>
-                            {{ $pf->nom_portefeuille }} (#{{ $pf->id }})
-                            @if(!empty($pf->agent_matricule))
-                                — {{ $pf->agent_matricule }}
-                            @endif
-                        </option>
-                    @endforeach
-                </select>
-                <small class="text-muted d-block mt-1">
-                    Pas obligatoire à la création : le portefeuille sera déterminé automatiquement
-                    lors de l'affectation d'un agent de crédit au dossier.
-                </small>
-            </div>
-        </div>
-
         <div class="alert alert-info py-2 small">
             <i class="fas fa-info-circle mr-1"></i>
             Le compte du client n'est pas demandé à cette étape. Un compte RMB sera rattaché automatiquement lors du déblocage, si nécessaire.
+            Le portefeuille crédit sera déterminé automatiquement lors de l'affectation d'un agent de crédit au dossier — aucune sélection n'est requise ici.
         </div>
 
         <h6 class="text-muted text-uppercase font-weight-bold border-bottom pb-1 mb-3 mt-3">
