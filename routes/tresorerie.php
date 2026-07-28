@@ -67,10 +67,8 @@ Route::middleware(['auth', 'permission:EBEN-PER44'])->prefix('tresorerie')->grou
 });
 
 
-Route::middleware(['auth', 'permission:EBEN-PER10'])
-    ->post('/caisses/demande-approvisionnement', [CaisseController::class, 'demanderApprovisionnement'])
-    ->name('caisses.demande.appro');
-
-Route::middleware(['auth', 'permission:EBEN-PER10'])
-    ->get('/caisses/mes-demandes', [CaisseController::class, 'mesDemandes'])
-    ->name('caisses.mes.demandes');
+// NOTE : les routes caisses.demande.appro et caisses.mes.demandes étaient
+// dupliquées ici ET dans routes/caisse.php (mêmes noms de route, même
+// permission EBEN-PER10). Un nom de route dupliqué fait échouer
+// `php artisan route:cache` avec une LogicException — supprimé ici, la
+// version de routes/caisse.php (module Caisse) est conservée.
