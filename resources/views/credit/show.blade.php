@@ -73,7 +73,7 @@
 
             @if(in_array($demande->statut, ['SOUMIS', 'EN_ANALYSE']))
                 @if(in_array('EBEN-PER61', $userPermCodes ?? []))
-                @if($demande->statut === 'SOUMIS')
+                @if($demande->statut === 'SOUMIS' && !$demande->agent_analyse_matricule)
                 <button class="btn btn-sm btn-warning" data-toggle="modal" data-target="#modalAffecterAnalyse">
                     <i class="fas fa-user-check mr-1"></i>Affecter agent crédit
                 </button>
@@ -615,7 +615,7 @@
 </div>
 @endif
 
-@if($demande->statut === 'SOUMIS' && in_array('EBEN-PER61', $userPermCodes ?? []))
+@if($demande->statut === 'SOUMIS' && !$demande->agent_analyse_matricule && in_array('EBEN-PER61', $userPermCodes ?? []))
 <div class="modal fade" id="modalAffecterAnalyse" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <form method="POST" action="{{ route('credit.affecter_analyse', $demande) }}">@csrf
@@ -642,11 +642,12 @@
                 </div>
                 <div class="form-group">
                     <label>Portefeuille du dossier <span class="text-danger">*</span></label>
-                    <select name="portefeuille_id" id="selectPortefeuilleAnalyse" class="form-control" required disabled>
-                        <option value="">-- Sélectionner d'abord un agent --</option>
-                    </select>
+                    <div id="labelPortefeuilleAnalyse" class="form-control bg-light" style="cursor:not-allowed;">
+                        <span class="text-muted">-- Sélectionner d'abord un agent --</span>
+                    </div>
+                    <input type="hidden" name="portefeuille_id" id="inputPortefeuilleAnalyse" value="">
                     <small id="hintPortefeuilleAnalyse" class="text-muted d-block mt-1">
-                        <i class="fas fa-info-circle mr-1"></i>Le dossier sera rattaché au portefeuille actif sélectionné.
+                        <i class="fas fa-info-circle mr-1"></i>Le dossier sera rattaché au portefeuille actif de l'agent sélectionné.
                     </small>
                 </div>
                 <small class="text-muted"><i class="fas fa-info-circle mr-1"></i>Tapez pour chercher un agent</small>
@@ -691,11 +692,12 @@
 <script>
     $(document).ready(function() {
         const $agentSelect = $('#selectAgentAnalyse');
-        const $pfSelect = $('#selectPortefeuilleAnalyse');
+        const $pfLabel = $('#labelPortefeuilleAnalyse');
+        const $pfInput = $('#inputPortefeuilleAnalyse');
         const $pfHint = $('#hintPortefeuilleAnalyse');
 
         const renderPortefeuilles = function() {
-            if (!$agentSelect.length || !$pfSelect.length) {
+            if (!$agentSelect.length || !$pfLabel.length) {
                 return;
             }
 
@@ -711,34 +713,31 @@
                 }
             }
 
-            $pfSelect.empty();
+            $pfInput.val('');
 
             if (!selected.val()) {
-                $pfSelect.append('<option value="">-- Sélectionner d\'abord un agent --</option>');
-                $pfSelect.prop('disabled', true);
-                $pfHint.text('Le dossier sera rattaché au portefeuille actif sélectionné.');
+                $pfLabel.html('<span class="text-muted">-- Sélectionner d\'abord un agent --</span>');
+                $pfHint.text('Le dossier sera rattaché au portefeuille actif de l\'agent sélectionné.');
                 return;
             }
 
             if (!Array.isArray(portefeuilles) || portefeuilles.length === 0) {
-                $pfSelect.append('<option value="">-- Aucun portefeuille actif trouvé --</option>');
-                $pfSelect.prop('disabled', true);
+                $pfLabel.html('<span class="text-danger">-- Aucun portefeuille actif trouvé --</span>');
                 $pfHint.text('Cet agent n\'a pas de portefeuille actif.');
                 return;
             }
 
-            $pfSelect.append('<option value="">-- Choisir un portefeuille --</option>');
-            portefeuilles.forEach(function(pf) {
-                $pfSelect.append(`<option value="${pf.id}">${pf.nom_portefeuille} (#${pf.id})</option>`);
-            });
-            $pfSelect.prop('disabled', false);
+            const noms = portefeuilles.map(pf => `${pf.nom_portefeuille} (#${pf.id})`).join(', ');
+            $pfLabel.html(`<span>${noms}</span>`);
 
-            const defPf = selected.attr('data-default-portefeuille');
-            if (defPf) {
-                $pfSelect.val(defPf);
+            const defPf = selected.attr('data-default-portefeuille') || (portefeuilles.length === 1 ? portefeuilles[0].id : '');
+            $pfInput.val(defPf || portefeuilles[0].id);
+
+            if (portefeuilles.length > 1) {
+                $pfHint.text('Cet agent a plusieurs portefeuilles actifs. Le dossier sera rattaché à : ' + noms + '.');
+            } else {
+                $pfHint.text('Portefeuille actif de l\'agent, rattaché automatiquement au dossier.');
             }
-
-            $pfHint.text('Portefeuille actif obligatoire pour rattacher le dossier.');
         };
 
         $agentSelect.select2({

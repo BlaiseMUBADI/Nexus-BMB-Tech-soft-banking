@@ -38,7 +38,17 @@ function renderUsersTable(users) {
         var agentNom = user.agent
             ? '<strong>' + agentFullName + '</strong> <small class="text-muted">' + (user.agent.matricule || '') + '</small>'
             : '—';
-        tbody += '<tr>'
+        var searchHaystack = [
+            user.name || '',
+            user.email || '',
+            user.etat || '',
+            agentFullName,
+            (user.agent && user.agent.matricule) || '',
+            serviceNom || '',
+            poste || ''
+        ].join(' ').toLowerCase().trim();
+
+        tbody += '<tr data-search="' + searchHaystack.replace(/"/g, '&quot;') + '">'
             + '<td>' + (idx+1) + '</td>'
             + '<td>' + user.name + '</td>'
             + '<td>' + (user.email || '') + '</td>'
@@ -52,6 +62,16 @@ function renderUsersTable(users) {
             + '</tr>';
     });
     $('#usersTable tbody').html(tbody);
+    applyUsersSearchFilter();
+}
+
+function applyUsersSearchFilter() {
+    var q = $('#searchUsers').val();
+    q = q ? q.toLowerCase().trim() : '';
+    $('#usersTable tbody tr').each(function () {
+        var haystack = ($(this).data('search') || $(this).text()).toString().toLowerCase();
+        $(this).toggle(!q || haystack.indexOf(q) !== -1);
+    });
 }
 
 function loadUsersTable() {
@@ -72,6 +92,9 @@ function loadUsersTable() {
 $(document).ready(function() {
     loadUsersTable();
     $('#refreshUsersTable').on('click', loadUsersTable);
+
+    // ── Recherche live utilisateurs ───────────────────────────────
+    $('#searchUsers').on('input', applyUsersSearchFilter);
 
     // ── Suppression utilisateur ───────────────────────────────────
     $(document).on('click', '.deleteUserBtn', function() {

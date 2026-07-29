@@ -401,7 +401,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 					</li>
 				@endif
 
-				@php $hasCreditAccess = in_array('EBEN-PER53', $userPermCodes ?? []) || in_array('EBEN-PER70', $userPermCodes ?? []) || in_array('EBEN-PER90', $userPermCodes ?? []); @endphp
+				@php $hasCreditAccess = in_array('EBEN-PER53', $userPermCodes ?? []) || in_array('EBEN-PER70', $userPermCodes ?? []); @endphp
 				@if($hasCreditAccess)
 					@php
 						$creditStatutMenu = request('statut');

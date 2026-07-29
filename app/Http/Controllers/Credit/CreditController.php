@@ -2736,7 +2736,23 @@ class CreditController extends Controller
             fn ($matricule) => !empty($this->resolveAgentPortefeuilleIds($matricule))
         );
 
-        return Agent::whereIn('matricule', $matriculesAvecPortefeuille)->orderBy('nom')->get(['matricule','nom','postnom','prenom']);
+        $agents = Agent::whereIn('matricule', $matriculesAvecPortefeuille)->orderBy('nom')->get(['matricule','nom','postnom','prenom']);
+
+        return $agents->map(function ($agent) {
+            $portefeuilleIds = $this->resolveAgentPortefeuilleIds($agent->matricule);
+            $portefeuilles = \App\Models\Tresorerie\Portefeuille::whereIn('id', $portefeuilleIds)
+                ->get(['id', 'nom_portefeuille']);
+
+            $agent->portefeuilles_actifs = $portefeuilles->map(fn ($pf) => [
+                'id' => $pf->id,
+                'nom_portefeuille' => $pf->nom_portefeuille,
+            ])->values()->all();
+
+            $agent->portefeuille_actif_unique_id = $portefeuilles->count() === 1 ? $portefeuilles->first()->id : null;
+            $agent->portefeuille_actif_resume = $portefeuilles->pluck('nom_portefeuille')->implode(', ');
+
+            return $agent;
+        });
     }
 
     private function resolveDemandeurMeta($matricule): array

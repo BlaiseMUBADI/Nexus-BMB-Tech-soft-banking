@@ -181,13 +181,21 @@
     <div class="row" id="userAccountsRow">
         <div class="col-12">
             <div class="card card-info card-outline">
-                <div class="card-header d-flex align-items-center justify-content-between">
+                <div class="card-header d-flex align-items-center justify-content-between flex-wrap">
                     <h3 class="card-title mb-0">
                         <i class="fas fa-list mr-2"></i>Comptes utilisateurs existants
                     </h3>
-                    <button class="btn btn-sm btn-info" id="refreshUsersTable">
-                        <i class="fas fa-sync-alt mr-1"></i> Actualiser
-                    </button>
+                    <div class="d-flex align-items-center flex-wrap mt-1 mt-md-0">
+                        <div class="input-group input-group-sm mr-2" style="width:220px;">
+                            <input type="text" id="searchUsers" class="form-control" placeholder="Rechercher...">
+                            <div class="input-group-append">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-info" id="refreshUsersTable">
+                            <i class="fas fa-sync-alt mr-1"></i> Actualiser
+                        </button>
+                    </div>
                 </div>
                 @include('administration.utilisateurs.tableau_compte')
             </div>
