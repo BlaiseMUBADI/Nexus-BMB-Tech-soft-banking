@@ -6,6 +6,15 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
+    // Désactive la découverte automatique d'événements de Laravel (qui scanne
+    // app/Listeners et branche automatiquement tout handle(EventClass $e) sur
+    // l'événement correspondant, INDÉPENDAMMENT de app/Providers/EventServiceProvider).
+    // C'est ce mécanisme — pas le tableau $listen, qui n'a jamais été le vrai
+    // point de branchement — qui appliquait automatiquement ProcessAutomaticCreditRepayment
+    // à chaque dépôt RMB (DepositOnRmbAccount). Désactivé sur demande client :
+    // un dépôt RMB doit rester un simple dépôt, seule la page "Remboursement"
+    // (CreditController::storeRemboursement()) doit pouvoir régler une échéance.
+    ->withEvents(discover: false)
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',

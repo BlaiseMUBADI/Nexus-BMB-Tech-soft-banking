@@ -23,16 +23,26 @@ use Illuminate\Support\Facades\Route;
 |   PER64 – Déblocage           → deblocage / storeDeblocage
 |   PER65 – Remboursement       → remboursement / storeRemboursement
 |   PER66 – Annuler             → annuler
-|   PER67 – Suspendre           → suspendre / leverSuspension
+|   PER67 – Suspendre           → suspendre
 |   PER68 – Signaler suspect    → signalerSuspect
-|   PER69 – Lever suspicion     → leverSuspicion / leverSuspension
-|   PER70 – Dashboard           → dashboard / supervision
+|   PER69 – Lever suspension/suspicion → leverSuspension / leverSuspicion
+|   PER61-64 – Supervision      → dashboard / supervision / en_cours
+|   PER70 – Rapport frais       → rapport_frais (voir plus bas)
 |   PER71 – PDF                 → pdfEcheancier / pdfFiche
 |   PER72 – Audit               → (intégré dans show)
+|   PER73 – Pièces justificatives → pieces.update
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'permission:EBEN-PER53'])
+// NOTE : le portail (middleware ci-dessous) n'exige plus UNIQUEMENT EBEN-PER53.
+// Avant, TOUTE route nichée (y compris celles protégées par PER70, PER58,
+// PER60-64, PER10|PER111, etc.) exigeait EN PLUS PER53 à cause du merge des
+// middlewares de groupe Laravel — un rôle disposant par exemple de PER70 SEUL
+// (sans PER53) voyait le menu correspondant (gate OR côté sidebar) mais
+// obtenait un 403 au clic sur CHAQUE lien. Le portail exige maintenant AU
+// MOINS UNE permission crédit quelconque (garde-fou anti-accès générique),
+// et chaque sous-groupe continue d'exiger sa permission précise comme avant.
+Route::middleware(['auth', 'permission:EBEN-PER53|EBEN-PER54|EBEN-PER55|EBEN-PER56|EBEN-PER57|EBEN-PER58|EBEN-PER60|EBEN-PER61|EBEN-PER62|EBEN-PER63|EBEN-PER64|EBEN-PER66|EBEN-PER67|EBEN-PER68|EBEN-PER69|EBEN-PER70|EBEN-PER71|EBEN-PER73|EBEN-PER10|EBEN-PER111|EBEN-PER113|EBEN-PER118'])
     ->prefix('credits')
     ->name('credit.')
     ->group(function () {
@@ -41,11 +51,19 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
         Route::middleware('permission:EBEN-PER61|EBEN-PER62|EBEN-PER63|EBEN-PER64')->group(function () {
             Route::get('/dashboard',    [CreditController::class, 'dashboard'])->name('dashboard');
             Route::get('/supervision',  [CreditController::class, 'supervision'])->name('supervision');
+            Route::get('/en-cours',     [CreditController::class, 'enCours'])->name('en_cours');
         });
 
         // ── Liste des dossiers ───────────────────────────────────────
-        Route::get('/', [CreditController::class, 'index'])->name('index');
-        Route::get('/print', [CreditController::class, 'printListe'])->name('print.liste');
+        // Garde explicite : PER53 (accès de base) OU l'une des permissions
+        // "de vue filtrée" utilisées par les raccourcis du sous-menu Crédits
+        // (Dossiers à analyser=PER58, à valider=PER60-63, Déblocage=PER64,
+        // Remboursement=PER10|PER111, Rapport frais=PER70) — ces liens pointent
+        // tous vers CETTE même route avec un paramètre `statut`/`vue` différent.
+        Route::middleware('permission:EBEN-PER53|EBEN-PER58|EBEN-PER60|EBEN-PER61|EBEN-PER62|EBEN-PER63|EBEN-PER64|EBEN-PER10|EBEN-PER111|EBEN-PER70')->group(function () {
+            Route::get('/', [CreditController::class, 'index'])->name('index');
+            Route::get('/print', [CreditController::class, 'printListe'])->name('print.liste');
+        });
 
         // ── Tombée d'échéances (permission dédiée EBEN-PER118, distincte de PER53) ──
         Route::middleware('permission:EBEN-PER118')->group(function () {
@@ -73,9 +91,11 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
             Route::put('/{dossier}/editer',  [CreditController::class, 'update'])->name('update');
         });
 
-        // ── AJAX helpers (pas de permission supplémentaire au-delà PER53) ──
-        Route::get('/ajax/comptes-client',  [CreditController::class, 'getComptesClient'])->name('ajax.comptes_client');
-        Route::get('/ajax/simuler',         [CreditController::class, 'simuler'])->name('ajax.simuler');
+        // ── AJAX helpers (utilisés par le formulaire de création, PER54) ──
+        Route::middleware('permission:EBEN-PER53|EBEN-PER54|EBEN-PER55')->group(function () {
+            Route::get('/ajax/comptes-client',  [CreditController::class, 'getComptesClient'])->name('ajax.comptes_client');
+            Route::get('/ajax/simuler',         [CreditController::class, 'simuler'])->name('ajax.simuler');
+        });
 
         // ── Rapport frais déblocage (AVANT /{dossier}) ──────────────
         Route::middleware('permission:EBEN-PER70')->group(function () {
@@ -85,6 +105,14 @@ Route::middleware(['auth', 'permission:EBEN-PER53'])
         // ── Détail d'un dossier ───────────────────────────────────────
         Route::middleware('permission:EBEN-PER57')->group(function () {
             Route::get('/{dossier}', [CreditController::class, 'show'])->name('show');
+        });
+
+        // ── Pièces justificatives (EBEN-PER73) ─────────────────────────
+        Route::middleware('permission:EBEN-PER73')->group(function () {
+            Route::post('/{dossier}/pieces/{piece}', [CreditController::class, 'updatePiece'])->name('pieces.update');
+        });
+        Route::middleware('permission:EBEN-PER57')->group(function () {
+            Route::get('/{dossier}/pieces/{piece}/fichier', [CreditController::class, 'piecesFichier'])->name('pieces.fichier');
         });
 
         // ── Prélèvement auto toggle (EBEN-PER113 = modification config crédit) ──

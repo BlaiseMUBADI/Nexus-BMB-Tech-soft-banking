@@ -22,6 +22,26 @@ use Illuminate\Support\Carbon;
  */
 class DashboardController extends Controller
 {
+    /**
+     * Redirige la racine du site ('/') vers le tableau de bord.
+     *
+     * Remplace un ancien `Route::redirect('/', '/dashboard')` : ce helper
+     * Laravel génère volontairement une URL RELATIVE à la racine du domaine
+     * (ex: "/dashboard"), sans jamais tenir compte du sous-dossier dans lequel
+     * l'application est réellement installée (ex: /Nexus-BMB-Tech-soft-banking/public).
+     * Résultat en environnement WAMP (app hors racine du domaine) : le
+     * navigateur était renvoyé vers http://localhost/dashboard (404) au lieu
+     * de http://localhost/Nexus-BMB-Tech-soft-banking/public/dashboard.
+     *
+     * `redirect()->route('dashboard')` génère lui une URL ABSOLUE correcte
+     * (inclut le sous-dossier), tout en restant compatible `route:cache`
+     * puisqu'il s'agit d'une vraie action de contrôleur, pas d'une Closure.
+     */
+    public function redirectToDashboard()
+    {
+        return redirect()->route('dashboard');
+    }
+
     public function index()
     {
         // Alerte : compte les dossiers avec au moins une échéance dépassée

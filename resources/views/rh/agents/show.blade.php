@@ -38,12 +38,16 @@
                                     </ul>
                                 </div>
                             </div>
+                            @if(in_array('EBEN-PER103', $userPermCodes ?? []))
                             <a href="{{ route('agents.edit', $agent->matricule) }}" class="btn btn-warning me-2">Modifier</a>
+                            @endif
+                            @if(in_array('EBEN-PER104', $userPermCodes ?? []))
                             <form action="{{ route('agents.destroy', $agent->matricule) }}" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet agent ?');">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-danger me-2">Supprimer</button>
                             </form>
+                            @endif
                             <a href="{{ route('agents.index') }}" class="btn btn-secondary">Retour à la liste</a>
                         </div>
                     </div>

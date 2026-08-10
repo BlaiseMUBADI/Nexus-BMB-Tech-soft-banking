@@ -107,14 +107,14 @@
             @endif
 
             @if(in_array($demande->statut, ['DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD']))
-                @if(in_array('EBEN-PER111', $userPermCodes ?? []))
+                @if(in_array('EBEN-PER10', $userPermCodes ?? []) || in_array('EBEN-PER111', $userPermCodes ?? []))
                 <a href="{{ route('credit.remboursement', $demande) }}" class="btn btn-sm btn-success">
                     <i class="fas fa-money-bill-wave mr-1"></i>Remboursement
                 </a>
                 @endif
             @endif
 
-            @if(in_array($demande->statut, ['BROUILLON','SOUMIS','EN_ANALYSE','EN_VALIDATION']) && in_array('EBEN-PER54', $userPermCodes ?? []))
+            @if(in_array($demande->statut, ['BROUILLON','SOUMIS','EN_ANALYSE','EN_VALIDATION']) && in_array('EBEN-PER66', $userPermCodes ?? []))
             <button class="btn btn-sm btn-danger" data-toggle="modal" data-target="#modalAnnuler">
                 <i class="fas fa-times-circle mr-1"></i>Annuler
             </button>
@@ -123,6 +123,12 @@
             @if(in_array($demande->statut, ['DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD','EN_VALIDATION','EN_ANALYSE','SOUMIS']) && in_array('EBEN-PER67', $userPermCodes ?? []))
             <button class="btn btn-sm btn-warning" data-toggle="modal" data-target="#modalSuspendre">
                 <i class="fas fa-pause mr-1"></i>Suspendre
+            </button>
+            @endif
+
+            @if(!in_array($demande->statut, ['ANNULE','SUSPECT','SOLDE']) && in_array('EBEN-PER68', $userPermCodes ?? []))
+            <button class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#modalSignalerSuspect">
+                <i class="fas fa-exclamation-triangle mr-1"></i>Signaler suspect
             </button>
             @endif
         </div>
@@ -363,18 +369,31 @@
         </div>
 
         {{-- ── TAB PIECES ──────────────────────────────────────── --}}
+        @php
+            $piecesModifiables = !in_array($demande->statut, ['PRET_A_DEBLOQUER','DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD','SOLDE','ANNULE']);
+            $peutGererPieces = in_array('EBEN-PER73', $userPermCodes ?? []) && $piecesModifiables;
+        @endphp
         <div class="tab-pane" id="tab_pieces">
         @if($demande->pieces->count())
             <table class="table table-sm table-hover">
                 <thead><tr>
                     <th>Type de pièce</th><th>Référence</th>
                     <th>Statut</th><th>Commentaire</th>
+                    @if($peutGererPieces)<th></th>@endif
                 </tr></thead>
                 <tbody>
                 @foreach($demande->pieces as $p)
                 <tr>
                     <td>{{ $p->type_piece }}</td>
-                    <td>{{ $p->reference ?? '–' }}</td>
+                    <td>
+                        @if($p->nom_fichier && str_starts_with($p->nom_fichier, 'credits/pieces/'))
+                            <a href="{{ route('credit.pieces.fichier', [$demande, $p]) }}" target="_blank" title="Voir le document (PDF)">
+                                <i class="fas fa-file-pdf text-danger mr-1"></i>Voir le document
+                            </a>
+                        @else
+                            {{ $p->reference ?? '–' }}
+                        @endif
+                    </td>
                     <td>
                         @if($p->fourni)
                             <span class="badge badge-success">Fourni</span>
@@ -383,6 +402,13 @@
                         @endif
                     </td>
                     <td><small class="text-muted">{{ $p->commentaire ?? '–' }}</small></td>
+                    @if($peutGererPieces)
+                    <td class="text-right">
+                        <button type="button" class="btn btn-xs btn-outline-info" data-toggle="modal" data-target="#modalPiece{{ $p->id }}">
+                            <i class="fas fa-edit mr-1"></i>Éditer
+                        </button>
+                    </td>
+                    @endif
                 </tr>
                 @endforeach
                 </tbody>
@@ -390,7 +416,76 @@
         @else
             <p class="text-muted text-center py-3">Aucune pièce enregistrée.</p>
         @endif
+        @if(!$piecesModifiables && in_array('EBEN-PER73', $userPermCodes ?? []) && $demande->pieces->count())
+            <small class="text-muted"><i class="fas fa-lock mr-1"></i>Les pièces ne sont plus modifiables à ce stade du dossier.</small>
+        @endif
         </div>
+
+        @if($peutGererPieces)
+            @foreach($demande->pieces as $p)
+            <div class="modal fade" id="modalPiece{{ $p->id }}" tabindex="-1">
+                <div class="modal-dialog"><div class="modal-content">
+                    <form method="POST" action="{{ route('credit.pieces.update', [$demande, $p]) }}" enctype="multipart/form-data">@csrf
+                        <div class="modal-header bg-info">
+                            <h5 class="modal-title">Pièce : {{ $p->type_piece }}</h5>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted small mb-3">{{ $p->libelle }}</p>
+
+                            @if($p->nom_fichier && str_starts_with($p->nom_fichier, 'credits/pieces/'))
+                            <p class="mb-3">
+                                <a href="{{ route('credit.pieces.fichier', [$demande, $p]) }}" target="_blank" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-file-pdf mr-1"></i>Voir le document actuel
+                                </a>
+                            </p>
+                            @endif
+
+                            <div class="form-group">
+                                <label>Photo / scan du document</label>
+                                <div class="custom-file">
+                                    <input type="file" name="fichier" class="custom-file-input" id="fichierPiece{{ $p->id }}" accept=".jpg,.jpeg,.png,.pdf" capture="environment">
+                                    <label class="custom-file-label" for="fichierPiece{{ $p->id }}">Prendre une photo ou choisir un fichier...</label>
+                                </div>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle mr-1"></i>Pour une pièce comme la carte d'électeur : prenez simplement une photo (téléphone/webcam) ou un PDF déjà scanné.
+                                    Le document sera automatiquement enregistré au format PDF{{ $p->nom_fichier ? ' (remplace le fichier actuel)' : '' }}.
+                                </small>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="custom-control custom-switch">
+                                    <input type="hidden" name="est_recu" value="0">
+                                    <input type="checkbox" name="est_recu" value="1" class="custom-control-input" id="estRecu{{ $p->id }}" {{ $p->fourni ? 'checked' : '' }}>
+                                    <label class="custom-control-label" for="estRecu{{ $p->id }}">Pièce fournie par le client</label>
+                                </div>
+                            </div>
+                            @php $aUnFichierReel = $p->nom_fichier && str_starts_with($p->nom_fichier, 'credits/pieces/'); @endphp
+                            @if(!$aUnFichierReel)
+                            <div class="form-group">
+                                <label>Référence / nom du document (si pas de photo/fichier joint)</label>
+                                <input type="text" name="nom_fichier" class="form-control" maxlength="255" value="{{ $p->reference }}" placeholder="Ex: CNI_KAYEMBE_2026.pdf">
+                                <small class="text-muted">Simple texte libre, ignoré si une photo/fichier est joint ci-dessus.</small>
+                            </div>
+                            @else
+                                {{-- Un vrai fichier est déjà attaché : on ne permet pas d'écraser sa référence
+                                     par du texte libre (cela romprait le lien vers le document). Envoyer une
+                                     nouvelle photo/fichier ci-dessus pour le remplacer. --}}
+                                <input type="hidden" name="nom_fichier" value="{{ $p->nom_fichier }}">
+                            @endif
+                            <div class="form-group">
+                                <label>Commentaire</label>
+                                <textarea name="observations" class="form-control" rows="2" maxlength="500" placeholder="Observation éventuelle (ex: photocopie non lisible)">{{ $p->commentaire }}</textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                            <button type="submit" class="btn btn-info">Enregistrer</button>
+                        </div>
+                    </form>
+                </div></div>
+            </div>
+            @endforeach
+        @endif
 
         {{-- ── TAB DEBLOCAGE ───────────────────────────────────── --}}
         @if($demande->deblocages->count())
@@ -495,9 +590,13 @@
                                   'dark';
                               
                               $montantRestantDu = max(0, (float)$e->total_echeance - (float)$e->montant_paye);
-                              // Bouton éclair : uniquement pour échéances EN RETARD (échues)
-                              $estEnRetard = $e->statut === 'EN_RETARD';
-                              $peutReglerAuto = $estEnRetard && ($soldeRmb >= $montantRestantDu) && $montantRestantDu > 0;
+                              // Bouton éclair : règlement automatique depuis le solde RMB déjà déposé
+                              // par le client, sans montant à saisir ni guichet requis (aucun argent
+                              // liquide n'est encaissé). Disponible pour toute échéance non soldée
+                              // (EN_ATTENTE, EN_RETARD, PARTIELLEMENT_PAYE), pas seulement en retard.
+                              $echeanceEligibleReglementAuto = in_array($e->statut, ['EN_ATTENTE', 'EN_RETARD', 'PARTIELLEMENT_PAYE']);
+                              $peutRemboursement = in_array('EBEN-PER10', $userPermCodes ?? []) || in_array('EBEN-PER111', $userPermCodes ?? []);
+                              $peutReglerAuto = $peutRemboursement && $echeanceEligibleReglementAuto && ($soldeRmb >= $montantRestantDu) && $montantRestantDu > 0;
                           @endphp
                           <span class="badge badge-{{ $badgeClass }}">{{ $lbl }}</span>
                           
@@ -615,6 +714,27 @@
 </div>
 @endif
 
+@if(!in_array($demande->statut, ['ANNULE','SUSPECT','SOLDE']) && in_array('EBEN-PER68', $userPermCodes ?? []))
+<div class="modal fade" id="modalSignalerSuspect" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+        <form method="POST" action="{{ route('credit.signaler_suspect', $demande) }}">@csrf
+        <div class="modal-header bg-danger text-white"><h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>Signaler ce dossier comme suspect</h5></div>
+        <div class="modal-body">
+            <p class="text-muted small">Le dossier passera au statut <strong>SUSPECT</strong> et sera bloqué jusqu'à levée de la suspicion (permission EBEN-PER69).</p>
+            <div class="form-group">
+                <label>Motif du signalement <span class="text-danger">*</span></label>
+                <textarea name="motif" class="form-control" rows="3" required placeholder="Ex: incohérence sur les justificatifs, indice de fraude..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+            <button type="submit" class="btn btn-danger">Confirmer le signalement</button>
+        </div>
+        </form>
+    </div></div>
+</div>
+@endif
+
 @if($demande->statut === 'SOUMIS' && !$demande->agent_analyse_matricule && in_array('EBEN-PER61', $userPermCodes ?? []))
 <div class="modal fade" id="modalAffecterAnalyse" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
@@ -691,6 +811,12 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
+        // ── Label dynamique pour les inputs "fichier" des pièces justificatives ──
+        $(document).on('change', '.custom-file-input', function () {
+            const fileName = this.files.length ? this.files[0].name : 'Prendre une photo ou choisir un fichier...';
+            $(this).next('.custom-file-label').html(fileName);
+        });
+
         const $agentSelect = $('#selectAgentAnalyse');
         const $pfLabel = $('#labelPortefeuilleAnalyse');
         const $pfInput = $('#inputPortefeuilleAnalyse');

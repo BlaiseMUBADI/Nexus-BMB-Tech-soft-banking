@@ -187,6 +187,16 @@ class VirementController extends Controller
             return response()->json(['success' => false, 'message' => 'Cette demande a déjà été traitée.'], 422);
         }
 
+        // Contrôle interne (principe des 4 yeux) : le comptable qui a PROPOSÉ le
+        // virement ne peut pas être celui qui l'APPROUVE, même s'il détient les
+        // deux permissions (cumul de rôles, ou super-admin ROL1 qui a
+        // automatiquement toutes les permissions). Sans ce garde-fou, une seule
+        // personne pouvait proposer et valider elle-même son propre virement,
+        // déplaçant réellement de l'argent entre deux comptes clients.
+        if ($demande->comptable_matricule === Auth::user()?->agent_matricule) {
+            return response()->json(['success' => false, 'message' => "Vous ne pouvez pas approuver un virement que vous avez vous-même proposé. Un autre responsable habilité doit s'en charger (principe de séparation des tâches)."], 403);
+        }
+
         $compteSource = $demande->compteSource;
         $compteDest = $demande->compteDest;
 

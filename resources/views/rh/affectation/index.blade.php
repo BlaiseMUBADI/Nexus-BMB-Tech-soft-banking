@@ -220,6 +220,7 @@
                                                 <i class="fas fa-eye"></i>
                                             </button>
                                             {{-- Modifier état --}}
+                                            @if(in_array('EBEN-PER105', $userPermCodes ?? []))
                                             <button type="button"
                                                     class="btn btn-xs btn-warning btn-edit-etat mr-1"
                                                     data-id="{{ $affectation->id }}"
@@ -228,7 +229,9 @@
                                                     title="Modifier l'état">
                                                 <i class="fas fa-edit"></i>
                                             </button>
+                                            @endif
                                             {{-- Supprimer --}}
+                                            @if(in_array('EBEN-PER106', $userPermCodes ?? []))
                                             <button type="button"
                                                     class="btn btn-xs btn-danger btn-delete-affectation"
                                                     data-id="{{ $affectation->id }}"
@@ -236,6 +239,7 @@
                                                     title="Supprimer">
                                                 <i class="fas fa-trash"></i>
                                             </button>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty

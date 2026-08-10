@@ -41,7 +41,14 @@ class DepenseController extends Controller
     {
         $guichet = $this->getGuichetAgent();
 
+        // Sécurité : sans ce filtre, un caissier voyait les dépenses (montants,
+        // motifs, pièces justificatives) de TOUS les guichets du réseau, pas
+        // seulement du sien — même logique de cloisonnement que le journal des
+        // opérations (OperationCaisseController), qui filtre déjà par guichet_id.
         $query = Depense::with(['transaction', 'categorie', 'agent'])
+            ->whereHas('transaction', function ($q) use ($guichet) {
+                $q->where('guichet_id', $guichet?->id);
+            })
             ->orderByDesc('created_at');
 
         if ($request->filled('categorie_id')) {
@@ -205,6 +212,18 @@ class DepenseController extends Controller
 
         if (!$transaction || $transaction->statut === Transaction::ANNULE) {
             return response()->json(['success' => false, 'message' => 'Cette dépense est déjà annulée ou introuvable.'], 422);
+        }
+
+        // Sécurité : un caissier ne peut annuler QUE les dépenses de son propre
+        // guichet (même règle que OperationCaisseController::annuler() pour les
+        // opérations classiques). Sans ce contrôle, n'importe quel détenteur de
+        // EBEN-PER114 pouvait annuler la dépense d'un guichet auquel il n'est
+        // pas affecté, simplement en connaissant son identifiant.
+        $guichet = $this->getGuichetAgent();
+        if (!$guichet || (int) $transaction->guichet_id !== (int) $guichet->id) {
+            if (!Auth::user()?->hasPermission('EBEN-PER1')) {
+                return response()->json(['success' => false, 'message' => "Vous n'êtes pas autorisé à annuler une dépense d'un autre guichet."], 403);
+            }
         }
 
         try {

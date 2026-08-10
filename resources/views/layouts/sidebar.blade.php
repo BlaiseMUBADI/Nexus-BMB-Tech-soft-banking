@@ -33,6 +33,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>Liste des membres</p>
 								</a>
 							</li>
+							@if(in_array('EBEN-PER16', $userPermCodes ?? []))
 							<li class="nav-item">
 								<a href="{{ route('clients.create') }}"
 									class="nav-link sub-link {{ request()->routeIs('clients.create') ? 'active' : '' }}">
@@ -40,6 +41,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>Ajouter un membre</p>
 								</a>
 							</li>
+							@endif
 							@if(in_array('EBEN-PER76', $userPermCodes ?? []))
 								<li class="nav-item">
 									<a href="{{ route('clients.agents-terrain', ['date_debut' => now()->toDateString(), 'date_fin' => now()->toDateString()]) }}"
@@ -73,6 +75,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>Liste des comptes</p>
 								</a>
 							</li>
+							@if(in_array('EBEN-PER19', $userPermCodes ?? []))
 							<li class="nav-item">
 								<a href="{{ route('comptes.create') }}"
 									class="nav-link sub-link {{ request()->routeIs('comptes.create') ? 'active' : '' }}">
@@ -80,6 +83,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>Ouverture de compte</p>
 								</a>
 							</li>
+							@endif
 							<li class="nav-item">
 								<span class="nav-link sub-link disabled-link" title="Fonctionnalité à venir" aria-disabled="true">
 									<i class="fas fa-balance-scale nav-icon"></i>
@@ -132,16 +136,12 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
                                         <p>Opérations</p>
                                     </a>
                                 </li>
-                                 {{-- 5. Remboursements --}}
-                                  @if(in_array('EBEN-PER111', $userPermCodes ?? []))
-                                      <li class="nav-item">
-                                          <a href="{{ route('caisses.remboursements.liste') }}"
-                                             class="nav-link sub-link {{ request()->routeIs('caisses.remboursements.liste') ? 'active' : '' }}">
-                                              <i class="fas fa-money-bill-wave nav-icon text-primary"></i>
-                                              <p>Remboursements</p>
-                                          </a>
-                                      </li>
-                                  @endif
+                                 {{-- Remboursements retiré du menu Caisse/Guichet : la gestion des
+                                      remboursements crédit est désormais centralisée dans le menu
+                                      Crédits → sous-menu "Remboursement" (règlement 100% RMB, sans
+                                      guichet). La page/route caisses.remboursements.liste existe
+                                      toujours (accessible depuis le bouton "Liste remboursements"
+                                      de la page de remboursement) mais n'est plus dans ce menu. --}}
 
                                  {{-- 6. Opérations Administratives (Dépenses + Recettes) — réservées aux guichets FIXE/CENTRAL --}}
                                   @if(strtoupper((string) ($guichetTypeActuel ?? '')) !== 'MOBILE')
@@ -427,6 +427,13 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 										<p>Tableau de bord</p>
 									</a>
 								</li>
+								<li class="nav-item">
+									<a href="{{ route('credit.en_cours') }}"
+										class="nav-link sub-link {{ request()->routeIs('credit.en_cours') ? 'active' : '' }}">
+										<i class="fas fa-coins nav-icon text-warning"></i>
+										<p>En Cours</p>
+									</a>
+								</li>
 							@endif
 							@if(in_array('EBEN-PER54', $userPermCodes ?? []))
 								<li class="nav-item">
@@ -494,6 +501,16 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 											class="nav-link sub-link {{ request()->routeIs('credit.deblocage') || (request()->routeIs('credit.index') && $creditStatutMenu === 'PRET_A_DEBLOQUER') ? 'active' : '' }}">
 											<i class="fas fa-unlock-alt nav-icon text-success"></i>
 											<p>Déblocage en attente</p>
+										</a>
+									</li>
+								@endif
+
+								@if(in_array('EBEN-PER10', $userPermCodes ?? []) || in_array('EBEN-PER111', $userPermCodes ?? []))
+									<li class="nav-item">
+										<a href="{{ route('credit.index') }}?statut=EN_REMBOURSEMENT,EN_RETARD"
+											class="nav-link sub-link {{ request()->routeIs('credit.remboursement') || (request()->routeIs('credit.index') && $creditStatutMenu === 'EN_REMBOURSEMENT,EN_RETARD') ? 'active' : '' }}">
+											<i class="fas fa-money-bill-wave nav-icon text-success"></i>
+											<p>Remboursement</p>
 										</a>
 									</li>
 								@endif

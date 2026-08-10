@@ -41,12 +41,17 @@ class OperationAdministrativeController extends Controller
             abort(403, "Les Opérations Administratives sont réservées aux guichets de bureau (FIXE). Un guichet MOBILE ne peut ni saisir ni consulter les dépenses/recettes de caisse.");
         }
 
+        // Sécurité : sans ce filtre, tout détenteur de EBEN-PER10 voyait les
+        // dépenses/recettes (montants, motifs, pièces justificatives) de TOUS
+        // les guichets FIXE/CENTRAL du réseau, pas seulement du sien.
         $depenses = Depense::with(['transaction', 'categorie', 'agent'])
+            ->whereHas('transaction', fn ($q) => $q->where('guichet_id', $guichet?->id))
             ->orderByDesc('created_at')
             ->paginate(15, ['*'], 'page_depenses')
             ->withQueryString();
 
         $recettes = Recette::with(['transaction', 'categorie', 'agent'])
+            ->whereHas('transaction', fn ($q) => $q->where('guichet_id', $guichet?->id))
             ->orderByDesc('created_at')
             ->paginate(15, ['*'], 'page_recettes')
             ->withQueryString();

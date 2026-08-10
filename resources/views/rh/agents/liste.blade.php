@@ -71,9 +71,12 @@
                                 <a href="{{ route('agents.show', $agent->matricule) }}" class="btn btn-sm btn-info" title="Voir">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                                @if(in_array('EBEN-PER103', $userPermCodes ?? []))
                                 <a href="{{ route('agents.edit', $agent->matricule) }}" class="btn btn-sm btn-warning" title="Modifier">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                @endif
+                                @if(in_array('EBEN-PER104', $userPermCodes ?? []))
                                 <form action="{{ route('agents.destroy', $agent->matricule) }}" method="POST" class="d-inline delete-agent-form" data-agent-matricule="{{ $agent->matricule }}">
                                     @csrf
                                     @method('DELETE')
@@ -81,6 +84,7 @@
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </form>
+                                @endif
                             </td>
                         </tr>
                         @endforeach

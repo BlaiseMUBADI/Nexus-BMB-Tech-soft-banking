@@ -1,7 +1,16 @@
-# Autoriser le suivi des fichiers dans images_projet (clients et agents)
+# Autoriser le suivi des fichiers dans images_projet (clients, agents, credits)
 !images_projet/
 !images_projet/clients/
 !images_projet/agents/
+!images_projet/credits/
+
+# Dumps de base de données (trop volumineux pour git) — seuls les scripts SQL
+# utilitaires courts (ex: bdd/purge_credit_dossiers.sql) doivent être suivis.
+/bdd/*.sql
+!/bdd/purge_credit_dossiers.sql
+images_projet/images_buckup.zip
+*.zip
+
 *.log
 .DS_Store
 .env

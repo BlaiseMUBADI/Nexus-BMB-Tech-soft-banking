@@ -93,7 +93,11 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
     Route::middleware('permission:EBEN-PER111')->get('remboursements', [OperationCaisseController::class, 'remboursementsCredit'])->name('remboursements.liste');
 
     // Enregistrement remboursement — dans le groupe Caisse
-    Route::middleware('permission:EBEN-PER111')->group(function () {
+    // NOTE : alignée avec routes/credit.php (EBEN-PER10|EBEN-PER111), ces deux
+    // fichiers exposent les MÊMES méthodes de contrôleur (CreditController::
+    // remboursement()/storeRemboursement()) sous deux noms de route différents ;
+    // un même utilisateur ne doit pas avoir un accès différent selon l'URL utilisée.
+    Route::middleware('permission:EBEN-PER10|EBEN-PER111')->group(function () {
         Route::get('remboursement/{dossier}', [CreditController::class, 'remboursement'])->name('remboursement');
         Route::post('remboursement/{dossier}', [CreditController::class, 'storeRemboursement'])->name('remboursement.store');
     });

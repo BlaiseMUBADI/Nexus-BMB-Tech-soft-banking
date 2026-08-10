@@ -96,6 +96,15 @@ class ExerciceComptableService
             throw new \RuntimeException("Cet exercice n'est pas en attente de validation.");
         }
 
+        // Contrôle interne (principe des 4 yeux) : la personne qui a PROPOSÉ la
+        // clôture ne peut pas être celle qui la VALIDE, même si elle détient les
+        // deux permissions (ex: cumul de rôles, ou super-admin ROL1 qui a
+        // automatiquement toutes les permissions). Sans ce garde-fou, une seule
+        // personne pouvait proposer et valider elle-même sa propre clôture.
+        if ($exercice->propose_par_matricule && $exercice->propose_par_matricule === $matricule) {
+            throw new \RuntimeException("Vous ne pouvez pas valider une clôture que vous avez vous-même proposée. Un autre responsable habilité doit s'en charger (principe de séparation des tâches).");
+        }
+
         return DB::transaction(function () use ($exercice, $matricule, $dateFinNouvelExercice) {
             // 1. Verrouiller l'exercice actuel
             $exercice->update([

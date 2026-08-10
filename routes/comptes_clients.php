@@ -14,12 +14,15 @@ Route::middleware('auth')->prefix('comptes-clients')->group(function () {
 
     Route::middleware('permission:EBEN-PER15')->group(function () {
         Route::get('clients',             [ClientController::class, 'index'])->name('clients.index');
-        Route::get('clients/create',      [ClientController::class, 'create'])->name('clients.create');
         Route::get('clients/{client}',    [ClientController::class, 'show'])->name('clients.show');
     });
 
-   
+    // NOTE : le formulaire GET (create) exige désormais la MÊME permission
+    // que sa soumission POST (store) — sinon un utilisateur avec seulement
+    // PER15 (voir) pouvait ouvrir le formulaire de création alors qu'il ne
+    // pouvait jamais réellement l'enregistrer (403 caché derrière le bouton).
     Route::middleware('permission:EBEN-PER16')->group(function () {
+        Route::get('clients/create',      [ClientController::class, 'create'])->name('clients.create');
         Route::post('clients',            [ClientController::class, 'store'])->name('clients.store');
     });
 
@@ -37,12 +40,13 @@ Route::middleware('auth')->prefix('comptes-clients')->group(function () {
     
     Route::middleware('permission:EBEN-PER18')->group(function () {
         Route::get('comptes',                  [CompteController::class, 'index'])->name('comptes.index');
-        Route::get('comptes/create',           [CompteController::class, 'create'])->name('comptes.create');
         Route::get('comptes/{code_compte}',    [CompteController::class, 'show'])->name('comptes.show');
     });
 
-    
+    // Même principe que pour clients.create : le formulaire GET exige la
+    // même permission que la soumission POST (PER19), pas seulement PER18 (voir).
     Route::middleware('permission:EBEN-PER19')->group(function () {
+        Route::get('comptes/create',           [CompteController::class, 'create'])->name('comptes.create');
         Route::post('comptes',                 [CompteController::class, 'store'])->name('comptes.store');
     });
 

@@ -212,6 +212,7 @@
                                         <i class="fas fa-file-pdf"></i>
                                     </a>
                                 @endif
+                                @if(in_array('EBEN-PER108', $userPermCodes ?? []))
                                 <button type="button"
                                         class="btn btn-xs btn-danger btn-delete-compte"
                                         data-id="{{ $compte->code_compte }}"
@@ -219,6 +220,7 @@
                                         title="Supprimer">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
+                                @endif
                             </td>
                         </tr>
                         @empty

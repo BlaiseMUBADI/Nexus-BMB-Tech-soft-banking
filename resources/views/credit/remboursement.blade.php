@@ -33,26 +33,6 @@
     </div>
 @endif
 
-@if($guichet)
-<div class="d-flex align-items-center flex-wrap gap-2 mb-3 operation-soldes-bar">
-    <small class="text-muted text-uppercase" style="letter-spacing:.08em;">
-        <i class="fas fa-wallet mr-1"></i> Soldes :
-    </small>
-    @foreach($guichet->soldes->sortBy('devise_code') as $s)
-    <span class="badge badge-pill px-3 py-2 solde-pill" id="soldePill_{{ $s->devise_code }}"
-          style="font-size:.92rem; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15);">
-        <strong>{{ $s->devise_code }}</strong>
-        <span class="solde-val">{{ number_format($s->solde_en_caisse, 2, ',', ' ') }}</span>
-    </span>
-    @endforeach
-    <span class="badge badge-pill px-2 py-2 ml-1"
-          style="background:rgba(23,162,184,.2); border:1px solid rgba(23,162,184,.4); font-size:.85rem;">
-        <i class="fas fa-{{ $guichet->type_guichet === 'MOBILE' ? 'mobile-alt' : 'desktop' }} mr-1 text-info"></i>
-        {{ $guichet->type_guichet }}
-    </span>
-</div>
-@endif
-
 <div class="row">
 
 {{-- ── Panneau gauche : info dossier + formulaire ─────────── --}}
@@ -81,12 +61,12 @@
     @if($soldeRmbActuel > 0)
     <div class="alert alert-info py-2 mb-3">
         <i class="fas fa-wallet mr-1"></i>
-        <strong>Solde RMB actuel du client :</strong>
+        <strong>Solde RMB disponible du client :</strong>
         <span class="badge badge-info badge-pill ml-1" style="font-size:1rem;">
             {{ number_format($soldeRmbActuel, 2, ',', ' ') }} {{ $demande->devise }}
         </span>
         <small class="d-block mt-1 text-muted">
-            <i class="fas fa-info-circle mr-1"></i>Ce montant sera ajouté à ce que le client verse pour calculer le total disponible.
+            <i class="fas fa-info-circle mr-1"></i>Ce règlement utilise uniquement l'argent déjà déposé par le client sur son compte RMB — aucun argent liquide n'est encaissé ici.
         </small>
     </div>
     @else
@@ -94,7 +74,7 @@
         <i class="fas fa-exclamation-triangle mr-1"></i>
         <strong>Solde RMB du client : 0,00 {{ $demande->devise }}</strong>
         <small class="d-block mt-1 text-muted">
-            Le client n'a pas de solde sur son compte RMB. Seul le montant versé sera utilisé.
+            Le client n'a aucun solde sur son compte RMB pour l'instant. Il doit d'abord y déposer de l'argent (dépôt normal en caisse) avant de pouvoir régler une échéance depuis cette page.
         </small>
     </div>
     @endif
@@ -102,7 +82,7 @@
     {{-- Formulaire --}}
     <div class="card card-outline card-success">
         <div class="card-header">
-            <h6 class="mb-0"><i class="fas fa-money-bill-wave mr-1 text-success"></i>Enregistrer un paiement</h6>
+            <h6 class="mb-0"><i class="fas fa-money-bill-wave mr-1 text-success"></i>Régler depuis le solde RMB</h6>
         </div>
         <div class="card-body">
             @php
@@ -138,7 +118,7 @@
                 <i class="fas fa-bullseye mr-1 text-primary"></i>
                 <strong>Échéance ciblée automatiquement :</strong> 
                 Échéance n°{{ $premiereEcheanceImpayee->numero_echeance }} du {{ \Carbon\Carbon::parse($premiereEcheanceImpayee->date_echeance)->format('d/m/Y') }}
-                (Reste à payer : <strong>{{ number_format(max(0, ($premiereEcheanceImpayee->montant_capital + $premiereEcheanceImpayee->montant_interet) - ($premiereEcheanceImpayee->montant_paye ?? 0)), 2, ',', ' ') }} {{ $demande->devise }}</strong>)
+                (Reste à payer : <strong>{{ number_format(max(0, $premiereEcheanceImpayee->total_echeance - ($premiereEcheanceImpayee->montant_paye ?? 0)), 2, ',', ' ') }} {{ $demande->devise }}</strong>)
             </div>
             @else
             <div class="alert alert-success py-2 mb-3">
@@ -154,15 +134,9 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label>Montant reçu <span class="text-danger">*</span></label>
-                <div class="input-group">
-                    <input type="number" name="montant_recu" id="inp_montant_recu"
-                           class="form-control" step="0.01" min="0.01" required
-                           value="{{ old('montant_recu') }}">
-                    <div class="input-group-append"><span class="input-group-text">{{ $demande->devise }}</span></div>
-                </div>
-            </div>
+            {{-- Aucun argent liquide n'est encaissé sur cette page : montant_recu reste
+                 toujours à 0, le règlement se fait uniquement depuis le solde RMB ci-dessus. --}}
+            <input type="hidden" name="montant_recu" id="inp_montant_recu" value="0">
 
             <input type="hidden" name="dont_interet" id="inp_dont_interet" value="0">
             <input type="hidden" name="dont_capital" id="inp_dont_capital" value="0">
@@ -176,8 +150,8 @@
                        value="{{ old('date_paiement', date('Y-m-d')) }}">
             </div>
 
-            <button type="submit" class="btn btn-success btn-block">
-                <i class="fas fa-save mr-1"></i>Enregistrer le paiement
+            <button type="submit" class="btn btn-success btn-block" {{ $soldeRmbActuel <= 0 ? 'disabled' : '' }}>
+                <i class="fas fa-bolt mr-1"></i>Régler avec le solde RMB
             </button>
             </form>
         </div>
@@ -203,6 +177,7 @@
                     <th>#</th><th>Date</th>
                     <th class="text-right">Capital</th>
                     <th class="text-right">Intérêt</th>
+                    <th class="text-right">Commission</th>
                     <th class="text-right">Total</th>
                     <th class="text-right">Cap. restant</th>
                     <th>Statut</th>
@@ -231,6 +206,7 @@
                 <td class="text-nowrap">{{ optional($e->date_echeance)->format('d/m/Y') }}</td>
                 <td class="text-right">{{ number_format($e->montant_capital, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
                 <td class="text-right">{{ number_format($e->montant_interet, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
+                <td class="text-right">{{ number_format($e->montant_commission, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
                 <td class="text-right font-weight-bold">{{ number_format($e->montant_total, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
                 <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
                 <td>
@@ -244,7 +220,7 @@
             </tbody>
             <tfoot style="background:#1a202c">
                 <tr>
-                    <td colspan="4" class="text-right"><strong>Total payé / Restant :</strong></td>
+                    <td colspan="5" class="text-right"><strong>Total payé / Restant :</strong></td>
                     <td class="text-right text-success"><strong>{{ number_format($totalPaye, 2, ',', ' ') }} <small>{{ $devise }}</small></strong></td>
                     <td class="text-right text-danger"><strong>{{ number_format($totalRestant, 2, ',', ' ') }} <small>{{ $devise }}</small></strong></td>
                     <td></td>
@@ -327,23 +303,25 @@ function askModal(message, options) {
     });
 
     // Toute la logique est sur le clic du bouton (compatible async)
+    // NOTE : aucun argent liquide n'est encaissé sur cette page — montant_recu
+    // reste toujours à 0 (champ caché). Seul le solde RMB déjà déposé par le
+    // client est utilisé pour régler les échéances.
     btn.addEventListener('click', async function(e) {
         e.preventDefault();
 
-        var montantRecu = parseFloat(document.getElementById('inp_montant_recu').value) || 0;
-        if (montantRecu <= 0) {
-            showSystemMessage('warning', 'Veuillez saisir un montant valide.');
+        if (soldeRmbActuel <= 0.01) {
+            showSystemMessage('warning', 'Le client n\'a aucun solde RMB disponible pour régler une échéance.');
             return;
         }
 
-        // Filtrer les échéances ayant un solde dû
+        // Filtrer les échéances ayant un solde dû (capital + intérêt + commission)
         var echeancesValides = echeancesImpayees.filter(function(ech) {
-            var mt = parseFloat(ech.capital_echeance || 0) + parseFloat(ech.interet_echeance || 0);
+            var mt = parseFloat(ech.capital_echeance || 0) + parseFloat(ech.interet_echeance || 0) + parseFloat(ech.commission_echeance || 0);
             var dp = parseFloat(ech.montant_paye) || 0;
             return (mt - dp) > 0.01;
         });
 
-        var totalDisponible    = soldeRmbActuel + montantRecu;
+        var totalDisponible    = soldeRmbActuel;
         var montantTotalTraite = 0;
 
         function soumettre() {
@@ -351,50 +329,40 @@ function askModal(message, options) {
             form.submit();
         }
 
-        // ── ÉTAPE 1 : Dépôt simple OU Règlement d'échéancier ? ─────────────────────
-        var msgRmb = soldeRmbActuel > 0.01
-            ? '<br><small class="text-info">dont <strong>' + soldeRmbActuel.toFixed(2) + ' {{ $demande->devise }}</strong> depuis le compte RMB</small>'
-            : '';
-
-        var etape1 = await askModal(
-            'Montant disponible : <strong>' + totalDisponible.toFixed(2) + ' {{ $demande->devise }}</strong>' + msgRmb + '<br><br>Que souhaitez-vous faire ?',
-            {
-                title    : 'Dépôt ou Remboursement ?',
-                btnLabel : "Régler l'échéancier",
-                btnClass : 'btn-success',
-                icon     : 'fas fa-exchange-alt',
-                headerClass: 'bg-primary text-white'
-            }
-        );
-
-        if (!etape1) {
-            // Dépôt simple : tout crédité sur le RMB par le backend
-            soumettre();
-            return;
-        }
-
-        // ── ÉTAPE 2 : Régler automatiquement la première échéance ──────────────────
         if (echeancesValides.length === 0) {
-            showSystemMessage('info', 'Aucune échéance en attente. Dépôt sur le compte RMB.');
-            soumettre();
+            showSystemMessage('info', 'Aucune échéance en attente à régler.');
             return;
         }
 
+        // ── ÉTAPE 1 : Régler automatiquement la première échéance ──────────────────
         var ech0     = echeancesValides[0];
-        var mt0      = parseFloat(ech0.capital_echeance || 0) + parseFloat(ech0.interet_echeance || 0);
+        var mt0      = parseFloat(ech0.capital_echeance || 0) + parseFloat(ech0.interet_echeance || 0) + parseFloat(ech0.commission_echeance || 0);
         var dp0      = parseFloat(ech0.montant_paye) || 0;
         var resteDu0 = Math.max(0, mt0 - dp0);
         var aApp0    = Math.min(totalDisponible, resteDu0);
 
+        var confirmation = await askModal(
+            'Régler l\'échéance n°<strong>' + ech0.numero_echeance + '</strong> pour <strong>' + aApp0.toFixed(2) + ' {{ $demande->devise }}</strong> depuis le solde RMB (' + totalDisponible.toFixed(2) + ' {{ $demande->devise }} disponible) ?',
+            {
+                title    : 'Règlement depuis le solde RMB',
+                btnLabel : 'Oui, régler',
+                btnClass : 'btn-success',
+                icon     : 'fas fa-bolt',
+                headerClass: 'bg-success text-white'
+            }
+        );
+
+        if (!confirmation) return;
+
         montantTotalTraite += aApp0;
         totalDisponible    -= aApp0;
 
-        // ── ÉTAPE 3 : Proposer chaque échéance suivante (async/await) ───────────────
+        // ── ÉTAPE 2 : Proposer chaque échéance suivante si le solde RMB le permet ───
         for (var i = 1; i < echeancesValides.length; i++) {
             if (totalDisponible <= 0.01) break;
 
             var ech     = echeancesValides[i];
-            var mt      = parseFloat(ech.capital_echeance || 0) + parseFloat(ech.interet_echeance || 0);
+            var mt      = parseFloat(ech.capital_echeance || 0) + parseFloat(ech.interet_echeance || 0) + parseFloat(ech.commission_echeance || 0);
             var dp      = parseFloat(ech.montant_paye) || 0;
             var resteDu = Math.max(0, mt - dp);
             if (resteDu <= 0.01) continue;
@@ -403,7 +371,7 @@ function askModal(message, options) {
             var dateEch    = new Date(ech.date_echeance).toLocaleDateString('fr-FR');
 
             var continuer = await askModal(
-                'Il reste <strong>' + totalDisponible.toFixed(2) + ' {{ $demande->devise }}</strong> disponible.<br><br>' +
+                'Il reste <strong>' + totalDisponible.toFixed(2) + ' {{ $demande->devise }}</strong> de solde RMB disponible.<br><br>' +
                 'Appliquer <strong>' + aMax.toFixed(2) + ' {{ $demande->devise }}</strong> ' +
                 "à l'échéance n°<strong>" + ech.numero_echeance + '</strong> (Date : ' + dateEch + ') ?',
                 {
@@ -415,13 +383,13 @@ function askModal(message, options) {
                 }
             );
 
-            if (!continuer) break; // NON → reste crédité sur le RMB (Étape 4)
+            if (!continuer) break; // NON → le solde RMB restant n'est pas touché
 
             montantTotalTraite += aMax;
             totalDisponible    -= aMax;
         }
 
-        // ── ÉTAPE 4 : Soumettre — le backend crédite automatiquement le reste sur RMB
+        // ── ÉTAPE 3 : Soumettre le règlement ─────────────────────────────────────
         soumettre();
     });
 })();

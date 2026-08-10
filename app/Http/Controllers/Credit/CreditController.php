@@ -105,6 +105,157 @@ class CreditController extends Controller
         return view('credit.dashboard', compact('stats', 'derniersDossiers'));
     }
 
+    /**
+     * Tableau de bord "En Cours" : pour chaque devise, combien de capital est
+     * actuellement chez les clients (décaissé - remboursé = restant dû) et
+     * combien d'intérêts (+ commissions) ont déjà été perçus sur les dossiers
+     * actifs (DEBLOQUE / EN_REMBOURSEMENT / EN_RETARD). Ces totaux augmentent
+     * à chaque mensualité réglée (capital_rembourse, interet_percu, commission_percu).
+     * Filtre dynamique : devise, zone, agent, portefeuille, type de crédit, période.
+     */
+    public function enCours(Request $request)
+    {
+        /** @var \App\Models\User $user */
+        $user  = Auth::user();
+        $perms = $user->getPermissionCodes();
+
+        $superviseurPerms = ['EBEN-PER61', 'EBEN-PER62', 'EBEN-PER63', 'EBEN-PER64'];
+        if (count(array_intersect($superviseurPerms, $perms)) === 0) {
+            return redirect()
+                ->route('credit.index')
+                ->with('error', "Accès non autorisé au tableau de bord En Cours.");
+        }
+
+        $zonesCodes = $this->resolveZoneScope($user);
+
+        $query = CreditDemande::query()
+            ->whereIn('statut_global', ['DEBLOQUE', 'EN_REMBOURSEMENT', 'EN_RETARD'])
+            ->when($zonesCodes !== null, fn ($q) => $q->whereIn('code_zone', $zonesCodes));
+
+        // ── Filtre dynamique ──────────────────────────────────────────
+        if ($request->filled('devise')) {
+            $query->where('devise', $request->devise);
+        }
+        if ($request->filled('zone')) {
+            $query->where('code_zone', $request->zone);
+        }
+        if ($request->filled('agent_analyse')) {
+            $query->where('agent_analyse_matricule', $request->agent_analyse);
+        }
+        if ($request->filled('portefeuille_id')) {
+            $query->where('portefeuille_id', $request->portefeuille_id);
+        }
+        if ($request->filled('type_credit')) {
+            $query->where('type_credit', $request->type_credit);
+        }
+        if ($request->filled('statut')) {
+            $query->where('statut_global', $request->statut);
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('numero_dossier', 'like', "%{$search}%")
+                  ->orWhere('client_matricule', 'like', "%{$search}%")
+                  ->orWhereHas('client', function ($cq) use ($search) {
+                      $cq->where('nom', 'like', "%{$search}%")
+                         ->orWhere('postnom', 'like', "%{$search}%")
+                         ->orWhere('prenom', 'like', "%{$search}%");
+                  });
+            });
+        }
+        // Période de déblocage
+        if ($request->filled('date_debut') || $request->filled('date_fin')) {
+            $query->whereHas('deblocage', function ($q) use ($request) {
+                if ($request->filled('date_debut')) {
+                    $q->whereDate('debloque_le', '>=', $request->date_debut);
+                }
+                if ($request->filled('date_fin')) {
+                    $q->whereDate('debloque_le', '<=', $request->date_fin);
+                }
+            });
+        }
+
+        $dossiersIds = (clone $query)->pluck('id');
+
+        // ── Capital décaissé (dette contractuelle du client) par devise ───
+        // IMPORTANT : basé sur `montant_approuve` (le capital que le client
+        // doit REELLEMENT rembourser selon son échéancier), PAS sur
+        // `montant_net_verse` du déblocage. Ce dernier n'est que l'argent
+        // physiquement remis en main (montant approuvé − 20% caution − 4%
+        // frais de dossier) : la caution reste la propriété du client
+        // (compte GTC, restituée/imputée au solde final) et les frais sont un
+        // revenu de la coopec — ni l'un ni l'autre ne réduit la dette de
+        // capital du client. Utiliser le net versé sous-évaluait fortement
+        // "l'encours" (l'argent réellement chez les clients).
+        $decaisseParDevise = (clone $query)
+            ->selectRaw('devise, SUM(montant_approuve) as total')
+            ->groupBy('devise')
+            ->pluck('total', 'devise');
+
+        // Net réellement remis en main (info complémentaire, sans impact sur l'encours)
+        $netVerseParDevise = CreditDeblocage::whereIn('credit_demande_id', $dossiersIds)
+            ->selectRaw('devise, SUM(montant_net_verse) as total')
+            ->groupBy('devise')
+            ->pluck('total', 'devise');
+
+        // ── Capital remboursé / intérêt perçu / commission perçue par devise ──
+        $rembParDevise = CreditRemboursement::whereIn('credit_demande_id', $dossiersIds)
+            ->selectRaw('devise, SUM(dont_capital) as capital, SUM(dont_interet) as interet, SUM(dont_commission) as commission, SUM(dont_penalite) as penalite')
+            ->groupBy('devise')
+            ->get()
+            ->keyBy('devise');
+
+        // ── Nombre de dossiers par devise ──
+        $dossiersParDevise = (clone $query)
+            ->selectRaw('devise, COUNT(*) as nb, SUM(montant_approuve) as montant_approuve')
+            ->groupBy('devise')
+            ->get()
+            ->keyBy('devise');
+
+        $devises = collect($dossiersParDevise->keys())
+            ->merge($decaisseParDevise->keys())
+            ->unique()
+            ->values();
+
+        $totauxParDevise = $devises->mapWithKeys(function ($devise) use ($decaisseParDevise, $netVerseParDevise, $rembParDevise, $dossiersParDevise) {
+            $decaisse   = (float) ($decaisseParDevise[$devise] ?? 0);
+            $netVerse   = (float) ($netVerseParDevise[$devise] ?? 0);
+            $capitalReg = (float) ($rembParDevise[$devise]->capital ?? 0);
+            $interet    = (float) ($rembParDevise[$devise]->interet ?? 0);
+            $commission = (float) ($rembParDevise[$devise]->commission ?? 0);
+            $penalite   = (float) ($rembParDevise[$devise]->penalite ?? 0);
+
+            return [$devise => [
+                'nombre_dossiers'   => (int) ($dossiersParDevise[$devise]->nb ?? 0),
+                'capital_decaisse'  => $decaisse,
+                'net_verse'         => $netVerse,
+                'capital_rembourse' => $capitalReg,
+                'capital_restant'   => max(0, $decaisse - $capitalReg),
+                'interet_percu'     => $interet,
+                'commission_percu'  => $commission,
+                'penalite_percue'   => $penalite,
+                'total_percu'       => $capitalReg + $interet + $commission + $penalite,
+            ]];
+        });
+
+        // ── Liste détaillée (filtrable) des dossiers en cours ──────────
+        $dossiersEnCours = (clone $query)
+            ->with(['client', 'zone', 'deblocage', 'remboursements'])
+            ->orderByDesc('created_at')
+            ->paginate(20)
+            ->withQueryString();
+
+        // Options pour les selects du filtre
+        $zonesDisponibles = \App\Models\Zone::orderBy('nom')->get(['code_zone', 'nom']);
+        $agentsAnalystes = CreditDemande::whereNotNull('agent_analyse_matricule')
+            ->distinct()
+            ->pluck('agent_analyse_matricule');
+
+        return view('credit.en_cours', compact(
+            'totauxParDevise', 'dossiersEnCours', 'zonesDisponibles', 'agentsAnalystes'
+        ));
+    }
+
     // ================================================================
     // LISTE DES DOSSIERS
     // ================================================================
@@ -162,7 +313,10 @@ class CreditController extends Controller
             $query->whereIn('statut_global', ['SOUMIS', 'EN_ANALYSE']);
         }
         if ($request->filled('statut')) {
-            $query->where('statut_global', $request->statut);
+            // Supporte aussi une liste séparée par virgules (ex: ?statut=EN_REMBOURSEMENT,EN_RETARD
+            // utilisé par le sous-menu "Remboursement" du menu Crédits).
+            $statuts = array_filter(array_map('trim', explode(',', $request->statut)));
+            $query->whereIn('statut_global', $statuts);
         }
         if ($request->filled('numero')) {
             $query->where('numero_dossier', 'like', '%'.$request->numero.'%');
@@ -2024,29 +2178,11 @@ class CreditController extends Controller
         $echeancier = $dossier->echeancier;
         $comptesInstitution = collect();
 
-        // Vérification : l'agent doit avoir un guichet fixe OUVERT
+        // Cette page règle les échéances UNIQUEMENT à partir du solde RMB déjà
+        // déposé par le client (aucun argent liquide n'est encaissé ici) — un
+        // guichet fixe n'est donc plus requis pour y accéder ni pour l'utiliser.
         $user = Auth::user();
-        $matricule = $user?->agent?->matricule;
-        if (!$matricule) {
-            return back()->with('error', 'Aucun profil agent associé à ce compte.');
-        }
-
-        $affectation = \App\Models\RH\Affectation::with('guichet')
-            ->where('agent_matricule', $matricule)
-            ->where('Etat', 'ACTIF')
-            ->whereNotNull('guichet_id')
-            ->latest('date_debut')
-            ->first();
-
-        if (!$affectation || !$affectation->guichet) {
-            return back()->with('error', 'Accès refusé : Vous devez être titulaire d\'un guichet fixe pour accéder à cette page.');
-        }
-
-        if ($affectation->guichet->statut_operationnel !== 'OUVERT') {
-            return back()->with('error', 'Accès refusé : Votre guichet (' . $affectation->guichet->code_guichet . ') est ' . $affectation->guichet->statut_operationnel . '. Veuillez l\'ouvrir avant d\'accéder aux remboursements.');
-        }
-
-        $guichet = $affectation->guichet;
+        $guichet = null;
 
         // Récupérer le solde RMB actuel du client pour l'affichage et les calculs
         $soldeRmbActuel = 0;
@@ -2077,7 +2213,8 @@ class CreditController extends Controller
 
         $validated = $request->validate([
             'echeance_id'         => 'nullable|integer|exists:tb_credit_echeances,id',
-            'montant_recu'        => 'required|numeric|min:0.01',
+            // 0 autorisé : règlement 100% depuis le solde RMB, sans argent liquide encaissé.
+            'montant_recu'        => 'required|numeric|min:0',
             'dont_capital'        => 'required|numeric|min:0',
             'dont_interet'        => 'required|numeric|min:0',
             'dont_penalite'       => 'nullable|numeric|min:0',
@@ -2144,11 +2281,16 @@ class CreditController extends Controller
             // (qui inclut déjà le solde RMB si le frontend l'a ajouté)
             $totalDisponible = $montantAAppliquer;
 
+            if ($totalDisponible <= 0) {
+                throw new \Exception('Aucun montant disponible à appliquer (solde RMB insuffisant et aucun montant reçu en espèces).');
+            }
+
             $surplus = $totalDisponible;
             $echeanceTraitee = null;
             $montantTotalApplique = 0;
             $totalCapitalPaye = 0;
             $totalInteretPaye = 0;
+            $totalCommissionPaye = 0;
             $totalPenalitePaye = 0;
 
             for ($i = $startIndex; $i < count($echeances) && $surplus > 0.01; $i++) {
@@ -2165,18 +2307,25 @@ class CreditController extends Controller
                 $nouveauMontantPaye = round($dejaPaye + $montantApplique, 2);
                 $nouveauStatut = $nouveauMontantPaye >= $totalDu ? 'PAYE' : 'PARTIELLEMENT_PAYE';
 
-                // Calculer la répartition capital/intérêt pour CETTE échéance
-                $capitalEcheance = round((float) $ech->capital_echeance, 2);
-                $interetEcheance = round((float) $ech->interet_echeance, 2);
-                $capitalDejaPaye = round((float) ($ech->montant_paye ?? 0) * ($capitalEcheance / max($totalDu, 1)), 2);
-                $interetDejaPaye = round((float) ($ech->montant_paye ?? 0) * ($interetEcheance / max($totalDu, 1)), 2);
+                // Calculer la répartition capital/intérêt/commission pour CETTE échéance
+                // Ordre d'imputation (bonne pratique microfinance) : intérêt d'abord,
+                // puis commission, puis capital en dernier.
+                $capitalEcheance    = round((float) $ech->capital_echeance, 2);
+                $interetEcheance    = round((float) $ech->interet_echeance, 2);
+                $commissionEcheance = round((float) $ech->commission_echeance, 2);
+                $capitalDejaPaye    = round((float) ($ech->montant_paye ?? 0) * ($capitalEcheance / max($totalDu, 1)), 2);
+                $interetDejaPaye    = round((float) ($ech->montant_paye ?? 0) * ($interetEcheance / max($totalDu, 1)), 2);
+                $commissionDejaPaye = round((float) ($ech->montant_paye ?? 0) * ($commissionEcheance / max($totalDu, 1)), 2);
                 
-                $capitalRestant = max(0, $capitalEcheance - $capitalDejaPaye);
-                $interetRestant = max(0, $interetEcheance - $interetDejaPaye);
+                $capitalRestant    = max(0, $capitalEcheance - $capitalDejaPaye);
+                $interetRestant    = max(0, $interetEcheance - $interetDejaPaye);
+                $commissionRestant = max(0, $commissionEcheance - $commissionDejaPaye);
                 
-                // Répartir le montant appliqué : intérêt d'abord, puis capital
+                // Répartir le montant appliqué : intérêt d'abord, puis commission, puis capital
                 $dontInteretThis = min($montantApplique, $interetRestant);
-                $dontCapitalThis = $montantApplique - $dontInteretThis;
+                $resteApresInteret = round($montantApplique - $dontInteretThis, 2);
+                $dontCommissionThis = min($resteApresInteret, $commissionRestant);
+                $dontCapitalThis = round($resteApresInteret - $dontCommissionThis, 2);
 
                 $ech->update([
                     'montant_paye'           => $nouveauMontantPaye,
@@ -2193,15 +2342,17 @@ class CreditController extends Controller
                     'montant_recu'       => $montantApplique,
                     'dont_capital'       => $dontCapitalThis,
                     'dont_interet'       => $dontInteretThis,
+                    'dont_commission'    => $dontCommissionThis,
                     'dont_penalite'      => 0,
                     'devise'             => $dossier->devise,
                     'type_remboursement' => $nouveauStatut === 'PAYE' ? 'ECHEANCE' : 'PARTIEL',
                     'reference_caisse'   => $reference ?? null,
                     'observations'       => sprintf(
-                        'Remboursement éch. #%s – Capital: %s, Intérêt: %s',
+                        'Remboursement éch. #%s – Capital: %s, Intérêt: %s, Commission: %s',
                         $ech->numero_echeance,
                         number_format($dontCapitalThis, 2),
-                        number_format($dontInteretThis, 2)
+                        number_format($dontInteretThis, 2),
+                        number_format($dontCommissionThis, 2)
                     ),
                     'recu_le'            => $datePaiement,
                     'transaction_id'     => null, // Sera mis à jour après création de la transaction
@@ -2209,6 +2360,7 @@ class CreditController extends Controller
 
                 $totalCapitalPaye += $dontCapitalThis;
                 $totalInteretPaye += $dontInteretThis;
+                $totalCommissionPaye += $dontCommissionThis;
 
                 $echeanceTraitee = $ech;
                 $surplus = round($surplus - $montantApplique, 2);
@@ -2216,17 +2368,24 @@ class CreditController extends Controller
             }
 
             // ── 3. Comptabilisation Caisse et Compte Client ──────────────
-            $guichet = $this->getGuichetAgent();
-            if (!$guichet) {
-                throw new \Exception('Aucun guichet affecté à votre compte.');
-            }
-            $soldeGuichet = CaissesGuichetSolde::where('guichet_id', $guichet->id)
-                ->where('devise_code', $dossier->devise)
-                ->lockForUpdate()
-                ->first();
+            // Un guichet n'est requis QUE si de l'argent liquide est réellement encaissé
+            // ($montantRecu > 0). Un règlement 100% depuis le solde RMB déjà déposé ne
+            // touche jamais la caisse et ne nécessite donc aucun guichet fixe.
+            $guichet = null;
+            $soldeGuichet = null;
+            if ($montantRecu > 0) {
+                $guichet = $this->getGuichetAgent();
+                if (!$guichet) {
+                    throw new \Exception('Aucun guichet affecté à votre compte.');
+                }
+                $soldeGuichet = CaissesGuichetSolde::where('guichet_id', $guichet->id)
+                    ->where('devise_code', $dossier->devise)
+                    ->lockForUpdate()
+                    ->first();
 
-            if (!$soldeGuichet) {
-                throw new \Exception("La devise {$dossier->devise} n'est pas disponible sur votre guichet.");
+                if (!$soldeGuichet) {
+                    throw new \Exception("La devise {$dossier->devise} n'est pas disponible sur votre guichet.");
+                }
             }
 
             // $compteRmb est déjà récupéré plus haut avec lockForUpdate()
@@ -2241,7 +2400,7 @@ class CreditController extends Controller
             $montantDeposeSurRmb = max(0, $montantRecu - $montantTotalApplique);
             
             $soldeRmbAvant = (float) $compteRmb->solde_reel;
-            $soldeGuichetAvant = (float) $soldeGuichet->solde_en_caisse;
+            $soldeGuichetAvant = $soldeGuichet ? (float) $soldeGuichet->solde_en_caisse : null;
 
             if ($montantPreleveSurRmb > 0) {
                 $compteRmb->decrement('solde_reel', $montantPreleveSurRmb);
@@ -2249,33 +2408,42 @@ class CreditController extends Controller
                 $compteRmb->increment('solde_reel', $montantDeposeSurRmb);
             }
             
-            // La caisse du guichet reçoit TOUJOURS le montant liquide versé par le client
-            $soldeGuichet->increment('solde_en_caisse', $montantRecu);
+            // La caisse du guichet ne reçoit quelque chose QUE si de l'argent liquide a été encaissé
+            if ($soldeGuichet && $montantRecu > 0) {
+                $soldeGuichet->increment('solde_en_caisse', $montantRecu);
+            }
             
             $soldeRmbApres = (float) $compteRmb->solde_reel;
-            $soldeGuichetApres = round($soldeGuichetAvant + $montantRecu, 2);
+            $soldeGuichetApres = $soldeGuichet ? round($soldeGuichetAvant + $montantRecu, 2) : null;
 
             $reference = $validated['reference_caisse'] ?? 'REM-EBEN-' . $dossier->id . '-' . now()->format('His') . rand(10, 99);
+
+            // Montant significatif de la transaction : le cash encaissé s'il y en a,
+            // sinon le montant réellement prélevé sur le solde RMB (règlement 100% RMB,
+            // pour éviter une transaction "fantôme" à 0 dans l'historique/les rapports).
+            $montantTransaction = $montantRecu > 0 ? $montantRecu : $montantPreleveSurRmb;
 
             // 3. Enregistrer la transaction comme un DÉPÔT (pour qu'elle figure dans les entrées de caisse du rapport)
             $transaction = Transaction::create([
                 'compte_code'             => $compteRmb->code_compte,
                 'agent_matricule'         => $agentMatricule,
-                'guichet_id'              => $guichet->id,
+                'guichet_id'              => $guichet?->id,
                 'devise_code'             => $dossier->devise,
                 'type'                    => Transaction::REMBOURSEMENT,
-                'montant'                 => $montantRecu,
+                'montant'                 => $montantTransaction,
                 'montant_commission_total'=> 0,
                 'solde_compte_avant'      => $soldeRmbAvant,
                 'solde_compte_apres'      => $soldeRmbApres,
-                'montant_total_client'    => $montantRecu,
-                'montant_net_client'      => $montantRecu,
+                'montant_total_client'    => $montantTransaction,
+                'montant_net_client'      => $montantTransaction,
                 'reference'               => $reference,
                 'observations'            => sprintf(
-                    'Remboursement crédit %s – Capital total: %s, Intérêt total: %s',
+                    'Remboursement crédit %s – Capital total: %s, Intérêt total: %s, Commission totale: %s%s',
                     $dossier->numero_dossier,
                     number_format($totalCapitalPaye, 2),
-                    number_format($totalInteretPaye, 2)
+                    number_format($totalInteretPaye, 2),
+                    number_format($totalCommissionPaye, 2),
+                    $montantRecu <= 0 ? ' (100% depuis le solde RMB, aucun argent liquide encaissé)' : ''
                 ),
                 'statut'                  => Transaction::CONFIRME,
                 'date_operation'          => $datePaiement,
@@ -2463,7 +2631,7 @@ class CreditController extends Controller
         $soldeOuverture = 0;
         $remboursements = $dossier->remboursements->sortBy('date_paiement');
         foreach ($remboursements as $remb) {
-            $mouvements[] = ['date' => $remb->date_paiement ?? now(), 'libelle' => 'Remboursement echeance #' . ($remb->echeance?->numero_echeance ?? '?') . ' (Cap: ' . number_format($remb->dont_capital, 2, ',', ' ') . ' | Int: ' . number_format($remb->dont_interet, 2, ',', ' ') . ')', 'debit' => 0, 'credit' => $remb->montant_recu, 'type' => 'remboursement'];
+            $mouvements[] = ['date' => $remb->date_paiement ?? now(), 'libelle' => 'Remboursement echeance #' . ($remb->echeance?->numero_echeance ?? '?') . ' (Cap: ' . number_format($remb->dont_capital, 2, ',', ' ') . ' | Int: ' . number_format($remb->dont_interet, 2, ',', ' ') . ' | Com: ' . number_format($remb->dont_commission, 2, ',', ' ') . ')', 'debit' => 0, 'credit' => $remb->montant_recu, 'type' => 'remboursement'];
         }
         if ($dossier->statut_global === 'SOLDE' && $dossier->deblocage && $dossier->deblocage->montant_caution > 0) {
             $mouvements[] = ['date' => $dossier->date_cloture ?? now(), 'libelle' => 'Restitution caution 20% depuis GTC', 'debit' => 0, 'credit' => $dossier->deblocage->montant_caution, 'type' => 'restitution'];
@@ -2479,9 +2647,10 @@ class CreditController extends Controller
         $cautionBloquee = ($dossier->deblocage && $dossier->statut_global !== 'SOLDE') ? $dossier->deblocage->montant_caution : 0;
         $totalInteretsPayes = $remboursements->sum('dont_interet');
         $totalCapitalPaye = $remboursements->sum('dont_capital');
+        $totalCommissionPayee = $remboursements->sum('dont_commission');
         $echeancesRestantes = $dossier->echeancier?->echeances()->where('statut', 'EN_ATTENTE')->orderBy('numero_echeance')->get() ?? collect();
         $prochaineEcheance = $echeancesRestantes->first();
-        $pdf = Pdf::loadView('impressions.credit.releve_credit', compact('dossier', 'client', 'clientFullName', 'clientPhotoBase64', 'mouvements', 'soldeOuverture', 'soldeCloture', 'totalDebits', 'totalCredits', 'capitalRestant', 'cautionBloquee', 'totalInteretsPayes', 'totalCapitalPaye', 'echeancesRestantes', 'prochaineEcheance'))->setPaper('A4', 'portrait');
+        $pdf = Pdf::loadView('impressions.credit.releve_credit', compact('dossier', 'client', 'clientFullName', 'clientPhotoBase64', 'mouvements', 'soldeOuverture', 'soldeCloture', 'totalDebits', 'totalCredits', 'capitalRestant', 'cautionBloquee', 'totalInteretsPayes', 'totalCapitalPaye', 'totalCommissionPayee', 'echeancesRestantes', 'prochaineEcheance'))->setPaper('A4', 'portrait');
         $filename = 'Releve_Credit_' . $dossier->numero_dossier . '_' . now()->format('Ymd') . '.pdf';
         return $pdf->stream($filename);
     }
@@ -2578,8 +2747,14 @@ class CreditController extends Controller
     // ================================================================
     public function reglementAutoEcheance(Request $request, CreditDemande $dossier)
     {
+        $this->authorizeZoneAccess($dossier);
+
         $echeanceId = $request->input('echeance_id');
         $echeance = CreditEcheance::findOrFail($echeanceId);
+
+        if ((int) $echeance->echeancier?->credit_demande_id !== (int) $dossier->id) {
+            abort(404);
+        }
 
         // Vérifier que le solde RMB est suffisant
         $montantRestantDu = (float)$echeance->total_echeance - (float)$echeance->montant_paye;
@@ -2631,6 +2806,7 @@ class CreditController extends Controller
             $ratio = (float)$echeance->montant_paye / (float)$echeance->total_echeance;
             $dontCapital = (float)$echeance->capital_echeance * $ratio;
             $dontInteret = (float)$echeance->interet_echeance * $ratio;
+            $dontCommission = (float)$echeance->commission_echeance * $ratio;
 
             CreditRemboursement::create([
                 'credit_demande_id' => $dossier->id,
@@ -2640,6 +2816,7 @@ class CreditController extends Controller
                 'montant_recu'      => $montantRestantDu,
                 'dont_capital'      => $dontCapital,
                 'dont_interet'      => $dontInteret,
+                'dont_commission'   => $dontCommission,
                 'dont_penalite'     => 0,
                 'devise'            => $dossier->devise,
                 'type_remboursement'=> 'ECHEANCE',
@@ -2651,6 +2828,347 @@ class CreditController extends Controller
         });
 
         return redirect()->route('credit.show', $dossier)->with('success', '✅ Échéance réglée automatiquement avec succès via le compte RMB.')->withFragment('tab_echeancier');
+    }
+
+    // ================================================================
+    // ACTIONS TRANSVERSES : Annulation / Suspension / Suspect
+    // ================================================================
+    //
+    // NOTE : ces 5 méthodes existaient dans le code (commit 9d982ce) et ont
+    // été supprimées par erreur (collateral damage) lors d'un refactor du
+    // flux de remboursement (commit 520c0f6, 12/06/2026), alors que les
+    // routes (routes/credit.php: annuler/suspendre/lever-suspension/
+    // lever-suspicion/signaler-suspect) et les vues (modals show.blade.php,
+    // boutons supervision.blade.php) y font toujours référence — d'où
+    // l'erreur "Method does not exist" au clic. Restaurées ici à l'identique.
+
+    public function annuler(Request $request, CreditDemande $dossier)
+    {
+        $this->authorizeZoneAccess($dossier);
+        $request->validate(['motif' => 'required|string|max:500']);
+
+        if (in_array($dossier->statut_global, ['DEBLOQUE', 'EN_REMBOURSEMENT', 'SOLDE'])) {
+            return back()->with('error', 'Un crédit débloqué ou soldé ne peut pas être annulé ici.');
+        }
+
+        $ancien = $dossier->statut_global;
+        $dossier->update([
+            'statut_global'        => 'ANNULE',
+            'est_annule'           => true,
+            'motif_annulation'     => $request->motif,
+            'annule_par_matricule' => Auth::user()->agent?->matricule,
+            'annule_le'            => now(),
+        ]);
+        $this->logAudit($dossier, 'ANNULATION', $ancien, 'ANNULE', $request->motif);
+
+        app(NotificationService::class)->notifyUsers(
+            User::query()
+                ->whereIn('agent_matricule', array_values(array_filter([
+                    $dossier->agent_createur_matricule,
+                    $dossier->agent_analyse_matricule,
+                ])))
+                ->get(),
+            'Dossier crédit annulé',
+            sprintf('Le dossier %s a été annulé. Motif: %s', $dossier->numero_dossier, $request->motif),
+            [
+                'type' => 'warning',
+                'category' => 'credit',
+                'icon' => 'fas fa-ban',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
+
+        return back()->with('success', 'Dossier annulé.');
+    }
+
+    public function suspendre(Request $request, CreditDemande $dossier)
+    {
+        $this->authorizeZoneAccess($dossier);
+        $request->validate(['motif' => 'required|string|max:500']);
+
+        $ancien = $dossier->statut_global;
+        $dossier->update([
+            'statut_global'          => 'SUSPENDU',
+            'est_suspendu'           => true,
+            'motif_suspension'       => $request->motif,
+            'suspendu_par_matricule' => Auth::user()->agent?->matricule,
+            'suspendu_le'            => now(),
+        ]);
+        $this->logAudit($dossier, 'SUSPENSION', $ancien, 'SUSPENDU', $request->motif);
+
+        app(NotificationService::class)->notifyUsers(
+            User::query()
+                ->whereIn('agent_matricule', array_values(array_filter([
+                    $dossier->agent_createur_matricule,
+                    $dossier->agent_analyse_matricule,
+                ])))
+                ->get(),
+            'Dossier crédit suspendu',
+            sprintf('Le dossier %s a été suspendu. Motif: %s', $dossier->numero_dossier, $request->motif),
+            [
+                'type' => 'warning',
+                'category' => 'credit',
+                'icon' => 'fas fa-pause-circle',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
+
+        return back()->with('success', 'Dossier suspendu.');
+    }
+
+    public function leverSuspension(CreditDemande $dossier)
+    {
+        $this->authorizeZoneAccess($dossier);
+
+        $dossier->update([
+            'statut_global'          => 'EN_VALIDATION',
+            'est_suspendu'           => false,
+            'motif_suspension'       => null,
+            'suspendu_par_matricule' => null,
+            'suspendu_le'            => null,
+        ]);
+        $this->logAudit($dossier, 'LEVER_SUSPENSION', 'SUSPENDU', 'EN_VALIDATION');
+
+        app(NotificationService::class)->notifyUsers(
+            User::query()
+                ->whereIn('agent_matricule', array_values(array_filter([
+                    $dossier->agent_createur_matricule,
+                    $dossier->agent_analyse_matricule,
+                ])))
+                ->get(),
+            'Suspension levée',
+            sprintf('La suspension du dossier %s a été levée. Le dossier revient en validation.', $dossier->numero_dossier),
+            [
+                'type' => 'info',
+                'category' => 'credit',
+                'icon' => 'fas fa-play-circle',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
+
+        return back()->with('success', 'Suspension levée.');
+    }
+
+    public function signalerSuspect(Request $request, CreditDemande $dossier)
+    {
+        $this->authorizeZoneAccess($dossier);
+        $request->validate(['motif' => 'required|string|max:500']);
+
+        $ancien = $dossier->statut_global;
+        $dossier->update([
+            'statut_global'         => 'SUSPECT',
+            'est_suspect'           => true,
+            'motif_suspicion'       => $request->motif,
+            'signale_par_matricule' => Auth::user()->agent?->matricule,
+            'signale_le'            => now(),
+        ]);
+        $this->logAudit($dossier, 'SIGNALEMENT_SUSPECT', $ancien, 'SUSPECT', $request->motif);
+
+        app(NotificationService::class)->notifyUsers(
+            User::query()
+                ->whereIn('agent_matricule', array_values(array_filter([
+                    $dossier->agent_createur_matricule,
+                    $dossier->agent_analyse_matricule,
+                ])))
+                ->get(),
+            'Dossier signalé suspect',
+            sprintf('Le dossier %s a été signalé comme suspect. Motif: %s', $dossier->numero_dossier, $request->motif),
+            [
+                'type' => 'danger',
+                'category' => 'credit',
+                'icon' => 'fas fa-exclamation-triangle',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
+
+        return back()->with('success', 'Dossier signalé comme suspect.');
+    }
+
+    public function leverSuspicion(CreditDemande $dossier)
+    {
+        $this->authorizeZoneAccess($dossier);
+
+        $dossier->update([
+            'statut_global'          => 'EN_VALIDATION',
+            'est_suspect'            => false,
+            'motif_suspicion'        => null,
+            'signale_par_matricule'  => null,
+            'signale_le'             => null,
+        ]);
+        $this->logAudit($dossier, 'LEVER_SUSPICION', 'SUSPECT', 'EN_VALIDATION');
+
+        app(NotificationService::class)->notifyUsers(
+            User::query()
+                ->whereIn('agent_matricule', array_values(array_filter([
+                    $dossier->agent_createur_matricule,
+                    $dossier->agent_analyse_matricule,
+                ])))
+                ->get(),
+            'Suspicion levée',
+            sprintf('Le signalement de suspicion du dossier %s a été levé. Le dossier revient en validation.', $dossier->numero_dossier),
+            [
+                'type' => 'info',
+                'category' => 'credit',
+                'icon' => 'fas fa-shield-alt',
+                'action_url' => route('credit.show', $dossier),
+            ]
+        );
+
+        return back()->with('success', 'Suspicion levée.');
+    }
+
+    // ================================================================
+    // PIÈCES JUSTIFICATIVES
+    // ================================================================
+
+    /**
+     * Marque une pièce justificative comme fournie/manquante, permet d'y
+     * joindre un fichier (photo scannée ou PDF déjà existant) et d'ajouter
+     * un commentaire.
+     *
+     * Jusqu'ici l'onglet "Pièces & docs" était uniquement en lecture (les 4
+     * lignes standard IDENTITE/DOMICILE/REVENU/AUTRE sont créées automatiquement
+     * à la création du dossier — voir store(), mais rien ne permettait de les
+     * mettre à jour ni d'y joindre un document). Autorisé pendant toute la
+     * phase de constitution/analyse du dossier (BROUILLON → EN_VALIDATION) ;
+     * plus modifiable une fois PRET_A_DEBLOQUER ou au-delà.
+     *
+     * Stockage : même principe que les photos client/agent
+     * (base_path('images_projet/...'), pas le disque Storage) mais dans
+     * images_projet/credits/pieces/{dossier_id}/ — servi via une route
+     * protégée par authentification (piecesFichier()), pas en accès public
+     * direct, car ce sont des documents d'identité/revenus sensibles.
+     *
+     * Pour les pièces comme la carte d'électeur qui ne nécessitent qu'une
+     * simple photo (scan téléphone/webcam), le champ accepte une image
+     * (jpg/png) en plus du PDF direct : une image envoyée est automatiquement
+     * convertie en PDF une page avant d'être enregistrée, pour que TOUTES les
+     * pièces soient stockées de manière uniforme en PDF.
+     */
+    public function updatePiece(Request $request, CreditDemande $dossier, CreditPiece $piece)
+    {
+        $this->authorizeZoneAccess($dossier);
+
+        if ((int) $piece->credit_demande_id !== (int) $dossier->id) {
+            abort(404);
+        }
+
+        if (in_array($dossier->statut_global, ['PRET_A_DEBLOQUER','DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD','SOLDE','ANNULE'])) {
+            return back()->with('error', 'Les pièces ne sont plus modifiables à ce stade du dossier.')->withFragment('tab_pieces');
+        }
+
+        $validated = $request->validate([
+            'est_recu'     => 'sometimes|boolean',
+            'nom_fichier'  => 'nullable|string|max:255',
+            'observations' => 'nullable|string|max:500',
+            'fichier'      => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:8192',
+        ]);
+
+        $nomFichier = $validated['nom_fichier'] ?? $piece->nom_fichier;
+        $estRecu = $request->boolean('est_recu');
+
+        if ($request->hasFile('fichier')) {
+            $nomFichier = $this->storePieceFichier($dossier, $piece, $request->file('fichier'));
+            $estRecu = true; // Un document joint vaut automatiquement "Fournie"
+        }
+
+        $piece->update([
+            'est_recu'     => $estRecu,
+            'nom_fichier'  => $nomFichier,
+            'observations' => $validated['observations'] ?? null,
+        ]);
+
+        $this->logAudit(
+            $dossier,
+            'PIECE_MISE_A_JOUR',
+            $dossier->statut_global,
+            $dossier->statut_global,
+            sprintf(
+                "Pièce %s (%s) : %s%s%s",
+                $piece->type_piece,
+                $piece->libelle,
+                $piece->est_recu ? 'Fournie' : 'Manquante',
+                $piece->nom_fichier ? " | Réf: {$piece->nom_fichier}" : '',
+                $piece->observations ? " | {$piece->observations}" : ''
+            )
+        );
+
+        return back()->with('success', 'Pièce justificative mise à jour.')->withFragment('tab_pieces');
+    }
+
+    /**
+     * Enregistre le fichier joint à une pièce (image scannée ou PDF) dans
+     * images_projet/credits/pieces/{dossier_id}/ et retourne le chemin
+     * relatif à stocker dans nom_fichier. Une image est convertie en PDF
+     * une page (DomPDF) pour que le stockage soit uniformément du PDF.
+     */
+    private function storePieceFichier(CreditDemande $dossier, CreditPiece $piece, $fichier): string
+    {
+        $destinationDir = base_path('images_projet/credits/pieces/' . $dossier->id);
+        if (!file_exists($destinationDir)) {
+            mkdir($destinationDir, 0755, true);
+        }
+
+        $baseName = 'piece_' . $piece->id . '_' . time();
+        $extension = strtolower($fichier->getClientOriginalExtension());
+        $isImage = in_array($extension, ['jpg', 'jpeg', 'png']);
+
+        // Supprime l'ancien fichier de cette pièce s'il existe (remplacement)
+        if ($piece->nom_fichier) {
+            $ancienPath = base_path('images_projet/' . $piece->nom_fichier);
+            if (file_exists($ancienPath)) {
+                @unlink($ancienPath);
+            }
+        }
+
+        $nomFichierFinal = $baseName . '.pdf';
+        $cheminAbsolu = $destinationDir . '/' . $nomFichierFinal;
+
+        if ($isImage) {
+            // Photo/scan (ex: carte d'électeur) → conversion en PDF une page
+            $base64 = base64_encode(file_get_contents($fichier->getRealPath()));
+            $mime = $fichier->getMimeType();
+            $pdf = Pdf::loadView('impressions.credit.piece_scan', [
+                'imageData' => "data:{$mime};base64,{$base64}",
+                'dossier'   => $dossier,
+                'piece'     => $piece,
+            ]);
+            $pdf->save($cheminAbsolu);
+        } else {
+            // Déjà un PDF → enregistré tel quel
+            $fichier->move($destinationDir, $nomFichierFinal);
+        }
+
+        return 'credits/pieces/' . $dossier->id . '/' . $nomFichierFinal;
+    }
+
+    /**
+     * Sert le fichier PDF d'une pièce justificative (accès protégé par
+     * authentification + portée de zone, contrairement aux photos
+     * client/agent qui sont servies sans contrôle de zone).
+     */
+    public function piecesFichier(CreditDemande $dossier, CreditPiece $piece)
+    {
+        $this->authorizeZoneAccess($dossier);
+
+        if ((int) $piece->credit_demande_id !== (int) $dossier->id || !$piece->nom_fichier) {
+            abort(404);
+        }
+
+        $path = base_path('images_projet/' . $piece->nom_fichier);
+        if (!file_exists($path)) {
+            abort(404);
+        }
+
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        return response()->file($path, [
+            'Content-Type' => 'application/pdf',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Length' => filesize($path),
+        ]);
     }
 
     // ================================================================
@@ -2696,12 +3214,72 @@ class CreditController extends Controller
 
     private function authorizeDemandeAccess(CreditDemande $dossier, bool $throw = true): bool
     {
-        return true;
+        try {
+            $this->authorizeZoneAccess($dossier);
+            return true;
+        } catch (\Throwable $e) {
+            if ($throw) {
+                throw $e;
+            }
+            return false;
+        }
     }
 
+    /**
+     * Vérifie que l'utilisateur connecté a réellement le droit d'agir sur CE
+     * dossier précis (pas seulement qu'il a la permission générique requise
+     * par le middleware de la route). Reproduit exactement le même périmètre
+     * que la liste des dossiers (index()) : superviseur = accès global ;
+     * agent crédit (PER58) = seulement ses dossiers affectés ou ceux de ses
+     * portefeuilles actifs ; autres utilisateurs = dossiers qu'ils ont créés
+     * ou qui sont dans leur(s) zone(s) habituelle(s).
+     *
+     * Avant cette implémentation, cette méthode était un stub vide : la seule
+     * protection réelle venait des middlewares `permission:` (par rôle),
+     * sans aucune vérification par dossier — un utilisateur pouvait accéder
+     * à N'IMPORTE QUEL dossier (y compris hors de sa zone/portefeuille) en
+     * devinant/changeant simplement l'ID dans l'URL.
+     */
     private function authorizeZoneAccess(CreditDemande $dossier): void
     {
-        // Guard de sécurité d'agence locale
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (!$user) {
+            abort(403, 'Authentification requise.');
+        }
+
+        $perms     = $user->getPermissionCodes();
+        $matricule = $user->agent?->matricule;
+
+        $superviseurPerms = ['EBEN-PER61', 'EBEN-PER62', 'EBEN-PER63', 'EBEN-PER64'];
+        if (count(array_intersect($superviseurPerms, $perms)) > 0) {
+            return; // Superviseur : accès global à tous les dossiers, sans restriction.
+        }
+
+        $estAgentCredit = in_array('EBEN-PER58', $perms, true);
+        if ($estAgentCredit) {
+            if ($matricule && $dossier->agent_analyse_matricule === $matricule) {
+                return;
+            }
+            $portefeuilleIds = $this->resolvePortefeuilleScope($user);
+            if (!empty($portefeuilleIds) && in_array($dossier->portefeuille_id, $portefeuilleIds, true)) {
+                return;
+            }
+            abort(403, "Vous n'avez pas accès à ce dossier crédit (non affecté à vous ni à votre portefeuille).");
+        }
+
+        // Autres profils (agent commercial, chargé d'opérations, etc.) :
+        // dossiers qu'ils ont créés eux-mêmes, ou situés dans leur zone.
+        if ($matricule && $dossier->agent_createur_matricule === $matricule) {
+            return;
+        }
+
+        $zonesCodes = $this->resolveZoneScope($user);
+        if ($zonesCodes === null || in_array($dossier->code_zone, $zonesCodes, true)) {
+            return;
+        }
+
+        abort(403, "Vous n'avez pas accès à ce dossier crédit (hors de votre zone).");
     }
 
     /**

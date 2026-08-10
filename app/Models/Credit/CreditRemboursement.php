@@ -18,6 +18,7 @@ class CreditRemboursement extends Model
         'montant_recu',
         'dont_capital',
         'dont_interet',
+        'dont_commission',
         'dont_penalite',
         'devise',
         'type_remboursement',
@@ -28,11 +29,12 @@ class CreditRemboursement extends Model
     ];
 
     protected $casts = [
-        'montant_recu'   => 'decimal:2',
-        'dont_capital'   => 'decimal:2',
-        'dont_interet'   => 'decimal:2',
-        'dont_penalite'  => 'decimal:2',
-        'recu_le'        => 'datetime',
+        'montant_recu'    => 'decimal:2',
+        'dont_capital'    => 'decimal:2',
+        'dont_interet'    => 'decimal:2',
+        'dont_commission' => 'decimal:2',
+        'dont_penalite'   => 'decimal:2',
+        'recu_le'         => 'datetime',
     ];
 
     public function demande()
@@ -69,6 +71,11 @@ class CreditRemboursement extends Model
     public function getMontantInteretPayeAttribute(): ?string
     {
         return $this->dont_interet;
+    }
+
+    public function getMontantCommissionPayeAttribute(): ?string
+    {
+        return $this->dont_commission;
     }
 
     public function getModePaiementAttribute(): ?string

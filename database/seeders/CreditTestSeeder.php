@@ -709,10 +709,11 @@ class CreditTestSeeder extends Seeder
         Carbon         $datePmt,
         string         $type
     ): void {
-        $total   = round((float) $ech->total_echeance, 2);
-        $capital = round((float) $ech->capital_echeance, 2);
-        $interet = round($total - $capital, 2);
-        $this->enregistrerRemboursementMontant($d, $ech, $total, $capital, $interet, $datePmt, $type);
+        $total      = round((float) $ech->total_echeance, 2);
+        $capital    = round((float) $ech->capital_echeance, 2);
+        $interet    = round((float) $ech->interet_echeance, 2);
+        $commission = round($total - $capital - $interet, 2); // absorbe l'arrondi
+        $this->enregistrerRemboursementMontant($d, $ech, $total, $capital, $interet, $datePmt, $type, $commission);
     }
 
     private function enregistrerRemboursementMontant(
@@ -722,7 +723,8 @@ class CreditTestSeeder extends Seeder
         float          $dontCapital,
         float          $dontInteret,
         Carbon         $datePmt,
-        string         $type
+        string         $type,
+        float          $dontCommission = 0
     ): void {
         $total = round((float) $ech->total_echeance, 2);
         $nouveauMontantPaye = round((float) $ech->montant_paye + $montantRecu, 2);
@@ -736,6 +738,7 @@ class CreditTestSeeder extends Seeder
             'montant_recu'       => $montantRecu,
             'dont_capital'       => $dontCapital,
             'dont_interet'       => $dontInteret,
+            'dont_commission'    => $dontCommission,
             'dont_penalite'      => 0,
             'devise'             => $d->devise,
             'type_remboursement' => $type,

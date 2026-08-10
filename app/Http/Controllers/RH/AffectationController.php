@@ -40,6 +40,21 @@ class AffectationController extends Controller
         try {
             $data = $request->only('agent_matricule', 'poste_id', 'guichet_id', 'date_debut', 'date_fin');
             $data['Etat'] = 'ACTIF';
+
+            // Intégrité : un agent ne doit jamais être titulaire ACTIF de deux
+            // guichets à la fois (les contrôles de titularité de caisse —
+            // CaisseController, OperationCaisseController — supposent une seule
+            // affectation-guichet active par agent). Sans ce garde-fou, rien
+            // n'empêchait d'affecter le même agent à un second guichet sans
+            // clore la précédente, laissant deux affectations ACTIF simultanées.
+            if (!empty($data['guichet_id'])) {
+                Affectation::where('agent_matricule', $data['agent_matricule'])
+                    ->where('Etat', 'ACTIF')
+                    ->whereNotNull('guichet_id')
+                    ->where('guichet_id', '!=', $data['guichet_id'])
+                    ->update(['Etat' => 'TERMINE', 'date_fin' => now()]);
+            }
+
             $affectation = Affectation::create($data);
 
             \App\Models\ActivityLog::record(

@@ -80,9 +80,17 @@ class ProcessAutomaticCreditRepayment
             }
 
             // Calculer le montant manquant pour cette échéance
-            $montantTotalEcheance = (float) $echeance->montant_capital + (float) $echeance->montant_interet;
+            // IMPORTANT : total_echeance = capital + intérêt + commission (voir
+            // AmortissementService::calculer()). Utiliser uniquement
+            // montant_capital + montant_interet ici ignorait la commission de
+            // l'échéance et faisait passer celle-ci en "PAYE" alors qu'il
+            // manquait encore la commission (partout ailleurs dans l'app —
+            // CreditController::storeRemboursement, RecouvrementController —
+            // le "reste dû" est calculé sur total_echeance, d'où l'incohérence
+            // "PARTIELLEMENT_PAYE" persistante malgré un dépôt du montant complet).
+            $montantTotalEcheance = round((float) $echeance->total_echeance, 2);
             $montantDejaPaye = (float) $echeance->montant_paye;
-            $montantManquant = max(0, $montantTotalEcheance - $montantDejaPaye);
+            $montantManquant = max(0, round($montantTotalEcheance - $montantDejaPaye, 2));
             
             if ($montantManquant <= 0) {
                 continue; // Déjà payée (sécurité)
@@ -90,10 +98,18 @@ class ProcessAutomaticCreditRepayment
 
             // Montant à appliquer sur cette échéance
             $montantApplique = min($montantRestant, $montantManquant);
-            
-            // Répartition simplifiée : intérêt d'abord, puis capital
-            $dontInteret = min($montantApplique, (float) $echeance->montant_interet);
-            $dontCapital = $montantApplique - $dontInteret;
+
+            // Répartition (même ordre d'imputation que storeRemboursement()) :
+            // intérêt d'abord, puis commission, puis capital.
+            $interetEcheance    = (float) $echeance->montant_interet;
+            $commissionEcheance = (float) $echeance->commission_echeance;
+            $interetRestant     = max(0, round($interetEcheance - ($montantDejaPaye * ($interetEcheance / max($montantTotalEcheance, 1))), 2));
+            $commissionRestant  = max(0, round($commissionEcheance - ($montantDejaPaye * ($commissionEcheance / max($montantTotalEcheance, 1))), 2));
+
+            $dontInteret = min($montantApplique, $interetRestant);
+            $resteApresInteret = round($montantApplique - $dontInteret, 2);
+            $dontCommission = min($resteApresInteret, $commissionRestant);
+            $dontCapital = round($resteApresInteret - $dontCommission, 2);
 
             // Créer le remboursement
             CreditRemboursement::create([
@@ -104,6 +120,7 @@ class ProcessAutomaticCreditRepayment
                 'montant_recu'       => $montantApplique,
                 'dont_capital'       => $dontCapital,
                 'dont_interet'       => $dontInteret,
+                'dont_commission'    => $dontCommission,
                 'dont_penalite'      => 0,
                 'recu_le'            => now(),
                 'transaction_id'     => $transaction->id,

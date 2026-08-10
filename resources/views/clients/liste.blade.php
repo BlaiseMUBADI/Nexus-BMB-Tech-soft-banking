@@ -125,16 +125,19 @@
                                        class="btn btn-xs btn-info mr-1" title="Voir">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                    @if(in_array('EBEN-PER17', $userPermCodes ?? []))
                                     <a href="{{ route('clients.edit', $client->matricule) }}"
                                        class="btn btn-xs btn-warning mr-1" title="Modifier">
                                         <i class="fas fa-edit"></i>
                                     </a>
+                                    @endif
                                     @if($canPrintDocuments ?? true)
                                         <a href="{{ route('clients.fiche.pdf', $client->matricule) }}"
                                            target="_blank" class="btn btn-xs btn-secondary mr-1" title="Fiche PDF">
                                             <i class="fas fa-file-pdf"></i>
                                         </a>
                                     @endif
+                                    @if(in_array('EBEN-PER107', $userPermCodes ?? []))
                                     <button type="button"
                                             class="btn btn-xs btn-danger btn-delete-client"
                                             data-url="{{ route('clients.destroy', $client->matricule) }}"
@@ -142,6 +145,7 @@
                                             title="Supprimer">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

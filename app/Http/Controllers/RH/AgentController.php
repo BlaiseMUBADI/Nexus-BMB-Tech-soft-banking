@@ -156,6 +156,28 @@ class AgentController extends Controller
             Log::warning('[Agent] Agent introuvable', ['matricule' => $matricule, 'action' => 'destroy', 'ip' => request()->ip()]);
             abort(404, 'Agent introuvable : ' . $matricule);
         }
+
+        // Garde-fous d'intégrité (même principe que AffectationController::canDelete) :
+        // sans ces vérifications, supprimer un agent laissait des affectations,
+        // portefeuilles et comptes utilisateur orphelins référençant un
+        // matricule inexistant (agent_matricule pointant vers rien).
+        $aUneAffectationActive = \App\Models\RH\Affectation::where('agent_matricule', $matricule)
+            ->where('Etat', 'ACTIF')
+            ->exists();
+        if ($aUneAffectationActive) {
+            return back()->withErrors(['error' => "Impossible de supprimer cet agent : il a encore une affectation active. Terminez-la d'abord."]);
+        }
+
+        $aUnPortefeuille = \App\Models\Tresorerie\Portefeuille::where('agent_matricule', $matricule)->exists();
+        if ($aUnPortefeuille) {
+            return back()->withErrors(['error' => "Impossible de supprimer cet agent : un portefeuille crédit lui est encore associé."]);
+        }
+
+        $aUnCompteUtilisateur = \App\Models\User::where('agent_matricule', $matricule)->exists();
+        if ($aUnCompteUtilisateur) {
+            return back()->withErrors(['error' => "Impossible de supprimer cet agent : un compte utilisateur lui est encore associé. Supprimez d'abord ce compte."]);
+        }
+
         // Supprimer la photo si elle existe
         if ($agent->photo && file_exists(base_path('images_projet/' . $agent->photo))) {
             @unlink(base_path('images_projet/' . $agent->photo));

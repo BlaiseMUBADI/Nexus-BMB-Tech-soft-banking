@@ -49,7 +49,12 @@ Route::middleware('auth')->prefix('administration')->group(function () {
     });
 
     
-    Route::middleware('permission:EBEN-PER2')->group(function () {
+    // PER2 (voir) OU PER3 (gérer) : un rôle disposant seulement de PER3 (créer/
+    // supprimer des rôles) doit pouvoir ouvrir la page pour utiliser ces actions
+    // — sinon il voit le lien dans le menu (gate PER2||PER3 côté sidebar) mais
+    // obtient un 403 en l'ouvrant. Les actions d'écriture restent, elles,
+    // strictement réservées à PER3 (voir groupe ci-dessous).
+    Route::middleware('permission:EBEN-PER2|EBEN-PER3')->group(function () {
         Route::get('/roles-permissions',                  [RolesPermissionsController::class, 'index'])->name('administration.roles_permissions');
         Route::get('/roles/{role}',                       [RolesPermissionsController::class, 'show'])->name('administration.roles.show');
         Route::get('/roles-table',                        [RolesPermissionsController::class, 'rolesTable'])->name('administration.roles.table');

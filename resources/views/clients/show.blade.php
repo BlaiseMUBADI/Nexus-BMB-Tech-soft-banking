@@ -24,14 +24,18 @@
                 <small class="ml-2 text-muted">— <code>{{ $client->matricule }}</code></small>
             </h3>
             <div class="mt-1 mt-md-0">
+                @if(in_array('EBEN-PER17', $userPermCodes ?? []))
                 <a href="{{ route('clients.edit', $client->matricule) }}" class="btn btn-sm btn-warning mr-1">
                     <i class="fas fa-edit mr-1"></i> Modifier
                 </a>
+                @endif
+                @if(in_array('EBEN-PER107', $userPermCodes ?? []))
                 <button type="button" class="btn btn-sm btn-danger mr-1" id="btnDeleteClient"
                         data-url="{{ route('clients.destroy', $client->matricule) }}"
                         data-nom="{{ $client->nom }} {{ $client->postnom }}">
                     <i class="fas fa-trash-alt mr-1"></i> Supprimer
                 </button>
+                @endif
                 <a href="{{ route('clients.index') }}" class="btn btn-sm btn-secondary">
                     <i class="fas fa-arrow-left mr-1"></i> Retour
                 </a>

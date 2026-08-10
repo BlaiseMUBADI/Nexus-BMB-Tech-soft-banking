@@ -170,6 +170,18 @@ class RecetteController extends Controller
             return response()->json(['success' => false, 'message' => 'Cette recette est déjà annulée ou introuvable.'], 422);
         }
 
+        // Sécurité : un caissier ne peut annuler QUE les recettes de son propre
+        // guichet (même règle que DepenseController::annuler() /
+        // OperationCaisseController::annuler()). Sans ce contrôle, n'importe
+        // quel détenteur de EBEN-PER114 pouvait annuler la recette d'un
+        // guichet auquel il n'est pas affecté.
+        $guichet = $this->getGuichetAgent();
+        if (!$guichet || (int) $transaction->guichet_id !== (int) $guichet->id) {
+            if (!Auth::user()?->hasPermission('EBEN-PER1')) {
+                return response()->json(['success' => false, 'message' => "Vous n'êtes pas autorisé à annuler une recette d'un autre guichet."], 403);
+            }
+        }
+
         try {
             DB::transaction(function () use ($transaction, $accountingService) {
                 // Annulation : on retire du solde ce qui avait été ajouté

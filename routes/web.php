@@ -39,10 +39,13 @@ Route::post('log/client-error', [ClientLogController::class, 'store'])
 Route::post('/session/heartbeat', [DashboardController::class, 'heartbeat'])
     ->middleware('auth')->name('session.heartbeat');
 
-// Route::redirect() est géré par un vrai contrôleur interne à Laravel
-// (RedirectController), donc compatible avec route:cache — contrairement à
-// une Closure `Route::get('/', function () { ... })`.
-Route::redirect('/', '/dashboard');
+// NOTE : Route::redirect('/', '/dashboard') a été retiré — ce helper génère
+// une redirection RELATIVE à la racine du domaine et casse l'application
+// quand elle est installée dans un sous-dossier (ex: WAMP, .../public).
+// DashboardController::redirectToDashboard() utilise redirect()->route(),
+// qui génère une URL absolue correcte, tout en restant une vraie action de
+// contrôleur (donc compatible `route:cache`, contrairement à une Closure).
+Route::get('/', [DashboardController::class, 'redirectToDashboard']);
 
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])->name('dashboard');
@@ -58,10 +61,14 @@ Route::middleware('auth')->group(function () {
 
 
 
-// Photos (médias protégés — auth requis)
+// Photos (médias protégés — auth + permission de visualisation requises)
+// AVANT : gardées par 'auth' seul, donc n'importe quel utilisateur connecté
+// de l'application (caissier, comptable, agent crédit...) pouvait récupérer
+// la photo de N'IMPORTE QUEL client ou agent en devinant/connaissant le nom
+// de fichier, même sans la permission de "voir clients"/"voir agents".
 Route::middleware('auth')->group(function () {
-    Route::get('/clients/photo/{filename}', [ClientController::class, 'photo'])->name('clients.photo');
-    Route::get('/agents/photo/{filename}',  [AgentController::class, 'photo'])->name('agents.photo');
+    Route::middleware('permission:EBEN-PER15')->get('/clients/photo/{filename}', [ClientController::class, 'photo'])->name('clients.photo');
+    Route::middleware('permission:EBEN-PER6')->get('/agents/photo/{filename}',  [AgentController::class, 'photo'])->name('agents.photo');
 
     // Journal des erreurs JavaScript → storage/logs/laravel.log
     // (déplacé dans DashboardController — voir commentaire dans ce fichier)
