@@ -190,113 +190,15 @@
 								<div class="card-body">
 									<div class="form-row">
 										<div class="form-group col-md-4">
-											<label for="photo">Photo du client</label>
-											<div class="input-group align-items-start">
-												<div class="custom-file" style="max-width: 220px;">
-													<input type="file" class="custom-file-input" id="photo" name="photo" accept="image/*">
-													<label class="custom-file-label" for="photo">Choisir une photo</label>
-												</div>
-												<div id="photo-preview-panel" style="margin-left:15px; display:none;">
-													<img id="photo-preview" src="#" alt="Aperçu" style="max-width:150px; max-height:150px; border:1px solid #ccc; border-radius:6px; background:#f8f9fa;" />
-													<div id="photo-error" style="color:#dc3545; font-size:0.9em; margin-top:4px;"></div>
-												</div>
-												@if($client->photo)
-													<div id="photo-current-panel" style="margin-left:15px;">
-														<img src="{{ route('clients.photo', basename($client->photo)) }}" alt="Photo actuelle" class="img-thumbnail mt-2" style="max-width: 120px;">
-													</div>
-												@endif
-											</div>
+											<label>Photo du client</label>
+											@include('partials.photo_cropper', [
+												'inputName' => 'photo',
+												'existingPhotoUrl' => $client->photo ? route('clients.photo', basename($client->photo)) : null,
+											])
 										</div>
 									</div>
 								</div>
 							</div>
-							@push('js')
-							<script>
-							document.addEventListener('DOMContentLoaded', function () {
-								const input = document.getElementById('photo');
-								const previewPanel = document.getElementById('photo-preview-panel');
-								const preview = document.getElementById('photo-preview');
-								const errorDiv = document.getElementById('photo-error');
-								const currentPanel = document.getElementById('photo-current-panel');
-								input.addEventListener('change', function (e) {
-									errorDiv.textContent = '';
-									previewPanel.style.display = 'none';
-									if (currentPanel) currentPanel.style.display = 'none';
-									if (!input.files || !input.files[0]) return;
-									const file = input.files[0];
-									// Vérification type
-									if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
-										errorDiv.textContent = 'Le format de la photo doit être JPEG, PNG ou GIF.';
-										input.value = '';
-										return;
-									}
-									// Redimensionnement côté client (max 600x600)
-									const img = new window.Image();
-									const reader = new FileReader();
-									reader.onload = function (ev) {
-										img.onload = function () {
-											let width = img.width;
-											let height = img.height;
-											const maxDim = 600;
-											if (width > maxDim || height > maxDim) {
-												if (width > height) {
-													height = Math.round(height * maxDim / width);
-													width = maxDim;
-												} else {
-													width = Math.round(width * maxDim / height);
-													height = maxDim;
-												}
-											}
-											const canvas = document.createElement('canvas');
-											canvas.width = width;
-											canvas.height = height;
-											const ctx = canvas.getContext('2d');
-											ctx.drawImage(img, 0, 0, width, height);
-											// Compression JPEG à 80% (ou PNG/GIF sans compression supplémentaire)
-											let mime = file.type;
-											let quality = 0.8;
-											let dataUrl;
-											if (mime === 'image/jpeg') {
-												dataUrl = canvas.toDataURL('image/jpeg', quality);
-											} else if (mime === 'image/png') {
-												dataUrl = canvas.toDataURL('image/png');
-											} else if (mime === 'image/gif') {
-												// GIF non supporté par toDataURL, on garde l'original
-												dataUrl = ev.target.result;
-											}
-											// Aperçu
-											preview.src = dataUrl;
-											previewPanel.style.display = 'block';
-											// Remplacement du fichier dans l'input (Blob -> File)
-											fetch(dataUrl)
-												.then(res => res.arrayBuffer())
-												.then(buf => {
-													const ext = mime.split('/')[1];
-													const newFile = new File([buf], file.name.replace(/\.[^.]+$/, '.'+ext), {type: mime});
-													// Vérification taille (1 Mo max)
-													if (newFile.size > 1 * 1024 * 1024) {
-														errorDiv.textContent = 'La taille de la photo redimensionnée dépasse 1 Mo.';
-														input.value = '';
-														previewPanel.style.display = 'none';
-														return;
-													}
-													// Remplacement du fichier dans l'input
-													const dt = new DataTransfer();
-													dt.items.add(newFile);
-													input.files = dt.files;
-												});
-										};
-										img.onerror = function () {
-											errorDiv.textContent = 'Impossible de lire l\'image.';
-											input.value = '';
-										};
-										img.src = ev.target.result;
-									};
-									reader.readAsDataURL(file);
-								});
-							});
-							</script>
-							@endpush
 							<!-- Activité économique -->
 							<div class="card card-primary mb-4">
 								<div class="card-header bg-primary">

@@ -79,7 +79,8 @@ class CreditController extends Controller
             'pret_a_debloquer' => (clone $query)->where('statut_global', 'PRET_A_DEBLOQUER')->count(),
             'debloque'         => (clone $query)->where('statut_global', 'DEBLOQUE')->count(),
             'en_remboursement' => (clone $query)->where('statut_global', 'EN_REMBOURSEMENT')->count(),
-            'en_retard'        => (clone $query)->where('statut_global', 'EN_RETARD')->count(),
+            // enRetardReel (pas statut_global) : source unique, cf. CreditDemande::scopeEnRetardReel().
+            'en_retard'        => (clone $query)->enRetardReel()->count(),
             'solde'            => (clone $query)->where('statut_global', 'SOLDE')->count(),
             'annule'           => (clone $query)->where('statut_global', 'ANNULE')->count(),
             'suspendu'         => (clone $query)->where('statut_global', 'SUSPENDU')->count(),
@@ -262,6 +263,17 @@ class CreditController extends Controller
 
     public function index(Request $request)
     {
+        // Auto-réparation : recalcule EN_RETARD/EN_REMBOURSEMENT/SOLDE pour
+        // TOUS les dossiers actifs avant de construire les compteurs/badges de
+        // cette page. Ne dépend donc plus du bon fonctionnement du cron
+        // planifié (credit:marquer-retards, cf. bootstrap/app.php) — utile
+        // tant que la tâche planifiée Windows (schedule:run/minute) n'est pas
+        // confirmée opérationnelle sur le serveur. Throttle 60s (cache) pour
+        // ne pas relancer ce recalcul à chaque clic/filtre de la même minute.
+        if (\Illuminate\Support\Facades\Cache::add('credit_sync_retards_lock', true, 60)) {
+            \Illuminate\Support\Facades\Artisan::call('credit:marquer-retards');
+        }
+
         /** @var \App\Models\User|null $user */
         $user      = Auth::user();
         $perms     = $user ? $user->getPermissionCodes() : [];
@@ -362,13 +374,10 @@ class CreditController extends Controller
         if ($request->filled('date_fin')) {
             $query->whereDate('created_at', '<=', $request->date_fin);
         }
-        // Filtre rapide : en retard (échéances dépassées non payées)
+        // Filtre rapide : en retard (échéances dépassées non payées) —
+        // scopeEnRetardReel() = source unique, cf. CreditDemande.
         if ($request->get('alerte') === 'retard') {
-            $query->whereIn('statut_global', ['EN_REMBOURSEMENT','DEBLOQUE','EN_RETARD'])
-                ->whereHas('echeancier.echeances', fn ($q) =>
-                    $q->whereIn('statut', ['EN_ATTENTE','PARTIELLEMENT_PAYE','EN_RETARD'])
-                      ->where('date_echeance', '<', now()->toDateString())
-                );
+            $query->enRetardReel();
         }
         if ($request->get('alerte') === 'alertes') {
             $query->whereIn('statut_global', ['SUSPECT','SUSPENDU']);
@@ -407,7 +416,10 @@ class CreditController extends Controller
         $compteurs = [
             'en_cours'   => (clone $queryBase)->whereIn('statut_global', ['SOUMIS','EN_ANALYSE','EN_VALIDATION','PRET_A_DEBLOQUER'])->count(),
             'actifs'     => (clone $queryBase)->whereIn('statut_global', ['DEBLOQUE','EN_REMBOURSEMENT'])->count(),
-            'en_retard'  => (clone $queryBase)->where('statut_global', 'EN_RETARD')->count(),
+            // enRetardReel (pas statut_global) : source unique, cf. CreditDemande::scopeEnRetardReel().
+            // Corrige l'écart observé (sidebar "Recouvrement Auto" à 7 vs "En retard" ici à 6) :
+            // statut_global peut être temporairement désynchronisé sur un dossier précis.
+            'en_retard'  => (clone $queryBase)->enRetardReel()->count(),
             'soldes'     => (clone $queryBase)->where('statut_global', 'SOLDE')->count(),
             'alertes'    => (clone $queryBase)->whereIn('statut_global', ['SUSPECT','SUSPENDU'])->count(),
             'annules'    => (clone $queryBase)->where('statut_global', 'ANNULE')->count(),
@@ -420,6 +432,15 @@ class CreditController extends Controller
 
         $idsFiltres = $filtresActifs->pluck('id')->toArray();
 
+        // enRetardReel (pas statut_global) : source unique, cf. CreditDemande::
+        // scopeEnRetardReel(). $filtresActifs n'a pas les échéances chargées
+        // (pas de whereHas possible en mémoire) : on récupère le set d'IDs
+        // réellement en retard via une requête ciblée sur les IDs déjà filtrés,
+        // puis on filtre la collection en mémoire avec whereIn('id', ...).
+        $idsEnRetardReel = !empty($idsFiltres)
+            ? CreditDemande::whereIn('id', $idsFiltres)->enRetardReel()->pluck('id')->all()
+            : [];
+
         // Totaux par devise
         $totauxParDevise = [];
         foreach ($filtresActifs->groupBy('devise') as $devise => $dossiersDevise) {
@@ -430,8 +451,8 @@ class CreditController extends Controller
                 'montant_net_verse' => $dossiersDevise->whereNotNull('deblocage_id')->sum(function($d) {
                     return $d->deblocage?->montant_net_verse ?? 0;
                 }),
-                'en_retard'         => $dossiersDevise->where('statut_global', 'EN_RETARD')->count(),
-                'montant_en_retard' => $dossiersDevise->where('statut_global', 'EN_RETARD')->sum('montant_demande'),
+                'en_retard'         => $dossiersDevise->whereIn('id', $idsEnRetardReel)->count(),
+                'montant_en_retard' => $dossiersDevise->whereIn('id', $idsEnRetardReel)->sum('montant_demande'),
             ];
         }
 
@@ -448,8 +469,8 @@ class CreditController extends Controller
                 return $d->deblocage?->montant_net_verse ?? 0;
             }),
             'montant_rembourse' => $montantRembourse,
-            'en_retard'         => $filtresActifs->where('statut_global', 'EN_RETARD')->count(),
-            'montant_en_retard' => $filtresActifs->where('statut_global', 'EN_RETARD')->sum('montant_demande'),
+            'en_retard'         => $filtresActifs->whereIn('id', $idsEnRetardReel)->count(),
+            'montant_en_retard' => $filtresActifs->whereIn('id', $idsEnRetardReel)->sum('montant_demande'),
             'par_devise'        => $totauxParDevise,
         ];
 
@@ -955,8 +976,9 @@ class CreditController extends Controller
             (float) $commissionTotale
         );
 
+        try {
         $demande = DB::transaction(function () use ($validated, $client, $agent, $calcul, $portefeuilleIdCreation, $commissionTotale) {
-            $demande = CreditDemande::create([
+            $demande = CreditDemande::creerAvecNumeroUnique([
                 'client_matricule'        => $validated['client_matricule'],
                 'compte_id'               => null,
                 'portefeuille_id'         => $portefeuilleIdCreation,
@@ -1009,9 +1031,259 @@ class CreditController extends Controller
 
             return $demande;
         });
+        } catch (\Throwable $e) {
+            return back()->withErrors(['numero_dossier' => "Erreur lors de la création du dossier : " . $e->getMessage()])->withInput();
+        }
 
         return redirect()->route('credit.show', $demande)
             ->with('success', "Dossier {$demande->numero_dossier} créé avec succès.");
+    }
+
+    // ================================================================
+    // IMPORT D'UN ANCIEN DOSSIER (historique, permission dédiée EBEN-PER127)
+    // ================================================================
+
+    public function importAncien()
+    {
+        $clients = Client::orderBy('nom')->orderBy('postnom')->orderBy('prenom')->get();
+        $agentsAnalyse = $this->resolveAssignableCreditAgents();
+        $agentsTous = Agent::orderBy('nom')->orderBy('postnom')->orderBy('prenom')->get(['matricule', 'nom', 'postnom', 'prenom']);
+        $portefeuilles = Portefeuille::orderBy('nom_portefeuille')->get(['id', 'nom_portefeuille']);
+
+        return view('credit.import_ancien', compact(
+            'clients', 'agentsAnalyse', 'agentsTous', 'portefeuilles'
+        ));
+    }
+
+    public function storeImportAncien(Request $request)
+    {
+        $validated = $request->validate([
+            'client_matricule'            => 'required|string|exists:tb_clients,matricule',
+            'type_credit'                 => 'required|in:INDIVIDUEL,SOLIDAIRE,PME',
+            'montant_demande'             => 'required|numeric|min:1',
+            'devise'                      => 'required|in:CDF,USD,EUR',
+            'duree_mois'                  => 'required|integer|min:1|max:360',
+            'taux_interet_mensuel'        => 'required|numeric|min:0.01|max:100',
+            'objet_credit'                => 'required|string|max:500',
+            'garantie_description'        => 'nullable|string',
+            'numero_dossier'              => 'nullable|string|max:30',
+            'agent_matricule'             => 'nullable|string|exists:tb_agents,matricule',
+            'agent_analyse_matricule'     => 'required|string|exists:tb_agents,matricule',
+            'portefeuille_id'             => 'nullable|integer',
+            'date_creation'               => 'required|date',
+            'date_deblocage'              => 'required|date',
+            'date_premier_remboursement'  => 'required|date|after_or_equal:date_deblocage',
+            'montant_debloque'            => 'required|numeric|min:1',
+            'pourcentage_caution'         => 'nullable|numeric|min:0|max:100',
+            'pourcentage_frais_dossier'   => 'nullable|numeric|min:0|max:100',
+            'pourcentage_frais_etude'     => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        $agent = $user?->agent;
+
+        $client = Client::findOrFail($validated['client_matricule']);
+
+        if (!$this->isEligibleCreditAnalyst($validated['agent_analyse_matricule'])) {
+            return back()->withErrors(["L'agent sélectionné n'a pas le profil « Analyse crédit »."])->withInput();
+        }
+
+        $commissionService = app(\App\Services\Credit\CreditCommissionService::class);
+        $commissionTotale = $commissionService->calculateForContext([
+            'devise'          => $validated['devise'],
+            'type_credit'     => $validated['type_credit'],
+            'code_zone'       => $client->code_zone,
+            'portefeuille_id' => null,
+            'montant'         => (float) $validated['montant_demande'],
+        ]);
+
+        $dateCreation  = Carbon::parse($validated['date_creation']);
+        $dateDeblocage = Carbon::parse($validated['date_deblocage']);
+        $datePremier   = Carbon::parse($validated['date_premier_remboursement']);
+
+        $agentMatricule = $validated['agent_matricule'] ?? $agent?->matricule ?? 'SYSTEM';
+        $agentAnalyseMatricule = $validated['agent_analyse_matricule'];
+
+        // Retenues au déblocage : par défaut 20% caution / 1% frais dossier /
+        // 3% frais d'étude, mais modifiables par dossier (agences différentes).
+        $pctCaution      = $validated['pourcentage_caution']       ?? 20.00;
+        $pctFraisDossier = $validated['pourcentage_frais_dossier'] ?? 1.00;
+        $pctFraisEtude   = $validated['pourcentage_frais_etude']   ?? 3.00;
+
+        $portefeuilleId = null;
+        if (!empty($validated['portefeuille_id'])) {
+            $portefeuilleId = (int) $validated['portefeuille_id'];
+        } else {
+            $portefeuilleIds = $this->resolveAgentPortefeuilleIds($agentAnalyseMatricule);
+            if (count($portefeuilleIds) === 1) {
+                $portefeuilleId = (int) $portefeuilleIds[0];
+            }
+        }
+
+        try {
+        $demande = DB::transaction(function () use (
+            $validated, $client, $agentMatricule, $agentAnalyseMatricule, $portefeuilleId,
+            $commissionTotale, $dateCreation, $dateDeblocage, $datePremier,
+            $pctCaution, $pctFraisDossier, $pctFraisEtude
+        ) {
+            // 1. Comptes RMB + GTC créés automatiquement si absents
+            $compteRmb = Compte::firstOrCreate(
+                [
+                    'client_matricule' => $client->matricule,
+                    'type'            => 'RMB',
+                    'devise'          => $validated['devise'],
+                ],
+                [
+                    'solde_reel'     => 0,
+                    'solde_bloque'   => 0,
+                    'portefeuille_id' => $portefeuilleId,
+                ]
+            );
+            $compteGtc = Compte::firstOrCreate(
+                [
+                    'client_matricule' => $client->matricule,
+                    'type'            => 'GTC',
+                    'devise'          => $validated['devise'],
+                ],
+                [
+                    'solde_reel'     => 0,
+                    'solde_bloque'   => 0,
+                    'portefeuille_id' => $portefeuilleId,
+                ]
+            );
+
+            // 2. Dossier (déjà débloqué historiquement, agent + portefeuille
+            //    rattachés comme si l'affectation d'analyse avait été faite normalement)
+            $demande = CreditDemande::creerAvecNumeroUnique([
+                'numero_dossier'           => $validated['numero_dossier'] ?: null,
+                'client_matricule'         => $client->matricule,
+                'compte_id'                => $compteRmb->code_compte,
+                'portefeuille_id'          => $portefeuilleId,
+                'code_zone'                => $client->code_zone,
+                'agent_createur_matricule' => $agentMatricule,
+                'agent_analyse_matricule'  => $agentAnalyseMatricule,
+                'montant_demande'          => $validated['montant_demande'],
+                'montant_approuve'         => $validated['montant_debloque'],
+                'devise'                   => $validated['devise'],
+                'duree_mois'               => $validated['duree_mois'],
+                'taux_interet_mensuel'      => $validated['taux_interet_mensuel'],
+                'type_credit'              => $validated['type_credit'],
+                'objet_credit'             => $validated['objet_credit'],
+                'garantie_description'      => $validated['garantie_description'] ?? null,
+                'commission_totale'        => $commissionTotale,
+                'pourcentage_caution'       => $pctCaution,
+                'pourcentage_frais_dossier' => $pctFraisDossier,
+                'pourcentage_frais_etude'   => $pctFraisEtude,
+                'statut_global'            => 'DEBLOQUE',
+                'soumis_le'                => $dateCreation,
+                'created_at'               => $dateCreation,
+                'updated_at'               => $dateCreation,
+            ]);
+
+            // 2bis. Analyse crédit (auto, comme si complétée par l'agent d'analyse)
+            CreditAnalyse::create([
+                'credit_demande_id'       => $demande->id,
+                'analyseur_matricule'     => $agentAnalyseMatricule,
+                'capacite_remboursement'  => round(((float) $validated['montant_demande']) / max((int) $validated['duree_mois'], 1), 2),
+                'ratio_endettement'       => 0,
+                'score_risque'            => 'FAIBLE',
+                'historique_credit'       => 'Ancien dossier importé (historique)',
+                'garanties_evaluees'      => $validated['garantie_description'] ?? 'Néant',
+                'observations'            => "Analyse générée automatiquement lors de l'import du dossier historique.",
+                'recommandation'          => 'FAVORABLE',
+                'montant_recommande'      => $validated['montant_demande'],
+                'statut'                  => 'COMPLETE',
+                'complete_le'             => $dateCreation,
+            ]);
+
+            // 2ter. 4 blocs de validation, tous APPROUVE (import = dossier déjà traité).
+            // montant_valide = montant réellement débloqué (pas le montant demandé) :
+            // c'est ce montant qui pilote ensuite l'échéancier.
+            $blocs = [
+                ['type_validateur' => 'AGENT_CREDIT',      'ordre_etape' => 1],
+                ['type_validateur' => 'CONTROLEUR',        'ordre_etape' => 2],
+                ['type_validateur' => 'CHARGE_OPERATIONS', 'ordre_etape' => 3],
+                ['type_validateur' => 'GERANT',            'ordre_etape' => 4],
+            ];
+            foreach ($blocs as $b) {
+                CreditValidation::create(array_merge($b, [
+                    'credit_demande_id'    => $demande->id,
+                    'validateur_matricule' => $agentAnalyseMatricule,
+                    'decision'             => 'APPROUVE',
+                    'montant_valide'       => $validated['montant_debloque'],
+                    'duree_mois_validee'   => $validated['duree_mois'],
+                    'observations'         => 'Approuvé automatiquement (import dossier historique).',
+                    'etape_precedente_ok'  => true,
+                    'valide_le'            => $dateCreation,
+                ]));
+            }
+
+            // 3. Déblocage historique (retenues configurables : caution + frais dossier + frais étude)
+            $montantBrut = round((float) $validated['montant_debloque'], 2);
+            $caution         = round($montantBrut * $pctCaution / 100, 2);
+            $fraisDossierMnt = round($montantBrut * $pctFraisDossier / 100, 2);
+            $fraisEtudeMnt   = round($montantBrut * $pctFraisEtude / 100, 2);
+            $netVerse        = round($montantBrut - $caution - $fraisDossierMnt - $fraisEtudeMnt, 2);
+
+            // La caution est bloquée sur le compte GTC du client, comme lors
+            // d'un déblocage normal (transfert RMB -> GTC).
+            $compteGtc->increment('solde_reel', $caution);
+            $compteGtc->increment('solde_bloque', $caution);
+
+            CreditDeblocage::create([
+                'credit_demande_id'   => $demande->id,
+                'agent_matricule'     => $agentMatricule,
+                'compte_debit_id'     => 'IMPORT-HISTORIQUE',
+                'guichet_solde_id'    => null,
+                'compte_credit_id'    => $compteRmb->code_compte,
+                'montant_debloque'    => $montantBrut,
+                'montant_caution'     => $caution,
+                'devise'              => $validated['devise'],
+                'frais_dossier'       => $fraisDossierMnt,
+                'frais_etude'         => $fraisEtudeMnt,
+                'montant_net_verse'   => $netVerse,
+                'reference_transaction' => 'IMP-' . $demande->numero_dossier,
+                'numero_ordre'        => 'IMP-' . $demande->numero_dossier,
+                'observations'         => 'Import dossier historique (date déblocage ' . $dateDeblocage->format('d/m/Y') . ')',
+                'debloque_le'          => $dateDeblocage,
+            ]);
+
+            // 4. Échéancier généré à partir de la date de déblocage
+            $echeancier = $this->amortissement->genererEtSauvegarder($demande, $datePremier);
+
+            // 5. Les échéances passées sont marquées EN_RETARD jusqu'à aujourd'hui
+            $today = Carbon::today();
+            $hasRetard = false;
+            foreach ($echeancier->echeances as $echeance) {
+                if (Carbon::parse($echeance->date_echeance)->lt($today)) {
+                    $echeance->update(['statut' => 'EN_RETARD']);
+                    $hasRetard = true;
+                }
+            }
+
+            $demande->update([
+                'statut_global' => $hasRetard ? 'EN_RETARD' : 'EN_REMBOURSEMENT',
+            ]);
+
+            $this->logAudit($demande, 'IMPORT_HISTORIQUE', null, $demande->statut_global,
+                "Import ancien dossier : débloqué le {$dateDeblocage->format('d/m/Y')}, caution {$pctCaution}%, frais dossier {$pctFraisDossier}%, frais étude {$pctFraisEtude}%.");
+
+            return $demande;
+        });
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            if (str_contains($e->getMessage(), 'numero_dossier')) {
+                return back()->withErrors([
+                    'numero_dossier' => "Le numéro de dossier fourni est déjà utilisé par un autre dossier. Laissez le champ vide pour une génération automatique, ou choisissez un autre numéro.",
+                ])->withInput();
+            }
+            return back()->withErrors(['numero_dossier' => "Erreur d'import : " . $e->getMessage()])->withInput();
+        } catch (\Throwable $e) {
+            return back()->withErrors(['numero_dossier' => "Erreur lors de l'import du dossier : " . $e->getMessage()])->withInput();
+        }
+
+        return redirect()->route('credit.show', $demande)
+            ->with('success', "Ancien dossier {$demande->numero_dossier} importé (déblocage au {$dateDeblocage->format('d/m/Y')}, échéancier généré).");
     }
 
     // ================================================================
@@ -1147,39 +1419,17 @@ class CreditController extends Controller
             $dossier->load('audits');
         }
 
-        // Rafraîchissement dynamique : marque en RETARD les échéances dépassées
-        // afin que l'affichage soit toujours cohérent même si le cron n'est pas lancé.
-        if (in_array($dossier->statut_global, ['DEBLOQUE', 'EN_REMBOURSEMENT', 'EN_RETARD'])) {
-            $today = Carbon::today()->toDateString();
-            $echancier = $dossier->echeancier;
-            if ($echancier) {
-                $misesAJour = false;
-                foreach ($echancier->echeances as $e) {
-                    if (in_array($e->statut, ['EN_ATTENTE', 'PARTIELLEMENT_PAYE']) && $e->date_echeance < $today) {
-                        $e->update(['statut' => 'EN_RETARD']);
-                        $misesAJour = true;
-                    }
-                }
-                if ($misesAJour) {
-                    $aRetard = $echancier->echeances()
-                        ->whereIn('statut', ['EN_RETARD', 'PARTIELLEMENT_PAYE'])
-                        ->where('date_echeance', '<', $today)
-                        ->exists();
-                    $toutesSoldees = $echancier->echeances()
-                        ->whereNotIn('statut', ['PAYE'])
-                        ->count() === 0;
-                    if ($toutesSoldees) {
-                        $dossier->update(['statut_global' => 'SOLDE']);
-                    } elseif (!$aRetard && $dossier->statut_global === 'EN_RETARD') {
-                        $dossier->update(['statut_global' => 'EN_REMBOURSEMENT']);
-                    } elseif ($aRetard && $dossier->statut_global !== 'EN_RETARD') {
-                        $dossier->update(['statut_global' => 'EN_RETARD']);
-                    }
-                    // Recharger les relations fraîches pour la vue
-                    $dossier->refresh();
-                    $dossier->load(['echeancier.echeances', 'client']);
-                }
-            }
+        // Rafraîchissement dynamique : recalcule EN_RETARD/EN_REMBOURSEMENT/SOLDE
+        // à partir des échéances RÉELLES, à CHAQUE affichage — pas seulement si
+        // une NOUVELLE échéance vient de passer en retard (bug historique :
+        // l'ancienne logique ne se déclenchait jamais quand un paiement RÉGLAIT
+        // une échéance en retard sans qu'aucune nouvelle échéance ne devienne en
+        // retard au même moment, laissant `statut_global` bloqué sur EN_RETARD
+        // — d'où l'incohérence avec la liste des dossiers). Cf. CreditDemande::
+        // refreshStatutRetard(), source unique de cette logique dans tout le module.
+        if ($dossier->refreshStatutRetard()) {
+            $dossier->refresh();
+            $dossier->load(['echeancier.echeances', 'client']);
         }
 
         $assignableAgents = collect();
@@ -1798,16 +2048,23 @@ class CreditController extends Controller
 
         $demande = $dossier;
 
+        // ── Taux de frais de déblocage — ajustables par l'agent avant validation ──
+        // Valeurs par défaut : 20% caution, 3% frais d'étude, 1% frais de dossier.
+        $tauxCaution      = (float) old('taux_caution', 20);
+        $tauxFraisEtude   = (float) old('taux_frais_etude', 3);
+        $tauxFraisDossier = (float) old('taux_frais_dossier', 1);
+        $tauxFraisTotal   = round($tauxFraisEtude + $tauxFraisDossier, 2);
+
         // ── Répartition automatique du montant approuvé ──────────────────
         $montantTotal = (float) $dossier->montant_approuve;
-        $netVerse     = round($montantTotal * 0.80, 2);
-        $caution      = round($montantTotal * 0.20, 2);
-        $fraisDossier = round($montantTotal * 0.01, 2);
-        $fraisEtude   = round($montantTotal * 0.03, 2);
+        $caution      = round($montantTotal * $tauxCaution / 100, 2);
+        $fraisDossier = round($montantTotal * $tauxFraisDossier / 100, 2);
+        $fraisEtude   = round($montantTotal * $tauxFraisEtude / 100, 2);
         $fraisTotal   = round($fraisDossier + $fraisEtude, 2);
+        $netVerse     = round($montantTotal - $caution - $fraisTotal, 2);
 
-        // ── Précondition RMB : 24% (20% caution + 4% frais) ─────────────
-        $provisionRmbMin = round($montantTotal * 0.24, 2);
+        // ── Précondition RMB : caution + frais (défaut 24% = 20% caution + 4% frais) ─────
+        $provisionRmbMin = round($montantTotal * ($tauxCaution + $tauxFraisTotal) / 100, 2);
 
         $compteRmb = Compte::where('client_matricule', $dossier->client_matricule)
             ->where('type', 'RMB')
@@ -1822,6 +2079,7 @@ class CreditController extends Controller
         return view('credit.deblocage', compact(
             'dossier', 'demande', 'comptesDebit',
             'montantTotal', 'netVerse', 'caution', 'fraisDossier', 'fraisEtude', 'fraisTotal',
+            'tauxCaution', 'tauxFraisEtude', 'tauxFraisDossier', 'tauxFraisTotal',
             'provisionRmbMin', 'rmbCompteExiste', 'rmbSoldeActuel', 'rmbMontantManquant', 'rmbPreconditionOk'
         ));
     }
@@ -1845,6 +2103,9 @@ class CreditController extends Controller
             'date_premier_remboursement' => 'required|date|after:today',
             'frais_dossier'             => 'nullable|numeric|min:0',
             'commission_totale'         => 'nullable|numeric|min:0',
+            'taux_caution'              => 'nullable|numeric|min:0|max:100',
+            'taux_frais_dossier'        => 'nullable|numeric|min:0|max:100',
+            'taux_frais_etude'          => 'nullable|numeric|min:0|max:100',
             'reference_comptable'        => 'nullable|string|max:100',
             'observations'              => 'nullable|string',
         ]);
@@ -1860,12 +2121,18 @@ class CreditController extends Controller
 
         $montant = (float)$validated['montant_debloque'];
 
+        // Taux de frais de déblocage — ajustables par l'agent, défaut 20%/3%/1%.
+        $tauxCaution      = isset($validated['taux_caution']) ? (float) $validated['taux_caution'] : 20.0;
+        $tauxFraisEtude   = isset($validated['taux_frais_etude']) ? (float) $validated['taux_frais_etude'] : 3.0;
+        $tauxFraisDossier = isset($validated['taux_frais_dossier']) ? (float) $validated['taux_frais_dossier'] : 1.0;
+        $tauxFraisTotal   = round($tauxFraisEtude + $tauxFraisDossier, 2);
+
         $coffreSolde = CaissesGuichetSolde::findOrFail($validated['coffre_solde_id']);
 
         $alreadyDebloque = false;
         $deblocageRefs = [];
 
-        DB::transaction(function () use ($dossier, $validated, $agentMatricule, $montant, $coffreSolde, &$alreadyDebloque, &$deblocageRefs) {
+        DB::transaction(function () use ($dossier, $validated, $agentMatricule, $montant, $coffreSolde, $tauxCaution, $tauxFraisTotal, &$alreadyDebloque, &$deblocageRefs) {
             $dossier = CreditDemande::whereKey($dossier->id)->lockForUpdate()->firstOrFail();
 
             if ($dossier->deblocage()->exists()) {
@@ -1883,8 +2150,8 @@ class CreditController extends Controller
             $compteGtc = $this->resolveCompteGtcClient($dossier);
 
             $montantBrut = round($montant, 2);
-            $caution     = round($montantBrut * 0.20, 2);
-            $fraisReel   = round($montantBrut * 0.04, 2);
+            $caution     = round($montantBrut * $tauxCaution / 100, 2);
+            $fraisReel   = round($montantBrut * $tauxFraisTotal / 100, 2);
             $netVerse    = round($montantBrut - $caution - $fraisReel, 2);
 
             $soldeAvantRmb = (float) $compteCredit->solde_reel;
@@ -1947,7 +2214,7 @@ class CreditController extends Controller
                 'montant_total_client'    => $caution,
                 'montant_net_client'      => $caution,
                 'reference'               => $referenceCaution,
-                'observations'            => 'Transfert caution GTC credit ' . $dossier->numero_dossier . ' (20% RMB -> GTC bloque)',
+                'observations'            => 'Transfert caution GTC credit ' . $dossier->numero_dossier . ' (' . $tauxCaution . '% RMB -> GTC bloque)',
                 'statut'                  => Transaction::CONFIRME,
                 'date_operation'          => Carbon::parse($validated['date_deblocage']),
             ]);
@@ -1966,7 +2233,7 @@ class CreditController extends Controller
                 'montant_total_client'    => $caution,
                 'montant_net_client'      => $caution,
                 'reference'               => $referenceGtc,
-                'observations'            => 'Depot caution GTC credit ' . $dossier->numero_dossier . ' (20% bloque)',
+                'observations'            => 'Depot caution GTC credit ' . $dossier->numero_dossier . ' (' . $tauxCaution . '% bloque)',
                 'statut'                  => Transaction::CONFIRME,
                 'date_operation'          => Carbon::parse($validated['date_deblocage']),
             ]);
@@ -1985,7 +2252,7 @@ class CreditController extends Controller
                 'montant_total_client'    => $fraisReel,
                 'montant_net_client'      => $fraisReel,
                 'reference'               => $referenceFrais,
-                'observations'            => 'Frais deblocage credit ' . $dossier->numero_dossier . ' (4% non remboursables)',
+                'observations'            => 'Frais deblocage credit ' . $dossier->numero_dossier . ' (' . $tauxFraisTotal . '% non remboursables)',
                 'statut'                  => Transaction::CONFIRME,
                 'date_operation'          => Carbon::parse($validated['date_deblocage']),
             ]);
@@ -2007,7 +2274,7 @@ class CreditController extends Controller
                 ]);
             }
 
-            $totalCoffre = round($caution + $fraisReel, 2); // 24% total
+            $totalCoffre = round($caution + $fraisReel, 2); // caution + frais (taux dynamiques)
             $soldeCoffreGeneral->increment('solde_en_caisse', $totalCoffre);
             $soldeCoffreGeneralNouveau = (float) $soldeCoffreGeneral->fresh()->solde_en_caisse;
 
@@ -2100,7 +2367,7 @@ class CreditController extends Controller
         );
 
         return redirect()->route('credit.show', $dossier)
-            ->with('success', "Deblocage de {$dossier->numero_dossier} effectue (100% en RMB, transfert 20% vers GTC, frais 4% non remboursables).")
+            ->with('success', "Deblocage de {$dossier->numero_dossier} effectue (100% en RMB, transfert {$tauxCaution}% vers GTC, frais {$tauxFraisTotal}% non remboursables).")
             ->with('deblocage_refs', $deblocageRefs);
     }
 
@@ -2155,6 +2422,37 @@ class CreditController extends Controller
         ]);
     }
 
+    /**
+     * Active/désactive le consentement client au prélèvement automatique
+     * (Recouvrement Auto) — nécessite EBEN-PER113, distinct de la simple
+     * consultation. Un dossier non autorisé n'est jamais touché par
+     * RecouvrementController::runAutoCollection(), même s'il a un solde RMB
+     * suffisant et des échéances en retard (le client doit avoir donné son
+     * accord explicite pour qu'on prélève automatiquement sur son épargne).
+     */
+    public function togglePrelevementAuto(CreditDemande $dossier)
+    {
+        $this->authorizeZoneAccess($dossier);
+
+        $nouvelEtat = !$dossier->prelevement_auto_autorise;
+        $dossier->update(['prelevement_auto_autorise' => $nouvelEtat]);
+
+        $this->logAudit(
+            $dossier,
+            'MODIFICATION',
+            null,
+            $dossier->statut_global,
+            $nouvelEtat
+                ? 'Prélèvement automatique AUTORISÉ par ' . (Auth::user()->agent?->matricule ?? Auth::user()->name)
+                : 'Prélèvement automatique RÉVOQUÉ par ' . (Auth::user()->agent?->matricule ?? Auth::user()->name)
+        );
+
+        return back()->with('success', $nouvelEtat
+            ? "Prélèvement automatique autorisé pour le dossier {$dossier->numero_dossier}."
+            : "Prélèvement automatique désactivé pour le dossier {$dossier->numero_dossier}."
+        );
+    }
+
     // ================================================================
     // REMBOURSEMENT
     // ================================================================
@@ -2169,8 +2467,11 @@ class CreditController extends Controller
 
         $dossier->load(['client','echeancier.echeances','remboursements']);
 
+        // PARTIELLEMENT_PAYE inclus : sinon une échéance en retard réglée
+        // partiellement était ignorée ici, faisant sauter à tort la "prochaine
+        // échéance" affichée vers l'échéance suivante (non encore due).
         $prochaineEcheance = $dossier->echeancier?->echeances()
-            ->whereIn('statut', ['EN_ATTENTE','EN_RETARD'])
+            ->whereIn('statut', ['EN_ATTENTE','EN_RETARD','PARTIELLEMENT_PAYE'])
             ->orderBy('numero_echeance')
             ->first();
 
@@ -2201,9 +2502,14 @@ class CreditController extends Controller
             ->orderBy('numero_echeance')
             ->get() : collect();
 
+        // EBEN-PER128 : autorisation dédiée pour accorder la remise commerciale
+        // du solde par anticipation (distincte du remboursement classique).
+        $peutSolderAnticipe = $user->hasPermission('EBEN-PER128');
+
         return view('credit.remboursement', compact(
             'dossier', 'demande', 'prochaineEcheance', 'echeancier', 
-            'comptesInstitution', 'guichet', 'soldeRmbActuel', 'echeancesImpayees'
+            'comptesInstitution', 'guichet', 'soldeRmbActuel', 'echeancesImpayees',
+            'peutSolderAnticipe'
         ));
     }
 
@@ -2226,6 +2532,14 @@ class CreditController extends Controller
 
         $user  = Auth::user();
         $agent = $user->agent;
+
+        // Le solde par anticipation accorde une remise commerciale (50% sur
+        // l'intérêt restant si >3 échéances dues) — réservé à EBEN-PER128,
+        // distinct du remboursement classique (EBEN-PER10|EBEN-PER111) que
+        // tout caissier possède déjà.
+        if ($validated['type_remboursement'] === 'ANTICIPE' && !$user->hasPermission('EBEN-PER128')) {
+            abort(403, "Vous n'avez pas l'autorisation d'accorder un solde par anticipation (remise d'intérêt).");
+        }
 
         $transactionId = null;
 
@@ -2261,6 +2575,60 @@ class CreditController extends Controller
                     if (in_array($ech->statut, ['EN_ATTENTE', 'EN_RETARD', 'PARTIELLEMENT_PAYE'])) {
                         $startIndex = $index;
                         break;
+                    }
+                }
+            }
+
+            // ── 1bis. Remboursement ANTICIPE : remise de 50% sur l'intérêt restant, ──
+            // MAIS uniquement si le client règle la totalité des échéances encore dues
+            // ET qu'il reste STRICTEMENT PLUS DE 3 échéances impayées avant ce règlement.
+            // S'il ne reste que 3 échéances ou moins, aucune remise : le client paie le
+            // solde normalement (trop proche de l'échéance finale pour justifier un geste
+            // commercial sur les intérêts).
+            if ($validated['type_remboursement'] === 'ANTICIPE') {
+                $echeancesRestantes = $echeances->filter(
+                    fn ($e, $idx) => $idx >= $startIndex && $e->statut !== 'PAYE'
+                )->values();
+
+                if ($echeancesRestantes->count() > 3) {
+                    $totalRestantAvantRemise = 0;
+
+                    foreach ($echeancesRestantes as $ech) {
+                        $totalDuOrig  = round((float) $ech->total_echeance, 2);
+                        $capitalEch   = round((float) $ech->capital_echeance, 2);
+                        $interetEch   = round((float) $ech->interet_echeance, 2);
+                        $commEch      = round((float) $ech->commission_echeance, 2);
+                        $dejaPayeOrig = round((float) $ech->montant_paye, 2);
+
+                        // Répartition proportionnelle du déjà-payé (même logique que la boucle principale)
+                        $interetDejaPaye = round($dejaPayeOrig * ($interetEch / max($totalDuOrig, 1)), 2);
+                        $interetRestant  = max(0, $interetEch - $interetDejaPaye);
+
+                        // Remise de 50% sur l'intérêt qui reste encore à percevoir
+                        $nouvelInteret = round($interetEch - round($interetRestant / 2, 2), 2);
+                        $nouveauTotal  = round($capitalEch + $nouvelInteret + $commEch, 2);
+
+                        $ech->update([
+                            'interet_echeance' => $nouvelInteret,
+                            'total_echeance'   => $nouveauTotal,
+                        ]);
+                        $ech->refresh();
+
+                        $totalRestantAvantRemise += round($nouveauTotal - $dejaPayeOrig, 2);
+                    }
+
+                    if ($montantAAppliquer + 0.01 < $totalRestantAvantRemise) {
+                        throw new \Exception(
+                            "Remboursement anticipé incomplet : le solde restant après remise (50% sur l'intérêt) est de "
+                            . number_format($totalRestantAvantRemise, 2, ',', ' ') . ' ' . $dossier->devise
+                            . '. Le montant fourni ne couvre pas ce solde total — la remise n\'est accordée que pour un règlement intégral.'
+                        );
+                    }
+
+                    // Les échéances ont été modifiées en mémoire (refresh) : on les remet dans la
+                    // collection utilisée par la boucle de règlement ci-dessous.
+                    foreach ($echeancesRestantes as $echModifiee) {
+                        $echeances[$echeances->search(fn ($e) => $e->id === $echModifiee->id)] = $echModifiee;
                     }
                 }
             }
@@ -2554,6 +2922,16 @@ class CreditController extends Controller
                         }
                     }
                 }
+            } else {
+                // Dossier PAS encore entièrement soldé : si l'échéance qui
+                // vient d'être réglée était celle qui mettait le dossier
+                // EN_RETARD, il faut le repasser à EN_REMBOURSEMENT — sans
+                // ça, `statut_global` reste bloqué sur EN_RETARD malgré le
+                // paiement (bug historique : la liste des dossiers et le
+                // badge "en retard" continuaient de compter ce dossier).
+                $dossier->refresh();
+                $dossier->load('echeancier.echeances');
+                $dossier->refreshStatutRetard();
             }
         });
 

@@ -52,14 +52,16 @@
                 <td class="label" style="width:12%; text-align:center;">Capital</td>
                 <td class="label" style="width:12%; text-align:center;">Interet</td>
                 <td class="label" style="width:12%; text-align:center;">Commission</td>
-                <td class="label" style="width:12%; text-align:center;">Total echeance</td>
-                <td class="label" style="width:14%; text-align:center;">Capital restant fin</td>
+                <td class="label" style="width:11%; text-align:center;">Total echeance</td>
+                <td class="label" style="width:11%; text-align:center;">Reste du</td>
+                <td class="label" style="width:12%; text-align:center;">Capital restant fin</td>
                 <td class="label" style="width:8%; text-align:center;">Statut</td>
             </tr>
         </thead>
         <tbody>
             @php
-                $sCap = 0; $sInt = 0; $sCom = 0; $sTot = 0;
+                $sCap = 0; $sInt = 0; $sCom = 0; $sTot = 0; $sReste = 0;
+                $aujourdhuiPdf = \Carbon\Carbon::today()->toDateString();
             @endphp
             @foreach($echeancier->echeances as $e)
                 @php
@@ -67,6 +69,23 @@
                     $sInt += $e->montant_interet;
                     $sCom += ($e->montant_commission ?? 0);
                     $sTot += $e->montant_total;
+                    $resteDuPdf = max(0, (float)$e->montant_total - (float)($e->montant_paye ?? 0));
+                    $sReste += $resteDuPdf;
+                    // Badge UNIQUE et sans ambiguïté (le montant exact est déjà
+                    // dans la colonne "Reste du") : PAYE / EN RETARD (date
+                    // dépassée, payé ou pas) / PARTIELLEMENT (payé en avance,
+                    // pas encore dû) / EN ATTENTE.
+                    $dateEchPdf = optional($e->date_echeance)->toDateString();
+                    $enRetardPdf = $e->statut !== 'PAYE' && $dateEchPdf && $dateEchPdf < $aujourdhuiPdf;
+                    if ($e->statut === 'PAYE') {
+                        $lblPdf = 'PAYE';
+                    } elseif ($enRetardPdf) {
+                        $lblPdf = 'EN RETARD';
+                    } elseif ($e->statut === 'PARTIELLEMENT_PAYE') {
+                        $lblPdf = 'PARTIELLEMENT';
+                    } else {
+                        $lblPdf = 'EN ATTENTE';
+                    }
                 @endphp
                 <tr>
                     <td style="text-align:center;">{{ $e->numero_echeance }}</td>
@@ -76,8 +95,13 @@
                     <td class="text-right">{{ number_format($e->montant_interet, 2, ',', ' ') }}</td>
                     <td class="text-right">{{ number_format($e->montant_commission ?? 0, 2, ',', ' ') }}</td>
                     <td class="text-right"><strong>{{ number_format($e->montant_total, 2, ',', ' ') }}</strong></td>
+                    <td class="text-right" style="color:{{ $resteDuPdf > 0.01 ? '#c0392b' : '#27ae60' }};">
+                        {{ number_format($resteDuPdf, 2, ',', ' ') }}
+                    </td>
                     <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }}</td>
-                    <td style="text-align:center; font-size:8px;">{{ str_replace('_',' ', $e->statut) }}</td>
+                    <td style="text-align:center; font-size:8px; {{ $enRetardPdf ? 'color:#c0392b;font-weight:bold;' : '' }}">
+                        {{ $lblPdf }}
+                    </td>
                 </tr>
             @endforeach
         </tbody>
@@ -88,6 +112,7 @@
                 <td class="text-right">{{ number_format($sInt, 2, ',', ' ') }}</td>
                 <td class="text-right">{{ number_format($sCom, 2, ',', ' ') }}</td>
                 <td class="text-right">{{ number_format($sTot, 2, ',', ' ') }}</td>
+                <td class="text-right">{{ number_format($sReste, 2, ',', ' ') }}</td>
                 <td class="text-right">{{ number_format($echeancier->echeances->last()->capital_restant_fin ?? 0, 2, ',', ' ') }}</td>
                 <td></td>
             </tr>

@@ -44,6 +44,7 @@ class Transaction extends Model
     protected $fillable = [
         'compte_code',
         'compte_dest_code',
+        'client_matricule',
         'agent_matricule',
         'guichet_id',
         'devise_code',
@@ -94,6 +95,12 @@ class Transaction extends Model
     public function guichet()
     {
         return $this->belongsTo(CaissesGuichet::class, 'guichet_id', 'id');
+    }
+
+    /** Client directement référencé (opérations sans compte, ex. Frais carte membre) */
+    public function client()
+    {
+        return $this->belongsTo(\App\Models\Clients\Client::class, 'client_matricule', 'matricule');
     }
 
     /** Devise principale */

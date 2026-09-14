@@ -17,9 +17,22 @@ use Illuminate\Support\Facades\DB;
 class VirementController extends Controller
 {
     /**
-     * Types de comptes exclus des virements (comptes bloqués/garantie).
+     * Un compte GTC (garantie bloquée) n'est manipulable en virement que si
+     * le crédit du client (même devise) est intégralement soldé. Ce module
+     * étant traité en back-office (comptabilité), il n'y a pas de notion de
+     * guichet mobile ici.
      */
-    private const TYPES_EXCLUS = ['GTC'];
+    private function compteGtcEstAccessible(Compte $compte): bool
+    {
+        if ($compte->type !== 'GTC') {
+            return true;
+        }
+
+        return \App\Models\Credit\CreditDemande::where('client_matricule', $compte->client_matricule)
+            ->where('devise', $compte->devise)
+            ->where('statut_global', 'SOLDE')
+            ->exists();
+    }
 
     public function index(Request $request)
     {
@@ -52,7 +65,20 @@ class VirementController extends Controller
         }
 
         $comptes = Compte::with('client')
-            ->whereNotIn('type', self::TYPES_EXCLUS)
+            ->where(function ($query) {
+                // GTC uniquement visible si le credit associe (meme devise) est SOLDE.
+                $query->where('type', '!=', 'GTC')
+                    ->orWhere(function ($query) {
+                        $query->where('type', 'GTC')
+                            ->whereExists(function ($sub) {
+                                $sub->select('id')
+                                    ->from('tb_credit_demandes')
+                                    ->whereColumn('tb_credit_demandes.client_matricule', 'tb_comptes.client_matricule')
+                                    ->whereColumn('tb_credit_demandes.devise', 'tb_comptes.devise')
+                                    ->where('tb_credit_demandes.statut_global', 'SOLDE');
+                            });
+                    });
+            })
             ->where(function ($query) use ($q) {
                 $query->where('code_compte', 'like', "%{$q}%")
                     ->orWhereHas('client', function ($cq) use ($q) {
@@ -94,8 +120,8 @@ class VirementController extends Controller
         $compteSource = Compte::with('client')->findOrFail($validated['compte_source_code']);
         $compteDest = Compte::with('client')->findOrFail($validated['compte_dest_code']);
 
-        if (in_array($compteSource->type, self::TYPES_EXCLUS, true) || in_array($compteDest->type, self::TYPES_EXCLUS, true)) {
-            return response()->json(['success' => false, 'message' => 'Les comptes de garantie (GTC) sont exclus des virements.'], 422);
+        if (!$this->compteGtcEstAccessible($compteSource) || !$this->compteGtcEstAccessible($compteDest)) {
+            return response()->json(['success' => false, 'message' => "Ce compte de garantie (GTC) est bloqué : il n'est accessible qu'après solde complet du crédit associé."], 422);
         }
 
         $montantSource = (float) $validated['montant_source'];
@@ -204,8 +230,8 @@ class VirementController extends Controller
             return response()->json(['success' => false, 'message' => 'Compte source ou destination introuvable.'], 422);
         }
 
-        if (in_array($compteSource->type, self::TYPES_EXCLUS, true) || in_array($compteDest->type, self::TYPES_EXCLUS, true)) {
-            return response()->json(['success' => false, 'message' => 'Les comptes de garantie (GTC) sont exclus des virements.'], 422);
+        if (!$this->compteGtcEstAccessible($compteSource) || !$this->compteGtcEstAccessible($compteDest)) {
+            return response()->json(['success' => false, 'message' => "Ce compte de garantie (GTC) est bloqué : il n'est accessible qu'après solde complet du crédit associé."], 422);
         }
 
         // Vérification du solde au moment de la validation (pas à la création) — montant + commission

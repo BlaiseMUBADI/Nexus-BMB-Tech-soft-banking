@@ -75,6 +75,8 @@ class CommissionRule extends Model
             \App\Models\Caisse\Transaction::CHANGE,
             \App\Models\Caisse\Transaction::PAIEMENT,
             \App\Models\Caisse\Transaction::REMBOURSEMENT,
+            // Frais fixe hors caisse : émission de carte membre (voir ClientCarteController).
+            'CARTE_MEMBRE',
         ];
     }
 

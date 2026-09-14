@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Aperçu — Carte membre COOPEC EBEN (logo lisible + signature exemple)</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: #eef1f4;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+    h2 { color: #234; margin-bottom: 0; }
+    p.note { color: #667; max-width: 660px; text-align: center; font-size: 13px; }
+    p.note strong { color: #345; }
+
+    .card {
+        width: 620px;
+        height: 400px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #0b6e4f 0%, #0a5c42 45%, #0d3b2e 100%);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        position: relative;
+        overflow: hidden;
+        color: #fff;
+        padding: 20px 26px;
+        box-sizing: border-box;
+    }
+    .card::before {
+        content: "";
+        position: absolute;
+        right: -60px; top: -60px;
+        width: 220px; height: 220px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 50%;
+    }
+    .card::after {
+        content: "";
+        position: absolute;
+        left: -80px; bottom: -90px;
+        width: 260px; height: 260px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+    }
+
+    .header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+    }
+
+    /* Plaque blanche pour rendre le logo (vert) réellement lisible sur fond vert foncé */
+    .logo-plaque {
+        background: #fff;
+        border-radius: 10px;
+        padding: 6px 12px 5px;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+    }
+    .logo-plaque img { height: 34px; object-fit: contain; }
+
+    .badge-membre {
+        background: linear-gradient(135deg, #f2c94c, #d9a521);
+        color: #1c1c1c;
+        font-size: 10.5px;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        padding: 6px 13px;
+        border-radius: 20px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    .corps {
+        display: flex;
+        gap: 16px;
+        margin-top: 16px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .photo-block { width: 92px; flex-shrink: 0; }
+    .photo-block img {
+        width: 92px; height: 108px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 3px solid rgba(255,255,255,0.85);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    }
+
+    .infos { flex-grow: 1; font-size: 12.5px; line-height: 1.35; }
+    .infos .nom { font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .infos .champ-label { opacity: 0.75; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; }
+    .infos .champ-valeur { font-weight: 600; font-family: 'Consolas', monospace; font-size: 13px; letter-spacing: 0.4px; }
+    .infos .deux-col { display: flex; gap: 18px; }
+
+    .qr-block { width: 78px; flex-shrink: 0; text-align: center; }
+    .qr-block img { width: 72px; height: 72px; background: #fff; padding: 4px; border-radius: 6px; }
+    .qr-block small { display: block; margin-top: 3px; font-size: 7.5px; opacity: 0.8; }
+
+    .separateur { border-top: 1px solid rgba(255,255,255,0.25); margin: 12px 0 9px; position: relative; z-index: 2; }
+
+    .mentions {
+        font-size: 9px;
+        line-height: 1.3;
+        opacity: 0.9;
+        position: relative;
+        z-index: 2;
+        text-align: center;
+    }
+
+    .footer-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-top: 10px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .signature-block { text-align: center; font-size: 8.5px; width: 130px; }
+    .signature-exemple {
+        height: 32px;
+        display: block;
+        margin: 0 auto 1px;
+    }
+    .signature-block .ligne { width: 100px; border-top: 1px solid rgba(255,255,255,0.6); margin: 1px auto 3px; }
+    .signature-block .role { opacity: 0.85; letter-spacing: 0.5px; font-weight: 600; }
+    .signature-block .tag-exemple {
+        display: block;
+        font-size: 6.8px;
+        opacity: 0.6;
+        font-style: italic;
+        margin-top: 1px;
+    }
+
+    .infos-footer { text-align: right; font-size: 8.5px; opacity: 0.85; line-height: 1.5; }
+    .infos-footer strong { font-family: 'Consolas', monospace; font-size: 11px; display: block; letter-spacing: 1px; }
+
+    .echelle-reelle {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        background: #fff;
+        border: 1px dashed #99a;
+        border-radius: 10px;
+        padding: 14px 18px;
+    }
+    .echelle-reelle .mini-carte {
+        width: 324px;
+        height: 204px;
+        border-radius: 9px;
+        transform: none;
+        flex-shrink: 0;
+    }
+    .echelle-reelle .texte { font-size: 12.5px; color: #345; line-height: 1.5; max-width: 300px; }
+    .echelle-reelle .texte strong { color: #123; }
+</style>
+</head>
+<body>
+
+<h2>Carte membre — logo lisible + signature exemple + champs enrichis</h2>
+<p class="note">
+    Le logo réel du projet est en <strong>vert foncé</strong> : posé directement sur le fond vert foncé de la carte,
+    il devenait illisible. Il est maintenant sur une <strong>plaque blanche</strong>, comme sur beaucoup de vraies
+    cartes bancaires quand le logo a des couleurs qui ne se détachent pas du fond.
+</p>
+
+<div class="echelle-reelle">
+    <div class="card mini-carte" style="padding:8px 10px;">
+        <div class="header-row" style="align-items:center;">
+            <div class="logo-plaque" style="padding:2px 6px;border-radius:5px;">
+                <img src="../../public/dist/img/vrailogoeben-removebg-preview.png" alt="Logo" style="height:14px;">
+            </div>
+            <div class="badge-membre" style="font-size:5.5px;padding:2px 6px;">MEMBRE</div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+            <img src="../clients/Blaise_2.jpg" alt="" style="width:34px;height:40px;object-fit:cover;border-radius:3px;border:1px solid #fff;">
+            <div style="font-size:6px;line-height:1.3;">
+                <div style="font-weight:700;font-size:7px;">MPUTU DAVID</div>
+                <div style="font-family:monospace;">CLT995863743</div>
+            </div>
+        </div>
+    </div>
+    <div class="texte">
+        Ceci est la <strong>vraie taille écran</strong> (324×204&nbsp;px, non zoomée) d'une carte au format bancaire
+        standard ID-1 (85,6&nbsp;×&nbsp;54&nbsp;mm). Le grand aperçu ci-dessous est volontairement agrandi (~1,9×)
+        pour la lisibilité des détails pendant la conception.
+    </div>
+</div>
+
+<div class="card">
+    <div class="header-row">
+        <div class="logo-plaque">
+            <img src="../../public/dist/img/vrailogoeben-removebg-preview.png" alt="Logo COOPEC EBEN">
+        </div>
+        <div class="badge-membre">CARTE MEMBRE</div>
+    </div>
+
+    <div class="corps">
+        <div class="photo-block">
+            <img src="../clients/Blaise_2.jpg" alt="Photo client">
+        </div>
+        <div class="infos">
+            <div class="nom">Mputu David</div>
+            <div class="deux-col">
+                <div>
+                    <div class="champ-label">Code client</div>
+                    <div class="champ-valeur">CLT995863743</div>
+                </div>
+                <div>
+                    <div class="champ-label">Téléphone</div>
+                    <div class="champ-valeur">+243 900 000 000</div>
+                </div>
+            </div>
+            <div class="champ-label">Agence / Zone</div>
+            <div class="champ-valeur">Kananga — Zone Centre</div>
+        </div>
+        <div class="qr-block">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://eben.coop/v/9f2a7c1e" alt="QR code">
+            <small>Vérification agence</small>
+        </div>
+    </div>
+
+    <div class="separateur"></div>
+
+    <div class="mentions">
+        Carte personnelle et non cessible — présentation obligatoire pour toute opération en agence.
+    </div>
+
+    <div class="footer-row">
+        <div class="signature-block">
+            <svg class="signature-exemple" viewBox="0 0 140 40" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 30 C 15 10, 25 10, 30 25 C 35 35, 42 15, 50 20 C 58 25, 60 10, 68 15
+                         C 76 20, 78 32, 88 28 C 96 25, 98 12, 108 18 C 116 22, 120 8, 132 12"
+                      fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div class="ligne"></div>
+            <div class="role">Le Gérant</div>
+            <span class="tag-exemple">(exemple — signature réelle configurable en Administration)</span>
+        </div>
+        <div class="infos-footer">
+            Membre depuis 03/2024
+            <strong>N° RIB : CC-000123</strong>
+        </div>
+    </div>
+</div>
+
+<p class="note">
+    <strong>Synthèse de la mention légale :</strong> réduite à une phrase unique, claire et suffisante juridiquement
+    ("carte personnelle et non cessible, présentation obligatoire en agence"), au lieu du paragraphe complet — le
+    texte détaillé (règles complètes de la coopérative) reste disponible ailleurs (contrat d'adhésion), pas besoin de
+    l'imprimer intégralement sur une carte physique de petite taille.
+</p>
+
+<p class="note">
+    <strong>Champ ajouté :</strong> Agence / Zone du client — utile si la coopérative a plusieurs agences, permet au
+    guichetier de savoir rapidement où est rattaché le compte. Autres infos possibles si besoin : date d'expiration
+    de la carte (renouvellement), type de membre (standard/VIP), ou statut du compte — dis-moi si tu veux les ajouter.
+</p>
+
+<p class="note">
+    <strong>Contenu du QR (rappel) :</strong> une URL de vérification avec jeton signé unique par carte
+    (ex. <code>https://votre-domaine/v/9f2a7c1e...</code>). Le guichetier scanne → une page protégée côté serveur
+    affiche identité, photo et statut de la carte (active/bloquée/expirée). Aucune donnée sensible (solde, numéro de
+    compte) n'est jamais encodée directement dans le QR — seule la carte peut être révoquée si perdue/volée, sans
+    exposer d'information exploitable à qui la scannerait entre-temps.
+</p>
+
+</body>
+</html>

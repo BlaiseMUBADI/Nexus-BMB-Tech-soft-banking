@@ -153,6 +153,27 @@
             <button type="submit" class="btn btn-success btn-block" {{ $soldeRmbActuel <= 0 ? 'disabled' : '' }}>
                 <i class="fas fa-bolt mr-1"></i>Régler avec le solde RMB
             </button>
+
+            @if(($echeancesImpayees->count() ?? 0) > 0)
+                @if($peutSolderAnticipe ?? false)
+                <button type="button" id="btnSolderAnticipe" class="btn btn-outline-warning btn-block mt-2"
+                        {{ $soldeRmbActuel <= 0 ? 'disabled' : '' }}>
+                    <i class="fas fa-forward mr-1"></i>Solder le crédit par anticipation
+                </button>
+                <small class="text-muted d-block mt-1">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Règle en une fois toutes les échéances restantes depuis le solde RMB. Si plus de 3 échéances sont
+                    encore dues, une remise de 50% est automatiquement appliquée sur l'intérêt restant. À 3 échéances
+                    ou moins, le solde est dû intégralement (aucune remise).
+                </small>
+                @else
+                <small class="text-muted d-block mt-2">
+                    <i class="fas fa-lock mr-1"></i>
+                    Le solde par anticipation (remise commerciale sur l'intérêt) nécessite une autorisation
+                    dédiée. Contactez un gérant ou l'administration.
+                </small>
+                @endif
+            @endif
             </form>
         </div>
     </div>
@@ -179,6 +200,7 @@
                     <th class="text-right">Intérêt</th>
                     <th class="text-right">Commission</th>
                     <th class="text-right">Total</th>
+                    <th class="text-right">Reste dû</th>
                     <th class="text-right">Cap. restant</th>
                     <th>Statut</th>
                 </tr>
@@ -189,30 +211,61 @@
                 $sc = ['EN_ATTENTE'=>'secondary','PAYE'=>'success','PARTIELLEMENT_PAYE'=>'info','EN_RETARD'=>'danger'];
                 $totalPaye = 0; $totalRestant = 0;
                 $devise = $demande->devise ?? 'CDF';
+                $aujourdhui = \Carbon\Carbon::today()->toDateString();
             @endphp
             @foreach($echeancier->echeances as $e)
             @php
+                $resteDuLigne = 0;
                 if($e->statut === 'PAYE') {
                     $totalPaye += $e->montant_total;
                 } elseif($e->statut === 'PARTIELLEMENT_PAYE') {
                     $totalPaye += $e->montant_paye ?? 0;
-                    $totalRestant += ($e->montant_total - ($e->montant_paye ?? 0));
+                    $resteDuLigne = max(0, $e->montant_total - ($e->montant_paye ?? 0));
+                    $totalRestant += $resteDuLigne;
                 } else {
-                    $totalRestant += $e->montant_total;
+                    $resteDuLigne = $e->montant_total;
+                    $totalRestant += $resteDuLigne;
+                }
+
+                // Badge UNIQUE et sans ambiguïté (le montant exact est déjà dans
+                // la colonne "Reste dû", inutile de le répéter avec 2 badges) :
+                //  - PAYE                → payé intégralement
+                //  - EN RETARD           → date dépassée ET solde non réglé (que
+                //                          l'échéance soit techniquement EN_RETARD
+                //                          ou PARTIELLEMENT_PAYE en retard — le
+                //                          statut technique reste PARTIELLEMENT_PAYE
+                //                          en base pour ne pas perdre l'info du
+                //                          paiement partiel déjà reçu)
+                //  - PARTIELLEMENT       → payé en partie EN AVANCE (date pas
+                //                          encore dépassée) : règlement anticipé
+                //                          d'une partie d'une échéance future
+                //  - EN ATTENTE          → rien payé, date pas encore dépassée
+                $dateEcheanceStr = optional($e->date_echeance)->toDateString();
+                $estEnRetardReel = $e->statut !== 'PAYE' && $dateEcheanceStr && $dateEcheanceStr < $aujourdhui;
+
+                if ($e->statut === 'PAYE') {
+                    $badgeLabel = 'PAYE'; $badgeColor = 'success';
+                } elseif ($estEnRetardReel) {
+                    $badgeLabel = 'EN RETARD'; $badgeColor = 'danger';
+                } elseif ($e->statut === 'PARTIELLEMENT_PAYE') {
+                    $badgeLabel = 'PARTIELLEMENT'; $badgeColor = 'info';
+                } else {
+                    $badgeLabel = 'EN ATTENTE'; $badgeColor = 'secondary';
                 }
             @endphp
-            <tr style="background:{{ $e->statut === 'EN_RETARD' ? 'rgba(220,53,69,0.15)' : ($e->statut === 'PAYE' ? 'rgba(40,167,69,0.15)' : ($e->statut === 'PARTIELLEMENT_PAYE' ? 'rgba(23,162,184,0.15)' : 'transparent')) }}">
+            <tr style="background:{{ $estEnRetardReel ? 'rgba(220,53,69,0.15)' : ($e->statut === 'PAYE' ? 'rgba(40,167,69,0.15)' : ($e->statut === 'PARTIELLEMENT_PAYE' ? 'rgba(23,162,184,0.15)' : 'transparent')) }}">
                 <td>{{ $e->numero_echeance }}</td>
                 <td class="text-nowrap">{{ optional($e->date_echeance)->format('d/m/Y') }}</td>
                 <td class="text-right">{{ number_format($e->montant_capital, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
                 <td class="text-right">{{ number_format($e->montant_interet, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
                 <td class="text-right">{{ number_format($e->montant_commission, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
                 <td class="text-right font-weight-bold">{{ number_format($e->montant_total, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
+                <td class="text-right font-weight-bold {{ $resteDuLigne > 0.01 ? 'text-danger' : 'text-success' }}">
+                    {{ number_format($resteDuLigne, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small>
+                </td>
                 <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
-                <td>
-                    <span class="badge badge-{{ $sc[$e->statut] ?? 'secondary' }}">
-                        {{ str_replace('_',' ', $e->statut) }}
-                    </span>
+                <td class="text-nowrap">
+                    <span class="badge badge-{{ $badgeColor }}">{{ $badgeLabel }}</span>
                 </td>
             </tr>
             @endforeach
@@ -223,6 +276,7 @@
                     <td colspan="5" class="text-right"><strong>Total payé / Restant :</strong></td>
                     <td class="text-right text-success"><strong>{{ number_format($totalPaye, 2, ',', ' ') }} <small>{{ $devise }}</small></strong></td>
                     <td class="text-right text-danger"><strong>{{ number_format($totalRestant, 2, ',', ' ') }} <small>{{ $devise }}</small></strong></td>
+                    <td></td>
                     <td></td>
                 </tr>
             </tfoot>
@@ -392,6 +446,47 @@ function askModal(message, options) {
         // ── ÉTAPE 3 : Soumettre le règlement ─────────────────────────────────────
         soumettre();
     });
+
+    // ── Bouton "Solder le crédit par anticipation" ──────────────────────────────
+    var btnAnticipe = document.getElementById('btnSolderAnticipe');
+    if (btnAnticipe) {
+        btnAnticipe.addEventListener('click', async function () {
+            if (soldeRmbActuel <= 0.01) {
+                showSystemMessage('warning', 'Le client n\'a aucun solde RMB disponible pour ce règlement.');
+                return;
+            }
+
+            var echeancesValides = echeancesImpayees.filter(function (ech) {
+                var mt = parseFloat(ech.capital_echeance || 0) + parseFloat(ech.interet_echeance || 0) + parseFloat(ech.commission_echeance || 0);
+                var dp = parseFloat(ech.montant_paye) || 0;
+                return (mt - dp) > 0.01;
+            });
+
+            if (echeancesValides.length === 0) {
+                showSystemMessage('info', 'Aucune échéance en attente à régler.');
+                return;
+            }
+
+            var remiseEligible = echeancesValides.length > 3;
+            var message = remiseEligible
+                ? 'Il reste <strong>' + echeancesValides.length + ' échéances</strong> impayées : une remise de <strong>50% sur l\'intérêt restant</strong> sera appliquée. Solder le crédit maintenant avec le solde RMB disponible (' + soldeRmbActuel.toFixed(2) + ' {{ $demande->devise }}) ?'
+                : 'Il ne reste que <strong>' + echeancesValides.length + ' échéance(s)</strong> impayée(s) : <strong>aucune remise</strong> ne s\'applique (le solde est dû intégralement). Tenter le règlement anticipé avec le solde RMB disponible (' + soldeRmbActuel.toFixed(2) + ' {{ $demande->devise }}) ?';
+
+            var confirmation = await askModal(message, {
+                title: 'Solder le crédit par anticipation',
+                btnLabel: 'Oui, solder maintenant',
+                btnClass: 'btn-warning',
+                icon: 'fas fa-forward',
+                headerClass: 'bg-warning'
+            });
+
+            if (!confirmation) return;
+
+            document.getElementById('inp_type_remb').value = 'ANTICIPE';
+            document.getElementById('inp_montant_a_appliquer').value = soldeRmbActuel.toFixed(2);
+            form.submit();
+        });
+    }
 })();
 </script>
 @endpush

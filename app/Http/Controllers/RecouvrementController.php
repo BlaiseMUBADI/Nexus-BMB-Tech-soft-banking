@@ -20,22 +20,35 @@ class RecouvrementController extends Controller
      */
     public function index()
     {
+        // Auto-réparation (même throttle que CreditController::index()) :
+        // garantit que `statut_global` est à jour avant de construire la
+        // liste et le compteur d'alertes de cette page.
+        if (\Illuminate\Support\Facades\Cache::add('credit_sync_retards_lock', true, 60)) {
+            \Illuminate\Support\Facades\Artisan::call('credit:marquer-retards');
+        }
+
         // Requête Eloquent avec tri par priorité (CASE WHEN)
-        // Affiche uniquement les dossiers avec au moins une échéance EN_RETARD ou EN_ATTENTE avec date dépassée
+        // Affiche les dossiers avec au moins une échéance EN_RETARD, EN_ATTENTE
+        // avec date dépassée, OU PARTIELLEMENT_PAYE avec date dépassée (règlement
+        // partiel déjà reçu mais échéance pas encore soldée — reste réellement en
+        // retard, cf. audit du 09/09/2026 : ces dossiers étaient comptés via le
+        // repli sur statut_global mais leurs colonnes "Prochaine échéance"/"Jours
+        // de retard" ignoraient l'échéance PARTIELLEMENT_PAYE et affichaient à
+        // tort l'échéance suivante, non encore due).
         $today = Carbon::now()->toDateString();
         $dossiers = CreditDemande::whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
             ->where(function ($query) use ($today) {
                 $query->whereHas('echeancier.echeances', function ($q) use ($today) {
                         $q->where('statut', 'EN_RETARD')
                           ->orWhere(function ($sub) use ($today) {
-                              $sub->where('statut', 'EN_ATTENTE')
+                              $sub->whereIn('statut', ['EN_ATTENTE', 'PARTIELLEMENT_PAYE'])
                                   ->where('date_echeance', '<', $today);
                           });
                     })
                     ->orWhere('statut_global', 'EN_RETARD');
             })
             ->with(['client', 'echeancier.echeances' => function ($query) {
-                $query->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
+                $query->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD', 'PARTIELLEMENT_PAYE'])
                       ->orderBy('date_echeance', 'ASC');
             }])
             ->selectRaw('
@@ -45,7 +58,7 @@ class RecouvrementController extends Controller
                     FROM tb_credit_echeances 
                     INNER JOIN tb_credit_echeanciers ON tb_credit_echeances.echeancier_id = tb_credit_echeanciers.id
                     WHERE tb_credit_echeanciers.credit_demande_id = tb_credit_demandes.id 
-                      AND tb_credit_echeances.statut IN ("EN_ATTENTE", "EN_RETARD")
+                      AND tb_credit_echeances.statut IN ("EN_ATTENTE", "EN_RETARD", "PARTIELLEMENT_PAYE")
                 ) as prochaine_echeance_date,
                 
                 CASE 
@@ -53,7 +66,7 @@ class RecouvrementController extends Controller
                         SELECT 1 FROM tb_credit_echeances 
                         INNER JOIN tb_credit_echeanciers ON tb_credit_echeances.echeancier_id = tb_credit_echeanciers.id
                         WHERE tb_credit_echeanciers.credit_demande_id = tb_credit_demandes.id 
-                        AND tb_credit_echeances.statut IN ("EN_ATTENTE", "EN_RETARD") 
+                        AND tb_credit_echeances.statut IN ("EN_ATTENTE", "EN_RETARD", "PARTIELLEMENT_PAYE") 
                         AND DATE(tb_credit_echeances.date_echeance) < CURDATE()
                     ) THEN 1
                     
@@ -77,7 +90,7 @@ class RecouvrementController extends Controller
                         SELECT 1 FROM tb_credit_echeances 
                         INNER JOIN tb_credit_echeanciers ON tb_credit_echeances.echeancier_id = tb_credit_echeanciers.id
                         WHERE tb_credit_echeanciers.credit_demande_id = tb_credit_demandes.id 
-                        AND tb_credit_echeances.statut IN ("EN_ATTENTE", "EN_RETARD")
+                        AND tb_credit_echeances.statut IN ("EN_ATTENTE", "EN_RETARD", "PARTIELLEMENT_PAYE")
                     ) THEN 4
                     
                     ELSE 5
@@ -87,15 +100,10 @@ class RecouvrementController extends Controller
             ->orderBy('prochaine_echeance_date', 'ASC')
             ->paginate(20);
 
-        // Compteur pour le widget du tableau de bord principal
-        // Compte les dossiers ayant au moins une échéance dépassée (EN_ATTENTE ou EN_RETARD avec date < aujourd'hui)
-        $today = Carbon::now()->toDateString();
-        $alerteRecouvrementCount = CreditDemande::whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
-            ->whereHas('echeancier.echeances', function ($query) use ($today) {
-                $query->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
-                      ->where('date_echeance', '<', $today);
-            })
-            ->count();
+        // scopeEnRetardReel() = source unique (cf. CreditDemande) — même
+        // définition que DashboardController/AppServiceProvider/CreditController,
+        // pour éviter toute nouvelle incohérence entre les compteurs affichés.
+        $alerteRecouvrementCount = CreditDemande::enRetardReel()->count();
 
         return view('recouvrement.index', compact('dossiers', 'alerteRecouvrementCount'));
     }
@@ -262,15 +270,25 @@ class RecouvrementController extends Controller
     {
         DB::beginTransaction();
         try {
-            $totalRecupere = 0;
-            $dossiersTraités = 0;
+            $totalRecupereParDevise = []; // ex: ['USD' => 1234.56, 'CDF' => 200000]
+            $dossiersAvecPrelevement = 0; // dossiers où un montant a RÉELLEMENT été prélevé
+            $today = Carbon::now()->toDateString();
 
-            // Récupérer tous les dossiers autorisés ayant une échéance en retard ou du jour
+            // Récupérer tous les dossiers autorisés ayant une échéance RÉELLEMENT
+            // en retard (date dépassée) — PAS les échéances futures pas encore
+            // dues. Sur demande explicite : si le client n'est pas en retard, le
+            // recouvrement auto ne doit rien prélever et laisser le surplus du
+            // RMB intact (pas de paiement en avance des mensualités futures).
             $dossiersCibles = CreditDemande::where('prelevement_auto_autorise', 1)
                 ->whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
-                ->with(['echeancier.echeances' => function ($query) {
-                    $query->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
-                          ->orderBy('date_echeance', 'ASC');
+                ->with(['echeancier.echeances' => function ($query) use ($today) {
+                    $query->where(function ($q) use ($today) {
+                        $q->where('statut', 'EN_RETARD')
+                          ->orWhere(function ($q2) use ($today) {
+                              $q2->whereIn('statut', ['EN_ATTENTE', 'PARTIELLEMENT_PAYE'])
+                                 ->where('date_echeance', '<', $today);
+                          });
+                    })->orderBy('date_echeance', 'ASC');
                 }, 'client'])
                 ->get();
 
@@ -282,6 +300,8 @@ class RecouvrementController extends Controller
                     ->first();
 
                 if (!$compteRmb) continue;
+
+                $preleveSurCeDossier = false;
 
                 foreach ($dossier->echeancier->echeances as $echeance) {
                     $resteDu = max(0, (float)$echeance->total_echeance - (float)$echeance->montant_paye);
@@ -296,11 +316,14 @@ class RecouvrementController extends Controller
                         $compteRmb->decrement('solde_reel', $montantAPrelever);
 
                         // 2. Mettre à jour l'échéance
+                        // BUG corrigé : un règlement partiel gardait l'ancien statut de
+                        // l'échéance (ex: "EN_ATTENTE" si elle n'était pas encore en retard),
+                        // au lieu de passer explicitement à PARTIELLEMENT_PAYE — ce qui
+                        // faisait ensuite manquer cette échéance dans toutes les requêtes
+                        // qui filtrent sur ['EN_ATTENTE','EN_RETARD','PARTIELLEMENT_PAYE'].
                         $nouveauMontantPaye = (float)$echeance->montant_paye + $montantAPrelever;
-                        $nouveauStatut = $nouveauMontantPaye >= $echeance->total_echeance ? 'PAYE' : $echeance->statut;
-                        
-                        // Si c'était en retard et qu'on a payé en partie, ça reste en retard. 
-                        // Si c'est payé totalement, ça passe à PAYE.
+                        $nouveauStatut = $nouveauMontantPaye >= $echeance->total_echeance ? 'PAYE' : 'PARTIELLEMENT_PAYE';
+
                         if ($nouveauStatut === 'PAYE') {
                             $echeance->date_paiement_effectif = now()->format('Y-m-d');
                         }
@@ -329,28 +352,59 @@ class RecouvrementController extends Controller
                             'date_operation'          => now(),
                         ]);
 
-                        $totalRecupere += $montantAPrelever;
-                        
+                        // Cumul par devise : les dossiers ciblés peuvent mélanger
+                        // USD et CDF, un total unique aurait été trompeur (bug
+                        // constaté : le message affichait toujours la devise du
+                        // PREMIER dossier de la liste pour la somme de TOUS).
+                        $totalRecupereParDevise[$dossier->devise] =
+                            ($totalRecupereParDevise[$dossier->devise] ?? 0) + $montantAPrelever;
+                        $preleveSurCeDossier = true;
+
                         // Si le solde RMB tombe à 0, on arrête pour ce dossier et on passe au suivant
                         if ($compteRmb->solde_reel <= 0.01) break;
                     }
                 }
                 
-                // Vérifier si le dossier est maintenant soldé
-                $toutesSoldees = $dossier->echeancier->echeances->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])->isEmpty();
-                if ($toutesSoldees && $dossier->statut_global !== 'SOLDE') {
-                    $dossier->update(['statut_global' => 'SOLDE', 'date_cloture' => now()]);
-                }
+                // Recalcule SOLDE / EN_RETARD / EN_REMBOURSEMENT à partir de
+                // TOUTES les échéances fraîches en base (pas seulement le sous-
+                // ensemble EN_ATTENTE/EN_RETARD chargé en mémoire avant le
+                // traitement, qui ratait les échéances déjà PARTIELLEMENT_PAYE
+                // lors d'une exécution précédente — même méthode centralisée
+                // que le remboursement manuel et l'affichage du dossier, pour
+                // que "Liste des dossiers" et "Recouvrement Auto" restent
+                // toujours cohérents).
+                $dossier->refresh();
+                $dossier->load('echeancier.echeances');
+                $dossier->refreshStatutRetard();
 
-                $dossiersTraités++;
+                if ($preleveSurCeDossier) {
+                    $dossiersAvecPrelevement++;
+                }
             }
 
-            $devise = $dossiersCibles->isNotEmpty() ? $dossiersCibles->first()->devise : 'CDF';
-            
             DB::commit();
 
-            return redirect()->back()->with('success', 
-                "✅ Recouvrement terminé : {$dossiersTraités} dossiers vérifiés, {$totalRecupere} {$devise} récupérés automatiquement."
+            $nbDossiersCibles = $dossiersCibles->count();
+
+            // BUG corrigé : le message affichait toujours "success" (vert) même
+            // quand 0 dossier avait un prélèvement possible (ex : aucun dossier
+            // n'a le consentement client "prelevement_auto_autorise", ou tous les
+            // RMB sont à 0) — l'utilisateur ne pouvait pas distinguer "tout va
+            // bien, rien à faire" de "rien n'a été fait alors que ça devrait".
+            if (empty($totalRecupereParDevise)) {
+                return redirect()->back()->with('warning',
+                    "⚠️ Recouvrement terminé : {$nbDossiersCibles} dossier(s) examiné(s), mais AUCUN prélèvement "
+                    . "n'a pu être effectué. Vérifiez que ces dossiers ont le prélèvement automatique autorisé "
+                    . "(EBEN-PER113) et que le solde RMB du client n'est pas à 0."
+                );
+            }
+
+            $montantsFormates = collect($totalRecupereParDevise)
+                ->map(fn ($montant, $devise) => number_format($montant, 2, ',', ' ') . ' ' . $devise)
+                ->implode(' + ');
+
+            return redirect()->back()->with('success',
+                "✅ Recouvrement terminé : {$dossiersAvecPrelevement}/{$nbDossiersCibles} dossier(s) avec prélèvement — {$montantsFormates} récupérés automatiquement."
             );
 
         } catch (\Exception $e) {

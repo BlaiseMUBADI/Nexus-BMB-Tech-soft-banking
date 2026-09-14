@@ -74,14 +74,24 @@ class MarquerRetardsCredit extends Command
 
                         $estDepassee = $dateEcheance < $today;
 
-                        if ($estDepassee && $echeance->statut !== 'EN_RETARD') {
-                            // Passer l'échéance en retard
+                        // BUG corrigé : une échéance PARTIELLEMENT_PAYE (règlement
+                        // partiel déjà enregistré, montant_paye > 0) ne doit JAMAIS
+                        // être écrasée en EN_RETARD — cela effaçait visuellement le
+                        // paiement reçu (le badge de statut redevenait "en retard"
+                        // alors que le montant payé était pourtant bien conservé).
+                        // Seule une échéance EN_ATTENTE (rien payé) doit basculer.
+                        // Le dossier passe quand même en EN_RETARD via $aDesRetards
+                        // ci-dessous, qu'il s'agisse d'une échéance EN_RETARD ou
+                        // PARTIELLEMENT_PAYE encore due après sa date.
+                        if ($estDepassee && $echeance->statut === 'EN_ATTENTE') {
                             if (!$dryRun) {
                                 $echeance->update(['statut' => 'EN_RETARD']);
                             }
                             $echRetardsNouveaux++;
                             $aDesRetards = true;
-                        } elseif ($estDepassee && $echeance->statut === 'EN_RETARD') {
+                        } elseif ($estDepassee) {
+                            // EN_RETARD ou PARTIELLEMENT_PAYE déjà en retard : le
+                            // dossier reste/passe EN_RETARD, sans toucher l'échéance.
                             $aDesRetards = true;
                         }
                     }

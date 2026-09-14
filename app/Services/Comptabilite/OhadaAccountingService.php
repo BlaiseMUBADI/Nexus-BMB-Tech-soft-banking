@@ -125,8 +125,13 @@ class OhadaAccountingService
                 break;
 
             case Transaction::PAIEMENT:
+                // Compte de produit : par defaut "produits services guichet" (7071), mais
+                // certains encaissements dedies (ex. frais carte membre) passent leur propre
+                // compte via l'override 'compte_produit' pour une ecriture comptable distincte.
+                $compteProduitPaiement = $overrides['compte_produit'] ?? $compteProduitService;
+                $libelleProduitPaiement = $overrides['libelle_produit'] ?? 'Produit service guichet';
                 $lines[] = $this->line($caisseCompteSource, $devise, 'Encaissement paiement service', $montant, 0);
-                $lines[] = $this->line($compteProduitService, $devise, 'Produit service guichet', 0, $montant);
+                $lines[] = $this->line($compteProduitPaiement, $devise, $libelleProduitPaiement, 0, $montant);
                 break;
 
             case Transaction::REMBOURSEMENT:

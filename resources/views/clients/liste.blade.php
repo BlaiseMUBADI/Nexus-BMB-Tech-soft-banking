@@ -99,6 +99,11 @@
                                 data-credit-create-url="{{ route('credit.create', ['client_matricule' => $client->matricule]) }}"
                                 data-fiche-url="{{ route('clients.fiche.pdf', $client->matricule) }}"
                                 data-delete-url="{{ route('clients.destroy', $client->matricule) }}"
+                                data-carte-statut="{{ $carteStatuts[$client->matricule] ?? '' }}"
+                                @if(!empty($carteStatuts[$client->matricule]))
+                                    data-carte-apercu-url="{{ route('clients.carte-membre.apercu', $client->matricule) }}"
+                                    data-carte-imprimer-url="{{ route('clients.carte-membre.imprimer', $client->matricule) }}"
+                                @endif
                             >
                                 <td>{{ $loopIndex + 1 }}</td>
                                 <td><code>{{ $client->matricule }}</code></td>
@@ -307,6 +312,10 @@
             @if($canPrintDocuments ?? true)
                 <li><a href="#" class="ctx-item" id="ctxFiche" target="_blank"><i class="fas fa-file-pdf"></i> Imprimer fiche PDF</a></li>
             @endif
+            @if(($canPrintDocuments ?? true) && in_array('EBEN-PER123', $userPermCodes ?? []))
+                <li><a href="#" class="ctx-item" id="ctxCarteApercu"><i class="fas fa-id-card"></i> Aperçu carte membre</a></li>
+                <li><a href="#" class="ctx-item" id="ctxCarteImprimer" target="_blank"><i class="fas fa-print"></i> Imprimer carte membre</a></li>
+            @endif
         </ul>
         <div class="ctx-divider"></div>
         <ul>
@@ -488,10 +497,29 @@
                 $('#ctxFiche').attr('href', $ctxRow.data('fiche-url'));
             @endif
 
+            /* ── Carte membre : afficher "Aperçu" + "Imprimer" selon le statut ── */
+            var carteStatut = $ctxRow.data('carte-statut') || '';
+            var $ctxApercu = $('#ctxCarteApercu');
+            var $ctxImprimer = $('#ctxCarteImprimer');
+            var apercuUrl = $ctxRow.data('carte-apercu-url');
+            var imprimerUrl = $ctxRow.data('carte-imprimer-url');
+
+            if ($ctxApercu.length) {
+                $ctxApercu.closest('li').toggle(!!apercuUrl);
+                if (apercuUrl) $ctxApercu.attr('href', apercuUrl);
+            }
+            if ($ctxImprimer.length) {
+                $ctxImprimer.closest('li').toggle(!!imprimerUrl);
+                $ctxImprimer.text(' ' + (carteStatut === 'IMPRIMEE' ? 'Réimprimer carte membre' : 'Imprimer carte membre'))
+                    .prepend('<i class="fas fa-print"></i>')
+                    .attr('href', imprimerUrl);
+            }
+
             $ctx.css({ left: e.pageX + 'px', top: e.pageY + 'px' }).show();
             $(document).one('click.ctxClient', function () { closeCtx(); });
         });
 
+        /* ── Suppression client ── */
         $('#ctxDelete').on('click', function (e) {
             e.preventDefault();
             closeCtx();

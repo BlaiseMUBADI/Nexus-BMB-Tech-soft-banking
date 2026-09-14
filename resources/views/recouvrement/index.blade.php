@@ -17,6 +17,15 @@
         </div>
     @endif
 
+    @if(session('warning'))
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {{ session('warning') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
     @if(session('error'))
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ session('error') }}
@@ -72,7 +81,8 @@
                                     <th>Client</th>
                                     <th>Prochaine Échéance</th>
                                     <th class="text-center">Jours de retard</th>
-                                    <th class="text-right">Reste Dû</th>
+                                    <th class="text-right">Dette en retard</th>
+                                    <th class="text-right">Reste à finaliser</th>
                                     <th class="text-right">Solde RMB</th>
                                     <th class="text-center" style="width: 50px;">Auth.</th>
                                 </tr>
@@ -80,11 +90,29 @@
                             <tbody>
                                 @forelse($dossiers as $dossier)
                                 @php
+                                    // Deux montants distincts et complémentaires :
+                                    //  - "Dette en retard"    : uniquement les échéances dont la date est
+                                    //                           dépassée ET non intégralement réglées (ce
+                                    //                           que le recouvrement auto va réellement
+                                    //                           prélever aujourd'hui).
+                                    //  - "Reste à finaliser"  : TOUT ce qu'il reste à payer sur le crédit,
+                                    //                           échéances futures comprises (exposition
+                                    //                           totale restante sur le dossier).
                                     $resteDuTotal = 0;
+                                    $detteEnRetard = 0;
+                                    $aujourdhuiTbl = \Carbon\Carbon::today()->toDateString();
                                     $prochaineDate = $dossier->prochaine_echeance_date;
                                     foreach(($dossier->echeancier->echeances ?? []) as $ech) {
-                                        if(in_array($ech->statut, ['EN_ATTENTE', 'EN_RETARD'])) {
-                                            $resteDuTotal += max(0, (float)$ech->total_echeance - (float)$ech->montant_paye);
+                                        // PARTIELLEMENT_PAYE inclus : un règlement partiel ne solde pas
+                                        // l'échéance, le reste dû doit continuer à être compté ici.
+                                        if(in_array($ech->statut, ['EN_ATTENTE', 'EN_RETARD', 'PARTIELLEMENT_PAYE'])) {
+                                            $resteLigne = max(0, (float)$ech->total_echeance - (float)$ech->montant_paye);
+                                            $resteDuTotal += $resteLigne;
+
+                                            $dateEchTbl = optional($ech->date_echeance)->toDateString();
+                                            if ($ech->statut === 'EN_RETARD' || ($dateEchTbl && $dateEchTbl < $aujourdhuiTbl)) {
+                                                $detteEnRetard += $resteLigne;
+                                            }
                                         }
                                     }
                                     
@@ -128,19 +156,34 @@
                                             <span class="text-muted">-</span>
                                         @endif
                                     </td>
-                                    <td class="text-right text-danger font-weight-bold">{{ number_format($resteDuTotal, 2, ',', ' ') }} <small>{{ $dossier->devise }}</small></td>
+                                    <td class="text-right text-danger font-weight-bold">{{ number_format($detteEnRetard, 2, ',', ' ') }} <small>{{ $dossier->devise }}</small></td>
+                                    <td class="text-right text-warning font-weight-bold">{{ number_format($resteDuTotal, 2, ',', ' ') }} <small>{{ $dossier->devise }}</small></td>
                                     <td class="text-right text-success font-weight-bold">{{ number_format($soldeRmb, 2, ',', ' ') }} <small>{{ $dossier->devise }}</small></td>
                                     <td class="text-center">
-                                        @if($dossier->prelevement_auto_autorise)
-                                            <i class="fas fa-check-circle text-success" title="Prélèvement autorisé"></i>
+                                        @if(in_array('EBEN-PER113', $userPermCodes ?? []))
+                                            <form method="POST" action="{{ route('credit.prelevement_auto.toggle', $dossier) }}" class="d-inline"
+                                                  onsubmit="return confirm('{{ $dossier->prelevement_auto_autorise ? 'Révoquer' : 'Autoriser' }} le prélèvement automatique pour {{ $dossier->numero_dossier }} ?');">
+                                                @csrf
+                                                <button type="submit" class="btn btn-link p-0" title="Cliquer pour {{ $dossier->prelevement_auto_autorise ? 'révoquer' : 'autoriser' }}">
+                                                    @if($dossier->prelevement_auto_autorise)
+                                                        <i class="fas fa-check-circle text-success"></i>
+                                                    @else
+                                                        <i class="fas fa-times-circle text-muted"></i>
+                                                    @endif
+                                                </button>
+                                            </form>
                                         @else
-                                            <i class="fas fa-times-circle text-muted" title="Non autorisé"></i>
+                                            @if($dossier->prelevement_auto_autorise)
+                                                <i class="fas fa-check-circle text-success" title="Prélèvement autorisé"></i>
+                                            @else
+                                                <i class="fas fa-times-circle text-muted" title="Non autorisé"></i>
+                                            @endif
                                         @endif
                                     </td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">
+                                    <td colspan="9" class="text-center text-muted py-4">
                                         <i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>
                                         Aucun dossier en attente de recouvrement.
                                     </td>

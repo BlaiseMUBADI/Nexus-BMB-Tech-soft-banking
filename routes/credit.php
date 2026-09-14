@@ -42,7 +42,7 @@ use Illuminate\Support\Facades\Route;
 // obtenait un 403 au clic sur CHAQUE lien. Le portail exige maintenant AU
 // MOINS UNE permission crédit quelconque (garde-fou anti-accès générique),
 // et chaque sous-groupe continue d'exiger sa permission précise comme avant.
-Route::middleware(['auth', 'permission:EBEN-PER53|EBEN-PER54|EBEN-PER55|EBEN-PER56|EBEN-PER57|EBEN-PER58|EBEN-PER60|EBEN-PER61|EBEN-PER62|EBEN-PER63|EBEN-PER64|EBEN-PER66|EBEN-PER67|EBEN-PER68|EBEN-PER69|EBEN-PER70|EBEN-PER71|EBEN-PER73|EBEN-PER10|EBEN-PER111|EBEN-PER113|EBEN-PER118'])
+Route::middleware(['auth', 'permission:EBEN-PER53|EBEN-PER54|EBEN-PER55|EBEN-PER56|EBEN-PER57|EBEN-PER58|EBEN-PER60|EBEN-PER61|EBEN-PER62|EBEN-PER63|EBEN-PER64|EBEN-PER66|EBEN-PER67|EBEN-PER68|EBEN-PER69|EBEN-PER70|EBEN-PER71|EBEN-PER73|EBEN-PER10|EBEN-PER111|EBEN-PER113|EBEN-PER118|EBEN-PER127'])
     ->prefix('credits')
     ->name('credit.')
     ->group(function () {
@@ -89,6 +89,17 @@ Route::middleware(['auth', 'permission:EBEN-PER53|EBEN-PER54|EBEN-PER55|EBEN-PER
         Route::middleware('permission:EBEN-PER55')->group(function () {
             Route::get('/{dossier}/editer',  [CreditController::class, 'edit'])->name('edit');
             Route::put('/{dossier}/editer',  [CreditController::class, 'update'])->name('update');
+        });
+
+        // ── Import d'un ancien dossier (historique) ───────────────────
+        // Permission dédiée EBEN-PER127 (et non EBEN-PER54) : cette action crée
+        // un dossier avec les 4 blocs de validation déjà approuvés et un
+        // déblocage historique déjà exécuté, en contournant le circuit normal
+        // (analyse → contrôleur → chargé opérations → gérant). Réservée aux
+        // profils de supervision, pas à tous les créateurs de dossier normal.
+        Route::middleware('permission:EBEN-PER127')->group(function () {
+            Route::get('/importer-ancien',  [CreditController::class, 'importAncien'])->name('import_ancien');
+            Route::post('/importer-ancien', [CreditController::class, 'storeImportAncien'])->name('import_ancien.store');
         });
 
         // ── AJAX helpers (utilisés par le formulaire de création, PER54) ──
@@ -154,6 +165,14 @@ Route::middleware(['auth', 'permission:EBEN-PER53|EBEN-PER54|EBEN-PER55|EBEN-PER
 
         Route::middleware('permission:EBEN-PER64')->group(function () {
             Route::post('/{dossier}/deblocage', [CreditController::class, 'storeDeblocage'])->name('deblocage.store');
+        });
+
+        // ── Prélèvement automatique (Recouvrement Auto) ────────────────
+        // La colonne prelevement_auto_autorise n'était modifiable que par
+        // accès direct à la base — aucune route ne l'exposait jusqu'ici,
+        // rendant la permission EBEN-PER113 inutilisable en pratique.
+        Route::middleware('permission:EBEN-PER113')->group(function () {
+            Route::post('/{dossier}/prelevement-auto/toggle', [CreditController::class, 'togglePrelevementAuto'])->name('prelevement_auto.toggle');
         });
 
         // ── Remboursement ─────────────────────────────────────────────

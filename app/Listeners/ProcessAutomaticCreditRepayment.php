@@ -51,9 +51,14 @@ class ProcessAutomaticCreditRepayment
         $aujourdhui = now()->toDateString();
         $autoDebitAnticipeAutorise = !empty($dossier->prelevement_auto_autorise);
 
-        // Récupérer toutes les échéances impayées dans l'ordre chronologique
+        // Récupérer toutes les échéances impayées dans l'ordre chronologique.
+        // PARTIELLEMENT_PAYE inclus : sinon un dépôt qui devrait compléter une
+        // échéance déjà partiellement réglée sautait directement à l'échéance
+        // suivante (voire une future si prélèvement anticipé autorisé), et le
+        // dossier pouvait ensuite être marqué SOLDE à tort plus bas alors qu'il
+        // restait une échéance PARTIELLEMENT_PAYE non soldée.
         $echeancesImpayees = $dossier->echeancier?->echeances()
-            ->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
+            ->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD', 'PARTIELLEMENT_PAYE'])
             ->orderBy('numero_echeance')
             ->get();
 
@@ -144,29 +149,22 @@ class ProcessAutomaticCreditRepayment
             $montantRestant -= $montantApplique;
         }
 
-        // Vérifier si le dossier est soldé après ces traitements
-        $toutesSoldees = $dossier->echeancier?->echeances()
-            ->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
-            ->exists() === false;
+        // Recalcule SOLDE / EN_RETARD / EN_REMBOURSEMENT via la méthode
+        // centralisée (CreditDemande::refreshStatutRetard()) — même logique
+        // que le remboursement manuel et le recouvrement automatique, pour
+        // que ce 3e chemin de paiement (dépôt RMB déclenchant un règlement
+        // immédiat) reste toujours cohérent avec les deux autres. Corrige au
+        // passage le bug où un dossier avec une échéance PARTIELLEMENT_PAYE
+        // restante pouvait être marqué SOLDE à tort (ancien code ne vérifiait
+        // que EN_ATTENTE/EN_RETARD pour "toutes soldées").
+        $statutAvant = $dossier->statut_global;
+        $dossier->refresh();
+        $dossier->load('echeancier.echeances');
+        $dossier->refreshStatutRetard();
 
-        if ($toutesSoldees) {
-            $dossier->update([
-                'statut_global' => 'SOLDE',
-                'date_cloture' => now(),
-            ]);
-            
+        if ($dossier->statut_global === 'SOLDE' && $statutAvant !== 'SOLDE') {
             // Restitution de la caution (GTC)
             $this->restituerCaution($dossier, $transaction, $compte);
-        } elseif ($dossier->statut_global === 'EN_RETARD') {
-            // Si le dossier était en retard et qu'il y a encore des échéances, repasser en EN_REMBOURSEMENT
-            $prochaineEcheanceImpayee = $dossier->echeancier?->echeances()
-                ->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
-                ->orderBy('numero_echeance')
-                ->first();
-            
-            if ($prochaineEcheanceImpayee && $prochaineEcheanceImpayee->date_echeance >= $aujourdhui) {
-                $dossier->update(['statut_global' => 'EN_REMBOURSEMENT']);
-            }
         }
 
         Log::info('Remboursement automatique traité', [

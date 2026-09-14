@@ -453,7 +453,16 @@ class ClientController extends Controller
 
         $canPrintDocuments = !$this->isMobileGuichet();
 
-        return view('clients.liste', compact('clients', 'stats', 'zones', 'zoneRestriction', 'canPrintDocuments'));
+        // Statut de la carte membre (dernière carte non révoquée) par client, pour le menu contextuel.
+        $carteStatuts = \App\Models\Clients\ClientCarte::whereIn('client_matricule', $clients->pluck('matricule'))
+            ->where('statut', '!=', \App\Models\Clients\ClientCarte::REVOQUEE)
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('client_matricule')
+            ->map(fn ($items) => $items->first()->statut)
+            ->toArray();
+
+        return view('clients.liste', compact('clients', 'stats', 'zones', 'zoneRestriction', 'canPrintDocuments', 'carteStatuts'));
     }
 
                 

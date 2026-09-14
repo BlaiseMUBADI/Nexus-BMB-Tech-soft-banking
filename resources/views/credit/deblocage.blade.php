@@ -151,6 +151,42 @@
         <input type="hidden" name="montant_debloque" value="{{ $montantTotal }}">
         <input type="hidden" name="frais_dossier" value="{{ $fraisTotal }}">
 
+        {{-- Taux de frais de déblocage — ajustables --}}
+        <div class="form-row">
+            <div class="form-group col-md-4">
+                <label>Taux caution <small class="text-muted">(bloquée, remboursable)</small></label>
+                <div class="input-group">
+                    <input type="number" name="taux_caution" id="inp_taux_caution"
+                           class="form-control taux-input" step="0.01" min="0" max="100"
+                           value="{{ old('taux_caution', $tauxCaution) }}">
+                    <div class="input-group-append"><span class="input-group-text">%</span></div>
+                </div>
+            </div>
+            <div class="form-group col-md-4">
+                <label>Taux frais d'étude <small class="text-muted">(non remboursable)</small></label>
+                <div class="input-group">
+                    <input type="number" name="taux_frais_etude" id="inp_taux_frais_etude"
+                           class="form-control taux-input" step="0.01" min="0" max="100"
+                           value="{{ old('taux_frais_etude', $tauxFraisEtude) }}">
+                    <div class="input-group-append"><span class="input-group-text">%</span></div>
+                </div>
+            </div>
+            <div class="form-group col-md-4">
+                <label>Taux frais de dossier <small class="text-muted">(non remboursable)</small></label>
+                <div class="input-group">
+                    <input type="number" name="taux_frais_dossier" id="inp_taux_frais_dossier"
+                           class="form-control taux-input" step="0.01" min="0" max="100"
+                           value="{{ old('taux_frais_dossier', $tauxFraisDossier) }}">
+                    <div class="input-group-append"><span class="input-group-text">%</span></div>
+                </div>
+            </div>
+        </div>
+        <small class="text-muted d-block mb-3">
+            <i class="fas fa-info-circle mr-1"></i>
+            Valeurs par défaut : 20% caution / 3% frais d'étude / 1% frais de dossier. Ajustables au cas par cas
+            avant validation — la répartition ci-dessous et la précondition RMB se recalculent automatiquement.
+        </small>
+
         {{-- Tableau récapitulatif automatique --}}
         <div class="card card-outline card-primary mb-3 deblocage-breakdown-card">
             <div class="card-header py-2">
@@ -181,36 +217,36 @@
                         </tr>
                         <tr class="row-caution">
                             <td><i class="fas fa-lock mr-1"></i>Transfert caution RMB → GTC (bloquée)</td>
-                            <td class="text-right">20%</td>
+                            <td class="text-right"><span class="pct-caution">{{ number_format($tauxCaution, 2, ',', ' ') }}</span>%</td>
                             <td class="text-right amount-caution"><strong>{{ number_format($caution, 2, ',', ' ') }}</strong></td>
                             <td><span class="badge badge-light border text-warning">Retrait RMB + dépôt GTC (bordereau imprimable)</span></td>
                         </tr>
                         <tr class="row-fees">
-                            <td><i class="fas fa-file-invoice-dollar mr-1"></i>Frais de dossier (1%)</td>
-                            <td class="text-right">1%</td>
-                            <td class="text-right amount-fees">{{ number_format($fraisDossier, 2, ',', ' ') }}</td>
+                            <td><i class="fas fa-file-invoice-dollar mr-1"></i>Frais de dossier</td>
+                            <td class="text-right"><span class="pct-frais-dossier">{{ number_format($tauxFraisDossier, 2, ',', ' ') }}</span>%</td>
+                            <td class="text-right amount-fees-dossier">{{ number_format($fraisDossier, 2, ',', ' ') }}</td>
                             <td><span class="badge badge-light border text-danger">Prélevés sur RMB client (non remboursables)</span></td>
                         </tr>
                         <tr class="row-fees">
-                            <td><i class="fas fa-search-dollar mr-1"></i>Frais d'étude (3%)</td>
-                            <td class="text-right">3%</td>
-                            <td class="text-right amount-fees">{{ number_format($fraisEtude, 2, ',', ' ') }}</td>
+                            <td><i class="fas fa-search-dollar mr-1"></i>Frais d'étude</td>
+                            <td class="text-right"><span class="pct-frais-etude">{{ number_format($tauxFraisEtude, 2, ',', ' ') }}</span>%</td>
+                            <td class="text-right amount-fees-etude">{{ number_format($fraisEtude, 2, ',', ' ') }}</td>
                             <td><span class="badge badge-light border text-danger">Prélevés sur RMB client (non remboursables)</span></td>
                         </tr>
                     </tbody>
                     <tfoot class="thead-light">
                         <tr>
-                            <td colspan="2"><small class="text-muted">Net disponible RMB après transfert 20% et frais 4% (frais non remboursables)</small></td>
-                            <td class="text-right"><strong>{{ number_format($netVerse, 2, ',', ' ') }}</strong></td>
-                            <td><small class="text-muted">La caution 20% est remboursable en fin de crédit selon conditions</small></td>
+                            <td colspan="2"><small class="text-muted">Net disponible RMB après transfert caution et frais (non remboursables)</small></td>
+                            <td class="text-right"><strong class="amount-net-final">{{ number_format($netVerse, 2, ',', ' ') }}</strong></td>
+                            <td><small class="text-muted">La caution est remboursable en fin de crédit selon conditions</small></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
         </div>
 
-        <div class="alert {{ ($rmbPreconditionOk ?? false) ? 'alert-success' : 'alert-danger' }} py-2 small mb-3">
-            <div><strong>Vérification préalable RMB (24%)</strong></div>
+        <div class="alert {{ ($rmbPreconditionOk ?? false) ? 'alert-success' : 'alert-danger' }} py-2 small mb-3" id="alertRmbPrecondition">
+            <div><strong>Vérification préalable RMB (<span class="pct-provision">{{ number_format($tauxCaution + $tauxFraisTotal, 2, ',', ' ') }}</span>%)</strong></div>
             <div>
                 Compte RMB ({{ $demande->devise }}) :
                 <strong>{{ ($rmbCompteExiste ?? false) ? 'Oui' : 'Non' }}</strong>
@@ -218,7 +254,7 @@
                     | Solde actuel : <strong>{{ number_format((float) ($rmbSoldeActuel ?? 0), 2, ',', ' ') }} {{ $demande->devise }}</strong>
                 @endif
                 | Dépôt minimum requis avant déblocage :
-                <strong>{{ number_format($provisionRmbMin, 2, ',', ' ') }} {{ $demande->devise }}</strong>
+                <strong class="amount-provision-rmb">{{ number_format($provisionRmbMin, 2, ',', ' ') }}</strong> {{ $demande->devise }}
             </div>
             @if($rmbPreconditionOk ?? false)
                 <div class="mt-1"><i class="fas fa-check-circle mr-1"></i>Condition respectée: le dépôt minimum est déjà disponible.</div>
@@ -228,18 +264,19 @@
                     @if(!($rmbCompteExiste ?? false))
                         créez d'abord le compte RMB du client, puis effectuez le dépôt initial.
                     @else
-                        il manque <strong>{{ number_format((float) ($rmbMontantManquant ?? 0), 2, ',', ' ') }} {{ $demande->devise }}</strong> à déposer.
+                        il manque <strong class="amount-provision-manquant">{{ number_format((float) ($rmbMontantManquant ?? 0), 2, ',', ' ') }}</strong> {{ $demande->devise }} à déposer.
                     @endif
                 </div>
             @endif
         </div>
+
 
         <div class="form-row">
             <div class="form-group col-md-6">
                 <label>Date de déblocage <span class="text-danger">*</span></label>
                 <input type="date" name="date_deblocage" class="form-control" required
                        value="{{ old('date_deblocage', date('Y-m-d')) }}">
-                <small class="text-muted">Précondition: RMB client doit contenir au moins {{ number_format($provisionRmbMin, 2, ',', ' ') }} {{ $demande->devise }} (20% caution + 4% frais).</small>
+                <small class="text-muted">Précondition: RMB client doit contenir au moins <span class="amount-provision-inline">{{ number_format($provisionRmbMin, 2, ',', ' ') }}</span> {{ $demande->devise }} (caution + frais).</small>
             </div>
             <div class="form-group col-md-6">
                 <label>Date du 1er remboursement <span class="text-danger">*</span></label>
@@ -330,8 +367,9 @@
             <p class="mb-1 small">
                 En validant, le coffre sera débité de <strong>{{ number_format($montantTotal, 2, ',', ' ') }} {{ $demande->devise }}</strong> :
                 <strong>{{ number_format($montantTotal, 2, ',', ' ') }}</strong> entrera d'abord sur RMB,
-                puis <strong>{{ number_format($caution, 2, ',', ' ') }}</strong> seront transférés vers GTC (20% caution bloquée, bordereau imprimable),
-                et <strong>{{ number_format($fraisTotal, 2, ',', ' ') }}</strong> seront retirés du RMB comme frais <strong>non remboursables</strong> (bordereau imprimable).
+                puis <strong class="amount-caution-inline">{{ number_format($caution, 2, ',', ' ') }}</strong> seront transférés vers GTC
+                (<span class="pct-caution-inline">{{ number_format($tauxCaution, 2, ',', ' ') }}</span>% caution bloquée, bordereau imprimable),
+                et <strong class="amount-frais-inline">{{ number_format($fraisTotal, 2, ',', ' ') }}</strong> seront retirés du RMB comme frais <strong>non remboursables</strong> (bordereau imprimable).
                 Cette opération est irréversible.
             </p>
             <div class="custom-control custom-checkbox mt-2">
@@ -401,26 +439,99 @@
         color: #dc3545;
         font-weight: 700;
     }
+
+    .deblocage-breakdown-table .amount-fees-dossier,
+    .deblocage-breakdown-table .amount-fees-etude {
+        color: #dc3545;
+        font-weight: 700;
+    }
 </style>
 <script>
 (() => {
     const chk = document.getElementById('chkConfirm');
     const btn = document.getElementById('btnValider');
-    const rmbPreconditionOk = @json((bool) ($rmbPreconditionOk ?? false));
 
-    if (!chk || !btn) {
-        return;
-    }
+    const montantTotal = @json((float) $montantTotal);
+    const rmbCompteExiste = @json((bool) ($rmbCompteExiste ?? false));
+    const rmbSoldeActuel = @json((float) ($rmbSoldeActuel ?? 0));
+    const devise = @json((string) ($demande->devise ?? ''));
+
+    const fmt = (n) => Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const inpCaution = document.getElementById('inp_taux_caution');
+    const inpFraisEtude = document.getElementById('inp_taux_frais_etude');
+    const inpFraisDossier = document.getElementById('inp_taux_frais_dossier');
+
+    let rmbPreconditionOk = @json((bool) ($rmbPreconditionOk ?? false));
+
+    const recalculer = () => {
+        const tauxCaution = parseFloat(inpCaution?.value) || 0;
+        const tauxFraisEtude = parseFloat(inpFraisEtude?.value) || 0;
+        const tauxFraisDossier = parseFloat(inpFraisDossier?.value) || 0;
+        const tauxFraisTotal = tauxFraisEtude + tauxFraisDossier;
+        const tauxProvision = tauxCaution + tauxFraisTotal;
+
+        const caution = Math.round(montantTotal * tauxCaution) / 100;
+        const fraisEtude = Math.round(montantTotal * tauxFraisEtude) / 100;
+        const fraisDossier = Math.round(montantTotal * tauxFraisDossier) / 100;
+        const fraisTotal = Math.round((fraisEtude + fraisDossier) * 100) / 100;
+        const netVerse = Math.round((montantTotal - caution - fraisTotal) * 100) / 100;
+        const provisionRmbMin = Math.round(montantTotal * tauxProvision) / 100;
+        const provisionManquant = Math.max(0, provisionRmbMin - rmbSoldeActuel);
+
+        document.querySelector('.pct-caution').textContent = fmt(tauxCaution);
+        document.querySelector('.pct-frais-dossier').textContent = fmt(tauxFraisDossier);
+        document.querySelector('.pct-frais-etude').textContent = fmt(tauxFraisEtude);
+        document.querySelector('.pct-provision').textContent = fmt(tauxProvision);
+
+        document.querySelector('.amount-caution').textContent = fmt(caution);
+        document.querySelector('.amount-fees-dossier').textContent = fmt(fraisDossier);
+        document.querySelector('.amount-fees-etude').textContent = fmt(fraisEtude);
+        document.querySelector('.amount-net-final').textContent = fmt(netVerse);
+        document.querySelector('.amount-provision-rmb').textContent = fmt(provisionRmbMin);
+        document.querySelector('.amount-provision-inline').textContent = fmt(provisionRmbMin);
+        document.querySelector('.amount-caution-inline').textContent = fmt(caution);
+        document.querySelector('.pct-caution-inline').textContent = fmt(tauxCaution);
+        document.querySelector('.amount-frais-inline').textContent = fmt(fraisTotal);
+
+        const manquantEl = document.querySelector('.amount-provision-manquant');
+        if (manquantEl) {
+            manquantEl.textContent = fmt(provisionManquant);
+        }
+
+        rmbPreconditionOk = rmbCompteExiste && rmbSoldeActuel >= provisionRmbMin;
+
+        const alertBox = document.getElementById('alertRmbPrecondition');
+        if (alertBox) {
+            alertBox.classList.toggle('alert-success', rmbPreconditionOk);
+            alertBox.classList.toggle('alert-danger', !rmbPreconditionOk);
+        }
+        if (chk) {
+            chk.disabled = !rmbPreconditionOk;
+            if (!rmbPreconditionOk) {
+                chk.checked = false;
+            }
+        }
+
+        syncState();
+    };
 
     const syncState = () => {
+        if (!btn) {
+            return;
+        }
         if (!rmbPreconditionOk) {
             btn.disabled = true;
             return;
         }
-        btn.disabled = !chk.checked;
+        btn.disabled = !(chk?.checked);
     };
 
-    chk.addEventListener('change', syncState);
+    [inpCaution, inpFraisEtude, inpFraisDossier].forEach((el) => {
+        el?.addEventListener('input', recalculer);
+    });
+
+    chk?.addEventListener('change', syncState);
     syncState();
 })();
 </script>

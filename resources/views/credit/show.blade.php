@@ -259,6 +259,27 @@
                         <td>{{ $demande->frais_dossier ? number_format($demande->frais_dossier, 2, ',', ' ').' '.$demande->devise : '–' }}</td></tr>
                     <tr><th>Date soumission</th><td>{{ optional($demande->date_soumission)->format('d/m/Y') ?? '–' }}</td></tr>
                     <tr><th>Date déblocage</th><td>{{ optional($demande->date_deblocage)->format('d/m/Y') ?? '–' }}</td></tr>
+                    @if(in_array($demande->statut_global, ['DEBLOQUE','EN_REMBOURSEMENT','EN_RETARD']))
+                    <tr>
+                        <th>Prélèvement auto (RMB)</th>
+                        <td>
+                            @if($demande->prelevement_auto_autorise)
+                                <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>Autorisé</span>
+                            @else
+                                <span class="badge badge-secondary"><i class="fas fa-times-circle mr-1"></i>Non autorisé</span>
+                            @endif
+                            @if(in_array('EBEN-PER113', $userPermCodes ?? []))
+                                <form method="POST" action="{{ route('credit.prelevement_auto.toggle', $demande) }}" class="d-inline ml-1"
+                                      onsubmit="return confirm('{{ $demande->prelevement_auto_autorise ? 'Révoquer' : 'Autoriser' }} le prélèvement automatique pour ce dossier ?');">
+                                    @csrf
+                                    <button type="submit" class="btn btn-xs btn-outline-{{ $demande->prelevement_auto_autorise ? 'danger' : 'success' }}">
+                                        {{ $demande->prelevement_auto_autorise ? 'Révoquer' : 'Autoriser' }}
+                                    </button>
+                                </form>
+                            @endif
+                        </td>
+                    </tr>
+                    @endif
                 </table>
             </div>
             <div class="col-12">
@@ -566,6 +587,7 @@
                     <tr>
                         <th>#</th><th>Date</th><th>Cap. restant déb.</th>
                         <th>Capital</th><th>Intérêt</th><th>Commission</th><th>Total</th>
+                        <th>Reste dû</th>
                         <th>Cap. restant fin</th><th>Statut</th>
                     </tr>
                 </thead>
@@ -579,17 +601,32 @@
                      <td class="text-right text-danger">{{ number_format($e->montant_interet, 2, ',', ' ') }}</td>
                      <td class="text-right text-info">{{ number_format($e->montant_commission ?? 0, 2, ',', ' ') }}</td>
                      <td class="text-right font-weight-bold">{{ number_format($e->montant_total, 2, ',', ' ') }}</td>
+                     @php
+                         $montantRestantDuLigne = max(0, (float)$e->total_echeance - (float)$e->montant_paye);
+                         $dateEchStr = optional($e->date_echeance)->toDateString();
+                         $ligneEnRetardReel = in_array($e->statut, ['EN_ATTENTE', 'PARTIELLEMENT_PAYE'])
+                             && $dateEchStr && $dateEchStr < \Carbon\Carbon::today()->toDateString();
+                     @endphp
+                     <td class="text-right font-weight-bold {{ $montantRestantDuLigne > 0.01 ? 'text-danger' : 'text-success' }}">
+                         {{ number_format($montantRestantDuLigne, 2, ',', ' ') }}
+                     </td>
                      <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }}</td>
                       <td class="text-center">
                           @php
-                              $expectedStatuses = ['EN_ATTENTE', 'PAYE', 'PARTIELLEMENT_PAYE', 'EN_RETARD'];
-                              $isExpected = in_array($e->statut, $expectedStatuses);
-                              $lbl = str_replace('_',' ', $e->statut);
-                              $badgeClass = $isExpected ? 
-                                  (['EN_ATTENTE'=>'secondary','PAYE'=>'success','PARTIELLEMENT_PAYE'=>'info','EN_RETARD'=>'danger'][$e->statut] ?? 'secondary') : 
-                                  'dark';
-                              
-                              $montantRestantDu = max(0, (float)$e->total_echeance - (float)$e->montant_paye);
+                              // Badge UNIQUE et sans ambiguïté (cf. même logique que
+                              // credit/remboursement.blade.php) : le montant exact est
+                              // déjà dans "Reste dû", inutile d'empiler 2 badges.
+                              if ($e->statut === 'PAYE') {
+                                  $lbl = 'PAYE'; $badgeClass = 'success';
+                              } elseif ($ligneEnRetardReel) {
+                                  $lbl = 'EN RETARD'; $badgeClass = 'danger';
+                              } elseif ($e->statut === 'PARTIELLEMENT_PAYE') {
+                                  $lbl = 'PARTIELLEMENT'; $badgeClass = 'info';
+                              } else {
+                                  $lbl = 'EN ATTENTE'; $badgeClass = 'secondary';
+                              }
+
+                              $montantRestantDu = $montantRestantDuLigne;
                               // Bouton éclair : règlement automatique depuis le solde RMB déjà déposé
                               // par le client, sans montant à saisir ni guichet requis (aucun argent
                               // liquide n'est encaissé). Disponible pour toute échéance non soldée
@@ -599,7 +636,7 @@
                               $peutReglerAuto = $peutRemboursement && $echeanceEligibleReglementAuto && ($soldeRmb >= $montantRestantDu) && $montantRestantDu > 0;
                           @endphp
                           <span class="badge badge-{{ $badgeClass }}">{{ $lbl }}</span>
-                          
+
                           @if($peutReglerAuto)
                               <form id="form-reglement-auto-{{ $e->id }}" method="POST" action="{{ route('credit.reglement.auto.echeance', $dossier) }}" style="display:inline;">
                                   @csrf

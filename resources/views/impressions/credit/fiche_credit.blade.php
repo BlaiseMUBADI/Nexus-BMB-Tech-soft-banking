@@ -278,7 +278,18 @@
             <td class="label">Montant total echeancier</td>
             <td>{{ number_format($demande->echeancier->montant_total ?? 0, 2, ',', ' ') }} {{ $demande->devise }}</td>
             <td class="label">Echeances en retard</td>
-            <td>{{ $demande->echeancier->echeances->where('statut', 'EN_RETARD')->count() }}</td>
+            @php
+                // Inclut aussi les echeances PARTIELLEMENT_PAYE dont la date est
+                // depassee : un paiement partiel ne sort pas une echeance du
+                // retard tant qu'elle n'est pas integralement soldee.
+                $aujourdhuiFiche = \Carbon\Carbon::today()->toDateString();
+                $nbEnRetardFiche = $demande->echeancier->echeances->filter(function ($e) use ($aujourdhuiFiche) {
+                    if ($e->statut === 'EN_RETARD') return true;
+                    $d = optional($e->date_echeance)->toDateString();
+                    return $e->statut === 'PARTIELLEMENT_PAYE' && $d && $d < $aujourdhuiFiche;
+                })->count();
+            @endphp
+            <td>{{ $nbEnRetardFiche }}</td>
         </tr>
     </table>
 </div>

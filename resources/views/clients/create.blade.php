@@ -194,79 +194,12 @@
                         <div class="card-body">
                            <div class="form-row">
                               <div class="form-group col-md-4">
-                                 <label for="photo">Photo du client</label>
-                                 <div class="input-group align-items-start">
-                                    <div class="custom-file" style="max-width: 220px;">
-                                       <input type="file" class="custom-file-input" id="photo" name="photo"
-                                          accept="image/*">
-                                       <label class="custom-file-label" for="photo">Choisir une photo</label>
-                                    </div>
-                                    <div id="photo-preview-panel" style="margin-left:15px; display:none;">
-                                       <img id="photo-preview" src="#" alt="Aperçu"
-                                          style="max-width:150px; max-height:150px; border:1px solid #ccc; border-radius:6px; background:#f8f9fa;" />
-                                       <div id="photo-error" style="color:#dc3545; font-size:0.9em; margin-top:4px;"></div>
-                                    </div>
-                                 </div>
+                                 <label>Photo du client</label>
+                                 @include('partials.photo_cropper', ['inputName' => 'photo'])
                               </div>
                            </div>
                         </div>
                      </div>
-
-                     @push('js')
-                        <script>
-                           document.addEventListener('DOMContentLoaded', function () {
-                              const input = document.getElementById('photo');
-                              const previewPanel = document.getElementById('photo-preview-panel');
-                              const preview = document.getElementById('photo-preview');
-                              const errorDiv = document.getElementById('photo-error');
-                              input.addEventListener('change', function (e) {
-                                 errorDiv.textContent = '';
-                                 previewPanel.style.display = 'none';
-                                 if (!input.files || !input.files[0]) return;
-                                 const file = input.files[0];
-                                 if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
-                                    errorDiv.textContent = 'Le format de la photo doit être JPEG, PNG ou GIF.';
-                                    input.value = '';
-                                    return;
-                                 }
-                                 const img = new window.Image();
-                                 const reader = new FileReader();
-                                 reader.onload = function (ev) {
-                                    img.onload = function () {
-                                       let width = img.width;
-                                       let height = img.height;
-                                       const maxDim = 600;
-                                       if (width > maxDim || height > maxDim) {
-                                          if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
-                                          else { width = Math.round(width * maxDim / height); height = maxDim; }
-                                       }
-                                       const canvas = document.createElement('canvas');
-                                       canvas.width = width; canvas.height = height;
-                                       canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                                       let mime = file.type;
-                                       let dataUrl = (mime === 'image/jpeg') ? canvas.toDataURL('image/jpeg', 0.8)
-                                          : (mime === 'image/png') ? canvas.toDataURL('image/png')
-                                             : ev.target.result;
-                                       preview.src = dataUrl;
-                                       previewPanel.style.display = 'block';
-                                       fetch(dataUrl).then(r => r.arrayBuffer()).then(buf => {
-                                          const ext = mime.split('/')[1];
-                                          const newFile = new File([buf], file.name.replace(/\.[^.]+$/, '.' + ext), { type: mime });
-                                          if (newFile.size > 1 * 1024 * 1024) {
-                                             errorDiv.textContent = 'La taille de la photo redimensionnée dépasse 1 Mo.';
-                                             input.value = ''; previewPanel.style.display = 'none'; return;
-                                          }
-                                          const dt = new DataTransfer(); dt.items.add(newFile); input.files = dt.files;
-                                       });
-                                    };
-                                    img.onerror = function () { errorDiv.textContent = "Impossible de lire l'image."; input.value = ''; };
-                                    img.src = ev.target.result;
-                                 };
-                                 reader.readAsDataURL(file);
-                              });
-                           });
-                        </script>
-                     @endpush
 
 
 

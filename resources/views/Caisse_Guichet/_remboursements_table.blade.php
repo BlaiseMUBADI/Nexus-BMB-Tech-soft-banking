@@ -27,8 +27,8 @@
                                 $totalDu = $dossier->montant_total_echeances ?? $dossier->montant_approuve;
                                 $resteDu = max(0, $totalDu - $totalRembourse);
                                 $devise = $dossier->devise ?? 'CDF';
-                                $prochaineEcheance = $dossier->echeancier && $dossier->echeancier->echeances->whereIn('statut', ['EN_ATTENTE','EN_RETARD'])->isNotEmpty()
-                                    ? $dossier->echeancier->echeances()->whereIn('statut', ['EN_ATTENTE','EN_RETARD'])->orderBy('numero_echeance')->first()->date_echeance->format('d/m/Y')
+                                $prochaineEcheance = $dossier->echeancier && $dossier->echeancier->echeances->whereIn('statut', ['EN_ATTENTE','EN_RETARD','PARTIELLEMENT_PAYE'])->isNotEmpty()
+                                    ? $dossier->echeancier->echeances()->whereIn('statut', ['EN_ATTENTE','EN_RETARD','PARTIELLEMENT_PAYE'])->orderBy('numero_echeance')->first()->date_echeance->format('d/m/Y')
                                     : '—';
                             @endphp
                             <tr>

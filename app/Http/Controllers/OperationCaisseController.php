@@ -141,7 +141,7 @@ class OperationCaisseController extends Controller
         return Transaction::allowedTypesForGuichetType($guichet?->type_guichet);
     }
 
-    private function getOperationTypeOptions(?CaissesGuichet $guichet): array
+    private function getOperationTypeOptions(?CaissesGuichet $guichet, ?\App\Models\User $user = null): array
     {
         $labels = [
             Transaction::DEPOT => '💰 Dépôt (compte client)',
@@ -152,7 +152,7 @@ class OperationCaisseController extends Controller
             Transaction::VIREMENT => '🔁 Virement',
         ];
 
-        return collect(Transaction::operationTypeOptions($guichet?->type_guichet))
+        $options = collect(Transaction::operationTypeOptions($guichet?->type_guichet))
             ->reject(fn ($type) => in_array($type['value'], [
                 Transaction::REMBOURSEMENT,
                 Transaction::DEPENSE,
@@ -162,8 +162,21 @@ class OperationCaisseController extends Controller
                 'value' => $type['value'],
                 'label' => $labels[$type['value']] ?? $type['label'],
             ])
-            ->values()
-            ->all();
+            ->values();
+
+        // ── "Frais carte membre" — pseudo-type virtuel (stocké en base comme
+        // PAIEMENT + client_matricule), affiché uniquement là où PAIEMENT est
+        // lui-même autorisé (jamais sur guichet MOBILE) et si l'agent a la
+        // permission dédiée EBEN-PER122.
+        $paiementAutorise = $options->contains(fn ($o) => $o['value'] === Transaction::PAIEMENT);
+        if ($paiementAutorise && ($user === null || $user->hasPermission('EBEN-PER122'))) {
+            $options->push([
+                'value' => 'FRAIS_CARTE',
+                'label' => '🎫 Frais carte membre',
+            ]);
+        }
+
+        return $options->values()->all();
     }
 
     private function getOperationTypeFilterOptions(?CaissesGuichet $guichet): array
@@ -276,7 +289,7 @@ class OperationCaisseController extends Controller
             'zone_label' => $zoneScope['zone_label'] ?? '',
         ];
 
-        $operationTypeOptions = $this->getOperationTypeOptions($guichet);
+        $operationTypeOptions = $this->getOperationTypeOptions($guichet, $user);
 
         // ══════════════════════════════════════════════════════════════
         // Permission annulation bancaire : EBEN-PER25 (transactions)
@@ -308,21 +321,32 @@ class OperationCaisseController extends Controller
 
         $allowedTypes = $this->getAllowedOperationTypes($guichet);
 
+        // ── "Frais carte membre" — pseudo-type virtuel (stocké en base comme
+        // PAIEMENT + client_matricule). Autorisé seulement si PAIEMENT est lui
+        // même permis pour ce guichet et si l'agent a la permission EBEN-PER122.
+        $isFraisCarte = $request->input('type_operation') === 'FRAIS_CARTE';
+        if (in_array(Transaction::PAIEMENT, $allowedTypes, true) && $user->hasPermission('EBEN-PER122')) {
+            $allowedTypes[] = 'FRAIS_CARTE';
+        }
+
         $request->validate([
-            'type_operation' => ['required', Rule::in($allowedTypes)],
-            'devise_code'    => 'required|exists:tb_devises,code_iso',
-            'montant'        => 'required|numeric|min:0.01',
-            'observations'   => 'nullable|string|max:500',
-            'compte_code'    => 'required_if:type_operation,DEPOT,RETRAIT|nullable|exists:tb_comptes,code_compte',
-            'devise_dest'    => 'required_if:type_operation,CHANGE|nullable|exists:tb_devises,code_iso|different:devise_code',
+            'type_operation'   => ['required', Rule::in($allowedTypes)],
+            'devise_code'      => 'required|exists:tb_devises,code_iso',
+            'montant'          => 'required|numeric|min:0.01',
+            'observations'     => 'nullable|string|max:500',
+            'compte_code'      => 'required_if:type_operation,DEPOT,RETRAIT|nullable|exists:tb_comptes,code_compte',
+            'devise_dest'      => 'required_if:type_operation,CHANGE|nullable|exists:tb_devises,code_iso|different:devise_code',
+            'client_matricule' => 'required_if:type_operation,FRAIS_CARTE|nullable|exists:tb_clients,matricule',
         ], [
-            'type_operation.in'        => $guichet->type_guichet === 'MOBILE'
+            'type_operation.in'          => $guichet->type_guichet === 'MOBILE'
                 ? 'Sur un guichet mobile, seules les opérations de dépôt et de change sont autorisées.'
                 : 'Type d\'opération invalide.',
-            'compte_code.required_if'  => 'Le compte client est obligatoire pour un dépôt ou un retrait.',
-            'compte_code.exists'       => 'Le numéro de compte est introuvable.',
-            'devise_dest.required_if'  => 'La devise de destination est obligatoire pour un change.',
-            'devise_dest.different'    => 'Les deux devises doivent être différentes.',
+            'compte_code.required_if'    => 'Le compte client est obligatoire pour un dépôt ou un retrait.',
+            'compte_code.exists'         => 'Le numéro de compte est introuvable.',
+            'devise_dest.required_if'    => 'La devise de destination est obligatoire pour un change.',
+            'devise_dest.different'      => 'Les deux devises doivent être différentes.',
+            'client_matricule.required_if' => 'Le client est obligatoire pour un frais de carte membre.',
+            'client_matricule.exists'      => 'Client introuvable.',
         ]);
         // NOTE : montant_dest et taux_change ne sont plus saisis librement par le caissier.
         // Ils sont désormais calculés automatiquement à partir du taux de change ACTIF
@@ -338,10 +362,43 @@ class OperationCaisseController extends Controller
             return response()->json(['success' => false, 'message' => $msg], 422);
         }
 
-        $type    = $request->type_operation;
+        // "FRAIS_CARTE" est virtuel : stocké en base comme un PAIEMENT classique.
+        $type    = $isFraisCarte ? Transaction::PAIEMENT : $request->type_operation;
         $montant = (float) $request->montant;
         $devise  = $request->devise_code;
         $zoneScope = $this->resolveZoneScope();
+
+        $clientCarteCible = null;
+        if ($isFraisCarte) {
+            $clientCarteCible = \App\Models\Clients\Client::where('matricule', $request->client_matricule)->first();
+            if (!$clientCarteCible) {
+                return response()->json(['success' => false, 'message' => 'Client introuvable.'], 422);
+            }
+
+            $dejaEnAttente = \App\Models\Clients\ClientCarte::where('client_matricule', $clientCarteCible->matricule)
+                ->where('statut', '!=', \App\Models\Clients\ClientCarte::REVOQUEE)
+                ->exists();
+            if ($dejaEnAttente) {
+                return response()->json(['success' => false, 'message' => 'Ce client a déjà une carte membre payée ou imprimée.'], 422);
+            }
+
+            $ruleCarteMembre = $commissionEngine->resolveRule([
+                'code_operation' => 'CARTE_MEMBRE',
+                'type_compte' => CommissionRule::ALL,
+                'type_guichet' => strtoupper((string) $guichet->type_guichet),
+                'devise_code' => $devise,
+            ]);
+            if (!$ruleCarteMembre) {
+                return response()->json(['success' => false, 'message' => "Aucun frais de carte membre n'est configuré pour {$devise} (Trésorerie > Commissions)."], 422);
+            }
+
+            // Le montant de cette operation est TOUJOURS le frais configure — pas de saisie libre,
+            // meme si un montant différent a été transmis par erreur/manipulation du formulaire.
+            $montant = $commissionEngine->calculateCommission($ruleCarteMembre, 0);
+            if ($montant <= 0) {
+                return response()->json(['success' => false, 'message' => 'Le frais de carte membre configuré est invalide (montant nul).'], 422);
+            }
+        }
 
         $compteOperation = null;
         if (in_array($type, [Transaction::DEPOT, Transaction::RETRAIT], true)) {
@@ -362,18 +419,49 @@ class OperationCaisseController extends Controller
                     'message' => 'Accès refusé : ce compte client est hors de votre zone affectée.',
                 ], 403);
             }
+
+            // ── Garde serveur : reprend la meme regle que searchCompte() pour
+            // empecher une soumission directe (hors autocomplete) sur un GTC.
+            if ($compteOperation->type === 'GTC') {
+                $guichetTypeGtc = strtoupper((string) ($guichet?->type_guichet));
+                if ($guichetTypeGtc === 'MOBILE') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Les comptes de garantie (GTC) ne sont pas accessibles depuis un guichet mobile.",
+                    ], 403);
+                }
+
+                $creditSolde = \App\Models\Credit\CreditDemande::where('client_matricule', $compteOperation->client_matricule)
+                    ->where('devise', $compteOperation->devise)
+                    ->where('statut_global', 'SOLDE')
+                    ->exists();
+
+                if (!$creditSolde) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Ce compte de garantie (GTC) est bloqué : il n'est accessible qu'après solde complet du crédit associé.",
+                    ], 403);
+                }
+            }
         }
 
-        $commissionContext = $this->buildCommissionContext(
-            $type,
-            $compteOperation,
-            $guichet,
-            $devise,
-            $montant,
-            $user->agent_matricule
-        );
+        // Frais carte membre : le montant EST déjà le frais (pas de commission additionnelle
+        // au-dessus) — on n'exécute pas le moteur de commission générique pour ce pseudo-type.
+        if ($isFraisCarte) {
+            $commissionContext = [];
+            $commissionPreviewAmount = 0.0;
+        } else {
+            $commissionContext = $this->buildCommissionContext(
+                $type,
+                $compteOperation,
+                $guichet,
+                $devise,
+                $montant,
+                $user->agent_matricule
+            );
 
-        $commissionPreviewAmount = $this->previewCommissionAmount($commissionEngine, $commissionContext);
+            $commissionPreviewAmount = $this->previewCommissionAmount($commissionEngine, $commissionContext);
+        }
         $compteImpact = $this->computeCompteImpact($type, $montant, $commissionPreviewAmount);
         $soldeCompteAvant = $compteOperation ? (float) $compteOperation->solde_reel : null;
 
@@ -474,7 +562,7 @@ class OperationCaisseController extends Controller
         $finalCompteDelta = (float) $compteImpact['delta'];
 
         try {
-            DB::transaction(function () use ($request, $guichet, $user, $type, $montant, $devise, $reference, $commissionEngine, $accountingService, $compteOperation, $commissionContext, $commissionPreviewAmount, $soldeCompteAvant, &$soldeCompteApres, &$finalCompteDelta, &$transaction, &$commissionSnapshot, $tauxChangeApplique, $montantDestCalcule) {
+            DB::transaction(function () use ($request, $guichet, $user, $type, $montant, $devise, $reference, $commissionEngine, $accountingService, $compteOperation, $commissionContext, $commissionPreviewAmount, $soldeCompteAvant, &$soldeCompteApres, &$finalCompteDelta, &$transaction, &$commissionSnapshot, $tauxChangeApplique, $montantDestCalcule, $isFraisCarte, $clientCarteCible) {
 
                 // 1. Enregistrer l'opération
                 $transaction = Transaction::create([
@@ -484,6 +572,7 @@ class OperationCaisseController extends Controller
                     'compte_code'     => in_array($type, [Transaction::DEPOT, Transaction::RETRAIT])
                                             ? $request->compte_code
                                             : null,
+                    'client_matricule' => $isFraisCarte ? $clientCarteCible->matricule : null,
                     'type'            => $type,
                     'devise_code'     => $devise,
                     'montant'         => $montant,
@@ -552,9 +641,15 @@ class OperationCaisseController extends Controller
                         break;
                 }
 
-                $commissionSnapshot = $commissionEngine->applyToTransaction($transaction, $commissionContext);
-
-                $commissionFinale = (float) ($commissionSnapshot?->montant_commission ?? 0);
+                // Frais carte membre : le montant est déjà le frais lui-même — aucun moteur de
+                // commission générique à appliquer par-dessus (éviterait un double comptage).
+                if ($isFraisCarte) {
+                    $commissionSnapshot = null;
+                    $commissionFinale = 0.0;
+                } else {
+                    $commissionSnapshot = $commissionEngine->applyToTransaction($transaction, $commissionContext);
+                    $commissionFinale = (float) ($commissionSnapshot?->montant_commission ?? 0);
+                }
                 $ecartCommission = round($commissionFinale - $commissionPreviewAmount, 2);
 
                 if (in_array($type, [Transaction::DEPOT, Transaction::RETRAIT], true) && $compteOperation && $ecartCommission !== 0.0) {
@@ -586,6 +681,8 @@ class OperationCaisseController extends Controller
                 $accountingService->postTransaction($transaction, [
                     'commission' => $commissionFinale,
                     'agent_matricule' => $user->agent_matricule,
+                    'compte_produit' => $isFraisCarte ? '7072' : null,
+                    'libelle_produit' => $isFraisCarte ? 'Produit - frais carte membre' : null,
                     'commission_trace' => [
                         'snapshot_id' => $commissionSnapshot?->id,
                         'rule_id' => $commissionSnapshot?->commission_rule_id,
@@ -597,6 +694,22 @@ class OperationCaisseController extends Controller
                         'has_rule' => (bool) ($commissionSnapshot?->commission_rule_id),
                     ],
                 ]);
+
+                // Frais carte membre : créer l'enregistrement de carte PAYEE
+                // (aucune commission additionnelle au-dessus du frais configuré).
+                if ($isFraisCarte) {
+                    \App\Models\Clients\ClientCarte::create([
+                        'client_matricule' => $clientCarteCible->matricule,
+                        'transaction_id' => $transaction->id,
+                        'montant_paye' => $montant,
+                        'devise_code' => $devise,
+                        'token_verification' => \App\Models\Clients\ClientCarte::genererToken(),
+                        'statut' => \App\Models\Clients\ClientCarte::PAYEE,
+                        'agent_encaissement_matricule' => $user->agent_matricule,
+                        'guichet_id' => $guichet->id,
+                        'observations' => $request->observations,
+                    ]);
+                }
             });
 
             // Dispatcher l'événement pour traitement automatique du remboursement crédit
@@ -881,6 +994,29 @@ class OperationCaisseController extends Controller
                       });
             });
 
+        // ── Visibilite des comptes GTC (caution bloquee) en depot/retrait ──
+        // - Guichet MOBILE : jamais visible (compte de garantie, jamais manipule sur le terrain).
+        // - Guichet FIXE/CENTRAL : visible uniquement si un credit du client (meme devise)
+        //   est SOLDE — c'est-a-dire quand la caution peut legitimement etre retiree.
+        $guichetType = strtoupper((string) ($this->getGuichetAgent()?->type_guichet));
+        if ($guichetType === 'MOBILE') {
+            $query->where('type', '!=', 'GTC');
+        } else {
+            $query->where(function ($query) {
+                $query->where('type', '!=', 'GTC')
+                    ->orWhere(function ($query) {
+                        $query->where('type', 'GTC')
+                            ->whereExists(function ($sub) {
+                                $sub->select('id')
+                                    ->from('tb_credit_demandes')
+                                    ->whereColumn('tb_credit_demandes.client_matricule', 'tb_comptes.client_matricule')
+                                    ->whereColumn('tb_credit_demandes.devise', 'tb_comptes.devise')
+                                    ->where('tb_credit_demandes.statut_global', 'SOLDE');
+                            });
+                    });
+            });
+        }
+
         $this->applyZoneScopeToComptes($query, $zoneScope);
 
         $comptes = $query
@@ -894,6 +1030,42 @@ class OperationCaisseController extends Controller
             ]);
 
         return response()->json($comptes);
+    }
+
+    /**
+     * Recherche un client par nom ou matricule (sans compte).
+     * Utilisé par le formulaire de saisie pour l'opération "Frais carte membre".
+     */
+    public function searchClient(Request $request)
+    {
+        $q = trim($request->input('q', ''));
+        if (strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $zoneScope = $this->resolveZoneScope();
+
+        $query = \App\Models\Clients\Client::query()
+            ->where(function ($query) use ($q) {
+                $query->searchFullName($q)
+                    ->orWhere('nom', 'like', "%{$q}%")
+                    ->orWhere('postnom', 'like', "%{$q}%")
+                    ->orWhere('prenom', 'like', "%{$q}%")
+                    ->orWhere('matricule', 'like', "%{$q}%")
+                    ->orWhere('telephone', 'like', "%{$q}%");
+            });
+
+        if (!empty($zoneScope['restricted']) && !empty($zoneScope['zone_codes'])) {
+            $query->whereIn('code_zone', $zoneScope['zone_codes']);
+        }
+
+        $clients = $query->limit(10)->get()->map(fn ($c) => [
+            'matricule' => $c->matricule,
+            'full_name' => $c->full_name,
+            'telephone' => $c->telephone,
+        ]);
+
+        return response()->json($clients);
     }
 
     /**
@@ -1928,6 +2100,58 @@ class OperationCaisseController extends Controller
                     $nouveauMontant = (float) $demande->nouveau_montant;
                     $diff           = $nouveauMontant - $ancienMontant;
                     $devise         = $op->devise_code;
+
+                    // ── Re-validation des soldes avant application de la modification ──
+                    // Un supplément de retrait/remboursement ne doit jamais dépasser les
+                    // espèces réellement disponibles au guichet.
+                    if ($diff > 0 && in_array($op->type, [Transaction::RETRAIT, Transaction::REMBOURSEMENT], true)) {
+                        $soldeGuichetActuel = (float) (CaissesGuichetSolde::where('guichet_id', $op->guichet_id)
+                            ->where('devise_code', $devise)
+                            ->value('solde_en_caisse') ?? 0);
+
+                        if ($soldeGuichetActuel < $diff) {
+                            throw new \RuntimeException(
+                                "Solde guichet insuffisant en {$devise} pour appliquer cette modification. "
+                                . "Disponible : " . number_format($soldeGuichetActuel, 2, ',', ' ') . " {$devise}. "
+                                . "Supplement requis : " . number_format($diff, 2, ',', ' ') . " {$devise}."
+                            );
+                        }
+                    }
+
+                    // Un supplément de retrait ne doit jamais dépasser le solde disponible
+                    // du compte client (solde réel - solde bloqué).
+                    if ($op->type === Transaction::RETRAIT && $op->compte_code) {
+                        $compteAvantAjustement = Compte::where('code_compte', $op->compte_code)->first();
+                        if ($compteAvantAjustement) {
+                            $ancienneCommissionCheck = (float) ($op->montant_commission_total ?? 0);
+                            $totalDebiteClientAncien = $op->montant_total_client !== null
+                                ? abs((float) $op->montant_total_client)
+                                : round($ancienMontant + $ancienneCommissionCheck, 2);
+
+                            $impactPreviewCheck = $this->computeCompteImpact($op->type, $nouveauMontant, $ancienneCommissionCheck);
+                            $totalDebiteClientNouveau = (float) $impactPreviewCheck['total_client'];
+
+                            $supplementDebiteClient = round($totalDebiteClientNouveau - $totalDebiteClientAncien, 2);
+
+                            if ($supplementDebiteClient > 0) {
+                                $soldeDisponibleClient = round(
+                                    (float) $compteAvantAjustement->solde_reel - (float) ($compteAvantAjustement->solde_bloque ?? 0),
+                                    2
+                                );
+
+                                if ($soldeDisponibleClient < $supplementDebiteClient) {
+                                    throw new \RuntimeException(
+                                        'Solde compte insuffisant pour appliquer cette modification. Disponible sur le compte '
+                                        . $compteAvantAjustement->code_compte . ' : '
+                                        . number_format($soldeDisponibleClient, 2, ',', ' ')
+                                        . ' ' . $compteAvantAjustement->devise . '. Supplement requis (avec commission) : '
+                                        . number_format($supplementDebiteClient, 2, ',', ' ')
+                                        . ' ' . $compteAvantAjustement->devise . '.'
+                                    );
+                                }
+                            }
+                        }
+                    }
 
                     $accountingService->postReversal($op, 'Regularisation avant modification', [
                         'montant' => $ancienMontant,

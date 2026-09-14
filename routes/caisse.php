@@ -17,12 +17,14 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
        
         Route::get('operations',                        [OperationCaisseController::class, 'index'])->name('operations.index');
         Route::get('operations/comptes/search',         [OperationCaisseController::class, 'searchCompte'])->name('operations.comptes.search');
+        Route::get('operations/clients/search',         [OperationCaisseController::class, 'searchClient'])->name('operations.searchClient');
         Route::get('operations/commission-preview',      [OperationCaisseController::class, 'commissionPreview'])->name('operations.commission.preview');
 
         // ── Opérations Administratives : Dépenses (Sorties) + Recettes (Entrées) OHADA ──
         Route::get('operations-administratives', [OperationAdministrativeController::class, 'index'])->name('operations-administratives.index');
         Route::get('depenses/{id}/recu', [DepenseController::class, 'recu'])->name('depenses.recu');
         Route::get('recettes/{id}/recu', [RecetteController::class, 'recu'])->name('recettes.recu');
+        Route::get('recettes/frais-carte-membre', [RecetteController::class, 'fraisCarteMembre'])->name('recettes.frais-carte-membre');
     });
 
     // Saisie / annulation : permission dédiée EBEN-PER114
@@ -33,7 +35,13 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
         Route::post('recettes/{id}/annuler', [RecetteController::class, 'annuler'])->name('recettes.annuler');
     });
 
-    Route::middleware('permission:EBEN-PER10')->group(function () {
+    // EBEN-PER110 : permission dédiée "Voir rapport journalier caisse/guichet",
+    // créée pour cet usage précis mais jamais câblée jusqu'ici (orpheline —
+    // corrigé lors de l'audit du 2026-09-08). En OR avec EBEN-PER10 : les
+    // détenteurs actuels du bloc caisse complet gardent l'accès, et PER110
+    // permet désormais d'accorder UNIQUEMENT la consultation du journal/
+    // rapport sans donner tout le reste des opérations de caisse.
+    Route::middleware('permission:EBEN-PER10|EBEN-PER110')->group(function () {
         Route::get('operations/journal',      [OperationCaisseController::class, 'journalPage'])->name('journal.page');
         Route::get('operations/journal/data', [OperationCaisseController::class, 'journal'])->name('journal.data');
         Route::get('operations/journal/print', [OperationCaisseController::class, 'printJournal'])->name('journal.print');

@@ -50,11 +50,21 @@ Route::middleware(['auth', 'permission:EBEN-PER44'])->prefix('tresorerie')->grou
     
     
     //Route::get('/coffre',                [TresorerieController::class, 'index'])->name('tresorerie.coffre.index');
-    Route::get('/etat-coffre',    [TresorerieController::class, 'etat_coffre'])->name('tresorerie.etat-coffre');
-    Route::get('/approvisionnement', [TresorerieController::class, 'interfaceApprovisionnement'])->name('tresorerie.approvisionnement');
-    Route::get('/intercaisse', [TresorerieController::class, 'interfaceApprovisionnement'])->name('tresorerie.intercaisse');
-    
-    Route::get('/commissions', [TresorerieController::class, 'commissions'])->name('tresorerie.commissions.index');
+    // ── Chaque bloc du menu Trésorerie exige désormais SA propre permission,
+    // en plus du portail global EBEN-PER44 déjà requis sur tout ce groupe.
+    Route::get('/etat-coffre', [TresorerieController::class, 'etat_coffre'])
+        ->middleware('permission:EBEN-PER124')
+        ->name('tresorerie.etat-coffre');
+    Route::get('/approvisionnement', [TresorerieController::class, 'interfaceApprovisionnement'])
+        ->middleware('permission:EBEN-PER125')
+        ->name('tresorerie.approvisionnement');
+    Route::get('/intercaisse', [TresorerieController::class, 'interfaceApprovisionnement'])
+        ->middleware('permission:EBEN-PER125')
+        ->name('tresorerie.intercaisse');
+
+    Route::get('/commissions', [TresorerieController::class, 'commissions'])
+        ->middleware('permission:EBEN-PER126')
+        ->name('tresorerie.commissions.index');
     Route::post('/commissions', [TresorerieController::class, 'storeCommission'])
         ->middleware('permission:EBEN-PER77')
         ->name('tresorerie.commissions.store');

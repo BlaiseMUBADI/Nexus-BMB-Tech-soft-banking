@@ -9,6 +9,7 @@ use App\Http\Controllers\Administration\GuichetController;
 use App\Http\Controllers\Administration\RolesPermissionsController;
 use App\Http\Controllers\Administration\SmsTestController;
 use App\Http\Controllers\Administration\AuditLogController;
+use App\Http\Controllers\Administration\ParametresController;
 
 Route::middleware('auth')->prefix('administration')->group(function () {
 
@@ -16,6 +17,15 @@ Route::middleware('auth')->prefix('administration')->group(function () {
     Route::middleware('permission:EBEN-PER42')->group(function () {
         Route::get('/journal-activite', [AuditLogController::class, 'index'])->name('administration.journal_activite');
     });
+
+    // Paramètres généraux (signature du gérant, etc.) — permission EBEN-PER1
+    Route::middleware('permission:EBEN-PER1')->group(function () {
+        Route::get('/parametres',                  [ParametresController::class, 'edit'])->name('administration.parametres.edit');
+        Route::post('/parametres/signature',        [ParametresController::class, 'updateSignature'])->name('administration.parametres.signature.update');
+        Route::delete('/parametres/signature',      [ParametresController::class, 'removeSignature'])->name('administration.parametres.signature.destroy');
+    });
+    // Image servie sans permission dédiée (comme clients.photo) — utilisée dans les vues imprimées.
+    Route::get('/parametres/signature/{filename}', [ParametresController::class, 'signature'])->name('administration.parametres.signature');
 
     
     Route::middleware('permission:EBEN-PER1')->group(function () {

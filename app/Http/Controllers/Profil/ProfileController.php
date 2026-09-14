@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Profil;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\RH\Agent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
@@ -64,7 +66,40 @@ class ProfileController extends Controller
     }
 
     /**
-     * Met à jour les informations du compte (nom + email) ou le mot de passe.
+     * Sert la photo de l'agent CONNECTÉ (voir le commentaire de la route
+     * profile.photo) — jamais celle d'un autre agent, ce qui rend inutile
+     * toute vérification de permission RH ici.
+     */
+    public function photo(Request $request, $filename)
+    {
+        $user = $request->user();
+        $agent = $user->agent;
+
+        if (!$agent || !$agent->photo || basename($agent->photo) !== $filename) {
+            abort(404);
+        }
+
+        // base_path (pas public_path) : même convention que AgentController::photo()
+        // (utilisé par la barre de navigation et le module RH) — les deux DOIVENT
+        // pointer vers le même dossier physique sous peine d'images introuvables.
+        $path = base_path('images_projet/' . $agent->photo);
+        if (!file_exists($path)) {
+            abort(404);
+        }
+
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+        return response()->file($path, [
+            'Content-Type' => mime_content_type($path),
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Length' => filesize($path),
+        ]);
+    }
+
+    /**
+     * Met à jour les informations du compte (nom + email), le mot de passe
+     * ou la photo de profil.
      */
     public function update(Request $request): RedirectResponse
     {
@@ -85,6 +120,92 @@ class ProfileController extends Controller
             $user->save();
 
             return redirect()->route('profile.edit')->with('status', 'password-updated');
+        }
+
+        // ── Changement de photo ─────────────────────────────────
+        // Le fichier reçu ici est déjà cadré/redimensionné en carré côté
+        // navigateur (Cropper.js, cf. profile/edit.blade.php) : le
+        // redimensionnement GD ci-dessous ne fait plus que garantir une
+        // taille maximale raisonnable (400px) et re-compresser en JPEG,
+        // même si le JS a été contourné (repli robuste).
+        if ($request->filled('_change_photo')) {
+            $request->validate([
+                'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
+            ]);
+
+            $agent = $user->agent;
+            if (!$agent) {
+                return redirect()->route('profile.edit')->with('error', 'Aucun dossier agent lié à ce compte.');
+            }
+
+            if ($request->hasFile('photo')) {
+                try {
+                    $image = $request->file('photo');
+
+                    $srcPath = $image->getRealPath();
+                    $info = getimagesize($srcPath);
+                    if ($info === false) {
+                        throw new \Exception('Fichier image invalide.');
+                    }
+                    [$width, $height] = $info;
+                    $maxDim = 400;
+                    $ratio = min($maxDim / $width, $maxDim / $height, 1);
+                    $newWidth = (int) ($width * $ratio);
+                    $newHeight = (int) ($height * $ratio);
+
+                    switch ($info[2]) {
+                        case IMAGETYPE_JPEG:
+                            $srcImg = imagecreatefromjpeg($srcPath);
+                            break;
+                        case IMAGETYPE_PNG:
+                            $srcImg = imagecreatefrompng($srcPath);
+                            break;
+                        case IMAGETYPE_GIF:
+                            $srcImg = imagecreatefromgif($srcPath);
+                            break;
+                        case IMAGETYPE_WEBP:
+                            $srcImg = function_exists('imagecreatefromwebp') ? imagecreatefromwebp($srcPath) : false;
+                            if (!$srcImg) {
+                                throw new \Exception('Format WebP non supporté par ce serveur.');
+                            }
+                            break;
+                        default:
+                            throw new \Exception("Format d'image non supporté.");
+                    }
+
+                    $dstImg = imagecreatetruecolor($newWidth, $newHeight);
+                    imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+                    $imageName = time() . '_' . uniqid() . '.jpg';
+                    // base_path (pas public_path) : même dossier physique que
+                    // AgentController::photo() (barre de navigation, module RH) —
+                    // sinon la photo s'enregistre mais reste invisible partout
+                    // ailleurs que sur la page Profil elle-même.
+                    $destinationPath = base_path('images_projet/agents');
+                    if (!file_exists($destinationPath)) {
+                        mkdir($destinationPath, 0755, true);
+                    }
+                    $savePath = $destinationPath . DIRECTORY_SEPARATOR . $imageName;
+                    imagejpeg($dstImg, $savePath, 85);
+                    imagedestroy($srcImg);
+                    imagedestroy($dstImg);
+
+                    // Verrou sur la ligne agent pendant la bascule ancienne/nouvelle
+                    // photo, pour éviter toute incohérence en cas de double-soumission.
+                    DB::transaction(function () use ($agent, $imageName) {
+                        $lockedAgent = Agent::where('matricule', $agent->matricule)->lockForUpdate()->first();
+                        if ($lockedAgent && $lockedAgent->photo && file_exists(base_path('images_projet/' . $lockedAgent->photo))) {
+                            @unlink(base_path('images_projet/' . $lockedAgent->photo));
+                        }
+                        $lockedAgent?->update(['photo' => 'agents/' . $imageName]);
+                    });
+                } catch (\Exception $e) {
+                    Log::error('Erreur upload photo profil: ' . $e->getMessage());
+                    return back()->withErrors(['photo' => "Erreur lors de l'upload de la photo : " . $e->getMessage()])->withInput();
+                }
+            }
+
+            return redirect()->route('profile.edit')->with('status', 'photo-updated');
         }
 
         // ── Mise à jour nom + email ────────────────────────────

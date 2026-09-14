@@ -377,20 +377,9 @@
         <ul>
             @if($canPrintDocuments ?? true)
                 <li><a href="#" class="ctx-item" id="ctxRIB"><i class="fas fa-file-alt"></i> Imprimer RIB / IBAN</a></li>
-                <li><a href="#" class="ctx-item"><i class="fas fa-file-contract"></i> Convention de compte</a></li>
-                <li><a href="#" class="ctx-item"><i class="fas fa-certificate"></i> Certificat d'ouverture</a></li>
                 <li><a href="#" class="ctx-item" id="ctxReleve"><i class="fas fa-list-alt text-success"></i> Relevé bancaire</a></li>
             @endif
             <li><a href="#" class="ctx-item" id="ctxHistorique"><i class="fas fa-history text-primary"></i> Historique des mouvements</a></li>
-            @if($canPrintDocuments ?? true)
-                <li><a href="#" class="ctx-item"><i class="fas fa-receipt"></i> Avis d'opération</a></li>
-                <li><a href="#" class="ctx-item"><i class="fas fa-chart-line"></i> Échelle d'intérêts</a></li>
-                <li><a href="#" class="ctx-item"><i class="fas fa-table"></i> Tableau d'amortissement</a></li>
-                <li><a href="#" class="ctx-item"><i class="fas fa-balance-scale"></i> Attestation de solde</a></li>
-                <li><a href="#" class="ctx-item"><i class="fas fa-check-circle"></i> Attestation de non-redevance</a></li>
-                <li><a href="#" class="ctx-item"><i class="fas fa-id-card"></i> Fiche client (KYC)</a></li>
-                <li><a href="#" class="ctx-item"><i class="fas fa-pen-nib"></i> Spécimen de signature</a></li>
-            @endif
         </ul>
     </div>
 </div>

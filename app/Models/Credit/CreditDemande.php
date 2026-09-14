@@ -32,6 +32,9 @@ class CreditDemande extends Model
         'montant_total_echeances',
         'total_interets',
         'commission_totale',
+        'pourcentage_caution',
+        'pourcentage_frais_dossier',
+        'pourcentage_frais_etude',
         'statut_global',
         'est_annule',
         'motif_annulation',
@@ -57,6 +60,9 @@ class CreditDemande extends Model
         'montant_total_echeances' => 'decimal:2',
         'total_interets'          => 'decimal:2',
         'commission_totale'       => 'decimal:2',
+        'pourcentage_caution'      => 'decimal:2',
+        'pourcentage_frais_dossier'=> 'decimal:2',
+        'pourcentage_frais_etude'  => 'decimal:2',
         'taux_interet_mensuel'    => 'decimal:4',
         'est_annule'              => 'boolean',
         'est_suspendu'            => 'boolean',
@@ -110,6 +116,47 @@ class CreditDemande extends Model
         }
 
         return $prefix . str_pad($next, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Crée un dossier en garantissant un numero_dossier unique, même en cas
+     * de double création SIMULTANÉE (deux requêtes calculent le même "prochain
+     * numéro" avant qu'aucune n'ait validé son INSERT — prochainNumeroDossier()
+     * seul ne protège pas contre ça, il n'y a pas de verrou). En cas de
+     * collision, on relance avec un numéro fraîchement recalculé plutôt que de
+     * laisser échouer la création (500) comme observé en production.
+     *
+     * Utiliser CETTE méthode (pas ::create() directement) partout où un
+     * dossier est créé avec numero_dossier potentiellement vide/auto-généré.
+     */
+    public static function creerAvecNumeroUnique(array $attributes): self
+    {
+        // Si l'appelant a fourni un numéro EXPLICITE (ex: import d'un ancien
+        // dossier avec son numéro historique d'origine), on ne le remplace
+        // JAMAIS silencieusement par un numéro auto-généré en cas de collision
+        // — ce serait une perte de traçabilité. Une seule tentative : l'erreur
+        // doit remonter clairement pour que l'utilisateur choisisse un autre
+        // numéro. La régénération automatique ne s'applique qu'aux numéros
+        // laissés vides (auto-générés par booted()::creating()).
+        $numeroImposeParAppelant = !empty($attributes['numero_dossier'] ?? null);
+        $tentativesMax = $numeroImposeParAppelant ? 1 : 3;
+
+        for ($tentative = 1; $tentative <= $tentativesMax; $tentative++) {
+            try {
+                return static::create($attributes);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                $estConflitNumero = str_contains($e->getMessage(), 'numero_dossier');
+                if (!$estConflitNumero || $tentative === $tentativesMax) {
+                    throw $e;
+                }
+                // Force la régénération d'un numéro FRAIS (pas celui qui vient
+                // d'échouer) au prochain passage dans booted()::creating().
+                unset($attributes['numero_dossier']);
+            }
+        }
+
+        // Jamais atteint : la boucle retourne ou lève systématiquement.
+        throw new \RuntimeException('creerAvecNumeroUnique: état inattendu.');
     }
 
     // ------------------------------------------------------------
@@ -166,6 +213,125 @@ class CreditDemande extends Model
         $color = $isExpected ? $map[$this->statut_global][0] : 'dark';
         
         return "<span class=\"badge badge-{$color}\">{$label}</span>";
+    }
+
+    /**
+     * Recalcule le statut du dossier (EN_RETARD / EN_REMBOURSEMENT / SOLDE) à
+     * partir de l'état RÉEL des échéances — SOURCE UNIQUE de cette logique,
+     * à appeler après tout événement pouvant changer la situation de retard
+     * (remboursement manuel, recouvrement automatique, affichage du détail).
+     *
+     * Corrige le bug historique où `statut_global` restait bloqué sur
+     * EN_RETARD après règlement de l'échéance en retard (aucun code ne
+     * repassait le dossier à EN_REMBOURSEMENT quand il restait des échéances
+     * futures non soldées) — d'où l'incohérence entre la liste des dossiers
+     * (qui lit `statut_global`, périmé) et le détail du dossier.
+     *
+     * Ne touche PAS les dossiers hors circuit de remboursement actif
+     * (BROUILLON, SOUMIS, ANNULE, SUSPENDU, etc.) : uniquement DEBLOQUE,
+     * EN_REMBOURSEMENT et EN_RETARD.
+     *
+     * @return bool true si le statut (dossier ou une échéance) a changé.
+     */
+    public function refreshStatutRetard(): bool
+    {
+        if (!in_array($this->statut_global, ['DEBLOQUE', 'EN_REMBOURSEMENT', 'EN_RETARD'], true)) {
+            return false;
+        }
+
+        $echeancier = $this->echeancier ?? $this->echeancier()->with('echeances')->first();
+        if (!$echeancier) {
+            return false;
+        }
+
+        $today = now()->toDateString();
+        $echeances = $echeancier->echeances;
+        $aChange = false;
+
+        // 1. Toute échéance EN_ATTENTE (rien payé) dont la date est dépassée
+        //    devient EN_RETARD. BUG corrigé : ne JAMAIS inclure ici les
+        //    échéances PARTIELLEMENT_PAYE — un règlement partiel avait été
+        //    enregistré correctement (montant_paye mis à jour) mais ce même
+        //    code écrasait ensuite son statut en EN_RETARD à la prochaine
+        //    vérification, effaçant visuellement l'information "paiement
+        //    partiel reçu" (le montant restait juste, seul le badge de
+        //    statut redevenait EN_RETARD). Une échéance PARTIELLEMENT_PAYE
+        //    encore en retard fait déjà passer le DOSSIER en EN_RETARD via
+        //    le calcul $aRetard ci-dessous, sans avoir besoin d'écraser le
+        //    statut de l'échéance elle-même.
+        foreach ($echeances as $echeance) {
+            if ($echeance->statut !== 'EN_ATTENTE') {
+                continue;
+            }
+            $dateEcheance = $echeance->date_echeance instanceof \Carbon\Carbon
+                ? $echeance->date_echeance->toDateString()
+                : (string) $echeance->date_echeance;
+            if ($dateEcheance < $today) {
+                $echeance->update(['statut' => 'EN_RETARD']);
+                $aChange = true;
+            }
+        }
+
+        // 2. Détermine l'état global à partir des échéances FRAÎCHEMENT relues
+        //    (pas de la collection en mémoire, qui peut être partiellement stale
+        //    après les update() ci-dessus sur d'autres instances du même jeu).
+        $echeancesFraiches = $echeancier->echeances()->get();
+
+        $toutesSoldees = $echeancesFraiches->every(fn ($e) => $e->statut === 'PAYE');
+        $aRetard = $echeancesFraiches->contains(function ($e) use ($today) {
+            if ($e->statut === 'PAYE') {
+                return false;
+            }
+            $dateEcheance = $e->date_echeance instanceof \Carbon\Carbon
+                ? $e->date_echeance->toDateString()
+                : (string) $e->date_echeance;
+            return $e->statut === 'EN_RETARD' || $dateEcheance < $today;
+        });
+
+        $statutActuel = $this->statut_global;
+        $nouveauStatut = null;
+
+        if ($toutesSoldees) {
+            $nouveauStatut = 'SOLDE';
+        } elseif ($aRetard && $statutActuel !== 'EN_RETARD') {
+            $nouveauStatut = 'EN_RETARD';
+        } elseif (!$aRetard && $statutActuel === 'EN_RETARD') {
+            $nouveauStatut = 'EN_REMBOURSEMENT';
+        } elseif (!$aRetard && $statutActuel === 'DEBLOQUE') {
+            $nouveauStatut = 'EN_REMBOURSEMENT';
+        }
+
+        if ($nouveauStatut !== null && $nouveauStatut !== $statutActuel) {
+            $this->update(['statut_global' => $nouveauStatut]);
+            $aChange = true;
+        }
+
+        return $aChange;
+    }
+
+    /**
+     * Scope SOURCE UNIQUE pour "dossier réellement en retard" : vérifie
+     * l'état RÉEL des échéances (date dépassée, non intégralement réglée),
+     * PAS la colonne statut_global qui peut être temporairement désynchronisée
+     * (self-heal/cron pas encore repassé sur ce dossier précis).
+     *
+     * Bug corrigé le 14/09/2026 : la sidebar (compteur "Recouvrement Auto",
+     * calculé ainsi) et la page "Liste des dossiers" (compteurs "En retard" /
+     * filtre Statut=En retard, qui utilisaient `statut_global = 'EN_RETARD'`
+     * directement) affichaient des totaux différents (7 vs 6) précisément à
+     * cause de cet écart de fraîcheur. Utiliser CE scope PARTOUT où on doit
+     * savoir si un dossier est en retard élimine la classe de bug entière —
+     * plus besoin de dépendre du timing d'un cron/sync pour être exact.
+     */
+    public function scopeEnRetardReel($query)
+    {
+        $aujourdhui = now()->toDateString();
+
+        return $query->whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
+            ->whereHas('echeancier.echeances', function ($q) use ($aujourdhui) {
+                $q->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD', 'PARTIELLEMENT_PAYE'])
+                  ->where('date_echeance', '<', $aujourdhui);
+            });
     }
 
     // ------------------------------------------------------------

@@ -129,6 +129,28 @@
                         </div>
                     </div>
 
+                    {{-- ── Bloc client carte (visible seulement si FRAIS_CARTE) ── --}}
+                    <div id="blocClientCarte" class="d-none mb-2">
+                        <div class="alert alert-warning py-1 mb-2 small">
+                            <i class="fas fa-id-card mr-1"></i>
+                            <strong>Frais carte membre</strong> — recherche du client par nom ou matricule.
+                        </div>
+                        <div class="form-group mb-1">
+                            <label class="font-weight-bold" style="font-size:.85rem;">
+                                Client <span class="text-danger">*</span>
+                            </label>
+                            <select id="selClientCarte" class="form-control form-control-sm" style="width:100%"
+                                    {{ !$guichetOuvert ? 'disabled' : '' }}>
+                                <option value="">— Rechercher un client —</option>
+                            </select>
+                            <input type="hidden" id="selectedClientMatricule">
+                        </div>
+                        <div class="alert alert-info py-1 mb-0 small">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Le montant est fixe et configuré dans Trésorerie &gt; Commissions (règle CARTE_MEMBRE).
+                        </div>
+                    </div>
+
                     {{-- ── Devise + Montant source ──────────── --}}
                     <div class="form-row mb-2">
                         <div class="col-5">
@@ -666,6 +688,7 @@ $(document).ready(function () {
     var urlDemandeModif  = '{{ route("caisses.operations.demande.modification", ["id" => "__ID__"]) }}';
     var urlBordereau     = '{{ route("caisses.operations.bordereau", ["id" => "__ID__"]) }}';
     var urlSearchCompte   = '{{ route("caisses.operations.comptes.search") }}';
+    var urlSearchClient   = '{{ route("caisses.operations.searchClient") }}';
     var urlCommissionPreview = '{{ route("caisses.operations.commission.preview") }}';
     var urlTauxActif      = '{{ route("administration.devises-taux.actif") }}';
     var urlClientPhoto    = '{{ url("/clients/photo") }}';
@@ -719,6 +742,49 @@ $(document).ready(function () {
             var type = $opt ? ($opt.data('type') || '') : '';
             return $('<span>' + _compteBadge(type) + data.text + '</span>');
         }
+    });
+
+    // ── Select2 — Recherche client pour frais carte membre ──
+    $('#selClientCarte').select2({
+        theme         : 'bootstrap4',
+        width         : '100%',
+        dropdownParent: $('body'),
+        placeholder   : '— Rechercher un client —',
+        allowClear    : true,
+        ajax: {
+            url: urlSearchClient,
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return { q: params.term };
+            },
+            processResults: function (data) {
+                return {
+                    results: data.map(function (c) {
+                        return {
+                            id: c.matricule,
+                            text: c.full_name + ' (' + c.matricule + ')',
+                            matricule: c.matricule,
+                            telephone: c.telephone || ''
+                        };
+                    })
+                };
+            }
+        },
+        templateResult: function (data) {
+            if (!data.id) return data.text;
+            var phone = data.telephone || '';
+            return $('<span><strong>' + data.text + '</strong>' + (phone ? ' <small class="text-muted">' + phone + '</small>' : '') + '</span>');
+        }
+    });
+
+    $('#selClientCarte').on('select2:select', function () {
+        var matricule = $(this).find('option:selected').val();
+        $('#selectedClientMatricule').val(matricule);
+    });
+
+    $('#selClientCarte').on('select2:unselect select2:clear', function () {
+        $('#selectedClientMatricule').val('');
     });
 
     var _pendingCompteCode  = null;  // Code en attente de confirmation
@@ -796,6 +862,11 @@ $(document).ready(function () {
 
         if (!type) {
             resetPreview('Selectionnez un type d\'operation.');
+            return;
+        }
+
+        if (type === 'FRAIS_CARTE') {
+            resetPreview('Selectionnez un client pour simuler les frais de carte membre.');
             return;
         }
 
@@ -924,6 +995,7 @@ $(document).ready(function () {
     $('#selTypeOp').on('change', function () {
         var type = $(this).val();
         var avecCompte = (type === 'DEPOT' || type === 'RETRAIT');
+        var avecCarte = (type === 'FRAIS_CARTE');
 
         // Bloc compte
         if (avecCompte) {
@@ -933,6 +1005,22 @@ $(document).ready(function () {
             $('#blocCompte').addClass('d-none');
             clearCompteSelection();
             resetPreview('Cette operation ne necessite pas de compte client.');
+        }
+
+        // Bloc client carte
+        if (avecCarte) {
+            $('#blocClientCarte').removeClass('d-none');
+            $('#selDevise').val('CDF').prop('disabled', true);
+            $('#inpMontant').prop('disabled', true);
+            $('#inpMontant').attr('placeholder', 'Frais fixe (configuré)');
+            resetPreview('Selectionnez un client pour encaisser les frais de carte membre.');
+        } else {
+            $('#blocClientCarte').addClass('d-none');
+            $('#selClientCarte').val(null).trigger('change');
+            $('#selectedClientMatricule').val('');
+            $('#selDevise').prop('disabled', false);
+            $('#inpMontant').prop('disabled', false);
+            $('#inpMontant').attr('placeholder', '0.00');
         }
 
         // Bloc change
@@ -1010,6 +1098,9 @@ $(document).ready(function () {
         var montant = $('#inpMontant').val();
 
         if (!type)    { showSystemMessage('error', 'Sélectionnez un type d\'opération.'); return; }
+        if (type === 'FRAIS_CARTE' && !$('#selectedClientMatricule').val()) {
+            showSystemMessage('error', 'Recherchez et sélectionnez un client pour la carte membre.'); return;
+        }
         if ((type === 'DEPOT' || type === 'RETRAIT') && !$('#selectedCompteCode').val()) {
             showSystemMessage('error', 'Recherchez et sélectionnez le compte client.'); return;
         }
@@ -1039,6 +1130,11 @@ $(document).ready(function () {
         // Ajouter le compte client pour DEPOT et RETRAIT
         if (type === 'DEPOT' || type === 'RETRAIT') {
             payload.compte_code = $('#selectedCompteCode').val();
+        }
+
+        // Ajouter le client pour FRAIS_CARTE
+        if (type === 'FRAIS_CARTE') {
+            payload.client_matricule = $('#selectedClientMatricule').val();
         }
 
         if (type === 'CHANGE') {
@@ -1108,15 +1204,20 @@ $(document).ready(function () {
         $('#selTypeOp').val('');
         $('#selDevise, #selDeviseDest').val('').prop('disabled', false);
         $('#inpMontant, #inpObservations').val('');
+        $('#inpMontant').prop('disabled', false);
         $('#inpMontantDest, #inpTaux').text('—');
         $('#tauxInfoLabel').text('').removeClass('text-danger');
         window._tauxActifCourant = null;
         $('#chkImprimerBordereauModal').prop('checked', true);
         $('#blocChange').addClass('d-none');
         $('#blocCompte').addClass('d-none');
+        $('#blocClientCarte').addClass('d-none');
         clearCompteSelection();
+        $('#selClientCarte').val(null).trigger('change');
+        $('#selectedClientMatricule').val('');
         $('#labelDevise').html('Devise <span class="text-danger">*</span>');
         $('#labelMontant').html('Montant <span class="text-danger">*</span>');
+        $('#inpMontant').attr('placeholder', '0.00');
         resetPreview();
     }
 

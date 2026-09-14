@@ -242,6 +242,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 							</p>
 						</a>
 						<ul class="nav nav-treeview custom-sub-menu">
+							@if(in_array('EBEN-PER124', $userPermCodes ?? []))
 							<li class="nav-item">
 								<a href="{{ route('tresorerie.etat-coffre') }}"
 									class="nav-link sub-link {{ request()->routeIs('tresorerie.etat-coffre') ? 'active' : '' }}"
@@ -250,7 +251,9 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>État du Coffre</p>
 								</a>
 							</li>
+							@endif
 
+							@if(in_array('EBEN-PER125', $userPermCodes ?? []))
 							<li class="nav-item">
 								<a href="{{ route('tresorerie.approvisionnement') }}"
 									class="nav-link sub-link {{ request()->routeIs('tresorerie.approvisionnement') ? 'active' : '' }}"
@@ -268,7 +271,9 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>Intercaisse</p>
 								</a>
 							</li>
-							
+							@endif
+
+							@if(in_array('EBEN-PER126', $userPermCodes ?? []))
 							<li class="nav-item">
 								<a href="{{ route('tresorerie.commissions.index') }}"
 									class="nav-link sub-link {{ request()->routeIs('tresorerie.commissions.*') ? 'active' : '' }}"
@@ -277,6 +282,7 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									<p>Commissions</p>
 								</a>
 							</li>
+							@endif
 
 							@if(in_array('EBEN-PER20', $userPermCodes ?? []) || in_array('EBEN-PER21', $userPermCodes ?? []))
 								<li class="nav-item">
@@ -441,6 +447,19 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 										class="nav-link sub-link {{ request()->routeIs('credit.create') ? 'active' : '' }}">
 										<i class="fas fa-plus-circle nav-icon text-success"></i>
 										<p>Nouvelle demande</p>
+									</a>
+								</li>
+							@endif
+							{{-- Import d'un ancien dossier (historique) : permission dédiée
+								 EBEN-PER127, réservée aux profils de supervision — cette action
+								 crée un dossier avec les 4 blocs de validation déjà approuvés
+								 et un déblocage historique déjà exécuté, hors du circuit normal. --}}
+							@if(in_array('EBEN-PER127', $userPermCodes ?? []))
+								<li class="nav-item">
+									<a href="{{ route('credit.import_ancien') }}"
+										class="nav-link sub-link {{ request()->routeIs('credit.import_ancien') ? 'active' : '' }}">
+										<i class="fas fa-history nav-icon text-warning"></i>
+										<p>Importer ancien dossier</p>
 									</a>
 								</li>
 							@endif
@@ -611,6 +630,27 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 										<i class="fas fa-store-alt nav-icon"></i>
 										<p>Config. Guichets</p>
 									</a>
+								</li>
+							@endif
+							@if(in_array('EBEN-PER1', $userPermCodes ?? []))
+								<li class="nav-item {{ request()->is('administration/parametres*') ? 'menu-open' : '' }}">
+									<a href="#"
+										class="nav-link sub-link {{ request()->is('administration/parametres*') ? 'active' : '' }}">
+										<i class="fas fa-building nav-icon"></i>
+										<p>
+											ETS
+											<i class="right fas fa-angle-left"></i>
+										</p>
+									</a>
+									<ul class="nav nav-treeview">
+										<li class="nav-item">
+											<a href="{{ route('administration.parametres.edit') }}"
+												class="nav-link sub-link {{ request()->is('administration/parametres*') ? 'active' : '' }}">
+												<i class="fas fa-signature nav-icon"></i>
+												<p>Signature gérant</p>
+											</a>
+										</li>
+									</ul>
 								</li>
 							@endif
 							@if(in_array('EBEN-PER42', $userPermCodes ?? []))

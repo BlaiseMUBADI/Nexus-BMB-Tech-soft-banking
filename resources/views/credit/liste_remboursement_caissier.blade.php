@@ -39,8 +39,8 @@
                                     {{ number_format($dossier->montant_approuve - $dossier->creditRemboursements->sum('montant_recu'), 0, ',', ' ') }} Fc
                                 </td>
                                 <td>
-                                    @if($dossier->echeancier && $dossier->echeancier->echeances->whereIn('statut', ['EN_ATTENTE','EN_RETARD'])->isNotEmpty())
-                                        {{ $dossier->echeancier->echeances()->whereIn('statut', ['EN_ATTENTE','EN_RETARD'])->orderBy('numero_echeance')->first()->date_echeance->format('d/m/Y') }}
+                                    @if($dossier->echeancier && $dossier->echeancier->echeances->whereIn('statut', ['EN_ATTENTE','EN_RETARD','PARTIELLEMENT_PAYE'])->isNotEmpty())
+                                        {{ $dossier->echeancier->echeances()->whereIn('statut', ['EN_ATTENTE','EN_RETARD','PARTIELLEMENT_PAYE'])->orderBy('numero_echeance')->first()->date_echeance->format('d/m/Y') }}
                                     @else
                                         -
                                     @endif

@@ -81,16 +81,21 @@ class AppServiceProvider extends ServiceProvider
             $view->with('actionNotificationCount', $actionNotificationCount);
             $view->with('unreadNotificationCategoryCounts', $unreadNotificationCategoryCounts);
 
-            // Compteur global : dossiers actif avec au moins une échéance dépassée (EN_ATTENTE ou EN_RETARD avec date < aujourd'hui)
+            // Compteur global (badge sidebar + tableau de bord) : dossiers actifs
+            // avec au moins une échéance dépassée. IMPORTANT : ce composer de vue
+            // s'exécute pour CHAQUE vue et écrase toute valeur passée par un
+            // contrôleur (ex: DashboardController::index()) — c'est donc ICI,
+            // et UNIQUEMENT ici, que la définition doit être corrigée (bug
+            // constaté le 09/09/2026 : corriger DashboardController seul n'avait
+            // aucun effet visible, ce composer réécrasait ensuite la valeur).
+            // PARTIELLEMENT_PAYE inclus : une échéance en retard partiellement
+            // réglée reste due — même règle que RecouvrementController::index().
+            // scopeEnRetardReel() = source unique (cf. CreditDemande) — utilisée
+            // ici, dans DashboardController et RecouvrementController pour
+            // garantir un total IDENTIQUE partout où "en retard" est affiché.
             $alerteRecouvrementCount = 0;
             if ($authUser && $authUser->hasPermission('EBEN-PER90')) {
-                $today = \Illuminate\Support\Carbon::now()->toDateString();
-                $alerteRecouvrementCount = CreditDemande::whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
-                    ->whereHas('echeancier.echeances', function ($q) use ($today) {
-                        $q->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
-                          ->where('date_echeance', '<', $today);
-                    })
-                    ->count();
+                $alerteRecouvrementCount = CreditDemande::enRetardReel()->count();
             }
             $view->with('alerteRecouvrementCount', $alerteRecouvrementCount);
         });

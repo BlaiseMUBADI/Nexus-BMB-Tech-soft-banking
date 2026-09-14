@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Carte membre COOPEC EBEN — Version Impression PVC</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: #eef1f4;
+        padding: 40px;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* Format carte bancaire ID-1 */
+    .card {
+        width: 620px;
+        height: 390px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #0b6e4f 0%, #0a5c42 45%, #0d3b2e 100%);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        position: relative;
+        overflow: hidden;
+        color: #fff;
+        padding: 22px 28px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .card::before {
+        content: "";
+        position: absolute;
+        right: -60px; top: -60px;
+        width: 220px; height: 220px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 50%;
+    }
+    .card::after {
+        content: "";
+        position: absolute;
+        left: -80px; bottom: -90px;
+        width: 260px; height: 260px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+    }
+
+    .header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+    }
+
+    .brand-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .logo-plaque {
+        background: #fff;
+        border-radius: 10px;
+        padding: 5px 12px;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+    }
+    .logo-plaque img { height: 36px; object-fit: contain; }
+
+    .institution-name {
+        display: flex;
+        flex-direction: column;
+    }
+    .institution-name .main-title {
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        color: #fff;
+        text-transform: uppercase;
+    }
+    /* Taille augmentée pour une lisibilité optimale sur PVC */
+    .institution-name .sub-title {
+        font-size: 10.5px;
+        font-weight: 700;
+        color: rgba(255,255,255,0.95);
+        letter-spacing: 0.3px;
+        margin-top: 1px;
+    }
+
+    .badge-membre {
+        background: linear-gradient(135deg, #f2c94c, #d9a521);
+        color: #1c1c1c;
+        font-size: 10.5px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    .corps {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+    }
+
+    .photo-block { width: 95px; flex-shrink: 0; }
+    .photo-block img {
+        width: 95px; height: 112px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 3px solid #fff;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .infos { flex-grow: 1; line-height: 1.35; }
+    .infos .nom { font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #fff; margin-bottom: 2px; }
+    .infos .champ-label { color: rgba(255,255,255,0.85); font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 5px; }
+    .infos .champ-valeur { font-weight: 700; font-family: 'Consolas', monospace; font-size: 13.5px; color: #fff; letter-spacing: 0.4px; }
+    .infos .deux-col { display: flex; gap: 18px; }
+
+    .qr-block { width: 80px; flex-shrink: 0; text-align: center; }
+    .qr-block img { width: 76px; height: 76px; background: #fff; padding: 4px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+    .qr-block small { display: block; margin-top: 4px; font-size: 8px; color: rgba(255,255,255,0.9); font-weight: 600; }
+
+    .separateur { border-top: 1px solid rgba(255,255,255,0.28); position: relative; z-index: 2; margin: 2px 0; }
+
+    .slogan-card {
+        text-align: center;
+        font-size: 11.5px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        color: #f2c94c;
+        text-transform: uppercase;
+        position: relative;
+        z-index: 2;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    .mentions {
+        font-size: 8.5px;
+        line-height: 1.25;
+        color: rgba(255,255,255,0.9);
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    .footer-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        position: relative;
+        z-index: 2;
+    }
+
+    .signature-block { text-align: center; font-size: 8.5px; width: 130px; }
+    .signature-exemple {
+        height: 30px;
+        display: block;
+        margin: 0 auto;
+    }
+    .signature-block .ligne { width: 100px; border-top: 1px solid rgba(255,255,255,0.7); margin: 2px auto 3px; }
+    .signature-block .role { color: rgba(255,255,255,0.95); letter-spacing: 0.5px; font-weight: 700; }
+
+    .infos-footer { text-align: right; font-size: 9px; color: rgba(255,255,255,0.9); line-height: 1.4; font-weight: 600; }
+    .infos-footer strong { font-family: 'Consolas', monospace; font-size: 11.5px; color: #fff; display: block; letter-spacing: 0.8px; margin-top: 1px; }
+
+    /* Configuration automatique pour l'impression physique PVC (CR80) */
+    @media print {
+        @page {
+            size: 85.6mm 53.9mm;
+            margin: 0;
+        }
+        body {
+            background: none;
+            padding: 0;
+            margin: 0;
+        }
+        .card {
+            width: 85.6mm;
+            height: 53.9mm;
+            border-radius: 3mm;
+            box-shadow: none;
+            padding: 3mm 4mm;
+        }
+    }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <div class="header-row">
+        <div class="brand-container">
+            <div class="logo-plaque">
+                <img src="../../public/dist/img/vrailogoeben-removebg-preview.png" alt="Logo COOPEC EBEN">
+            </div>
+            <div class="institution-name">
+                <span class="main-title">COOPEC EBEN</span>
+                <span class="sub-title">Coopérative d'Épargne et de Crédit</span>
+            </div>
+        </div>
+        <div class="badge-membre">CARTE MEMBRE</div>
+    </div>
+
+    <div class="corps">
+        <div class="photo-block">
+            <img src="../clients/Blaise_2.jpg" alt="Photo client">
+        </div>
+        <div class="infos">
+            <div class="nom">Mputu David</div>
+            <div class="deux-col">
+                <div>
+                    <div class="champ-label">Code client</div>
+                    <div class="champ-valeur">CLT995863743</div>
+                </div>
+                <div>
+                    <div class="champ-label">Téléphone</div>
+                    <div class="champ-valeur">+243 900 000 000</div>
+                </div>
+            </div>
+            <div class="champ-label">Agence / Zone</div>
+            <div class="champ-valeur">Kananga — Zone Centre</div>
+        </div>
+        <div class="qr-block">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://eben.coop/v/9f2a7c1e" alt="QR code">
+            <small>Vérification agence</small>
+        </div>
+    </div>
+
+    <div class="separateur"></div>
+
+    <div class="slogan-card">« Votre prospérité, notre priorité »</div>
+
+    <div class="mentions">
+        Carte personnelle et non cessible — présentation obligatoire pour toute opération en agence.
+    </div>
+
+    <div class="footer-row">
+        <div class="signature-block">
+            <svg class="signature-exemple" viewBox="0 0 140 40" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 30 C 15 10, 25 10, 30 25 C 35 35, 42 15, 50 20 C 58 25, 60 10, 68 15 C 76 20, 78 32, 88 28 C 96 25, 98 12, 108 18 C 116 22, 120 8, 132 12" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div class="ligne"></div>
+            <div class="role">Le Gérant</div>
+        </div>
+        <div class="infos-footer">
+            Membre depuis 03/2024
+            <strong>N° RIB : CC-000123</strong>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

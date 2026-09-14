@@ -45,14 +45,31 @@ class DashboardController extends Controller
     public function index()
     {
         // Alerte : compte les dossiers avec au moins une échéance dépassée
-        // (EN_ATTENTE ou EN_RETARD avec date < aujourd'hui)
-        $today = Carbon::now()->toDateString();
-        $alerteRecouvrementCount = CreditDemande::whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
-            ->whereHas('echeancier.echeances', function ($query) use ($today) {
-                $query->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD'])
-                      ->where('date_echeance', '<', $today);
-            })
-            ->count();
+        // (EN_ATTENTE ou EN_RETARD avec date < aujourd'hui).
+        //
+        // BUG corrigé : ce compteur était calculé et affiché à TOUS les
+        // utilisateurs connectés, sans vérifier la permission EBEN-PER90
+        // (celle qui protège réellement /recouvrement, cf. routes/web.php).
+        // La vue ne testait que Route::has('recouvrement.index') — toujours
+        // vrai puisque la route existe globalement — jamais si CET
+        // utilisateur peut y accéder. Résultat : un agent sans EBEN-PER90
+        // voyait l'alerte rouge « Action requise », cliquait, et tombait sur
+        // une erreur 403. Le compteur reste maintenant à 0 (alerte masquée)
+        // pour qui n'a pas la permission.
+        // NOTE : ce calcul est RÉÉCRIT par le composer de vue global
+        // AppServiceProvider::boot() (View::composer('*', ...)), qui s'exécute
+        // après le retour de ce contrôleur et écrase 'alerteRecouvrementCount'
+        // pour TOUTES les vues (y compris le badge de la sidebar). La valeur
+        // calculée ci-dessous n'a donc aucun effet visible en pratique — la
+        // SEULE définition qui compte réellement est celle d'AppServiceProvider.
+        // Conservé ici uniquement par cohérence/lisibilité de ce contrôleur ;
+        // toute correction de cette logique doit être répercutée dans les 3
+        // endroits : AppServiceProvider (source de vérité), ici, et
+        // RecouvrementController::index().
+        $alerteRecouvrementCount = 0;
+        if (auth()->user()?->hasPermission('EBEN-PER90')) {
+            $alerteRecouvrementCount = CreditDemande::enRetardReel()->count();
+        }
 
         return view('dashboard', compact('alerteRecouvrementCount'));
     }

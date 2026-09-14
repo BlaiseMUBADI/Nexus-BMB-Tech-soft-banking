@@ -20,6 +20,7 @@ class CreditDeblocage extends Model
         'montant_caution',
         'devise',
         'frais_dossier',
+        'frais_etude',
         'montant_net_verse',
         'reference_transaction',
         'numero_ordre',
@@ -31,6 +32,7 @@ class CreditDeblocage extends Model
         'montant_debloque'   => 'decimal:2',
         'montant_caution'    => 'decimal:2',
         'frais_dossier'      => 'decimal:2',
+        'frais_etude'        => 'decimal:2',
         'montant_net_verse'  => 'decimal:2',
         'debloque_le'        => 'datetime',
     ];

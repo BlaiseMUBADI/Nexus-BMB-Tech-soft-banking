@@ -9,8 +9,10 @@
 @section('content')
 
 @php
+    // profile.photo (pas agents.photo) : voir sa PROPRE photo ne doit jamais
+    // dépendre de la permission RH EBEN-PER6 (cf. commentaire de la route).
     $photoUrl = ($agent && $agent->photo)
-        ? route('agents.photo', basename($agent->photo))
+        ? route('profile.photo', basename($agent->photo))
         : null;
     $fullName = $agent
         ? trim($agent->nom . ' ' . ($agent->postnom ?? '') . ' ' . ($agent->prenom ?? ''))
@@ -106,15 +108,64 @@
                             @if($photoUrl)
                                 <img src="{{ $photoUrl }}" class="img-fluid rounded-circle border border-secondary shadow"
                                      style="width:160px;height:160px;object-fit:cover;cursor:pointer;"
-                                     data-toggle="modal" data-target="#photoZoomModal">
+                                     data-toggle="modal" data-target="#photoZoomModal" id="profilePhotoImg">
                                 <div class="mt-2 text-muted" style="font-size:.78rem;">Cliquer pour agrandir</div>
                             @else
                                 <div class="rounded-circle border border-secondary d-inline-flex align-items-center justify-content-center"
-                                     style="width:160px;height:160px;background:#2d3748;font-size:4rem;color:#4a5568;">
+                                     style="width:160px;height:160px;background:#2d3748;font-size:4rem;color:#4a5568;"
+                                     id="profilePhotoPlaceholder">
                                     <i class="fas fa-user-tie"></i>
                                 </div>
                                 <div class="mt-2 text-muted" style="font-size:.78rem;">Aucune photo</div>
                             @endif
+
+                            {{-- Upload + cadrage de la photo de profil --}}
+                            <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data" class="mt-3" id="formPhoto">
+                                @csrf @method('PUT')
+                                <input type="hidden" name="_change_photo" value="1">
+                                <div class="custom-file" style="max-width:180px;margin:0 auto;">
+                                    <input type="file" class="custom-file-input" id="photo" name="photo" accept="image/*" required>
+                                    <label class="custom-file-label" for="photo">Choisir une photo</label>
+                                </div>
+                                <small class="form-text text-muted d-block">Jusqu'à 10 Mo. Vous pourrez cadrer la zone à garder.</small>
+                                <div class="mt-2">
+                                    <img id="photoPreview" src="#" alt="Aperçu" class="img-fluid rounded-circle d-none" style="width:100px;height:100px;object-fit:cover;">
+                                    <div id="photoError" class="text-danger small mt-1"></div>
+                                    <button type="button" id="btnRecadrer" class="btn btn-xs btn-outline-secondary mt-1 d-none">
+                                        <i class="fas fa-crop mr-1"></i>Recadrer
+                                    </button>
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-primary mt-2" id="btnPhotoUpload" disabled>
+                                    <i class="fas fa-upload mr-1"></i>Enregistrer la photo
+                                </button>
+                            </form>
+                        </div>
+
+                        {{-- ── Modal de cadrage (carré déplaçable/zoomable) ── --}}
+                        <div class="modal fade" id="cropperModal" tabindex="-1" role="dialog" data-backdrop="static">
+                            <div class="modal-dialog modal-lg" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h6 class="modal-title"><i class="fas fa-crop-alt mr-1"></i>Cadrer la photo</h6>
+                                        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p class="text-muted small mb-2">
+                                            Déplacez et redimensionnez le carré pour sélectionner la partie du visage
+                                            à garder (utile si la photo est en pied). Utilisez la molette pour zoomer.
+                                        </p>
+                                        <div style="max-height:60vh; overflow:hidden;">
+                                            <img id="cropperTargetImg" src="" alt="À cadrer" style="max-width:100%;display:block;">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                                        <button type="button" class="btn btn-primary" id="btnValiderCadrage">
+                                            <i class="fas fa-check mr-1"></i>Valider le cadrage
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-9">
                             <div class="row">
@@ -482,7 +533,13 @@
 
 
 @push('css')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 <style>
+    #cropperTargetImg { max-height: 55vh; }
+    /* ── Upload photo profil ────────────────────────────── */
+    #formPhoto .custom-file-label { background: #f8f9fa; color: #495057; border: 1px solid #ced4da; }
+    #formPhoto .custom-file-input:focus ~ .custom-file-label { border-color: #80bdff; box-shadow: 0 0 0 .2rem rgba(0,123,255,.25); }
+    #photoPreview { border: 2px solid #007bff; box-shadow: 0 0 12px rgba(0,123,255,.25); }
     /* ── Bandeau de couverture ──────────────────────────── */
     .profile-cover {
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
@@ -577,6 +634,7 @@
 @endpush
 
 @push('js')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script>
 var _d             = JSON.parse(document.getElementById('_profileData').textContent);
 var _profileStatus    = _d.status;
@@ -591,12 +649,124 @@ $(function () {
         showSystemMessage('success', 'Mot de passe changé avec succès.');
         $('#profileTabs a[href="#tab-compte"]').tab('show');
     }
+    if (_profileStatus === 'photo-updated') {
+        showSystemMessage('success', 'Photo de profil mise à jour.');
+        $('#profileTabs a[href="#tab-identite"]').tab('show');
+    }
 
     /* ── Ouvrir onglet compte si erreurs de validation ─── */
     var _compteFields = ['name','email','current_password','password'];
     if (_compteFields.some(function(k){ return _profileErrorKeys.indexOf(k) !== -1; })) {
         $('#profileTabs a[href="#tab-compte"]').tab('show');
     }
+
+    /* ── Anti double-soumission (évite un fichier orphelin/incohérence
+       si l'utilisateur clique plusieurs fois sur "Enregistrer la photo") ── */
+    $('#formPhoto').on('submit', function () {
+        $('#btnPhotoUpload').prop('disabled', true)
+            .html('<i class="fas fa-spinner fa-spin mr-1"></i>Envoi en cours…');
+    });
+
+    /* ── Cadrage photo profil (carré déplaçable/zoomable) ─────────── */
+    var _cropper = null;
+    var _originalImageDataUrl = null;
+    var _cropConfirmed = false;
+
+    function destroyCropper() {
+        if (_cropper) { _cropper.destroy(); _cropper = null; }
+    }
+
+    $('#photo').on('change', function () {
+        var file = this.files[0];
+        var errorDiv = $('#photoError');
+        errorDiv.text('');
+        _cropConfirmed = false;
+        $('#btnPhotoUpload').prop('disabled', true);
+
+        if (!file) { return; }
+
+        if (!file.type.startsWith('image/')) {
+            errorDiv.text('Veuillez sélectionner une image.');
+            this.value = '';
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            errorDiv.text('La photo ne doit pas dépasser 10 Mo.');
+            this.value = '';
+            return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            _originalImageDataUrl = e.target.result;
+            $('#cropperTargetImg').attr('src', _originalImageDataUrl);
+            $('#cropperModal').modal('show');
+        };
+        reader.readAsDataURL(file);
+    });
+
+    $('#btnRecadrer').on('click', function () {
+        if (!_originalImageDataUrl) { return; }
+        $('#cropperTargetImg').attr('src', _originalImageDataUrl);
+        $('#cropperModal').modal('show');
+    });
+
+    $('#cropperModal').on('shown.bs.modal', function () {
+        destroyCropper();
+        var img = document.getElementById('cropperTargetImg');
+        _cropper = new Cropper(img, {
+            aspectRatio: 1,
+            viewMode: 1,
+            autoCropArea: 0.9,
+            movable: true,
+            zoomable: true,
+            scalable: false,
+            rotatable: false,
+            responsive: true,
+            background: false,
+        });
+    });
+
+    $('#cropperModal').on('hidden.bs.modal', function () {
+        destroyCropper();
+        if (!_cropConfirmed) {
+            // L'utilisateur a fermé sans valider : on annule la sélection du fichier.
+            $('#photo').val('');
+            $('#photoPreview').addClass('d-none');
+            $('#btnRecadrer').addClass('d-none');
+            $('#btnPhotoUpload').prop('disabled', true);
+            _originalImageDataUrl = null;
+        }
+    });
+
+    $('#btnValiderCadrage').on('click', function () {
+        if (!_cropper) { return; }
+
+        _cropper.getCroppedCanvas({
+            width: 500,
+            height: 500,
+            imageSmoothingQuality: 'high',
+        }).toBlob(function (blob) {
+            if (!blob) {
+                $('#photoError').text('Erreur lors du cadrage, réessayez.');
+                return;
+            }
+
+            var croppedFile = new File([blob], 'photo-cadree.jpg', { type: 'image/jpeg' });
+            var dataTransfer = new DataTransfer();
+            dataTransfer.items.add(croppedFile);
+            document.getElementById('photo').files = dataTransfer.files;
+
+            var previewUrl = URL.createObjectURL(blob);
+            $('#photoPreview').attr('src', previewUrl).removeClass('d-none');
+            $('#btnRecadrer').removeClass('d-none');
+            $('#photoError').text('');
+
+            _cropConfirmed = true;
+            $('#btnPhotoUpload').prop('disabled', false);
+            $('#cropperModal').modal('hide');
+        }, 'image/jpeg', 0.9);
+    });
 
     /* ── Afficher/masquer mot de passe ─────────────────── */
     $(document).on('click', '.toggle-pw', function () {

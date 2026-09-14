@@ -8,8 +8,17 @@ class CategorieRecette extends Model
 {
     protected $table = 'tb_categories_recettes';
 
+    /**
+     * Code spécial : catégorie dédiée aux frais de carte membre.
+     * Déclenche dans RecetteController la sélection obligatoire d'un client,
+     * le frais configuré (Trésorerie > Commissions, règle CARTE_MEMBRE) et la
+     * création d'un ClientCarte PAYEE rendant la carte imprimable.
+     */
+    public const CODE_CARTE_MEMBRE = 'CARTE_MEMBRE';
+
     protected $fillable = [
         'libelle',
+        'code',
         'numero_compte_produit',
         'est_actif',
     ];
@@ -17,6 +26,11 @@ class CategorieRecette extends Model
     protected $casts = [
         'est_actif' => 'boolean',
     ];
+
+    public function isCarteMembre(): bool
+    {
+        return $this->code === self::CODE_CARTE_MEMBRE;
+    }
 
     public function compteProduit()
     {

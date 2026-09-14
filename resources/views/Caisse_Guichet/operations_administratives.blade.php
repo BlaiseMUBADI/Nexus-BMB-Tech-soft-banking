@@ -85,18 +85,41 @@
                                 <option value="">— Sélectionner une catégorie —</option>
                             </select>
                         </div>
+
+                        {{-- ── Bloc client carte (visible seulement si catégorie Frais de carte membre) ── --}}
+                        <div id="blocClientCarteOp" class="d-none mb-2">
+                            <div class="alert alert-warning py-1 mb-2 small">
+                                <i class="fas fa-id-card mr-1"></i>
+                                <strong>Frais de carte membre</strong> — recherche du client par nom ou matricule.
+                            </div>
+                            <div class="form-group mb-1">
+                                <label class="font-weight-bold" style="font-size:.85rem;">
+                                    Client <span class="text-danger">*</span>
+                                </label>
+                                <select id="selClientCarteOp" class="form-control form-control-sm" style="width:100%"
+                                        {{ !$guichetOuvert ? 'disabled' : '' }}>
+                                    <option value="">— Rechercher un client —</option>
+                                </select>
+                                <input type="hidden" name="client_matricule" id="selectedClientMatriculeOp">
+                            </div>
+                            <div class="alert alert-info py-1 mb-0 small">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Le montant est fixe et configuré dans Trésorerie &gt; Commissions (règle CARTE_MEMBRE).
+                            </div>
+                        </div>
+
                         <div class="form-row">
                             <div class="form-group col-md-8 mb-2">
                                 <label class="font-weight-bold text-uppercase" style="font-size:.82rem; letter-spacing:.06em;">
                                     Montant <span class="text-danger">*</span>
                                 </label>
-                                <input type="number" name="montant" step="0.01" min="0.01" class="form-control" required {{ !$guichetOuvert ? 'disabled' : '' }}>
+                                <input type="number" name="montant" id="inpMontantOpAdmin" step="0.01" min="0.01" class="form-control" required {{ !$guichetOuvert ? 'disabled' : '' }}>
                             </div>
                             <div class="form-group col-md-4 mb-2">
                                 <label class="font-weight-bold text-uppercase" style="font-size:.82rem; letter-spacing:.06em;">
                                     Devise <span class="text-danger">*</span>
                                 </label>
-                                <select name="devise_code" class="form-control" required {{ !$guichetOuvert ? 'disabled' : '' }}>
+                                <select name="devise_code" id="selDeviseOpAdmin" class="form-control" required {{ !$guichetOuvert ? 'disabled' : '' }}>
                                     <option value="CDF">CDF</option>
                                     <option value="USD">USD</option>
                                     <option value="EUR">EUR</option>
@@ -273,10 +296,21 @@
 @endpush
 
 @push('js')
+@php
+    // IMPORTANT : @json(...) compile via explode(',', ...) sur l'expression brute —
+    // toute virgule À L'INTÉRIEUR d'un tableau littéral passé directement casse la
+    // compilation (les segments au-delà de parts[2] sont silencieusement supprimés,
+    // ce qui tronque le tableau). On calcule donc les tableaux ici, dans des variables
+    // simples SANS virgule, avant de les passer à @json().
+    $categoriesDepensesJs = $categoriesDepenses->map(fn($c) => ['id' => $c->id, 'libelle' => $c->libelle, 'compte' => $c->numero_compte_charge]);
+    $categoriesRecettesJs = $categoriesRecettes->map(fn($c) => ['id' => $c->id, 'libelle' => $c->libelle, 'compte' => $c->numero_compte_produit, 'code' => $c->code]);
+@endphp
 <script>
 $(function () {
-    const categoriesDepenses = @json($categoriesDepenses->map(fn($c) => ['id' => $c->id, 'libelle' => $c->libelle, 'compte' => $c->numero_compte_charge]));
-    const categoriesRecettes = @json($categoriesRecettes->map(fn($c) => ['id' => $c->id, 'libelle' => $c->libelle, 'compte' => $c->numero_compte_produit]));
+    const categoriesDepenses = @json($categoriesDepensesJs);
+    const categoriesRecettes = @json($categoriesRecettesJs);
+    const urlSearchClientOp = '{{ route("caisses.operations.searchClient") }}';
+    const urlFraisCarteMembre = '{{ route("caisses.recettes.frais-carte-membre") }}';
 
     // ── Recherche progressive (Select2) sur la catégorie, comme dans le module Opérations ──
     function _categorieMatcher(params, data) {
@@ -327,7 +361,103 @@ $(function () {
             $('#btnSubmitOpAdmin').removeClass('btn-danger').addClass('btn-success');
             $('#btnSubmitOpAdminLabel').text('Enregistrer la recette');
         }
+
+        // Le changement de sens/liste réinitialise toujours la catégorie ("") :
+        // le bloc client carte doit donc être masqué et le montant redevenir libre.
+        if (typeof appliquerModeCarteMembre === 'function') {
+            appliquerModeCarteMembre();
+        }
     }
+
+    // ── Select2 — Recherche client pour frais carte membre (Opérations administratives) ──
+    $('#selClientCarteOp').select2({
+        theme         : 'bootstrap4',
+        width         : '100%',
+        dropdownParent: $('#cardFormOpAdmin'),
+        placeholder   : '— Rechercher un client —',
+        allowClear    : true,
+        minimumInputLength: 2,
+        language: {
+            inputTooShort: function () { return 'Saisissez au moins 2 caractères…'; },
+            noResults: function () { return 'Aucun client trouvé.'; },
+            searching: function () { return 'Recherche en cours…'; },
+        },
+        ajax: {
+            url: urlSearchClientOp,
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return { q: params.term };
+            },
+            processResults: function (data) {
+                return {
+                    results: data.map(function (c) {
+                        return {
+                            id: c.matricule,
+                            text: c.full_name + ' (' + c.matricule + ')',
+                            matricule: c.matricule,
+                            telephone: c.telephone || ''
+                        };
+                    })
+                };
+            }
+        },
+        templateResult: function (data) {
+            if (!data.id) return data.text;
+            var phone = data.telephone || '';
+            return $('<span><strong>' + data.text + '</strong>' + (phone ? ' <small class="text-muted">' + phone + '</small>' : '') + '</span>');
+        }
+    });
+
+    $('#selClientCarteOp').on('select2:select', function () {
+        $('#selectedClientMatriculeOp').val($(this).find('option:selected').val());
+    });
+    $('#selClientCarteOp').on('select2:unselect select2:clear', function () {
+        $('#selectedClientMatriculeOp').val('');
+    });
+
+    function categorieSelectionneeEstCarteMembre() {
+        const sens = $('#selSensOp').val();
+        if (sens !== 'ENTREE') return false;
+        const id = parseInt($('#selCategorieOp').val(), 10);
+        const cat = categoriesRecettes.find(c => c.id === id);
+        return !!(cat && cat.code === 'CARTE_MEMBRE');
+    }
+
+    function chargerFraisCarteMembre() {
+        const devise = $('#selDeviseOpAdmin').val();
+        if (!devise) return;
+        $('#inpMontantOpAdmin').val('').prop('readonly', true);
+        $.getJSON(urlFraisCarteMembre, { devise_code: devise })
+            .done(function (r) {
+                if (r.success) {
+                    $('#inpMontantOpAdmin').val(r.montant);
+                }
+            })
+            .fail(function (xhr) {
+                const msg = xhr.responseJSON?.message || 'Frais de carte membre non configuré pour cette devise.';
+                if (window.showSystemMessage) { showSystemMessage('warning', msg); }
+            });
+    }
+
+    function appliquerModeCarteMembre() {
+        if (categorieSelectionneeEstCarteMembre()) {
+            $('#blocClientCarteOp').removeClass('d-none');
+            chargerFraisCarteMembre();
+        } else {
+            $('#blocClientCarteOp').addClass('d-none');
+            $('#selClientCarteOp').val(null).trigger('change');
+            $('#selectedClientMatriculeOp').val('');
+            $('#inpMontantOpAdmin').prop('readonly', false).val('');
+        }
+    }
+
+    $('#selCategorieOp').on('change', appliquerModeCarteMembre);
+    $('#selDeviseOpAdmin').on('change', function () {
+        if (categorieSelectionneeEstCarteMembre()) {
+            chargerFraisCarteMembre();
+        }
+    });
 
     $('#selSensOp').on('change', refreshCategorieOptions);
     refreshCategorieOptions();
@@ -335,6 +465,13 @@ $(function () {
     $('#formOpAdmin').on('submit', function (e) {
         e.preventDefault();
         const sens = $('#selSensOp').val();
+
+        if (categorieSelectionneeEstCarteMembre() && !$('#selectedClientMatriculeOp').val()) {
+            const msg = 'Sélectionnez le client qui paie les frais de carte membre.';
+            if (window.showSystemMessage) { showSystemMessage('danger', msg); } else { alert(msg); }
+            return;
+        }
+
         const url = sens === 'SORTIE' ? '{{ route("caisses.depenses.store") }}' : '{{ route("caisses.recettes.store") }}';
         const formData = new FormData(this);
 
