@@ -166,7 +166,7 @@
                     @endphp
                     <tr>
                         <td><a href="{{ route('credit.show', $d) }}">{{ $d->numero_dossier }}</a></td>
-                        <td>{{ $d->client?->nom }} {{ $d->client?->prenom }}</td>
+                        <td>{{ $d->client?->full_name }}</td>
                         <td><small>{{ $d->zone?->nom ?? $d->code_zone }}</small></td>
                         <td class="text-right">{{ number_format($d->montant_approuve ?? $d->montant_demande, 2, ',', ' ') }} {{ $d->devise }}</td>
                         <td class="text-right font-weight-bold text-danger">{{ number_format(max(0, $capitalDecaisseD - $capitalRembourseD), 2, ',', ' ') }} {{ $d->devise }}</td>

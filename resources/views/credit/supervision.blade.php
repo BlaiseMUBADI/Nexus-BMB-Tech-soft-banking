@@ -65,9 +65,11 @@
     </div>
     <div class="card-body p-0">
         @if($dossiers_retard->count())
-        <div class="table-responsive">
+        {{-- Conteneur défilable : barre de défilement à droite + en-tête figé
+             pour une consultation fluide sur les longues listes. --}}
+        <div class="table-responsive" style="max-height: 65vh; overflow-y: auto;">
         <table class="table table-sm table-hover mb-0">
-            <thead class="thead-dark">
+            <thead class="thead-dark" style="position: sticky; top: 0; z-index: 2;">
                 <tr>
                     <th>N° Dossier</th><th>Client</th><th>Zone</th>
                     <th class="text-center" data-toggle="tooltip" data-placement="top" title="Nombre d'échéances dont la date est dépassée et qui n'ont pas encore été payées (statut ≠ PAYE). Chaque unité représente une échéance en souffrance.">Échéances retard</th>
@@ -136,9 +138,10 @@
             $dossiers_unis = $dossiers_alertes->merge($dossiers_pret_debloquer)->sortByDesc('created_at');
         @endphp
         @if($dossiers_unis->count())
-        <div class="table-responsive">
+        {{-- Conteneur défilable : barre de défilement à droite + en-tête figé. --}}
+        <div class="table-responsive" style="max-height: 65vh; overflow-y: auto;">
         <table class="table table-sm table-hover mb-0">
-            <thead class="thead-dark">
+            <thead class="thead-dark" style="position: sticky; top: 0; z-index: 2;">
                 <tr>
                     <th>N° Dossier</th><th>Client</th>
                     <th class="text-center">Statut</th>
@@ -237,9 +240,9 @@
         </div>
     </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
+        <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
         <table class="table table-sm table-hover mb-0">
-            <thead class="thead-dark">
+            <thead class="thead-dark" style="position: sticky; top: 0; z-index: 2;">
                 <tr>
                     <th>Zone</th>
                     <th class="text-center">Total dossiers</th>
@@ -256,7 +259,7 @@
             <tr>
                 <td>
                     <a href="{{ route('credit.index', ['zone' => $z->code_zone]) }}"
-                       class="text-decoration-none text-white"
+                       class="text-decoration-none text-dark font-weight-bold"
                        data-toggle="tooltip" data-placement="top"
                        title="Filtrer les dossiers de cette zone">
                         <i class="fas fa-external-link-alt mr-1 small" style="opacity:0.5"></i>

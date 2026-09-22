@@ -18,7 +18,7 @@ class RecouvrementController extends Controller
     /**
      * Affiche le tableau de bord de recouvrement avec le tri intelligent
      */
-    public function index()
+    public function index(Request $request)
     {
         // Auto-réparation (même throttle que CreditController::index()) :
         // garantit que `statut_global` est à jour avant de construire la
@@ -36,7 +36,11 @@ class RecouvrementController extends Controller
         // de retard" ignoraient l'échéance PARTIELLEMENT_PAYE et affichaient à
         // tort l'échéance suivante, non encore due).
         $today = Carbon::now()->toDateString();
-        $dossiers = CreditDemande::whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
+        // SUSPENDU exclu (cf. CreditDemande::scopeEnRetardReel, 20/09/2026) :
+        // un dossier suspendu suit un traitement spécial et ne doit pas
+        // apparaître dans les listes de recouvrement (il reste dans l'onglet
+        // "Alertes" de la liste des dossiers).
+        $query = CreditDemande::whereNotIn('statut_global', ['SOLDE', 'ANNULE', 'SUSPENDU'])
             ->where(function ($query) use ($today) {
                 $query->whereHas('echeancier.echeances', function ($q) use ($today) {
                         $q->where('statut', 'EN_RETARD')
@@ -46,8 +50,22 @@ class RecouvrementController extends Controller
                           });
                     })
                     ->orWhere('statut_global', 'EN_RETARD');
-            })
-            ->with(['client', 'echeancier.echeances' => function ($query) {
+            });
+
+        // Recherche : nom complet en ordre libre (« NOM POSTNOM Prénom »,
+        // cf. Client::scopeSearchFullName), matricule ou n° de dossier.
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('numero_dossier', 'like', "%{$search}%")
+                  ->orWhere('client_matricule', 'like', "%{$search}%")
+                  ->orWhereHas('client', function ($cq) use ($search) {
+                      $cq->searchFullName($search);
+                  });
+            });
+        }
+
+        $dossiers = $query->with(['client', 'echeancier.echeances' => function ($query) {
                 $query->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD', 'PARTIELLEMENT_PAYE'])
                       ->orderBy('date_echeance', 'ASC');
             }])
@@ -98,7 +116,8 @@ class RecouvrementController extends Controller
             ')
             ->orderBy('priorite_score', 'ASC')
             ->orderBy('prochaine_echeance_date', 'ASC')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         // scopeEnRetardReel() = source unique (cf. CreditDemande) — même
         // définition que DashboardController/AppServiceProvider/CreditController,
@@ -147,7 +166,7 @@ class RecouvrementController extends Controller
             }
         }
 
-        $historique = $query->orderBy('date_operation', 'DESC')->paginate(20);
+        $historique = $query->orderBy('date_operation', 'DESC')->paginate(20)->withQueryString();
 
         $agents = Agent::where('statut', 'actif')->orderBy('nom')->get();
         $zones = Zone::orderBy('nom')->get();
@@ -280,7 +299,9 @@ class RecouvrementController extends Controller
             // recouvrement auto ne doit rien prélever et laisser le surplus du
             // RMB intact (pas de paiement en avance des mensualités futures).
             $dossiersCibles = CreditDemande::where('prelevement_auto_autorise', 1)
-                ->whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
+                // SUSPENDU exclu : pas de prélèvement automatique sur un
+                // dossier suspendu (traitement spécial, cf. scopeEnRetardReel).
+                ->whereNotIn('statut_global', ['SOLDE', 'ANNULE', 'SUSPENDU'])
                 ->with(['echeancier.echeances' => function ($query) use ($today) {
                     $query->where(function ($q) use ($today) {
                         $q->where('statut', 'EN_RETARD')

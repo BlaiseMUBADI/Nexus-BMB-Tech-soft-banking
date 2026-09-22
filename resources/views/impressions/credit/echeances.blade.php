@@ -90,10 +90,14 @@
         @endforeach
     </tbody>
     <tfoot>
-        <tr style="background:#d9e8e0; font-weight:bold; border:2.5px solid #333;">
-            <td colspan="7" style="padding:6px 8px; text-align:right; border:2.5px solid #333; color:#111;">RESTE À RECOUVRIR (TOUTES DEVISES)</td>
-            <td style="padding:6px 8px; text-align:right; border:2.5px solid #333; color:#c62828;">{{ number_format($resteATotalGeneral, 0, ',', ' ') }}</td>
-        </tr>
+        {{-- Une ligne par devise : jamais de somme CDF+USD mélangée --}}
+        @foreach($totauxParDevise as $devise => $t)
+            @php $symbole = match($devise) { 'USD' => '$', 'EUR' => '€', default => 'Fc' }; @endphp
+            <tr style="background:#d9e8e0; font-weight:bold; border:2.5px solid #333;">
+                <td colspan="7" style="padding:6px 8px; text-align:right; border:2.5px solid #333; color:#111;">RESTE À RECOUVRIR ({{ $devise }})</td>
+                <td style="padding:6px 8px; text-align:right; border:2.5px solid #333; color:#c62828;">{{ number_format($t['reste_du'], 0, ',', ' ') }}{{ $symbole }}</td>
+            </tr>
+        @endforeach
     </tfoot>
 </table>
 @endif

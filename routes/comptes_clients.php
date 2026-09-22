@@ -47,6 +47,9 @@ Route::middleware('auth')->prefix('comptes-clients')->group(function () {
     // 5. Formulaire et soumission de création d'un compte (AVANT comptes/{code_compte})
     Route::middleware('permission:EBEN-PER19')->group(function () {
         Route::get('comptes/create', [CompteController::class, 'create'])->name('comptes.create');
+        // Recherche AJAX de clients pour le select du formulaire (2 200+ clients
+        // rendus en <option> = page lourde)
+        Route::get('comptes/clients/search', [CompteController::class, 'searchClient'])->name('comptes.clients.search');
         Route::post('comptes', [CompteController::class, 'store'])->name('comptes.store');
     });
 

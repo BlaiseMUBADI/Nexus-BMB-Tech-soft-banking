@@ -104,26 +104,21 @@
                             <strong>Compte client requis</strong> — code compte ou nom du titulaire.
                         </div>
                         <div class="form-group mb-1">
-                            <label class="font-weight-bold" style="font-size:.85rem;">
-                                Compte <span class="text-danger">*</span>
-                            </label>
-                            <select id="selCompte" class="form-control form-control-sm" style="width:100%"
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="font-weight-bold mb-0" style="font-size:.85rem;">
+                                    Compte <span class="text-danger">*</span>
+                                </label>
+                                <button type="button" class="btn btn-xs btn-outline-info" id="btnScanCarte"
+                                        title="Scanner le QR de la carte membre avec la caméra"
+                                        {{ !$guichetOuvert ? 'disabled' : '' }}>
+                                    <i class="fas fa-qrcode mr-1"></i> Scanner la carte
+                                </button>
+                            </div>
+                            {{-- Combo en recherche AJAX : les 2 600+ comptes ne sont
+                                 plus rendus en <option> (gel du navigateur à l'ouverture). --}}
+                            <select id="selCompte" class="form-control form-control-sm mt-1" style="width:100%"
                                     {{ !$guichetOuvert ? 'disabled' : '' }}>
                                 <option value="">— Sélectionner un compte —</option>
-                                @foreach($comptes as $cpt)
-                                <option value="{{ $cpt->code_compte }}"
-                                        data-devise="{{ $cpt->devise }}"
-                                        data-type="{{ $cpt->type }}"
-                                        data-solde="{{ number_format($cpt->solde_reel ?? 0, 2, '.', '') }}"
-                                        data-client="{{ optional($cpt->client)->nom }} {{ optional($cpt->client)->postnom }}"
-                                        data-prenom="{{ optional($cpt->client)->prenom }}"
-                                        data-matricule="{{ optional($cpt->client)->matricule }}"
-                                        data-telephone="{{ optional($cpt->client)->telephone }}"
-                                        data-sexe="{{ optional($cpt->client)->sexe }}"
-                                        data-photo="{{ optional($cpt->client)->photo ? basename(optional($cpt->client)->photo) : '' }}">
-                                    [{{ $cpt->devise }}] {{ $cpt->type }} — {{ optional($cpt->client)->nom }} {{ optional($cpt->client)->postnom }} — {{ $cpt->code_compte }}
-                                </option>
-                                @endforeach
                             </select>
                             <input type="hidden" id="selectedCompteCode">
                         </div>
@@ -405,6 +400,70 @@
 </div>
 
 {{-- ══════════════════════════════════════════════════════════════
+     MODAL — Scan QR carte membre (webcam / caméra téléphone)
+     Librairie html5-qrcode vendorisée localement (public/plugins/),
+     aucun CDN. La caméra du navigateur (getUserMedia) fonctionne sur
+     PC (webcam) et mobile (caméra avant/arrière) — sélectionnable.
+     ══════════════════════════════════════════════════════════════ --}}
+<div class="modal fade" id="modalScanCarte" tabindex="-1">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content shadow-lg" style="border-radius:14px; overflow:hidden;">
+            <div class="modal-header py-2" style="background:linear-gradient(90deg,#0891b2 0%,#0e7490 100%);">
+                <h6 class="modal-title text-white mb-0">
+                    <i class="fas fa-qrcode mr-2"></i>Scanner la carte membre
+                </h6>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2 px-3 small mb-2">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Présentez le QR code de la carte membre devant la caméra.
+                    Le compte du client sera sélectionné automatiquement.
+                </div>
+
+                {{-- Combo des caméras connectées (rempli au clic sur
+                     « Démarrer la caméra ») + nom de la caméra au-dessus --}}
+                <div id="scanZoneCamera" class="mb-2" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small font-weight-bold">
+                            <i class="fas fa-video mr-1"></i>Caméras connectées :
+                        </span>
+                        <span id="scanCameraNom" class="badge badge-info"
+                              style="max-width:60%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+                    </div>
+                    <select id="scanChoixCamera" class="form-control form-control-sm"></select>
+                </div>
+
+                {{-- Zone caméra (html5-qrcode y injecte la vidéo) --}}
+                <div id="scanReader" style="width:100%; border-radius:8px; overflow:hidden; background:#000; min-height:220px;"></div>
+
+                {{-- Statut / erreurs --}}
+                <div id="scanStatut" class="mt-2 small text-muted text-center">
+                    <i class="fas fa-camera mr-1"></i> Cliquez sur « Démarrer la caméra ».
+                </div>
+
+                {{-- Choix du compte si le client en a plusieurs --}}
+                <div id="scanChoixCompte" class="mt-2" style="display:none;">
+                    <label class="font-weight-bold small">Plusieurs comptes trouvés — choisissez :</label>
+                    <div id="scanChoixListe"></div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-3">
+                    <button type="button" class="btn btn-sm btn-info" id="btnScanStart">
+                        <i class="fas fa-video mr-1"></i> Démarrer la caméra
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" id="btnScanStop" style="display:none;">
+                        <i class="fas fa-stop mr-1"></i> Arrêter
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════════
      MODAL — Vérification identité client avant opération
      ══════════════════════════════════════════════════════════════ --}}
 <div class="modal fade" id="modalIdentiteClient" tabindex="-1" data-backdrop="static" data-keyboard="false">
@@ -670,6 +729,10 @@
 
 
 @push('js')
+{{-- Librairie de lecture QR — vendorisée localement (public/plugins/html5-qrcode),
+     aucun appel CDN. Fournit Html5Qrcode (caméra via getUserMedia : webcam PC,
+     caméra avant/arrière téléphone, toute caméra USB). --}}
+<script src="{{ asset('plugins/html5-qrcode/html5-qrcode.min.js') }}"></script>
 <script>
 $(document).ready(function () {
 
@@ -689,6 +752,7 @@ $(document).ready(function () {
     var urlBordereau     = '{{ route("caisses.operations.bordereau", ["id" => "__ID__"]) }}';
     var urlSearchCompte   = '{{ route("caisses.operations.comptes.search") }}';
     var urlSearchClient   = '{{ route("caisses.operations.searchClient") }}';
+    var urlScanCarte      = '{{ route("caisses.operations.scanCarte") }}';
     var urlCommissionPreview = '{{ route("caisses.operations.commission.preview") }}';
     var urlTauxActif      = '{{ route("administration.devises-taux.actif") }}';
     var urlClientPhoto    = '{{ url("/clients/photo") }}';
@@ -698,7 +762,8 @@ $(document).ready(function () {
     // ══════════════════════════════════════════════════════════════
     var canDeleteOperation = {{ $canDeleteOperation ? 'true' : 'false' }};
 
-    // ── Select2 — Recherche compte client (chargé côté serveur) ──
+    // ── Select2 — Recherche compte client (AJAX : plus de milliers d'options
+    //    rendues côté serveur, la recherche se fait en base sur 2+ caractères) ──
     var _typeColors = { CC: 'primary', RMB: 'success', GTC: 'warning', DAT: 'info', EAV: 'secondary' };
 
     function _compteBadge(type) {
@@ -706,14 +771,8 @@ $(document).ready(function () {
         return '<span class="badge badge-' + color + ' mr-1" style="font-size:.75em;vertical-align:middle">' + (type || '?') + '</span>';
     }
 
-    function _compteMatcher(params, data) {
-        if (!params.term || params.term.trim() === '') return data;
-        var term = params.term.trim().toUpperCase();
-        var text  = (data.text || '').toUpperCase();
-        var $opt  = data.element ? $(data.element) : null;
-        var matricule = ($opt ? ($opt.data('matricule') || '') : '').toUpperCase();
-        if (text.indexOf(term) > -1 || matricule.indexOf(term) > -1) return data;
-        return null;
+    function _compteLabel(c) {
+        return '[' + (c.devise || '') + '] ' + (c.type || '') + ' — ' + (c.client_nom || '—') + ' — ' + (c.code_compte || '');
     }
 
     $('#selCompte').select2({
@@ -722,25 +781,43 @@ $(document).ready(function () {
         dropdownParent: $('body'),
         placeholder   : '— Sélectionner un compte —',
         allowClear    : true,
-        matcher       : _compteMatcher,
-        language      : { noResults: function () { return 'Aucun compte trouvé.'; } },
+        minimumInputLength: 2,
+        language      : { noResults: function () { return 'Aucun compte trouvé.'; },
+                          inputTooShort: function () { return 'Tapez au moins 2 caractères (nom, postnom, prénom, matricule ou n° compte).'; } },
+        ajax: {
+            url: urlSearchCompte,
+            dataType: 'json',
+            delay: 250,
+            data: function (params) { return { q: params.term }; },
+            processResults: function (data) {
+                return {
+                    results: data.map(function (c) {
+                        return {
+                            id          : c.code_compte,
+                            text        : _compteLabel(c),
+                            devise      : c.devise || '',
+                            type        : c.type || '',
+                            solde_reel  : (c.solde_reel !== undefined && c.solde_reel !== null) ? parseFloat(c.solde_reel) : 0,
+                            client_nom  : c.client_nom || '',
+                            nom         : c.nom || '',
+                            postnom     : c.postnom || '',
+                            prenom      : c.prenom || '',
+                            matricule   : c.matricule || '',
+                            telephone   : c.telephone || '',
+                            sexe        : c.sexe || '',
+                            photo       : c.photo || ''
+                        };
+                    })
+                };
+            }
+        },
         templateResult: function (data) {
             if (!data.id) return data.text;
-            var $opt = data.element ? $(data.element) : null;
-            var type = $opt ? ($opt.data('type') || '') : '';
-            var parts = (data.text || '').split(' — ');
-            // parts[0] = "[USD] CC", parts[1] = nom, parts[2] = code_compte
-            var devise = '';
-            var nomPart = parts.length > 1 ? parts[1] : '';
-            var codePart = parts.length > 2 ? parts[2] : '';
-            var devisePart = parts[0] || '';
-            return $('<span>' + _compteBadge(type) + '<strong>' + devisePart + '</strong> ' + nomPart + (codePart ? ' <small class="text-muted">' + codePart + '</small>' : '') + '</span>');
+            return $('<span>' + _compteBadge(data.type) + '<strong>[' + (data.devise || '') + '] ' + (data.type || '') + '</strong> ' + (data.client_nom || '') + ' <small class="text-muted">' + data.id + '</small></span>');
         },
         templateSelection: function (data) {
             if (!data.id) return data.text;
-            var $opt = data.element ? $(data.element) : null;
-            var type = $opt ? ($opt.data('type') || '') : '';
-            return $('<span>' + _compteBadge(type) + data.text + '</span>');
+            return $('<span>' + _compteBadge(data.type) + data.text + '</span>');
         }
     });
 
@@ -915,17 +992,27 @@ $(document).ready(function () {
         _previewTimer = setTimeout(requestPreview, 250);
     }
 
-    $('#selCompte').on('select2:select', function () {
-        var $opt     = $(this).find('option:selected');
-        var code     = $opt.val();
-        var devise   = $opt.data('devise');
-        var solde    = $opt.data('solde');
-        var nomCl    = $.trim($opt.data('client'));
-        var prenom   = $.trim($opt.data('prenom'));
-        var matric   = $opt.data('matricule');
-        var tel      = $opt.data('telephone') || '—';
-        var sexe     = $opt.data('sexe') || '';
-        var photo    = $opt.data('photo') || '';
+    // Remplit le modal d'identité à partir du compte sélectionné et l'affiche.
+    // Fonction partagée : appelée par la sélection Select2 manuelle (données
+    // AJAX) ET par le scan de carte membre — même flux d'identité.
+    // `data` = objet compte renvoyé par l'AJAX (devise, type, solde_reel,
+    // nom/postnom/prenom, matricule, telephone, sexe, photo).
+    function applyCompteSelection(code, data) {
+        if (!data) {
+            var sel = $('#selCompte').select2('data');
+            data = (sel && sel.length && sel[0] && sel[0].id) ? sel[0] : null;
+        }
+        if (!data || !data.id) return false;
+        if (!code) code = data.id;
+
+        var devise   = data.devise || '';
+        var solde    = (data.solde_reel !== undefined && data.solde_reel !== null) ? data.solde_reel : 0;
+        var nomCl    = $.trim((data.nom || '') + ' ' + (data.postnom || ''));
+        var prenom   = $.trim(data.prenom || '');
+        var matric   = data.matricule || '';
+        var tel      = data.telephone || '—';
+        var sexe     = data.sexe || '';
+        var photo    = data.photo || '';
 
         _pendingCompteCode = code;
         _pendingDevise     = devise;
@@ -939,7 +1026,6 @@ $(document).ready(function () {
         $('#soldeIdentite').text(parseFloat(solde).toLocaleString('fr-FR', {minimumFractionDigits:2}) + ' ' + devise);
 
         var badgeSexe = sexe === 'F' ? '<i class="fas fa-female mr-1"></i>Femme' : '<i class="fas fa-male mr-1"></i>Homme';
-        var badgeClass = sexe === 'F' ? 'badge-pink' : 'badge-primary';
         $('#badgeSexeClient').removeClass('badge-primary badge-pink badge-secondary')
             .addClass(sexe === 'F' ? 'badge-danger' : 'badge-primary').html(badgeSexe);
 
@@ -950,6 +1036,11 @@ $(document).ready(function () {
         }
 
         $('#modalIdentiteClient').modal('show');
+        return true;
+    }
+
+    $('#selCompte').on('select2:select', function (e) {
+        applyCompteSelection(e.params.data.id, e.params.data);
     });
 
     // Confirmation identité — OUI
@@ -987,9 +1078,330 @@ $(document).ready(function () {
         _pendingDevise = null;
         $('#selectedCompteCode').val('');
         $('#selCompte').val(null).trigger('change');
+        // Combo AJAX : ne garder que l'option vide (pas d'accumulation).
+        $('#selCompte').find('option').not('[value=""]').remove();
         $('#selDevise').prop('disabled', false);
         resetPreview();
     }
+
+    // ══════════════════════════════════════════════════════════════
+    //  SCAN QR — Carte membre (webcam PC / caméra téléphone)
+    // ══════════════════════════════════════════════════════════════
+    // Le QR de la carte encode l'URL de vérification
+    // .../carte-membre/verifier/{token}. Le texte scanné est envoyé tel
+    // quel à urlScanCarte qui résout token → carte (non révoquée) →
+    // client → comptes (mêmes règles de visibilité que la recherche
+    // normale). Ensuite le compte est sélectionné dans #selCompte et le
+    // flux d'identité existant (modal de confirmation) s'enchaîne —
+    // exactement comme une sélection manuelle.
+    var _html5Qrcode      = null;
+    var _scanEnCours      = false;
+    var _scanPendingCode  = null;
+    var _scanPendingData  = null;   // données du compte à ouvrir après scan
+    var _scanComptes      = [];     // derniers comptes renvoyés par le scan
+    var _scanClient       = null;   // dernier client renvoyé par le scan
+    var _scanCameras     = [];      // [{deviceId, label}] — caméras connectées
+    var _scanCamActive   = false;   // true quand html5-qrcode tourne
+
+    function scanStatut(html, classe) {
+        $('#scanStatut').attr('class', 'mt-2 small text-center ' + (classe || 'text-muted')).html(html);
+    }
+
+    function scanStopCamera() {
+        if (_html5Qrcode) {
+            var inst = _html5Qrcode;
+            try {
+                inst.stop().then(function () {
+                    try { inst.clear(); } catch (e) {}
+                }).catch(function () {
+                    try { inst.clear(); } catch (e) {}
+                });
+            } catch (e) {}
+        }
+        _scanEnCours = false;
+        _scanCamActive = false;
+        _html5Qrcode = null;
+        $('#btnScanStart').show().prop('disabled', false);
+        $('#btnScanStop').hide();
+    }
+
+    // Construit l'objet "compte" attendu par applyCompteSelection() à partir
+    // de la réponse du scan (client + compte) — même forme que l'AJAX de
+    // recherche de compte.
+    function scanDataDepuisReponse(compte) {
+        var cl = _scanClient || {};
+        return {
+            id         : compte.code_compte,
+            devise     : compte.devise || '',
+            type       : compte.type || '',
+            solde_reel : parseFloat(compte.solde || 0),
+            client_nom : cl.full_name || '',
+            nom        : cl.nom || '',
+            postnom    : cl.postnom || '',
+            prenom     : cl.prenom || '',
+            matricule  : cl.matricule || '',
+            telephone  : cl.telephone || '',
+            sexe       : cl.sexe || '',
+            photo      : cl.photo || ''
+        };
+    }
+
+    function scanSelectionnerCompte(code) {
+        // Passage par le modal : on attend la fermeture complète du modal
+        // de scan avant d'ouvrir celui d'identité (évite les conflits de
+        // backdrop Bootstrap entre deux modals).
+        var compte = null;
+        for (var i = 0; i < _scanComptes.length; i++) {
+            if (_scanComptes[i].code_compte === code) { compte = _scanComptes[i]; break; }
+        }
+        _scanPendingCode = code;
+        _scanPendingData = compte ? scanDataDepuisReponse(compte) : null;
+        $('#modalScanCarte').modal('hide');
+    }
+
+    function scanTraiterResultat(texteScanne) {
+        scanStopCamera();
+        scanStatut('<i class="fas fa-spinner fa-spin mr-1"></i> Carte lue, recherche du compte...', 'text-info');
+
+        $.ajax({
+            url: urlScanCarte,
+            method: 'GET',
+            dataType: 'json',
+            data: { q: texteScanne }
+        }).done(function (resp) {
+            if (!resp.success || !resp.comptes || !resp.comptes.length) {
+                scanStatut('<i class="fas fa-exclamation-triangle mr-1"></i> ' +
+                    ((resp && resp.message) ? resp.message : 'Aucun compte disponible pour ce client.'), 'text-warning');
+                $('#btnScanStart').show();
+                return;
+            }
+
+            if (resp.comptes.length === 1) {
+                _scanComptes = resp.comptes;
+                _scanClient  = resp.client;
+                scanSelectionnerCompte(resp.comptes[0].code_compte);
+                return;
+            }
+
+            // Plusieurs comptes (ex: RMB + CC, ou plusieurs devises) :
+            // l'agent choisit lequel utiliser pour l'opération.
+            _scanComptes = resp.comptes;
+            _scanClient  = resp.client;
+            var $liste = $('#scanChoixListe').empty();
+            $.each(resp.comptes, function (i, c) {
+                var soldeFmt = (c.solde || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+                $liste.append(
+                    '<button type="button" class="btn btn-sm btn-block btn-outline-primary mb-1 scan-choix-compte" data-code="' + c.code_compte + '">' +
+                    '<strong>[' + c.devise + '] ' + c.type + '</strong> — ' + c.code_compte +
+                    ' <small class="text-muted">(solde ' + soldeFmt + ' ' + c.devise + ')</small>' +
+                    '</button>'
+                );
+            });
+            $('#scanChoixCompte').show();
+            scanStatut('<i class="fas fa-user-check mr-1 text-success"></i> Client : <strong>' +
+                $('<div>').text(resp.client.full_name).html() + '</strong> — choisissez le compte.', 'text-success');
+        }).fail(function (xhr) {
+            var msg = 'Erreur lors de la lecture de la carte.';
+            if (xhr && xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+            scanStatut('<i class="fas fa-times-circle mr-1 text-danger"></i> ' + msg, 'text-danger');
+            $('#btnScanStart').show();
+        });
+    }
+
+    // ── Détection des caméras connectées ─────────────────────────
+    // Les noms (labels) d'enumerateDevices() ne sont visibles qu'APRÈS
+    // une autorisation getUserMedia : on demande d'abord l'accès (prompt
+    // navigateur), on libère le flux temporaire, puis on liste les
+    // caméras avec leurs noms pour remplir le combo.
+    function scanDemanderAcces() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            return Promise.reject({ name: 'InsecureContext' });
+        }
+        return navigator.mediaDevices.getUserMedia({ video: true }).then(function (stream) {
+            stream.getTracks().forEach(function (t) { t.stop(); });
+        });
+    }
+
+    function scanEnumererCameras() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+            return Promise.reject({ name: 'InsecureContext' });
+        }
+        return navigator.mediaDevices.enumerateDevices().then(function (devices) {
+            var cams = [];
+            for (var i = 0; i < devices.length; i++) {
+                if (devices[i].kind === 'videoinput' && devices[i].deviceId) {
+                    cams.push({
+                        deviceId: devices[i].deviceId,
+                        label: devices[i].label || ('Caméra ' + (cams.length + 1))
+                    });
+                }
+            }
+            return cams;
+        });
+    }
+
+    function scanAfficherNomCamera() {
+        var id = $('#scanChoixCamera').val();
+        var nom = '';
+        for (var i = 0; i < _scanCameras.length; i++) {
+            if (_scanCameras[i].deviceId === id) { nom = _scanCameras[i].label; break; }
+        }
+        $('#scanCameraNom').text(nom || 'Caméra');
+        try { if (id) localStorage.setItem('scanCamDeviceId', id); } catch (e) {}
+    }
+
+    function scanRemplirComboCameras() {
+        var $sel = $('#scanChoixCamera').empty();
+        for (var i = 0; i < _scanCameras.length; i++) {
+            $sel.append($('<option>').val(_scanCameras[i].deviceId).text(_scanCameras[i].label));
+        }
+        // Pré-sélection : dernière caméra utilisée (localStorage), sinon
+        // caméra arrière (mots-clés du label), sinon la première.
+        var dernier = null;
+        try { dernier = localStorage.getItem('scanCamDeviceId'); } catch (e) {}
+        var choix = null;
+        if (dernier) {
+            for (var j = 0; j < _scanCameras.length; j++) {
+                if (_scanCameras[j].deviceId === dernier) { choix = dernier; break; }
+            }
+        }
+        if (!choix) {
+            for (var k = 0; k < _scanCameras.length; k++) {
+                if (/back|arri[eè]re|rear|environment/i.test(_scanCameras[k].label)) {
+                    choix = _scanCameras[k].deviceId;
+                    break;
+                }
+            }
+        }
+        $sel.val(choix || _scanCameras[0].deviceId);
+        scanAfficherNomCamera();
+    }
+
+    function scanErreurCamera(err) {
+        var msg = 'Caméra inaccessible.';
+        if (err && err.name === 'NotAllowedError')      msg = 'Accès caméra REFUSÉ par le navigateur. Note : la caméra exige HTTPS (ou localhost).';
+        else if (err && err.name === 'NotFoundError')   msg = 'Aucune caméra détectée sur ce poste.';
+        else if (err && err.name === 'NotReadableError') msg = 'Caméra déjà utilisée par une autre application.';
+        else if (err && err.name === 'InsecureContext') msg = 'Caméra indisponible : la page doit être servie en HTTPS (ou localhost).';
+        else if (err && err.message)                    msg = err.message;
+        else if (typeof err === 'string' && err)        msg = err;
+        scanStatut('<i class="fas fa-video-slash mr-1 text-danger"></i> ' + msg, 'text-danger');
+        $('#btnScanStart').show().prop('disabled', false);
+    }
+
+    function scanDemarrerSurCamera(deviceId) {
+        _html5Qrcode = new Html5Qrcode('scanReader');
+        _html5Qrcode.start(
+            { deviceId: { exact: deviceId } },   // caméra choisie dans le combo
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            function (decodedText) {
+                if (_scanEnCours) return;    // une seule lecture par session
+                _scanEnCours = true;
+                scanTraiterResultat(decodedText);
+            },
+            function () { /* frame illisible : ignorée */ }
+        ).then(function () {
+            _scanEnCours = false;
+            _scanCamActive = true;
+            scanStatut('<i class="fas fa-camera mr-1 text-success"></i> Caméra active — présentez le QR de la carte membre.', 'text-success');
+            $('#btnScanStart').hide();
+            $('#btnScanStop').show();
+        }).catch(function (err) {
+            _html5Qrcode = null;
+            _scanCamActive = false;
+            scanErreurCamera(err);
+        });
+    }
+
+    function scanLancerCameraChoisie() {
+        var deviceId = $('#scanChoixCamera').val();
+        if (!deviceId) { scanErreurCamera({ name: 'NotFoundError' }); return; }
+        scanAfficherNomCamera();
+        if (_html5Qrcode && _scanCamActive) {
+            // Changement de caméra via le combo : arrêter proprement
+            // l'ancienne avant de démarrer la nouvelle.
+            var ancien = _html5Qrcode;
+            _html5Qrcode = null;
+            _scanCamActive = false;
+            var relancer = function () {
+                try { ancien.clear(); } catch (e) {}
+                scanDemarrerSurCamera(deviceId);
+            };
+            try { ancien.stop().then(relancer).catch(relancer); } catch (e) { relancer(); }
+        } else {
+            scanDemarrerSurCamera(deviceId);
+        }
+    }
+
+    function scanStartCamera() {
+        if (typeof Html5Qrcode === 'undefined') {
+            scanStatut('<i class="fas fa-exclamation-triangle mr-1 text-danger"></i> Librairie de scan indisponible (public/plugins/html5-qrcode).', 'text-danger');
+            return;
+        }
+        $('#btnScanStart').prop('disabled', true);
+        scanStatut('<i class="fas fa-spinner fa-spin mr-1"></i> Détection des caméras connectées...', 'text-info');
+        $('#scanChoixCompte').hide();
+
+        scanDemanderAcces()
+            .then(scanEnumererCameras)
+            .then(function (cams) {
+                _scanCameras = cams;
+                if (!cams.length) {
+                    scanErreurCamera({ name: 'NotFoundError' });
+                    return;
+                }
+                scanRemplirComboCameras();
+                $('#scanZoneCamera').show();
+                scanLancerCameraChoisie();
+            })
+            .catch(function (err) {
+                scanErreurCamera(err);
+            });
+    }
+
+    $('#btnScanCarte').on('click', function () {
+        $('#scanChoixCompte').hide();
+        if (!_scanCameras.length) $('#scanZoneCamera').hide();
+        scanStatut('<i class="fas fa-camera mr-1"></i> Cliquez sur « Démarrer la caméra ».', 'text-muted');
+        $('#modalScanCarte').modal('show');
+    });
+
+    $('#btnScanStart').on('click', scanStartCamera);
+
+    // Changement de caméra dans le combo → redémarrage sur la nouvelle
+    $('#scanChoixCamera').on('change', function () {
+        scanLancerCameraChoisie();
+    });
+
+    $('#btnScanStop').on('click', function () {
+        scanStopCamera();
+        scanStatut('<i class="fas fa-stop-circle mr-1"></i> Caméra arrêtée.', 'text-muted');
+    });
+
+    $(document).on('click', '.scan-choix-compte', function () {
+        scanSelectionnerCompte($(this).data('code'));
+    });
+
+    // À la fermeture du modal scan : couper la caméra (ne jamais la laisser
+    // active en arrière-plan) puis enchaîner sur le flux d'identité si un
+    // compte a été résolu.
+    $('#modalScanCarte').on('hidden.bs.modal', function () {
+        scanStopCamera();
+        if (_scanPendingCode) {
+            var code = _scanPendingCode;
+            var data = _scanPendingData;
+            _scanPendingCode = null;
+            _scanPendingData = null;
+            // Combo en AJAX : on ajoute l'option du compte scanné pour qu'il
+            // apparaisse comme sélection courante, puis on ouvre l'identité.
+            if ($('#selCompte').find('option[value="' + code + '"]').length === 0) {
+                var label = data ? _compteLabel(data) : code;
+                $('#selCompte').append(new Option(label, code, true, true));
+            }
+            $('#selCompte').val(code).trigger('change');
+            applyCompteSelection(code, data);
+        }
+    });
 
     // ─ Type opération → affichage dynamique ─────────────────────
     $('#selTypeOp').on('change', function () {

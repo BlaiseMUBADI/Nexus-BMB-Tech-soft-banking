@@ -322,12 +322,17 @@ class CreditDemande extends Model
      * cause de cet écart de fraîcheur. Utiliser CE scope PARTOUT où on doit
      * savoir si un dossier est en retard élimine la classe de bug entière —
      * plus besoin de dépendre du timing d'un cron/sync pour être exact.
+     *
+     * Complété le 20/09/2026 : les dossiers SUSPENDU sont exclus des listes
+     * "en retard" (ils restent visibles dans l'onglet "Alertes" dédié
+     * SUSPECT/SUSPENDU). Un dossier suspendu suit un traitement spécial ;
+     * il ne doit plus polluer les compteurs/filtres de retard.
      */
     public function scopeEnRetardReel($query)
     {
         $aujourdhui = now()->toDateString();
 
-        return $query->whereNotIn('statut_global', ['SOLDE', 'ANNULE'])
+        return $query->whereNotIn('statut_global', ['SOLDE', 'ANNULE', 'SUSPENDU'])
             ->whereHas('echeancier.echeances', function ($q) use ($aujourdhui) {
                 $q->whereIn('statut', ['EN_ATTENTE', 'EN_RETARD', 'PARTIELLEMENT_PAYE'])
                   ->where('date_echeance', '<', $aujourdhui);

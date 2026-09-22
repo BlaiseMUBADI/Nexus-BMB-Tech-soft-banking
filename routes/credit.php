@@ -54,6 +54,11 @@ Route::middleware(['auth', 'permission:EBEN-PER53|EBEN-PER54|EBEN-PER55|EBEN-PER
             Route::get('/en-cours',     [CreditController::class, 'enCours'])->name('en_cours');
         });
 
+        // ── Recherche AJAX de clients (autocomplétion des selects) ───
+        // Remplace le rendu serveur des 2 200+ clients en <option> dans
+        // la création / modification / import d'ancien dossier.
+        Route::get('/clients/search', [CreditController::class, 'searchClientAjax'])->name('clients.search');
+
         // ── Liste des dossiers ───────────────────────────────────────
         // Garde explicite : PER53 (accès de base) OU l'une des permissions
         // "de vue filtrée" utilisées par les raccourcis du sous-menu Crédits

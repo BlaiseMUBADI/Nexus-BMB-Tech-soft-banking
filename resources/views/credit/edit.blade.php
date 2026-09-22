@@ -47,13 +47,14 @@
                 <label>Client <span class="text-danger">*</span></label>
                 <select name="client_matricule" id="sel_client" class="form-control select2" required>
                     <option value="">-- Sélectionner un client --</option>
-                    @foreach($clients as $c)
-                    <option value="{{ $c->matricule }}"
-                            data-nom="{{ trim(($c->nom ?? '') . ' ' . ($c->postnom ?? '') . ' ' . ($c->prenom ?? '')) }}"
-                            {{ old('client_matricule', $dossier->client_matricule) == $c->matricule ? 'selected' : '' }}>
-                        {{ trim(($c->nom ?? '') . ' ' . ($c->postnom ?? '') . ' ' . ($c->prenom ?? '')) }} – {{ $c->matricule }}
+                    {{-- Seul le client du dossier est rendu côté serveur ; les
+                         autres viennent de la recherche AJAX (2 200+ clients en
+                         <option> rendaient la page très lourde). --}}
+                    @if(!empty($selectedClient))
+                    <option value="{{ $selectedClient->matricule }}" selected>
+                        {{ $selectedClient->full_name }} – {{ $selectedClient->matricule }}
                     </option>
-                    @endforeach
+                    @endif
                 </select>
             </div>
             <div class="form-group col-md-4">
@@ -222,9 +223,45 @@ function simuler() {
 
 window.addEventListener('DOMContentLoaded', () => {
     if (window.jQuery && $.fn.select2) {
-        $('#sel_client').select2({ theme: 'bootstrap4', width: '100%', placeholder: '-- Sélectionner un client --', allowClear: true });
+        $('#sel_client').select2({
+            theme: 'bootstrap4',
+            width: '100%',
+            placeholder: '-- Sélectionner un client (nom, postnom, prénom...) --',
+            allowClear: true,
+            minimumInputLength: 2,
+            language: {
+                noResults: function () { return 'Aucun client trouvé'; },
+                inputTooShort: function () { return 'Tapez au moins 2 caractères (nom, postnom, prénom ou matricule).'; }
+            },
+            ajax: {
+                url: '{{ route("credit.clients.search") }}',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) { return { q: params.term }; },
+                processResults: function (data) {
+                    return {
+                        results: data.map(function (c) {
+                            return { id: c.matricule, text: c.full_name + ' – ' + c.matricule };
+                        })
+                    };
+                }
+            }
+        });
     }
     simuler();
 });
 </script>
 @endpush
+
+{{-- Après enregistrement : modal système de succès + rester sur le formulaire --}}
+@if(session('success'))
+@push('js')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof showSystemMessage === 'function') {
+            showSystemMessage('success', @json(session('success')));
+        }
+    });
+</script>
+@endpush
+@endif

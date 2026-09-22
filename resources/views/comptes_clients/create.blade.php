@@ -28,9 +28,13 @@
                             <label for="client_matricule">Client</label>
                             <select name="client_matricule" id="client_matricule" class="form-control select2" required>
                                 <option value="">-- Sélectionner un client --</option>
-                                @foreach($clients as $client)
-                                    <option value="{{ $client->matricule }}">{{ $client->full_name }} ({{ $client->matricule }})</option>
-                                @endforeach
+                                {{-- Seul le client déjà choisi est rendu côté serveur ;
+                                     les autres viennent de la recherche AJAX. --}}
+                                @if(!empty($selectedClient))
+                                    <option value="{{ $selectedClient->matricule }}" selected>
+                                        {{ $selectedClient->full_name }} ({{ $selectedClient->matricule }})
+                                    </option>
+                                @endif
                             </select>
                         </div>
                         <div class="form-group">
@@ -85,12 +89,18 @@
                 <div class="card-header">
                     <h3 class="card-title"><i class="fas fa-list mr-2"></i>Comptes ouverts</h3>
                     <div class="card-tools">
-                        <div class="input-group input-group-sm" style="width:200px;">
-                            <input type="text" id="searchComptesCreate" class="form-control" placeholder="Rechercher…">
-                            <div class="input-group-append">
-                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <form method="GET" action="{{ route('comptes.create') }}" class="form-inline">
+                            <div class="input-group input-group-sm" style="width:240px;">
+                                <input type="text" name="q" value="{{ $rechercheComptes ?? '' }}" class="form-control"
+                                       placeholder="N° compte, client, matricule…" autocomplete="off">
+                                <div class="input-group-append">
+                                    <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-search"></i></button>
+                                    @if(!empty($rechercheComptes))
+                                        <a href="{{ route('comptes.create') }}" class="btn btn-outline-secondary" title="Effacer">&times;</a>
+                                    @endif
+                                </div>
                             </div>
-                        </div>
+                        </form>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -171,6 +181,11 @@
                             </tbody>
                         </table>
                     </div>
+                    @if($comptes->hasPages())
+                    <div class="card-footer py-1">
+                        {{ $comptes->links() }}
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -197,7 +212,30 @@
             allowClear: true,
             language: { noResults: function () { return 'Aucun résultat trouvé'; } }
         };
-        $('#client_matricule, #type, #devise').select2(s2Opts);
+        $('#type, #devise').select2(s2Opts);
+
+        // Client : recherche AJAX (plus de 2 200 <option> rendues côté serveur)
+        $('#client_matricule').select2($.extend({}, s2Opts, {
+            placeholder: '-- Sélectionner un client (nom, postnom, prénom...) --',
+            minimumInputLength: 2,
+            language: {
+                noResults: function () { return 'Aucun client trouvé'; },
+                inputTooShort: function () { return 'Tapez au moins 2 caractères (nom, postnom, prénom ou matricule).'; }
+            },
+            ajax: {
+                url: '{{ route("comptes.clients.search") }}',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) { return { q: params.term }; },
+                processResults: function (data) {
+                    return {
+                        results: data.map(function (c) {
+                            return { id: c.matricule, text: c.full_name + ' (' + c.matricule + ')' };
+                        })
+                    };
+                }
+            }
+        }));
 
         /* ── Afficher / masquer portefeuille ─────────── */
         $('#type').on('change', function () {
@@ -219,14 +257,7 @@
             }
         });
 
-        /* ── Live search dans la table ───────────────── */
-        $('#searchComptesCreate').on('input', function () {
-            var q = $(this).val().toLowerCase();
-            $('#comptesCreateTable tbody tr').each(function () {
-                var haystack = ($(this).data('search') || $(this).text()).toString().toLowerCase();
-                $(this).toggle(haystack.indexOf(q) !== -1);
-            });
-        });
+        /* ── Recherche dans la table : faite côté serveur (paramètre q) ── */
 
         /* ── Soumission AJAX formulaire ──────────────── */
         $('#compteForm').on('submit', function (e) {

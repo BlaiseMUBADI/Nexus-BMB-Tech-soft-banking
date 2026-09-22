@@ -3,6 +3,7 @@
 namespace App\Models\Credit;
 
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class CreditEcheance extends Model
 {
@@ -49,6 +50,35 @@ class CreditEcheance extends Model
     {
         return $this->statut === 'EN_RETARD'
             || ($this->statut === 'EN_ATTENTE' && !empty($this->date_echeance) && (string) $this->date_echeance < now()->toDateString());
+    }
+
+    /**
+     * Jours OUVRABLES de retard soldés par le règlement de cette échéance
+     * (banque ouverte lundi-samedi, dimanche exclu — même règle que la
+     * liste recouvrement) : échéance PAYE réglée après sa date d'échéance.
+     * 0 si payée à temps, le jour même, ou non soldée.
+     */
+    public function getJoursRetardSoldeAttribute(): int
+    {
+        if (empty($this->date_echeance) || empty($this->date_paiement_effectif)) {
+            return 0;
+        }
+
+        $due  = Carbon::parse($this->date_echeance)->startOfDay();
+        $paye = Carbon::parse($this->date_paiement_effectif)->startOfDay();
+        if ($paye->lessThanOrEqualTo($due)) {
+            return 0;
+        }
+
+        $jours = 0;
+        $d = $due->copy()->addDay();
+        while ($d->lessThanOrEqualTo($paye) && $jours < 3650) {
+            if ($d->dayOfWeekIso <= 6) {
+                $jours++;
+            }
+            $d->addDay();
+        }
+        return $jours;
     }
 
     // Accessors de compatibilite

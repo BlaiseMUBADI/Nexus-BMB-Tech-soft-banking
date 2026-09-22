@@ -44,7 +44,15 @@
                             <tr>
                                 <td>{{ $zoneNom }}</td>
                                 <td class="text-muted text-center" style="width:70px;">{{ $t['count'] }} éch.</td>
-                                <td class="text-right font-weight-bold text-danger" style="width:150px;">{{ number_format($t['reste_du'], 0, ',', ' ') }}</td>
+                                <td class="text-right" style="width:190px;">
+                                    @foreach($t['par_devise'] as $devise => $pd)
+                                        @php $symbole = match($devise) { 'USD' => '$', 'EUR' => '€', default => 'Fc' }; @endphp
+                                        <div class="font-weight-bold {{ $devise === 'CDF' ? 'text-danger' : 'text-primary' }}">
+                                            {{ number_format($pd['reste_du'], 0, ',', ' ') }}{{ $symbole }}
+                                            <small class="text-muted font-weight-normal">({{ $devise }})</small>
+                                        </div>
+                                    @endforeach
+                                </td>
                             </tr>
                         @empty
                             <tr><td class="text-center text-muted py-3">Aucune donnée</td></tr>
@@ -66,7 +74,15 @@
                             <tr>
                                 <td>{{ $pfNom }}</td>
                                 <td class="text-muted text-center" style="width:70px;">{{ $t['count'] }} éch.</td>
-                                <td class="text-right font-weight-bold text-primary" style="width:150px;">{{ number_format($t['reste_du'], 0, ',', ' ') }}</td>
+                                <td class="text-right" style="width:190px;">
+                                    @foreach($t['par_devise'] as $devise => $pd)
+                                        @php $symbole = match($devise) { 'USD' => '$', 'EUR' => '€', default => 'Fc' }; @endphp
+                                        <div class="font-weight-bold {{ $devise === 'CDF' ? 'text-danger' : 'text-primary' }}">
+                                            {{ number_format($pd['reste_du'], 0, ',', ' ') }}{{ $symbole }}
+                                            <small class="text-muted font-weight-normal">({{ $devise }})</small>
+                                        </div>
+                                    @endforeach
+                                </td>
                             </tr>
                         @empty
                             <tr><td class="text-center text-muted py-3">Aucune donnée</td></tr>

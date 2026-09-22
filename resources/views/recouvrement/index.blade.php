@@ -47,6 +47,24 @@
                         <i class="fas fa-history mr-1"></i> Historique
                     </a>
                 </div>
+
+                {{-- Recherche : nom complet en ordre libre / matricule / n° dossier --}}
+                <form method="GET" action="{{ route('recouvrement.index') }}" class="form-inline">
+                    <div class="input-group input-group-sm" style="width:320px;">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        </div>
+                        <input type="text" name="search" value="{{ request('search') }}"
+                               class="form-control" autocomplete="off"
+                               placeholder="Nom complet, matricule, n° dossier...">
+                        <div class="input-group-append">
+                            <button type="submit" class="btn btn-outline-primary">Rechercher</button>
+                            @if(request('search'))
+                                <a href="{{ route('recouvrement.index') }}" class="btn btn-outline-secondary" title="Effacer">&times;</a>
+                            @endif
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -122,7 +140,10 @@
                                         ->first();
                                     $soldeRmb = $compteRmb ? (float)$compteRmb->solde_reel : 0;
 
-                                    // Calcul des jours ouvrables de retard
+                                    // Calcul des jours ouvrables de retard.
+                                    // Règle métier : la banque ouvre du LUNDI au SAMEDI —
+                                    // le samedi est donc un jour ouvrable comme un autre,
+                                    // seul le DIMANCHE est exclu du comptage.
                                     $joursRetard = 0;
                                     if ($prochaineDate) {
                                         $dateEcheance = \Carbon\Carbon::parse($prochaineDate);
@@ -130,7 +151,7 @@
                                         if ($dateEcheance->lt($today)) {
                                             $current = $dateEcheance->copy()->addDay();
                                             while ($current->lte($today)) {
-                                                if ($current->dayOfWeekIso < 6) { // 1=Lundi ... 5=Vendredi
+                                                if ($current->dayOfWeekIso <= 6) { // 1=Lundi ... 6=Samedi (dimanche=7 exclu)
                                                     $joursRetard++;
                                                 }
                                                 $current->addDay();
@@ -145,12 +166,20 @@
                                             <i class="fas fa-file-invoice mr-1"></i>{{ $dossier->numero_dossier }}
                                         </a>
                                     </td>
-                                    <td>{{ optional($dossier->client)->nom }} {{ optional($dossier->client)->prenom }}</td>
+                                    <td>{{ optional($dossier->client)->full_name }}</td>
                                     <td class="text-nowrap">{{ $prochaineDate ? \Carbon\Carbon::parse($prochaineDate)->format('d/m/Y') : '-' }}</td>
                                     <td class="text-center">
                                         @if($joursRetard > 0)
-                                            <span class="badge badge-danger font-weight-bold" title="{{ $joursRetard }} jour(s) ouvrable(s) de retard">
+                                            <span class="badge badge-danger font-weight-bold" title="{{ $joursRetard }} jour(s) ouvrable(s) de retard (lundi-samedi, dimanche exclu)">
                                                 <i class="fas fa-calendar-times mr-1"></i>{{ $joursRetard }} j
+                                            </span>
+                                        @elseif($prochaineDate && \Carbon\Carbon::parse($prochaineDate)->lt(\Carbon\Carbon::today()))
+                                            {{-- Dossier réellement en retard (date dépassée) mais
+                                                 uniquement des dimanches depuis l'échéance (la banque
+                                                 ouvre lun-sam) : 0 jour OUVRABLE comptabilisé —
+                                                 affiché explicitement au lieu d'un tiret ambigu. --}}
+                                            <span class="badge badge-danger" title="En retard depuis le {{ \Carbon\Carbon::parse($prochaineDate)->format('d/m/Y') }} — dimanche non compté en jours ouvrables (banque ouverte lun-sam)">
+                                                <i class="fas fa-calendar-times mr-1"></i>0 j
                                             </span>
                                         @else
                                             <span class="text-muted">-</span>

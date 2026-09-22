@@ -197,6 +197,8 @@ $(document).ready(function () {
     var urlData      = '{{ route("caisses.demandes.modification.data") }}';
     var urlApprouver = '{{ route("caisses.demandes.modification.approuver", ["id" => "__ID__"]) }}';
     var urlRejeter   = '{{ route("caisses.demandes.modification.rejeter",   ["id" => "__ID__"]) }}';
+    // Autorisation dédiée : EBEN-PER133 « Autoriser modification d'opérations »
+    var canAutoriserModifications = @json(in_array('EBEN-PER133', $userPermCodes ?? []));
 
     // ── Charger les demandes ─────────────────────────────────────
     function chargerDemandes() {
@@ -235,7 +237,7 @@ $(document).ready(function () {
                     statutBadge = '<span class="badge badge-danger badge-sm">Rejetée</span>';
                 }
                 var actions = '';
-                if (d.statut === 'EN_ATTENTE') {
+                if (d.statut === 'EN_ATTENTE' && canAutoriserModifications) {
                     actions = '<button class="btn btn-xs btn-success btn-approuver mr-1"'
                         + ' data-id="' + d.id + '"'
                         + ' data-resume="' + escHtml(d.reference_operation) + ' — ' + escHtml(d.client_nom) + '"'

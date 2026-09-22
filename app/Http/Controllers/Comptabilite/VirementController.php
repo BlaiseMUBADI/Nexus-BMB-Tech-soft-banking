@@ -83,9 +83,6 @@ class VirementController extends Controller
                 $query->where('code_compte', 'like', "%{$q}%")
                     ->orWhereHas('client', function ($cq) use ($q) {
                         $cq->searchFullName($q)
-                            ->orWhere('nom', 'like', "%{$q}%")
-                            ->orWhere('postnom', 'like', "%{$q}%")
-                            ->orWhere('prenom', 'like', "%{$q}%")
                             ->orWhere('matricule', 'like', "%{$q}%");
                     });
             })

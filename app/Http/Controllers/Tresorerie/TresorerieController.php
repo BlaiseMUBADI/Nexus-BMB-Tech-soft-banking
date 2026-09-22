@@ -8,6 +8,7 @@ use App\Models\Caisse\CaissesGuichet;
 use App\Models\Caisse\CaissesGuichetSolde;
 use App\Models\Caisse\ClotureCaisse;
 use App\Models\Caisse\MouvementInterCaisse;
+use App\Models\Caisse\Transaction;
 use App\Models\Tresorerie\CommissionRule;
 use App\Models\Tresorerie\Devise;
 use App\Models\Tresorerie\Portefeuille;
@@ -238,6 +239,219 @@ class TresorerieController extends Controller
         return view('tresorerie.approvisionnement', compact('coffre', 'devises', 'guichetsAlimentables', 'module'));
     }
 
+    /**
+     * Page "Change de devises" du coffre central.
+     *
+     * Permet de convertir une partie du solde d'une devise vers une autre,
+     * AU SEIN DU MÊME coffre (ex: convertir du CDF excédentaire en USD pour
+     * pouvoir honorer des paiements/décaissements en USD). Aucun argent ne
+     * sort ni n'entre réellement de l'institution : c'est une conversion
+     * interne, tracée comme une opération Transaction::CHANGE portée par le
+     * coffre central lui-même (pas de compte client impliqué).
+     */
+    public function changeDevisePage()
+    {
+        $coffre = $this->getCoffreCentral('changeDevisePage');
+        $devises = Devise::orderBy('code_iso')->get(['code_iso', 'nom', 'symbole']);
+
+        // Taux actifs pour toutes les paires de devises gérées (dans les deux
+        // sens), pour l'affichage du taux appliqué et l'estimation live de la
+        // contre-valeur dans le formulaire. La valeur FAIT FOI reste celle
+        // recalculée côté serveur au moment du POST (TauxEchange::actif()).
+        $tauxPaires = [];
+        foreach ($devises as $source) {
+            foreach ($devises as $dest) {
+                if ($source->code_iso === $dest->code_iso) {
+                    continue;
+                }
+                $taux = \App\Models\Tresorerie\TauxEchange::actif($source->code_iso, $dest->code_iso);
+                if ($taux) {
+                    $tauxPaires[$source->code_iso . '->' . $dest->code_iso] = (float) $taux->taux;
+                }
+            }
+        }
+
+        return view('tresorerie.change_devise', compact('coffre', 'devises', 'tauxPaires'));
+    }
+
+    /**
+     * Exécute un change de devises interne au coffre central.
+     *
+     * Le taux appliqué est TOUJOURS le taux officiel actif
+     * (TauxEchange::actif), jamais saisi librement par l'agent — c'est la
+     * même règle que pour le change au guichet (OperationCaisseController),
+     * afin de garder une seule source de vérité pour les taux et éviter
+     * tout risque d'arbitrage/erreur de saisie sur une opération sensible.
+     */
+    public function changeDevise(Request $request)
+    {
+        $request->validate([
+            'devise_source' => 'required|exists:tb_devises,code_iso|different:devise_dest',
+            'devise_dest'   => 'required|exists:tb_devises,code_iso',
+            'montant'       => 'required|numeric|min:0.01',
+            'observations'  => 'nullable|string|max:255',
+        ], [
+            'devise_source.different' => 'La devise source et la devise destination doivent être différentes.',
+            'montant.min'             => 'Le montant doit être supérieur à 0.',
+        ]);
+
+        $coffre = $this->getCoffreCentral('changeDevise');
+        if (!$coffre) {
+            return response()->json(['success' => false, 'message' => 'Coffre central introuvable. Contactez l\'administrateur.'], 500);
+        }
+
+        if ($coffre->statut_operationnel !== 'OUVERT') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Le coffre central est ' . $coffre->statut_operationnel . '. Change de devises indisponible.',
+            ], 422);
+        }
+
+        $deviseSource = strtoupper($request->devise_source);
+        $deviseDest   = strtoupper($request->devise_dest);
+        $montant      = round((float) $request->montant, 2);
+
+        $tauxActif = \App\Models\Tresorerie\TauxEchange::actif($deviseSource, $deviseDest);
+        if (!$tauxActif) {
+            return response()->json([
+                'success' => false,
+                'message' => "Aucun taux de change actif n'est défini pour {$deviseSource} → {$deviseDest}. "
+                           . "Configurez d'abord un taux dans Trésorerie > Taux de Change / Devises.",
+            ], 422);
+        }
+        $taux = (float) $tauxActif->taux;
+        $montantDest = round($montant * $taux, 2);
+
+        $agentMatricule = Auth::user()->agent_matricule ?? null;
+        if (empty($agentMatricule)) {
+            return response()->json(['success' => false, 'message' => 'Aucun agent valide associé à votre compte utilisateur.'], 422);
+        }
+
+        $resultat = null;
+
+        try {
+            DB::transaction(function () use ($coffre, $deviseSource, $deviseDest, $montant, $montantDest, $taux, $agentMatricule, $request, &$resultat) {
+                $soldeSource = CaissesGuichetSolde::where('guichet_id', $coffre->id)
+                    ->where('devise_code', $deviseSource)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$soldeSource || (float) $soldeSource->solde_en_caisse < $montant) {
+                    throw ValidationException::withMessages([
+                        'montant' => 'Solde insuffisant en ' . $deviseSource . ' dans le coffre central. Disponible : '
+                                   . number_format((float) ($soldeSource->solde_en_caisse ?? 0), 2, ',', ' ') . ' ' . $deviseSource . '.',
+                    ]);
+                }
+
+                $soldeDest = CaissesGuichetSolde::where('guichet_id', $coffre->id)
+                    ->where('devise_code', $deviseDest)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$soldeDest) {
+                    $soldeDest = CaissesGuichetSolde::create([
+                        'guichet_id'      => $coffre->id,
+                        'devise_code'     => $deviseDest,
+                        'solde_en_caisse' => 0,
+                    ]);
+                }
+
+                $reference = $this->buildReference('CHG');
+
+                $transaction = Transaction::create([
+                    'guichet_id'      => $coffre->id,
+                    'agent_matricule' => $agentMatricule,
+                    'compte_code'     => null,
+                    'devise_code'     => $deviseSource,
+                    'type'            => Transaction::CHANGE,
+                    'montant'         => $montant,
+                    'devise_dest'     => $deviseDest,
+                    'montant_dest'    => $montantDest,
+                    'taux_change'     => $taux,
+                    'reference'       => $reference,
+                    'observations'    => trim('Change interne coffre central : ' . number_format($montant, 2, ',', ' ') . ' ' . $deviseSource
+                                        . ' -> ' . number_format($montantDest, 2, ',', ' ') . ' ' . $deviseDest
+                                        . ' (taux ' . $taux . '). ' . (string) ($request->observations ?? '')),
+                    'statut'          => Transaction::CONFIRME,
+                    'date_operation'  => now(),
+                ]);
+
+                $soldeSource->decrement('solde_en_caisse', $montant);
+                $soldeDest->increment('solde_en_caisse', $montantDest);
+
+                $resultat = [
+                    'transaction_id'    => $transaction->id,
+                    'reference'         => $reference,
+                    'nouveau_solde_source' => (float) $soldeSource->fresh()->solde_en_caisse,
+                    'nouveau_solde_dest'   => (float) $soldeDest->fresh()->solde_en_caisse,
+                ];
+            });
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => collect($e->errors())->flatten()->first()], 422);
+        } catch (\Exception $e) {
+            Log::error('[Trésorerie] Erreur change de devises coffre', [
+                'devise_source' => $deviseSource,
+                'devise_dest'   => $deviseDest,
+                'montant'       => $montant,
+                'erreur'        => $e->getMessage(),
+            ]);
+            return response()->json(['success' => false, 'message' => 'Erreur : ' . $e->getMessage()], 500);
+        }
+
+        \App\Models\ActivityLog::record(
+            'TRESORERIE',
+            'COFFRE_CHANGE_DEVISE',
+            $coffre,
+            $resultat['reference'],
+            "Change interne coffre central : -{$montant} {$deviseSource} / +{$montantDest} {$deviseDest} (taux {$taux})"
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Change effectué : -' . number_format($montant, 2, ',', ' ') . ' ' . $deviseSource
+                       . ' / +' . number_format($montantDest, 2, ',', ' ') . ' ' . $deviseDest . ' (taux ' . $taux . ').',
+            'reference' => $resultat['reference'],
+            'nouveau_solde_source' => $resultat['nouveau_solde_source'],
+            'nouveau_solde_dest'   => $resultat['nouveau_solde_dest'],
+            'devise_source' => $deviseSource,
+            'devise_dest'   => $deviseDest,
+        ]);
+    }
+
+    /**
+     * Historique JSON des changes de devises effectués au coffre central
+     * (pour le tableau de la page change-devise).
+     */
+    public function changeDeviseHistorique()
+    {
+        $coffre = $this->getCoffreCentral('changeDeviseHistorique');
+        if (!$coffre) {
+            return response()->json([]);
+        }
+
+        $items = Transaction::where('guichet_id', $coffre->id)
+            ->where('type', Transaction::CHANGE)
+            ->whereNull('compte_code')
+            ->orderByDesc('date_operation')
+            ->limit(200)
+            ->get()
+            ->map(function (Transaction $t) {
+                return [
+                    'id'            => $t->id,
+                    'reference'     => $t->reference,
+                    'devise_source' => $t->devise_code,
+                    'montant'       => (float) $t->montant,
+                    'devise_dest'   => $t->devise_dest,
+                    'montant_dest'  => (float) $t->montant_dest,
+                    'taux_change'   => (float) $t->taux_change,
+                    'agent'         => $t->agent_matricule,
+                    'date'          => optional($t->date_operation)->format('d/m/Y H:i'),
+                    'observations'  => $t->observations,
+                ];
+            });
+
+        return response()->json($items);
+    }
 
     /**
      * Approvisionnement du coffre depuis une source externe (banque, capital).

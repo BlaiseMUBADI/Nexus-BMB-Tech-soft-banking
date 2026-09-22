@@ -276,11 +276,10 @@ class OperationCaisseController extends Controller
             }
         }
 
-        $comptesQuery = \App\Models\Clients\Compte::with('client')
-            ->orderBy('devise')
-            ->orderBy('code_compte');
-        $this->applyZoneScopeToComptes($comptesQuery, $zoneScope);
-        $comptes = $comptesQuery->get();
+        // PERFORMANCE (21/09/2026) : plus de chargement des 2 600+ comptes avec
+        // leur client à chaque affichage. Le combo compte est désormais en
+        // recherche AJAX (searchCompte, 10 résultats max) — l'ancien rendu
+        // serveur alourdissait fortement la page et gelait le navigateur.
 
         $zoneRestriction = [
             'active' => (bool) ($zoneScope['restricted'] ?? false),
@@ -297,7 +296,7 @@ class OperationCaisseController extends Controller
         // ══════════════════════════════════════════════════════════════
         $canDeleteOperation = $user->hasPermission('EBEN-PER25');
 
-        return view('Caisse_Guichet.operations', compact('guichet', 'user', 'operations', 'comptes', 'zoneRestriction', 'operationTypeOptions', 'canDeleteOperation', 'latestDemandesByTx'));
+        return view('Caisse_Guichet.operations', compact('guichet', 'user', 'operations', 'zoneRestriction', 'operationTypeOptions', 'canDeleteOperation', 'latestDemandesByTx'));
     }
 
     /**
@@ -987,11 +986,8 @@ class OperationCaisseController extends Controller
                 $query->where('code_compte', 'like', "%{$q}%")
                       ->orWhereHas('client', function ($cq) use ($q) {
                           $cq->searchFullName($q)
-                             ->orWhere('nom', 'like', "%{$q}%")
-                             ->orWhere('postnom', 'like', "%{$q}%")
-                             ->orWhere('prenom', 'like', "%{$q}%")
                              ->orWhere('matricule', 'like', "%{$q}%");
-                      });
+                       });
             });
 
         // ── Visibilite des comptes GTC (caution bloquee) en depot/retrait ──
@@ -1024,8 +1020,17 @@ class OperationCaisseController extends Controller
             ->get()
             ->map(fn($c) => [
                 'code_compte' => $c->code_compte,
+                'type'        => $c->type,
                 'client_nom'  => $c->client?->full_name ?: '—',
+                'nom'         => $c->client?->nom,
+                'postnom'     => $c->client?->postnom,
+                'prenom'      => $c->client?->prenom,
+                'matricule'   => $c->client?->matricule,
+                'telephone'   => $c->client?->telephone,
+                'sexe'        => $c->client?->sexe,
+                'photo'       => $c->client?->photo ? basename($c->client->photo) : '',
                 'devise'      => $c->devise,
+                'solde_reel'  => (float) $c->solde_reel,
                 'solde'       => number_format((float) $c->solde_reel, 2, ',', ' ') . ' ' . $c->devise,
             ]);
 
@@ -1048,9 +1053,6 @@ class OperationCaisseController extends Controller
         $query = \App\Models\Clients\Client::query()
             ->where(function ($query) use ($q) {
                 $query->searchFullName($q)
-                    ->orWhere('nom', 'like', "%{$q}%")
-                    ->orWhere('postnom', 'like', "%{$q}%")
-                    ->orWhere('prenom', 'like', "%{$q}%")
                     ->orWhere('matricule', 'like', "%{$q}%")
                     ->orWhere('telephone', 'like', "%{$q}%");
             });
@@ -1066,6 +1068,111 @@ class OperationCaisseController extends Controller
         ]);
 
         return response()->json($clients);
+    }
+
+    /**
+     * Résout un scan de carte membre (QR) en comptes sélectionnables pour
+     * un DEPOT / RETRAIT.
+     *
+     * Le QR de la carte membre encode l'URL de vérification publique
+     * `.../carte-membre/verifier/{token}` (token = 32 hex, ClientCarte).
+     * Ce endpoint accepte soit l'URL complète scannée, soit le token nu,
+     * retrouve la carte (non révoquée), puis renvoie le client et ses
+     * comptes — avec EXACTEMENT les mêmes règles de visibilité que
+     * searchCompte() (scope zone, GTC masqué sauf crédit soldé, jamais
+     * visible en guichet MOBILE) pour que le scan ne puisse jamais
+     * exposer un compte que la recherche normale ne montrerait pas.
+     *
+     * GET /caisses/operations/scan-carte?q={texteScanne}
+     */
+    public function scanCarte(Request $request)
+    {
+        $raw = trim((string) $request->input('q', ''));
+        if ($raw === '') {
+            return response()->json(['success' => false, 'message' => 'Scan vide.'], 422);
+        }
+
+        // Extraire le token : URL de vérification complète OU token nu (32 hex).
+        $token = null;
+        if (preg_match('/carte-membre\/verifier\/([a-f0-9]{32})/i', $raw, $m)) {
+            $token = strtolower($m[1]);
+        } elseif (preg_match('/^[a-f0-9]{32}$/i', $raw)) {
+            $token = strtolower($raw);
+        }
+
+        if (!$token) {
+            return response()->json([
+                'success' => false,
+                'message' => 'QR non reconnu : une carte membre EBEN est attendue.',
+            ], 422);
+        }
+
+        $carte = \App\Models\Clients\ClientCarte::with('client')
+            ->where('token_verification', $token)
+            ->first();
+
+        if (!$carte) {
+            return response()->json(['success' => false, 'message' => 'Carte membre introuvable.'], 404);
+        }
+
+        if ($carte->statut === \App\Models\Clients\ClientCarte::REVOQUEE) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Carte RÉVOQUÉE (perte/vol) — opération refusée. Veuillez vérifier l\'identité du client.',
+            ], 422);
+        }
+
+        $client = $carte->client;
+        if (!$client) {
+            return response()->json(['success' => false, 'message' => 'Client lié à cette carte introuvable.'], 404);
+        }
+
+        // Comptes du client — mêmes filtres que searchCompte() (zone + GTC).
+        $zoneScope = $this->resolveZoneScope();
+        $query = Compte::where('client_matricule', $client->matricule);
+
+        $guichetType = strtoupper((string) ($this->getGuichetAgent()?->type_guichet));
+        if ($guichetType === 'MOBILE') {
+            $query->where('type', '!=', 'GTC');
+        } else {
+            $query->where(function ($query) {
+                $query->where('type', '!=', 'GTC')
+                    ->orWhere(function ($query) {
+                        $query->where('type', 'GTC')
+                            ->whereExists(function ($sub) {
+                                $sub->select('id')
+                                    ->from('tb_credit_demandes')
+                                    ->whereColumn('tb_credit_demandes.client_matricule', 'tb_comptes.client_matricule')
+                                    ->whereColumn('tb_credit_demandes.devise', 'tb_comptes.devise')
+                                    ->where('tb_credit_demandes.statut_global', 'SOLDE');
+                            });
+                    });
+            });
+        }
+
+        $this->applyZoneScopeToComptes($query, $zoneScope);
+
+        $comptes = $query->orderBy('devise')->orderBy('type')->get()->map(fn ($c) => [
+            'code_compte' => $c->code_compte,
+            'type'        => $c->type,
+            'devise'      => $c->devise,
+            'solde'       => (float) $c->solde_reel,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'client'  => [
+                'matricule' => $client->matricule,
+                'full_name' => $client->full_name,
+                'nom'       => $client->nom,
+                'postnom'   => $client->postnom,
+                'prenom'    => $client->prenom,
+                'telephone' => $client->telephone,
+                'sexe'      => $client->sexe,
+                'photo'     => $client->photo ? basename($client->photo) : '',
+            ],
+            'comptes' => $comptes,
+        ]);
     }
 
     /**
@@ -1927,14 +2034,22 @@ class OperationCaisseController extends Controller
             $search = trim((string) $request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('reference_operation', 'like', "%{$search}%")
-                  ->orWhere('client_nom', 'like', "%{$search}%")
-                  ->orWhere('compte_code', 'like', "%{$search}%")
-                  ->orWhere('agent_matricule', 'like', "%{$search}%")
-                  ->orWhere('motif', 'like', "%{$search}%")
-                  ->orWhereHas('guichet', function ($g) use ($search) {
-                      $g->where('intitule', 'like', "%{$search}%")
-                        ->orWhere('code_guichet', 'like', "%{$search}%");
-                  });
+                   ->orWhere(function ($n) use ($search) {
+                       // Nom complet du client (colonne dénormalisée) :
+                       // chaque mot saisi doit apparaître, ordre libre.
+                       foreach (preg_split('/\s+/', trim($search)) as $mot) {
+                           if ($mot !== '') {
+                               $n->where('client_nom', 'like', "%{$mot}%");
+                           }
+                       }
+                   })
+                   ->orWhere('compte_code', 'like', "%{$search}%")
+                   ->orWhere('agent_matricule', 'like', "%{$search}%")
+                   ->orWhere('motif', 'like', "%{$search}%")
+                   ->orWhereHas('guichet', function ($g) use ($search) {
+                       $g->where('intitule', 'like', "%{$search}%")
+                         ->orWhere('code_guichet', 'like', "%{$search}%");
+                   });
             });
         }
 
@@ -2423,12 +2538,10 @@ class OperationCaisseController extends Controller
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('numero_dossier', 'like', "%{$search}%")
-                  ->orWhereHas('client', function($cq) use ($search) {
-                      $cq->where('nom', 'like', "%{$search}%")
-                         ->orWhere('postnom', 'like', "%{$search}%")
-                         ->orWhere('prenom', 'like', "%{$search}%")
-                         ->orWhere('matricule', 'like', "%{$search}%");
-                  });
+                   ->orWhereHas('client', function($cq) use ($search) {
+                       $cq->searchFullName($search)
+                          ->orWhere('matricule', 'like', "%{$search}%");
+                   });
             });
         }
 
@@ -2439,7 +2552,7 @@ class OperationCaisseController extends Controller
 
         // Opérations de remboursement enregistrées (transactions de type REMBOURSEMENT)
         $operationsRemboursement = \App\Models\Caisse\Transaction::where('type', 'REMBOURSEMENT')
-            ->with(['guichet', 'dossierCredit.client'])
+            ->with(['guichet', 'dossierCredit.client', 'creditRemboursement.echeance'])
             ->orderByDesc('date_operation')
             ->limit(20)
             ->get();

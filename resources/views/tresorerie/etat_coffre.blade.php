@@ -46,6 +46,7 @@
                 </div>
                 <div class="collapse show" id="coffreBalancesSection">
                 <div class="card-body py-3">
+                    @if(in_array('EBEN-PER130', $userPermCodes ?? []))
                     <div class="row" id="coffreBalancesRow">
                         @forelse($coffre->soldes as $sc)
                         <div class="col-6 col-md-3 col-lg-2 mb-3">
@@ -69,6 +70,12 @@
                         </div>
                         @endforelse
                     </div>
+                    @else
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-lock fa-2x text-warning mb-2 d-block"></i>
+                        Montants masqués — autorisation « Voir les montants du coffre central » requise.
+                    </div>
+                    @endif
                 </div>
                 </div>
             </div>
@@ -87,9 +94,12 @@
                         <small class="text-muted font-weight-normal ml-2" style="font-size:.78rem">{{ now()->format('d/m/Y') }}</small>
                     </h5>
                     <div class="d-flex align-items-center coffre-activity-tools">
+                    <div class="d-flex align-items-center coffre-activity-tools">
+                        @if(in_array('EBEN-PER130', $userPermCodes ?? []))
                         <span class="badge badge-success mr-1" id="statTotalEntrees">{{ $stats['total_entrees'] }} dégag.</span>
                         <span class="badge badge-danger mr-1" id="statTotalSorties">{{ $stats['total_sorties'] }} alim.</span>
                         <span class="badge badge-info mr-2" id="statTotalMvt">{{ $stats['total_mouvements'] }} mvt</span>
+                        @endif
                         <button class="btn btn-xs btn-outline-secondary stop-card-toggle" id="btnRefreshStats" title="Actualiser">
                             <i class="fas fa-sync-alt"></i>
                         </button>
@@ -98,6 +108,7 @@
                 </div>
                 <div class="collapse show" id="coffreActivitySection">
                 <div class="card-body p-0" id="statsDeviseContainer">
+                    @if(in_array('EBEN-PER130', $userPermCodes ?? []))
                     @forelse($stats['par_devise'] as $d)
                     <div class="stat-devise-block border-bottom" data-devise="{{ $d['devise_code'] }}">
                         <div class="stat-devise-header d-flex align-items-center justify-content-between px-3 py-2"
@@ -155,6 +166,12 @@
                         <i class="fas fa-moon mr-1"></i> Aucun mouvement confirmé aujourd'hui.
                     </div>
                     @endforelse
+                    @else
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-lock fa-2x text-warning mb-2 d-block"></i>
+                        Statistiques du coffre masquées — autorisation « Voir les montants du coffre central » requise.
+                    </div>
+                    @endif
                 </div>
                 </div>
             </div>
@@ -695,6 +712,14 @@ $(document).ready(function () {
     var cloturesMode  = 'pending';
     var filtreActif   = '';
 
+    // ── Autorisations de la page « État du coffre » ──
+    // PER130 : voir les montants du coffre · PER131 : valider billettage/clôtures
+    // PER132 : approuver ravitaillement · PER133 : autoriser modifications d'opérations
+    var canVoirMontants            = @json(in_array('EBEN-PER130', $userPermCodes ?? []));
+    var canValiderClotures         = @json(in_array('EBEN-PER131', $userPermCodes ?? []));
+    var canApprouverRavitaillement = @json(in_array('EBEN-PER132', $userPermCodes ?? []));
+    var canAutoriserModifications  = @json(in_array('EBEN-PER133', $userPermCodes ?? []));
+
     function initHistDateFilters() {
         var today = todayIso();
         var d30   = (function() {
@@ -811,12 +836,16 @@ $(document).ready(function () {
 
                 var ligneBtns;
                 if (!m.statut_validation || m.statut_validation === 'EN_ATTENTE') {
-                    ligneBtns = '<button class="btn btn-xs btn-success btn-valider-ligne" '
-                              + 'data-id="' + m.cloture_id + '" data-devise="' + m.devise_code + '" data-guichet="' + g.code_guichet + '">'
-                              + '<i class="fas fa-check mr-1"></i>Valider</button> '
-                              + '<button class="btn btn-xs btn-danger btn-rejeter-ligne" '
-                              + 'data-id="' + m.cloture_id + '" data-devise="' + m.devise_code + '" data-guichet="' + g.code_guichet + '">'
-                              + '<i class="fas fa-times mr-1"></i>Rejeter</button>';
+                    if (!canValiderClotures) {
+                        ligneBtns = '<span class="text-muted small" title="Autorisation « Valider billettage / clôtures » requise"><i class="fas fa-lock"></i></span>';
+                    } else {
+                        ligneBtns = '<button class="btn btn-xs btn-success btn-valider-ligne" '
+                                  + 'data-id="' + m.cloture_id + '" data-devise="' + m.devise_code + '" data-guichet="' + g.code_guichet + '">'
+                                  + '<i class="fas fa-check mr-1"></i>Valider</button> '
+                                  + '<button class="btn btn-xs btn-danger btn-rejeter-ligne" '
+                                  + 'data-id="' + m.cloture_id + '" data-devise="' + m.devise_code + '" data-guichet="' + g.code_guichet + '">'
+                                  + '<i class="fas fa-times mr-1"></i>Rejeter</button>';
+                    }
                 } else if (m.statut_validation === 'VALIDE') {
                     ligneBtns = '<span class="badge badge-success"><i class="fas fa-check mr-1"></i>Validé</span>';
                 } else {
@@ -1132,6 +1161,7 @@ $(document).ready(function () {
     }
 
     function rafraichirStats() {
+        if (!canVoirMontants) return;
         $.get(urlStats).done(function (data) {
             $('#statTotalEntrees').text(data.total_entrees + ' dégag.');
             $('#statTotalSorties').text(data.total_sorties + ' alim.');
@@ -1158,6 +1188,7 @@ $(document).ready(function () {
 
     
     function rafraichirBalances() {
+        if (!canVoirMontants) return;
         $.get(urlBalances).done(function (data) {
             $.each(data, function (i, s) {
                 var fmt = s.solde.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1185,7 +1216,7 @@ $(document).ready(function () {
             var isAttente = (d.statut === 'EN_ATTENTE');
             var actions   = '';
 
-            if (isAttente) {
+            if (isAttente && canApprouverRavitaillement) {
                 actions = '<button class="btn btn-xs btn-success mr-1 btn-approuver" data-id="' + d.id + '" title="Approuver">'
                         + '<i class="fas fa-check"></i></button>'
                         + '<button class="btn btn-xs btn-danger btn-rejeter" data-id="' + d.id + '" title="Rejeter">'
@@ -1238,7 +1269,7 @@ $(document).ready(function () {
 
         $.each(demandes, function (i, d) {
             var actions = '<span class="text-muted small">—</span>';
-            if (d.statut === 'EN_ATTENTE') {
+            if (d.statut === 'EN_ATTENTE' && canAutoriserModifications) {
                 actions = '<button class="btn btn-xs btn-success mr-1 btn-tx-approuver" data-id="' + d.id + '" data-resume="' + escHtml((d.reference_operation || '—') + ' — ' + (d.client_nom || '—')) + '" title="Approuver"><i class="fas fa-check"></i></button>'
                         + '<button class="btn btn-xs btn-danger btn-tx-rejeter" data-id="' + d.id + '" data-resume="' + escHtml((d.reference_operation || '—') + ' — ' + (d.client_nom || '—')) + '" title="Rejeter"><i class="fas fa-times"></i></button>';
             } else if (d.traitee_le) {

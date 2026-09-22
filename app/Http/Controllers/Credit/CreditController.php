@@ -156,12 +156,10 @@ class CreditController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('numero_dossier', 'like', "%{$search}%")
-                  ->orWhere('client_matricule', 'like', "%{$search}%")
-                  ->orWhereHas('client', function ($cq) use ($search) {
-                      $cq->where('nom', 'like', "%{$search}%")
-                         ->orWhere('postnom', 'like', "%{$search}%")
-                         ->orWhere('prenom', 'like', "%{$search}%");
-                  });
+                   ->orWhere('client_matricule', 'like', "%{$search}%")
+                   ->orWhereHas('client', function ($cq) use ($search) {
+                       $cq->searchFullName($search);
+                   });
             });
         }
         // Période de déblocage
@@ -341,13 +339,11 @@ class CreditController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('numero_dossier', 'like', '%'.$search.'%')
-                  ->orWhere('client_matricule', 'like', '%'.$search.'%')
-                  ->orWhere('compte_id', 'like', '%'.$search.'%')
-                  ->orWhereHas('client', function ($cq) use ($search) {
-                      $cq->where('nom', 'like', '%'.$search.'%')
-                         ->orWhere('postnom', 'like', '%'.$search.'%')
-                         ->orWhere('prenom', 'like', '%'.$search.'%');
-                  });
+                   ->orWhere('client_matricule', 'like', '%'.$search.'%')
+                   ->orWhere('compte_id', 'like', '%'.$search.'%')
+                   ->orWhereHas('client', function ($cq) use ($search) {
+                       $cq->searchFullName($search);
+                   });
             });
         }
         if ($request->filled('zone')) {
@@ -382,6 +378,11 @@ class CreditController extends Controller
         if ($request->get('alerte') === 'alertes') {
             $query->whereIn('statut_global', ['SUSPECT','SUSPENDU']);
         }
+
+        // ─ Totaux selon le filtre actif (pour l'affichage au-dessus du tableau) ──
+        // Cloné AVANT paginate() : paginate() applique limit/offset au builder,
+        // donc un clone fait après ne totaliserait que la page courante (20 lignes).
+        $filteredQuery = clone $query;
 
         $dossiers = $query->orderByDesc('created_at')->paginate(20)->withQueryString();
 
@@ -427,8 +428,7 @@ class CreditController extends Controller
 
         // ─ Totaux selon le filtre actif (pour l'affichage au-dessus du tableau) ──
         // Calcul séparé par devise pour éviter d'additionner CDF et USD
-        $filteredQuery = clone $query;
-        $filtresActifs = $filteredQuery->get();
+        $filtresActifs = $filteredQuery->with('deblocage')->get();
 
         $idsFiltres = $filtresActifs->pluck('id')->toArray();
 
@@ -441,6 +441,14 @@ class CreditController extends Controller
             ? CreditDemande::whereIn('id', $idsFiltres)->enRetardReel()->pluck('id')->all()
             : [];
 
+        // Remboursements par devise — jamais de total CDF+USD mélangé
+        $rembourseParDevise = !empty($idsFiltres)
+            ? CreditRemboursement::whereIn('credit_demande_id', $idsFiltres)
+                ->selectRaw('devise, SUM(montant_recu) as total')
+                ->groupBy('devise')
+                ->pluck('total', 'devise')
+            : collect();
+
         // Totaux par devise
         $totauxParDevise = [];
         foreach ($filtresActifs->groupBy('devise') as $devise => $dossiersDevise) {
@@ -448,27 +456,20 @@ class CreditController extends Controller
                 'count'             => $dossiersDevise->count(),
                 'montant_demande'   => $dossiersDevise->sum('montant_demande'),
                 'montant_approuve'  => $dossiersDevise->sum('montant_approuve'),
-                'montant_net_verse' => $dossiersDevise->whereNotNull('deblocage_id')->sum(function($d) {
-                    return $d->deblocage?->montant_net_verse ?? 0;
-                }),
+                // Lien réel : tb_credit_deblocages.credit_demande_id (la colonne
+                // deblocage_id n'existe pas sur tb_credit_demandes).
+                'montant_net_verse' => $dossiersDevise->sum(fn ($d) => (float) ($d->deblocage?->montant_net_verse ?? 0)),
+                'montant_rembourse' => (float) ($rembourseParDevise[$devise] ?? 0),
                 'en_retard'         => $dossiersDevise->whereIn('id', $idsEnRetardReel)->count(),
                 'montant_en_retard' => $dossiersDevise->whereIn('id', $idsEnRetardReel)->sum('montant_demande'),
             ];
         }
 
-        // Totaux globaux (remboursement via table séparée)
-        $montantRembourse = !empty($idsFiltres)
-            ? CreditRemboursement::whereIn('credit_demande_id', $idsFiltres)->sum('montant_recu')
-            : 0;
-
         $totauxFiltres = [
             'count'             => count($idsFiltres),
             'montant_demande'   => $filtresActifs->sum('montant_demande'),
             'montant_approuve'  => $filtresActifs->sum('montant_approuve'),
-            'montant_net_verse' => $filtresActifs->whereNotNull('deblocage_id')->sum(function($d) {
-                return $d->deblocage?->montant_net_verse ?? 0;
-            }),
-            'montant_rembourse' => $montantRembourse,
+            'montant_net_verse' => $filtresActifs->sum(fn ($d) => (float) ($d->deblocage?->montant_net_verse ?? 0)),
             'en_retard'         => $filtresActifs->whereIn('id', $idsEnRetardReel)->count(),
             'montant_en_retard' => $filtresActifs->whereIn('id', $idsEnRetardReel)->sum('montant_demande'),
             'par_devise'        => $totauxParDevise,
@@ -707,19 +708,30 @@ class CreditController extends Controller
             ];
         }
 
+        // Totaux par zone ET par devise (jamais de somme CDF+USD mélangée :
+        // avant, une zone affichait un seul montant additionnant les deux
+        // devises, ce qui donnait des totaux incohérents avec l'en-tête).
         $totauxParZone = [];
         foreach ($allEcheances->groupBy(fn($e) => $e->echeancier->demande->zone->nom ?? ($e->echeancier->demande->code_zone ?? 'Sans zone')) as $zoneNom => $group) {
+            $parDevise = [];
+            foreach ($group->groupBy(fn($e) => $e->echeancier->demande->devise ?? 'N/A') as $devise => $g) {
+                $parDevise[$devise] = ['count' => $g->count(), 'reste_du' => $g->sum($resteDuFn)];
+            }
             $totauxParZone[$zoneNom] = [
-                'count'    => $group->count(),
-                'reste_du' => $group->sum($resteDuFn),
+                'count'      => $group->count(),
+                'par_devise' => $parDevise,
             ];
         }
 
         $totauxParPortefeuille = [];
         foreach ($allEcheances->groupBy(fn($e) => $e->echeancier->demande->portefeuille->nom_portefeuille ?? 'Sans portefeuille') as $pfNom => $group) {
+            $parDevise = [];
+            foreach ($group->groupBy(fn($e) => $e->echeancier->demande->devise ?? 'N/A') as $devise => $g) {
+                $parDevise[$devise] = ['count' => $g->count(), 'reste_du' => $g->sum($resteDuFn)];
+            }
             $totauxParPortefeuille[$pfNom] = [
-                'count'    => $group->count(),
-                'reste_du' => $group->sum($resteDuFn),
+                'count'      => $group->count(),
+                'par_devise' => $parDevise,
             ];
         }
 
@@ -877,14 +889,54 @@ class CreditController extends Controller
         $user = Auth::user();
 
         // Règle métier: toute personne habilitée à créer une demande peut sélectionner n'importe quel client.
-        $clients = Client::orderBy('nom')->orderBy('postnom')->orderBy('prenom')->get();
+        // PERFORMANCE (21/09/2026) : plus de chargement des 2 200+ clients en
+        // <option> (page très lourde) — le select client est en recherche AJAX
+        // (credit.clients.search). Seul le client déjà choisi (préselection ou
+        // ancienne saisie après erreur de validation) est rendu côté serveur.
+        $selectedClientMatricule = (string) (old('client_matricule') ?? $request->query('client_matricule') ?? '');
+        $selectedClient = $selectedClientMatricule !== ''
+            ? Client::where('matricule', $selectedClientMatricule)->first()
+            : null;
         $zones = Zone::orderBy('nom')->get();
-        $selectedClientMatricule = $request->query('client_matricule');
         $portefeuillesDisponibles = $user
             ? $this->resolveCreationPortefeuilleOptions($user)
             : collect();
 
-        return view('credit.creation', compact('clients', 'zones', 'selectedClientMatricule', 'portefeuillesDisponibles'));
+        return view('credit.creation', compact('zones', 'selectedClientMatricule', 'selectedClient', 'portefeuillesDisponibles'));
+    }
+
+    /**
+     * GET AJAX : recherche de clients pour les selects d'autocomplétion
+     * (création / modification de demande, import d'ancien dossier).
+     * Remplace le rendu serveur des 2 200+ <option> (page lourde).
+     */
+    public function searchClientAjax(Request $request)
+    {
+        $q = trim((string) $request->input('q', ''));
+        if (mb_strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $clients = Client::query()
+            ->where(function ($query) use ($q) {
+                $query->searchFullName($q)
+                    ->orWhere('matricule', 'like', "%{$q}%")
+                    ->orWhere('telephone', 'like', "%{$q}%");
+            })
+            ->orderBy('nom')->orderBy('postnom')->orderBy('prenom')
+            ->limit(10)
+            ->get()
+            ->map(fn ($c) => [
+                'matricule' => $c->matricule,
+                'full_name' => $c->full_name,
+                'nom'       => $c->full_name,           // nom + postnom + prénom (affichage modal)
+                'prenom'    => $c->prenom ?? '',
+                'telephone' => $c->telephone ?? '',
+                'sexe'      => $c->sexe ?? '',
+                'photo'     => $c->photo ? basename($c->photo) : '',
+            ]);
+
+        return response()->json($clients);
     }
 
     /**
@@ -1035,7 +1087,11 @@ class CreditController extends Controller
             return back()->withErrors(['numero_dossier' => "Erreur lors de la création du dossier : " . $e->getMessage()])->withInput();
         }
 
-        return redirect()->route('credit.show', $demande)
+        // Rester sur le formulaire de demande (pas credit.show : une personne
+        // qui crée des dossiers (PER54) n'a pas forcément PER57 « Voir détail »
+        // et tombait sinon sur une page « pas d'autorisation » après l'envoi).
+        // Le modal de succès s'affiche sur le formulaire (cf. credit.creation).
+        return redirect()->route('credit.create')
             ->with('success', "Dossier {$demande->numero_dossier} créé avec succès.");
     }
 
@@ -1043,15 +1099,20 @@ class CreditController extends Controller
     // IMPORT D'UN ANCIEN DOSSIER (historique, permission dédiée EBEN-PER127)
     // ================================================================
 
-    public function importAncien()
+    public function importAncien(Request $request)
     {
-        $clients = Client::orderBy('nom')->orderBy('postnom')->orderBy('prenom')->get();
+        // PERFORMANCE (21/09/2026) : plus de chargement des 2 200+ clients —
+        // select client en recherche AJAX (credit.clients.search).
+        $selectedClientMatricule = (string) (old('client_matricule') ?? $request->query('client_matricule') ?? '');
+        $selectedClient = $selectedClientMatricule !== ''
+            ? Client::where('matricule', $selectedClientMatricule)->first()
+            : null;
         $agentsAnalyse = $this->resolveAssignableCreditAgents();
         $agentsTous = Agent::orderBy('nom')->orderBy('postnom')->orderBy('prenom')->get(['matricule', 'nom', 'postnom', 'prenom']);
         $portefeuilles = Portefeuille::orderBy('nom_portefeuille')->get(['id', 'nom_portefeuille']);
 
         return view('credit.import_ancien', compact(
-            'clients', 'agentsAnalyse', 'agentsTous', 'portefeuilles'
+            'selectedClient', 'selectedClientMatricule', 'agentsAnalyse', 'agentsTous', 'portefeuilles'
         ));
     }
 
@@ -1282,7 +1343,8 @@ class CreditController extends Controller
             return back()->withErrors(['numero_dossier' => "Erreur lors de l'import du dossier : " . $e->getMessage()])->withInput();
         }
 
-        return redirect()->route('credit.show', $demande)
+        // Rester sur le formulaire d'import (PER127), pas credit.show (PER57)
+        return redirect()->route('credit.import_ancien')
             ->with('success', "Ancien dossier {$demande->numero_dossier} importé (déblocage au {$dateDeblocage->format('d/m/Y')}, échéancier généré).");
     }
 
@@ -1302,13 +1364,19 @@ class CreditController extends Controller
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
 
-        $clients = Client::orderBy('nom')->orderBy('postnom')->orderBy('prenom')->get();
+        // PERFORMANCE (21/09/2026) : plus de chargement des 2 200+ clients —
+        // select client en recherche AJAX (credit.clients.search) ; seul le
+        // client du dossier (ou l'ancienne saisie) est rendu côté serveur.
+        $selectedClientMatricule = (string) (old('client_matricule') ?? $dossier->client_matricule ?? '');
+        $selectedClient = $selectedClientMatricule !== ''
+            ? (Client::where('matricule', $selectedClientMatricule)->first() ?? $dossier->client)
+            : $dossier->client;
         $zones   = Zone::orderBy('nom')->get();
         $portefeuillesDisponibles = $user
             ? $this->resolveCreationPortefeuilleOptions($user)
             : collect();
 
-        return view('credit.edit', compact('dossier', 'clients', 'zones', 'portefeuillesDisponibles'));
+        return view('credit.edit', compact('dossier', 'selectedClient', 'zones', 'portefeuillesDisponibles'));
     }
 
     public function update(Request $request, CreditDemande $dossier)
@@ -1392,7 +1460,8 @@ class CreditController extends Controller
             "Montant: {$ancien->montant_demande}→{$validated['montant_demande']} | Durée: {$ancien->duree_mois}→{$validated['duree_mois']} mois"
         );
 
-        return redirect()->route('credit.show', $dossier)
+        // Rester sur le formulaire d'édition (PER55), pas credit.show (PER57)
+        return redirect()->route('credit.edit', $dossier)
             ->with('success', "Dossier {$dossier->numero_dossier} mis à jour avec succès.");
     }
 
@@ -2257,26 +2326,23 @@ class CreditController extends Controller
                 'date_operation'          => Carbon::parse($validated['date_deblocage']),
             ]);
 
-            // 9. Verser 20% (caution) + 4% (frais) dans le coffre central
-            $coffreGeneral = CaissesGuichet::central()->lockForUpdate()->first();
+            // 9. Caution (20%) et frais (4%) : mouvements PUREMENT comptables
+            // entre comptes internes du client (RMB -> GTC, RMB -> résultat).
+            // BUG CORRIGÉ : ce code créditait auparavant le coffre central
+            // physique (`solde_en_caisse`) de ces 24%, alors qu'aucun cash
+            // réel n'entre en caisse à cette étape (le montant débloqué
+            // n'est lui-même qu'une écriture RMB créée pour le crédit, pas
+            // un dépôt d'espèces). Cela gonflait artificiellement le solde
+            // comptable du coffre par rapport au solde physique réel à
+            // chaque déblocage (écart détecté aux clôtures de caisse).
+            // Le seul argent réellement décaissé en espèces (le "net versé"
+            // remis au client) transitera par un RETRAIT classique au
+            // guichet le jour où le client le retire, qui décrémente déjà
+            // correctement `solde_en_caisse` à ce moment-là — aucune
+            // écriture caisse physique supplémentaire n'est donc nécessaire
+            // ici.
+            $coffreGeneral = CaissesGuichet::central()->first();
             $coffreGeneralId = $coffreGeneral?->id ?? $coffreSolde->guichet_id;
-
-            $soldeCoffreGeneral = CaissesGuichetSolde::where('guichet_id', $coffreGeneralId)
-                ->where('devise_code', $dossier->devise)
-                ->lockForUpdate()
-                ->first();
-
-            if (!$soldeCoffreGeneral) {
-                $soldeCoffreGeneral = CaissesGuichetSolde::create([
-                    'guichet_id'      => $coffreGeneralId,
-                    'devise_code'     => $dossier->devise,
-                    'solde_en_caisse' => 0,
-                ]);
-            }
-
-            $totalCoffre = round($caution + $fraisReel, 2); // caution + frais (taux dynamiques)
-            $soldeCoffreGeneral->increment('solde_en_caisse', $totalCoffre);
-            $soldeCoffreGeneralNouveau = (float) $soldeCoffreGeneral->fresh()->solde_en_caisse;
 
             CreditDeblocage::create([
                 'credit_demande_id'     => $dossier->id,
@@ -2326,7 +2392,6 @@ class CreditController extends Controller
                 'compte_rmb_code'          => $compteCredit->code_compte,
                 'compte_gtc_code'          => $compteGtc->code_compte,
                 'coffre_general_id'        => $coffreGeneralId,
-                'coffre_general_solde'     => $soldeCoffreGeneralNouveau,
             ];
         });
 
@@ -2909,16 +2974,14 @@ class CreditController extends Controller
                                 ]);
                             }
 
-                            if ($coffreGeneral) {
-                                $soldeCoffreGd = CaissesGuichetSolde::where('guichet_id', $coffreGeneral->id)
-                                    ->where('devise_code', $dossier->devise)
-                                    ->lockForUpdate()
-                                    ->first();
-
-                                if ($soldeCoffreGd) {
-                                    $soldeCoffreGd->decrement('solde_en_caisse', $montantCaution);
-                                }
-                            }
+                            // BUG CORRIGÉ : ce bloc décrémentait auparavant le
+                            // coffre central physique (`solde_en_caisse`) de
+                            // la caution restituée, en miroir du crédit
+                            // fictif fait au déblocage (voir storeDeblocage).
+                            // Comme cette caution n'a jamais transité par la
+                            // caisse physique (transfert 100% interne RMB ->
+                            // GTC -> RMB), aucune écriture caisse physique
+                            // n'est nécessaire ici non plus.
                         }
                     }
                 }
@@ -3066,12 +3129,42 @@ class CreditController extends Controller
         $query = CreditDemande::with(['client','zone'])
             ->when($zonesCodes !== null, fn($q) => $q->whereIn('code_zone', $zonesCodes));
 
-        // Dossiers en retard
+        // Dossiers en retard — scopeEnRetardReel() = source unique (cf.
+        // CreditDemande) : couvre EN_RETARD, EN_ATTENTE et PARTIELLEMENT_PAYE
+        // dépassés (l'ancienne condition ignorait les dossiers déjà marqués
+        // EN_RETARD et les règlements partiels).
         $enRetard = (clone $query)
-            ->whereIn('statut_global', ['EN_REMBOURSEMENT','DEBLOQUE'])
-            ->whereHas('echeancier.echeances', fn($q) =>
-                $q->where('statut', 'EN_ATTENTE')->where('date_echeance', '<', now()->toDateString())
-            )->get();
+            ->enRetardReel()
+            ->with(['client', 'echeancier.echeances'])
+            ->get();
+
+        // Détails réels par dossier (les colonnes "Échéances retard" /
+        // "Montant impayé" / "Dernière éch. due" affichaient 0 / 0Fc / – car
+        // ces valeurs n'étaient jamais calculées).
+        $aujourdhui = now()->toDateString();
+
+        $enRetard->each(function (CreditDemande $d) use ($aujourdhui) {
+            $retard = collect($d->echeancier?->echeances ?? [])->filter(function ($e) use ($aujourdhui) {
+                if ($e->statut === 'PAYE') {
+                    return false;
+                }
+                $date = $e->date_echeance instanceof \Carbon\Carbon
+                    ? $e->date_echeance->toDateString()
+                    : (string) $e->date_echeance;
+
+                return $date < $aujourdhui;
+            });
+
+            $d->nb_echeances_retard = $retard->count();
+            $d->montant_impaye = round((float) $retard->sum(
+                fn ($e) => max(0, (float) $e->total_echeance - (float) $e->montant_paye)
+            ), 2);
+            $d->date_derniere_echeance_due = $retard
+                ->map(fn ($e) => $e->date_echeance instanceof \Carbon\Carbon
+                    ? $e->date_echeance->toDateString()
+                    : (string) $e->date_echeance)
+                ->max();
+        });
 
         // Dossiers suspects / suspendus
         $alertes = (clone $query)
@@ -3083,23 +3176,75 @@ class CreditController extends Controller
             ->where('statut_global', 'PRET_A_DEBLOQUER')
             ->get();
 
-        // Statistiques par zone
-        $statsZone = (clone $query)
-            ->select('code_zone', DB::raw('count(*) as total'), DB::raw('sum(montant_demande) as montant_total'))
-            ->groupBy('code_zone')
-            ->get();
+        // ── Statistiques par zone : données RÉELLES par devise ──────────
+        // (auparavant : total/actifs/retard/encours/impayés restaient à zéro
+        // — champs jamais calculés — d'où une colonne de tirets, un nom de
+        // zone vide et un taux de recouvrement figé à 100 %).
+        $tousDossiers = (clone $query)->with(['echeancier.echeances'])->get();
+        $nomsZones = Zone::pluck('nom', 'code_zone');
+
+        $stats_zones = $tousDossiers->groupBy('code_zone')->map(function ($dossiers, $codeZone) use ($nomsZones, $aujourdhui) {
+            $symboles = ['CDF' => 'Fc', 'USD' => '$', 'EUR' => '€'];
+            $encoursParDevise = [];
+            $impayesParDevise = [];
+            $actifs = 0;
+            $retard = 0;
+
+            foreach ($dossiers as $d) {
+                $devise = $d->devise ?: 'CDF';
+
+                $echeancesDues = collect($d->echeancier?->echeances ?? [])->filter(function ($e) use ($aujourdhui) {
+                    if ($e->statut === 'PAYE') {
+                        return false;
+                    }
+                    $date = $e->date_echeance instanceof \Carbon\Carbon
+                        ? $e->date_echeance->toDateString()
+                        : (string) $e->date_echeance;
+
+                    return $date < $aujourdhui;
+                });
+
+                // Encours = capital réellement dû par les clients (montant_approuve)
+                if (in_array($d->statut_global, ['DEBLOQUE', 'EN_REMBOURSEMENT', 'EN_RETARD'], true)) {
+                    $actifs++;
+                    $encoursParDevise[$devise] = ($encoursParDevise[$devise] ?? 0) + (float) $d->montant_approuve;
+                }
+
+                if ($echeancesDues->isNotEmpty()) {
+                    $retard++;
+                    $impayesParDevise[$devise] = ($impayesParDevise[$devise] ?? 0) + (float) $echeancesDues->sum(
+                        fn ($e) => max(0, (float) $e->total_echeance - (float) $e->montant_paye)
+                    );
+                }
+            }
+
+            $formater = function (array $parDevise) use ($symboles) {
+                if (empty($parDevise)) {
+                    return '—';
+                }
+                $parts = [];
+                foreach ($parDevise as $dev => $montant) {
+                    $parts[] = number_format($montant, 2, ',', ' ') . ' ' . ($symboles[$dev] ?? $dev);
+                }
+                return implode('<br>', $parts);
+            };
+
+            return (object) [
+                'code_zone'          => $codeZone,
+                'zone_nom'           => $nomsZones[$codeZone] ?? $codeZone,
+                'total_texte'        => (string) $dossiers->count(),
+                'actifs_texte'       => (string) $actifs,
+                'retard_texte'       => (string) $retard,
+                'encours_texte'      => $formater($encoursParDevise),
+                'impayes_texte'      => $formater($impayesParDevise),
+                'encours_par_devise' => $encoursParDevise,
+                'impayes_par_devise' => $impayesParDevise,
+            ];
+        })->sortByDesc(fn ($z) => array_sum($z->encours_par_devise))->values();
 
         $dossiers_retard = $enRetard;
         $dossiers_alertes = $alertes;
         $dossiers_pret_debloquer = $prets;
-        $stats_zones = $statsZone->map(function ($z) {
-            $z->total_dossiers = $z->total;
-            $z->dossiers_actifs = 0;
-            $z->en_retard = 0;
-            $z->encours = $z->montant_total;
-            $z->impayes = 0;
-            return $z;
-        });
         $stats = [
             'total_retard' => $enRetard->count(),
             'total_suspects' => $alertes->where('statut_global', 'SUSPECT')->count(),
@@ -3111,7 +3256,6 @@ class CreditController extends Controller
             'enRetard',
             'alertes',
             'prets',
-            'statsZone',
             'dossiers_retard',
             'dossiers_alertes',
             'dossiers_pret_debloquer',
@@ -3575,9 +3719,42 @@ class CreditController extends Controller
         }
     }
 
+    /**
+     * Périmètre de zone de l'utilisateur : null = accès GLOBAL (pas de
+     * filtre), sinon les codes de zone de ses affectations ACTIVES.
+     *
+     * Corrigé le 22/09/2026 (port du correctif Cooperc-AB) — deux bugs ici :
+     *  1) le périmètre global n'était accordé qu'au détenteur de EBEN-PER61.
+     *     Or le GÉRANT (EBEN-ROL12) détient PER63/PER64 (validation Gérant +
+     *     déblocage) mais PAS PER61 → sur les pages utilisant cette méthode
+     *     (En Cours, Supervision…), il tombait dans le filtre par zone et
+     *     voyait une liste VIDE alors que la liste des dossiers lui montrait
+     *     tout.
+     *  2) `$user->agent->code_zone` est une colonne qui N'EXISTE PAS sur
+     *     tb_agents → Eloquent renvoie toujours null, donc le repli codé en
+     *     dur 'ZONE-01' (qui ne correspond à AUCUNE zone réelle, format
+     *     ZON-BMB-26-xxxxx) était utilisé pour tout le monde : la clause
+     *     whereIn ne matchait jamais rien, chacun ne voyait que ses propres
+     *     dossiers créés.
+     * Le vrai périmètre vient de tb_affectations_zones (Etat = ACTIF).
+     */
     private function resolveZoneScope($user): ?array
     {
-        return $user?->hasPermission('EBEN-PER61') ? null : [$user?->agent?->code_zone ?? 'ZONE-01'];
+        $perms = $user?->getPermissionCodes() ?? [];
+        if (count(array_intersect(['EBEN-PER61', 'EBEN-PER62', 'EBEN-PER63', 'EBEN-PER64'], $perms)) > 0) {
+            return null; // Superviseur / Gérant : accès global, pas de restriction de zone.
+        }
+
+        $matricule = $user?->agent?->matricule;
+        if (!$matricule) {
+            return [];
+        }
+
+        return DB::table('tb_affectations_zones')
+            ->where('agent_matricule', $matricule)
+            ->where('Etat', 'ACTIF')
+            ->pluck('code_zone')
+            ->toArray();
     }
 
     private function resolvePortefeuilleScope($user): array

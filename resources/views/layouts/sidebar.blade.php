@@ -294,6 +294,17 @@ Rôle : Affiche le menu latéral (sidebar) de l’interface AdminLTE.
 									</a>
 								</li>
 							@endif
+
+							@if(in_array('EBEN-PER129', $userPermCodes ?? []))
+							<li class="nav-item">
+								<a href="{{ route('tresorerie.change-devise') }}"
+									class="nav-link sub-link {{ request()->routeIs('tresorerie.change-devise*') ? 'active' : '' }}"
+									title="Convertir une devise du coffre vers une autre">
+									<i class="fas fa-exchange-alt fa-fw nav-icon text-primary"></i>
+									<p>Change de Devises</p>
+								</a>
+							</li>
+							@endif
 						</ul>
 					</li>
 				@endif

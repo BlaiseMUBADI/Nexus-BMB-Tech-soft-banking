@@ -35,20 +35,21 @@ class CheckUserStatus
         }
 
         // Vérifier l'affectation uniquement si l'agent possède des affectations.
+        // PERFORMANCE : une seule requête agrégée au lieu de 2 EXISTS successifs
+        // (2 requêtes exécutées sur absolument toutes les pages).
         if ($user->agent_matricule) {
-            $hasAnyAffectation = Affectation::where('agent_matricule', $user->agent_matricule)->exists();
+            $stats = Affectation::where('agent_matricule', $user->agent_matricule)
+                ->selectRaw('COUNT(*) as total, SUM(CASE WHEN UPPER(Etat) = ? THEN 1 ELSE 0 END) as actives', ['ACTIF'])
+                ->first();
 
-            if ($hasAnyAffectation) {
-                $hasActiveAffectation = Affectation::where('agent_matricule', $user->agent_matricule)
-                    ->whereRaw('UPPER(Etat) = ?', ['ACTIF'])
-                    ->exists();
+            $hasAnyAffectation    = (int) ($stats->total ?? 0) > 0;
+            $hasActiveAffectation = (int) ($stats->actives ?? 0) > 0;
 
-                if (! $hasActiveAffectation) {
-                    return $this->logoutWithMessage(
-                        $request,
-                        'Votre affectation a été désactivée. Veuillez contacter l\'administrateur.'
-                    );
-                }
+            if ($hasAnyAffectation && ! $hasActiveAffectation) {
+                return $this->logoutWithMessage(
+                    $request,
+                    'Votre affectation a été désactivée. Veuillez contacter l\'administrateur.'
+                );
             }
         }
 

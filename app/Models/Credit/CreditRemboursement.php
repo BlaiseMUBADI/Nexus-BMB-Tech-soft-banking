@@ -5,6 +5,7 @@ namespace App\Models\Credit;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Clients\Compte;
 use App\Models\RH\Agent;
+use Carbon\Carbon;
 
 class CreditRemboursement extends Model
 {
@@ -55,6 +56,48 @@ class CreditRemboursement extends Model
     public function caissier()
     {
         return $this->belongsTo(Agent::class, 'agent_matricule', 'matricule');
+    }
+
+    /**
+     * Jours OUVRABLES de retard soldés par ce paiement (banque ouverte
+     * lundi-samedi, dimanche exclu — même règle que la liste recouvrement).
+     * Échéance réglée après sa date → le client a payé « avec le retard » ;
+     * 0 si le paiement est dans les temps ou sans échéance liée.
+     */
+    public function getJoursRetardSoldeAttribute(): int
+    {
+        $echeance = $this->echeance;
+        if (!$echeance || empty($echeance->date_echeance) || !$this->recu_le) {
+            return 0;
+        }
+
+        // Le badge « retard soldé » ne concerne que le paiement qui a SOLDÉ
+        // l'échéance : une échéance encore PARTIELLEMENT_PAYE n'a pas son
+        // retard soldé, et un versement partiel antérieur ne l'a pas soldée.
+        if ($echeance->statut !== 'PAYE' || empty($echeance->date_paiement_effectif)) {
+            return 0;
+        }
+        if (!Carbon::parse($this->recu_le)->startOfDay()
+                ->isSameDay(Carbon::parse($echeance->date_paiement_effectif)->startOfDay())) {
+            return 0;
+        }
+
+        $due      = Carbon::parse($echeance->date_echeance)->startOfDay();
+        $paiement = Carbon::parse($this->recu_le)->startOfDay();
+        if ($paiement->lessThanOrEqualTo($due)) {
+            return 0;
+        }
+
+        // Retard = jours ouvrables dans (date_echeance, date_paiement]
+        $jours = 0;
+        $d = $due->copy()->addDay();
+        while ($d->lessThanOrEqualTo($paiement) && $jours < 3650) {
+            if ($d->dayOfWeekIso <= 6) {
+                $jours++;
+            }
+            $d->addDay();
+        }
+        return $jours;
     }
 
     // Accessors de compatibilite

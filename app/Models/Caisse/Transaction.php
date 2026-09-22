@@ -125,6 +125,12 @@ class Transaction extends Model
         return $this->belongsTo(\App\Models\Credit\CreditDemande::class, 'dossier_credit_id', 'id');
     }
 
+    /** Remboursement de crédit enregistré pour cette transaction de caisse */
+    public function creditRemboursement()
+    {
+        return $this->hasOne(\App\Models\Credit\CreditRemboursement::class, 'transaction_id', 'id');
+    }
+
     // ── Helpers statiques ───────────────────────────────────────
 
     /** Libellé lisible d'un type de transaction */

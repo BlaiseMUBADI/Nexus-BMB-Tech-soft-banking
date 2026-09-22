@@ -18,6 +18,7 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
         Route::get('operations',                        [OperationCaisseController::class, 'index'])->name('operations.index');
         Route::get('operations/comptes/search',         [OperationCaisseController::class, 'searchCompte'])->name('operations.comptes.search');
         Route::get('operations/clients/search',         [OperationCaisseController::class, 'searchClient'])->name('operations.searchClient');
+        Route::get('operations/scan-carte',             [OperationCaisseController::class, 'scanCarte'])->name('operations.scanCarte');
         Route::get('operations/commission-preview',      [OperationCaisseController::class, 'commissionPreview'])->name('operations.commission.preview');
 
         // ── Opérations Administratives : Dépenses (Sorties) + Recettes (Entrées) OHADA ──
@@ -92,7 +93,9 @@ Route::middleware('auth')->prefix('caisses')->name('caisses.')->group(function (
         Route::get('demandes-modification/count', [OperationCaisseController::class, 'demandesModificationCount'])->name('demandes.modification.count');
     });
 
-    Route::middleware('permission:EBEN-PER44')->group(function () {
+    // Autorisation dédiée EBEN-PER133 : approuver/rejeter les demandes de
+    // modification/suppression d'opérations (page "État du coffre" + liste).
+    Route::middleware('permission:EBEN-PER133')->group(function () {
         Route::post('demandes-modification/{id}/approuver', [OperationCaisseController::class, 'approuverModification'])->name('demandes.modification.approuver');
         Route::post('demandes-modification/{id}/rejeter',   [OperationCaisseController::class, 'rejeterModification'])->name('demandes.modification.rejeter');
     });

@@ -48,17 +48,20 @@
                 @php($selectedClientValue = old('client_matricule', $selectedClientMatricule ?? request('client_matricule')))
                 <select name="client_matricule" id="sel_client" class="form-control select2" required>
                     <option value="">-- Sélectionner un client --</option>
-                    @foreach($clients as $c)
-                    <option value="{{ $c->matricule }}"
-                            data-nom="{{ trim(($c->nom ?? '') . ' ' . ($c->postnom ?? '') . ' ' . ($c->prenom ?? '')) }}"
-                            data-prenom="{{ $c->prenom ?? '' }}"
-                            data-telephone="{{ $c->telephone ?? '' }}"
-                            data-photo="{{ $c->photo ? basename($c->photo) : '' }}"
-                            data-sexe="{{ $c->sexe ?? '' }}"
-                            {{ $selectedClientValue == $c->matricule ? 'selected' : '' }}>
-                        {{ trim(($c->nom ?? '') . ' ' . ($c->postnom ?? '') . ' ' . ($c->prenom ?? '')) }} – {{ $c->matricule }}
+                    {{-- Seul le client déjà choisi est rendu côté serveur (le
+                         reste vient de la recherche AJAX : 2 200+ clients en
+                         <option> rendaient la page très lourde). --}}
+                    @if(!empty($selectedClient))
+                    <option value="{{ $selectedClient->matricule }}"
+                            data-nom="{{ $selectedClient->full_name }}"
+                            data-prenom="{{ $selectedClient->prenom ?? '' }}"
+                            data-telephone="{{ $selectedClient->telephone ?? '' }}"
+                            data-photo="{{ $selectedClient->photo ? basename($selectedClient->photo) : '' }}"
+                            data-sexe="{{ $selectedClient->sexe ?? '' }}"
+                            selected>
+                        {{ $selectedClient->full_name }} – {{ $selectedClient->matricule }}
                     </option>
-                    @endforeach
+                    @endif
                 </select>
                 <input type="hidden" id="selectedClientMatriculeConfirmed" value="{{ $selectedClientValue }}">
             </div>
@@ -325,22 +328,45 @@ window.addEventListener('DOMContentLoaded', () => {
         $('#sel_client').select2({
             theme: 'bootstrap4',
             width: '100%',
-            placeholder: '-- Sélectionner un client --',
+            placeholder: '-- Sélectionner un client (nom, postnom, prénom...) --',
             allowClear: true,
+            minimumInputLength: 2,
             language: {
-                noResults: function () { return 'Aucun client trouvé'; }
+                noResults: function () { return 'Aucun client trouvé'; },
+                inputTooShort: function () { return 'Tapez au moins 2 caractères (nom, postnom, prénom ou matricule).'; }
+            },
+            ajax: {
+                url: '{{ route("credit.clients.search") }}',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) { return { q: params.term }; },
+                processResults: function (data) {
+                    return {
+                        results: data.map(function (c) {
+                            return {
+                                id: c.matricule,
+                                text: c.full_name + ' – ' + c.matricule,
+                                nom: c.nom || '',
+                                prenom: c.prenom || '',
+                                telephone: c.telephone || '',
+                                sexe: c.sexe || '',
+                                photo: c.photo || ''
+                            };
+                        })
+                    };
+                }
             }
         });
 
-        $('#sel_client').on('select2:select', function() {
-            const opt = $(this).find('option:selected');
+        $('#sel_client').on('select2:select', function(e) {
+            const d = e.params.data;
             pendingClient = {
-                matricule: opt.val() || '',
-                nom: $.trim(opt.data('nom') || ''),
-                prenom: $.trim(opt.data('prenom') || ''),
-                telephone: $.trim(opt.data('telephone') || '') || '—',
-                photo: $.trim(opt.data('photo') || ''),
-                sexe: $.trim(opt.data('sexe') || ''),
+                matricule: d.id || '',
+                nom: $.trim(d.nom || ''),
+                prenom: $.trim(d.prenom || ''),
+                telephone: $.trim(d.telephone || '') || '—',
+                photo: $.trim(d.photo || ''),
+                sexe: $.trim(d.sexe || ''),
             };
 
             $('#nomCompletIdentiteCredit').text(pendingClient.nom || '—');
@@ -402,3 +428,16 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 @endpush
+
+{{-- Après enregistrement : modal système de succès + rester sur le formulaire --}}
+@if(session('success'))
+@push('js')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof showSystemMessage === 'function') {
+            showSystemMessage('success', @json(session('success')));
+        }
+    });
+</script>
+@endpush
+@endif

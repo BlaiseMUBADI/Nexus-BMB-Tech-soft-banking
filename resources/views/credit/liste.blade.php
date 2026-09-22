@@ -40,6 +40,7 @@
                                     "Demandé: " . number_format($totaux['montant_demande'], 0, ',', ' ') . "{$symbole}\n" .
                                     "Approuvé: " . number_format($totaux['montant_approuve'], 0, ',', ' ') . "{$symbole}\n" .
                                     "Décaissé: " . number_format($totaux['montant_net_verse'], 0, ',', ' ') . "{$symbole}\n" .
+                                    "Remboursé: " . number_format($totaux['montant_rembourse'] ?? 0, 0, ',', ' ') . "{$symbole}\n" .
                                     "En retard: {$totaux['en_retard']} dossier(s)";
                                 if ($totaux['montant_en_retard'] > 0) {
                                     $tooltipContent .= "\nMontant en retard: " . number_format($totaux['montant_en_retard'], 0, ',', ' ') . "{$symbole}";
@@ -61,17 +62,12 @@
                                     <i class="fas fa-exclamation-triangle text-warning" title="En retard"></i>
                                     <strong class="text-warning ml-1">{{ $totaux['en_retard'] }}</strong>
                                 @endif
+                                @if(($totaux['montant_rembourse'] ?? 0) > 0)
+                                    <i class="fas fa-undo text-light ml-2" title="Remboursé"></i>
+                                    <strong class="text-light ml-1">{{ number_format($totaux['montant_rembourse'], 0, ',', ' ') }}{{ $symbole }}</strong>
+                                @endif
                             </div>
                         @endforeach
-                        @if($totauxFiltres['montant_rembourse'] > 0)
-                            <div class="d-flex align-items-center px-2"
-                                 data-toggle="tooltip"
-                                 title="Remboursé: {{ number_format($totauxFiltres['montant_rembourse'], 0, ',', ' ') }}"
-                                 style="cursor: pointer;">
-                                <i class="fas fa-undo text-light mr-2"></i>
-                                <strong class="text-light">{{ number_format($totauxFiltres['montant_rembourse'], 0, ',', ' ') }}</strong>
-                            </div>
-                        @endif
                     </div>
                 </div>
             </div>

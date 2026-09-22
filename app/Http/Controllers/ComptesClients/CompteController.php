@@ -215,30 +215,81 @@ class CompteController extends Controller
     }
 
     // Affiche le formulaire d'ouverture de compte
-    public function create()
+    public function create(Request $request)
     {
         $zoneScope = $this->resolveZoneScope();
 
-        $clientsQuery = Client::orderBy('nom');
-        if ($zoneScope['restricted'] ?? false) {
-            $zoneCodes = $zoneScope['zone_codes'] ?? [];
-            if (empty($zoneCodes)) {
-                $clientsQuery->whereRaw('1 = 0');
-            } else {
-                $clientsQuery->whereIn('code_zone', $zoneCodes);
-            }
-        }
+        // PERFORMANCE (21/09/2026) : plus de chargement des 2 200+ clients ni
+        // de tous les comptes (2 600+ lignes + relations) en mémoire à chaque
+        // affichage. Select client en recherche AJAX (comptes.clients.search)
+        // et table des comptes paginée avec recherche côté serveur.
+        $rechercheComptes = trim((string) $request->input('q', ''));
 
         $comptesQuery = Compte::with(['client', 'portefeuille.agent', 'portefeuille.affectationActive.agent'])->orderByDesc('created_at');
         $this->applyZoneScopeToComptes($comptesQuery, $zoneScope);
 
-        $clients = $clientsQuery->get();
-        $comptes = $comptesQuery->get();
+        if ($rechercheComptes !== '') {
+            $comptesQuery->where(function ($query) use ($rechercheComptes) {
+                $query->where('code_compte', 'like', "%{$rechercheComptes}%")
+                      ->orWhereHas('client', function ($cq) use ($rechercheComptes) {
+                          $cq->searchFullName($rechercheComptes)
+                             ->orWhere('matricule', 'like', "%{$rechercheComptes}%");
+                      });
+            });
+        }
+
+        $comptes = $comptesQuery->paginate(25)->withQueryString();
+
+        // Client présélectionné après une erreur de validation (old input)
+        $ancienMatricule = (string) old('client_matricule', '');
+        $selectedClient = $ancienMatricule !== ''
+            ? Client::where('matricule', $ancienMatricule)->first()
+            : null;
+
         $portefeuilles = \App\Models\Tresorerie\Portefeuille::with(['agent', 'affectationActive.agent'])->orderBy('nom_portefeuille')->get();
         $devises = \App\Models\Tresorerie\Devise::orderBy('nom')->get();
         $zoneRestriction = $this->zoneRestrictionInfo($zoneScope);
 
-        return view('comptes_clients.create', compact('clients', 'comptes', 'portefeuilles', 'devises', 'zoneRestriction'));
+        return view('comptes_clients.create', compact('comptes', 'selectedClient', 'rechercheComptes', 'portefeuilles', 'devises', 'zoneRestriction'));
+    }
+
+    /**
+     * GET AJAX : recherche de clients pour le select "Client" du formulaire
+     * d'ouverture de compte (remplace le rendu de 2 200+ <option>).
+     */
+    public function searchClient(Request $request)
+    {
+        $q = trim((string) $request->input('q', ''));
+        if (mb_strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $zoneScope = $this->resolveZoneScope();
+
+        $query = Client::query()->where(function ($query) use ($q) {
+            $query->searchFullName($q)
+                ->orWhere('matricule', 'like', "%{$q}%")
+                ->orWhere('telephone', 'like', "%{$q}%");
+        });
+
+        if ($zoneScope['restricted'] ?? false) {
+            $zoneCodes = $zoneScope['zone_codes'] ?? [];
+            if (empty($zoneCodes)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('code_zone', $zoneCodes);
+            }
+        }
+
+        $clients = $query->orderBy('nom')->orderBy('postnom')->orderBy('prenom')
+            ->limit(10)
+            ->get()
+            ->map(fn ($c) => [
+                'matricule' => $c->matricule,
+                'full_name' => $c->full_name,
+            ]);
+
+        return response()->json($clients);
     }
 
     // Enregistre un nouveau compte

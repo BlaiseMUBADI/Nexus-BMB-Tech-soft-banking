@@ -75,9 +75,18 @@ class Client extends Model
             return $query;
         }
 
-        return $query->whereRaw(
-            "LOWER(CONCAT_WS(' ', NULLIF(TRIM(nom), ''), NULLIF(TRIM(postnom), ''), NULLIF(TRIM(prenom), ''))) LIKE LOWER(?)",
-            ['%' . $search . '%']
-        );
+        $concat = "LOWER(CONCAT_WS(' ', NULLIF(TRIM(nom), ''), NULLIF(TRIM(postnom), ''), NULLIF(TRIM(prenom), '')))";
+
+        // Chaque mot saisi doit se retrouver dans le nom complet, dans
+        // n'importe quel ordre : « MUBADI BAKAJIKA Blaise », « Blaise
+        // MUBADI » ou « bakajika blaise » trouvent le même client.
+        return $query->where(function (Builder $q) use ($search, $concat) {
+            foreach (preg_split('/\s+/', $search) as $mot) {
+                if ($mot === '') {
+                    continue;
+                }
+                $q->whereRaw("$concat LIKE LOWER(?)", ['%' . $mot . '%']);
+            }
+        });
     }
 }

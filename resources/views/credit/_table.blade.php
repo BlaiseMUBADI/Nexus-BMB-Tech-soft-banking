@@ -57,7 +57,7 @@
                     </a>
                 </td>
                 <td>
-                    <span class="font-weight-bold">{{ $d->client?->nom }} {{ $d->client?->prenom }}</span>
+                    <span class="font-weight-bold">{{ $d->client?->full_name }}</span>
                     <br><small class="text-muted">{{ $d->client_matricule }}</small>
                 </td>
                 <td>

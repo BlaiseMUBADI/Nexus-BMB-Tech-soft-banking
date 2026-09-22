@@ -429,9 +429,6 @@ class ClientController extends Controller
             $search = trim((string) request('search'));
             $query->where(function($q) use ($search) {
                 $q->searchFullName($search)
-                ->orWhere('nom', 'like', "%$search%")
-                ->orWhere('postnom', 'like', "%$search%")
-                ->orWhere('prenom', 'like', "%$search%")
                 ->orWhere('matricule', 'like', "%$search%")
                 ->orWhere('telephone', 'like', "%$search%")
                 ->orWhere('email', 'like', "%$search%");

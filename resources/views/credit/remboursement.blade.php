@@ -266,6 +266,12 @@
                 <td class="text-right">{{ number_format($e->capital_restant_fin, 2, ',', ' ') }} <small class="text-muted">{{ $devise }}</small></td>
                 <td class="text-nowrap">
                     <span class="badge badge-{{ $badgeColor }}">{{ $badgeLabel }}</span>
+                    @if($e->statut === 'PAYE' && $e->jours_retard_solde > 0)
+                        <span class="badge badge-warning"
+                              title="Échéance réglée après sa date — retard soldé (jours ouvrables, lundi-samedi, dimanche exclu)">
+                            <i class="fas fa-clock mr-1"></i>retard soldé ({{ $e->jours_retard_solde }} j)
+                        </span>
+                    @endif
                 </td>
             </tr>
             @endforeach
@@ -299,7 +305,15 @@
             <tbody>
             @foreach($demande->remboursements->sortByDesc('date_paiement') as $r)
             <tr>
-                <td>{{ optional($r->date_paiement)->format('d/m/Y') }}</td>
+                <td>
+                    {{ optional($r->date_paiement)->format('d/m/Y') }}
+                    @if($r->jours_retard_solde > 0)
+                        <br><span class="badge badge-warning"
+                                  title="Échéance réglée après sa date — retard soldé (jours ouvrables, lundi-samedi, dimanche exclu)">
+                            <i class="fas fa-clock mr-1"></i>retard soldé ({{ $r->jours_retard_solde }} j)
+                        </span>
+                    @endif
+                </td>
                 <td class="text-right">{{ number_format($r->montant_recu, 2, ',', ' ') }}</td>
                 <td>{{ $r->mode_paiement ?? '–' }}</td>
                 <td><small>{{ $r->reference_paiement ?? '–' }}</small></td>

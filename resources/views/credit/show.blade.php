@@ -616,9 +616,14 @@
                               // Badge UNIQUE et sans ambiguïté (cf. même logique que
                               // credit/remboursement.blade.php) : le montant exact est
                               // déjà dans "Reste dû", inutile d'empiler 2 badges.
+                              // BUG corrigé : $ligneEnRetardReel ne couvrait que
+                              // EN_ATTENTE/PARTIELLEMENT_PAYE devenus en retard —
+                              // oubliait le cas où statut est DÉJÀ 'EN_RETARD' en
+                              // base (déjà synchronisé par le cron/self-heal),
+                              // affichant alors à tort "EN ATTENTE".
                               if ($e->statut === 'PAYE') {
                                   $lbl = 'PAYE'; $badgeClass = 'success';
-                              } elseif ($ligneEnRetardReel) {
+                              } elseif ($e->statut === 'EN_RETARD' || $ligneEnRetardReel) {
                                   $lbl = 'EN RETARD'; $badgeClass = 'danger';
                               } elseif ($e->statut === 'PARTIELLEMENT_PAYE') {
                                   $lbl = 'PARTIELLEMENT'; $badgeClass = 'info';
@@ -635,7 +640,13 @@
                               $peutRemboursement = in_array('EBEN-PER10', $userPermCodes ?? []) || in_array('EBEN-PER111', $userPermCodes ?? []);
                               $peutReglerAuto = $peutRemboursement && $echeanceEligibleReglementAuto && ($soldeRmb >= $montantRestantDu) && $montantRestantDu > 0;
                           @endphp
-                          <span class="badge badge-{{ $badgeClass }}">{{ $lbl }}</span>
+                           <span class="badge badge-{{ $badgeClass }}">{{ $lbl }}</span>
+                           @if($e->statut === 'PAYE' && $e->jours_retard_solde > 0)
+                               <span class="badge badge-warning"
+                                     title="Échéance réglée après sa date — retard soldé (jours ouvrables, lundi-samedi, dimanche exclu)">
+                                   <i class="fas fa-clock mr-1"></i>retard soldé ({{ $e->jours_retard_solde }} j)
+                               </span>
+                           @endif
 
                           @if($peutReglerAuto)
                               <form id="form-reglement-auto-{{ $e->id }}" method="POST" action="{{ route('credit.reglement.auto.echeance', $dossier) }}" style="display:inline;">
@@ -668,7 +679,15 @@
                 <tbody>
                 @foreach($demande->remboursements->sortByDesc('date_paiement') as $r)
                 <tr>
-                    <td>{{ optional($r->date_paiement)->format('d/m/Y') }}</td>
+                    <td>
+                        {{ optional($r->date_paiement)->format('d/m/Y') }}
+                        @if($r->jours_retard_solde > 0)
+                            <br><span class="badge badge-warning"
+                                      title="Échéance réglée après sa date — retard soldé (jours ouvrables, lundi-samedi, dimanche exclu)">
+                                <i class="fas fa-clock mr-1"></i>retard soldé ({{ $r->jours_retard_solde }} j)
+                            </span>
+                        @endif
+                    </td>
                     <td class="text-right">{{ number_format($r->montant_recu, 2, ',', ' ') }}</td>
                     <td class="text-right">{{ number_format($r->montant_capital_paye, 2, ',', ' ') }}</td>
                     <td class="text-right">{{ number_format($r->montant_interet_paye, 2, ',', ' ') }}</td>

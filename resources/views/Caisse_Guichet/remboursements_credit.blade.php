@@ -130,13 +130,19 @@
                                 </td>
                                 <td>
                                     @if($op->dossierCredit && $op->dossierCredit->client)
-                                        {{ $op->dossierCredit->client->nom }} {{ $op->dossierCredit->client->postnom }}
+                                        {{ $op->dossierCredit->client->full_name }}
                                     @else
                                         <span class="text-muted">—</span>
                                     @endif
                                 </td>
                                 <td class="text-right font-weight-bold">
                                     {{ number_format($op->montant, 2, ',', ' ') }} <small class="text-muted">{{ $op->devise_code }}</small>
+                                    @if(($op->creditRemboursement?->jours_retard_solde ?? 0) > 0)
+                                        <br><span class="badge badge-warning"
+                                                  title="Échéance réglée après sa date — retard soldé (jours ouvrables, lundi-samedi, dimanche exclu)">
+                                            <i class="fas fa-clock mr-1"></i>retard soldé ({{ $op->creditRemboursement->jours_retard_solde }} j)
+                                        </span>
+                                    @endif
                                 </td>
                                 <td>{{ $op->guichet->code_guichet ?? '—' }}</td>
                                 <td class="text-center">
